@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Page Rotator & Remover</title>
+    
+    <!-- Include Libraries from a CDN -->
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <script src="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+
+    <style>
+        :root {
+            --primary-color: #007bff;
+            --secondary-color: #6c757d;
+            --danger-color: #dc3545;
+            --light-color: #f8f9fa;
+            --dark-color: #343a40;
+            --border-color: #dee2e6;
+            --shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--light-color);
+            margin: 0;
+            padding: 20px;
+            color: var(--dark-color);
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .uploader {
+            text-align: center;
+            padding: 60px 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        #upload-label {
+            display: inline-block;
+            padding: 12px 25px;
+            background-color: var(--primary-color);
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1.1em;
+            transition: background-color 0.2s;
+        }
+
+        #upload-label:hover {
+            background-color: #0056b3;
+        }
+
+        #pdf-upload {
+            display: none;
+        }
+        
+        .editor {
+            display: none; /* Hidden by default */
+            grid-template-columns: 250px 1fr;
+            grid-template-rows: auto 1fr;
+            grid-template-areas: 
+                "header header"
+                "sidebar main";
+            height: 85vh;
+        }
+
+        .editor-header {
+            grid-area: header;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 20px;
+            border-bottom: 1px solid var(--border-color);
+            background-color: #fdfdfd;
+        }
+        
+        .page-info {
+            font-size: 1.1em;
+            font-weight: 500;
+        }
+
+        .controls button, .download-btn {
+            padding: 8px 15px;
+            margin-left: 10px;
+            border: 1px solid var(--secondary-color);
+            background-color: white;
+            color: var(--secondary-color);
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: all 0.2s;
+        }
+
+        .controls button:hover, .download-btn:hover {
+            background-color: var(--secondary-color);
+            color: white;
+        }
+        .controls button:disabled {
+            background-color: #e9ecef;
+            color: #6c757d;
+            cursor: not-allowed;
+            border-color: #dee2e6;
+        }
+
+        #exclude-page {
+            border-color: var(--danger-color);
+            color: var(--danger-color);
+        }
+        #exclude-page:hover {
+            background-color: var(--danger-color);
+            color: white;
+        }
+
+        .download-btn {
+            border-color: #28a745;
+            background-color: #28a745;
+            color: white;
+        }
+        .download-btn:hover {
+            background-color: #218838;
+        }
+        .download-btn:disabled {
+            background-color: #cccccc;
+            border-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        #thumbnail-container {
+            grid-area: sidebar;
+            overflow-y: auto;
+            background: #f1f3f5;
+            padding: 10px;
+            border-right: 1px solid var(--border-color);
+        }
+
+        .thumbnail {
+            position: relative;
+            margin-bottom: 10px;
+            cursor: pointer;
+            border: 3px solid transparent;
+            border-radius: 5px;
+            transition: all 0.2s;
+        }
+
+        .thumbnail canvas {
+            width: 100%;
+            height: auto;
+            display: block;
+            border-radius: 2px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+        }
+
+        .thumbnail.selected {
+            border-color: var(--primary-color);
+        }
+        
+        .thumbnail.excluded {
+            opacity: 0.4;
+            filter: grayscale(100%);
+        }
+
+        #page-viewer {
+            grid-area: main;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            overflow: auto;
+            background-color: #e9ecef;
+            position: relative;
+        }
+        
+        #page-viewer.excluded::after {
+            content: 'PAGE EXCLUDED';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: rgba(108, 117, 125, 0.7);
+            color: white;
+            font-size: 2em;
+            font-weight: bold;
+            pointer-events: none;
+            border-radius: 2px;
+        }
+
+        #pdf-canvas {
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border-color);
+        }
+
+        #loader {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .spinner {
+            border: 8px solid #f3f3f3;
+            border-top: 8px solid var(--primary-color);
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="uploader" id="uploader">
+            <h1>PDF Page Rotator & Remover</h1>
+            <p>Upload a PDF, select pages to rotate or exclude, and download the result.</p>
+            <input type="file" id="pdf-upload" accept=".pdf">
+            <label for="pdf-upload" id="upload-label">Click to Upload PDF</label>
+        </div>
+
+        <div class="editor" id="editor">
+            <div class="editor-header">
+                 <div class="page-info" id="page-info">Page 1 / 1</div>
+                 <div class="controls">
+                     <button id="rotate-left">Rotate Left (-90°)</button>
+                     <button id="rotate-right">Rotate Right (+90°)</button>
+                     <button id="exclude-page">Exclude Page</button>
+                     <button class="download-btn" id="download-btn" disabled>Download Modified PDF</button>
+                 </div>
+            </div>
+
+            <div id="thumbnail-container"></div>
+            <div id="page-viewer">
+                <canvas id="pdf-canvas"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <div id="loader">
+        <div class="spinner"></div>
+    </div>
+
+<script>
+    // Set up worker
+    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js`;
+
+    // DOM Elements
+    const uploadInput = document.getElementById('pdf-upload');
+    const uploaderSection = document.getElementById('uploader');
+    const editorSection = document.getElementById('editor');
+    const thumbnailContainer = document.getElementById('thumbnail-container');
+    const pageViewer = document.getElementById('page-viewer');
+    const mainCanvas = document.getElementById('pdf-canvas');
+    const pageInfo = document.getElementById('page-info');
+    const rotateLeftBtn = document.getElementById('rotate-left');
+    const rotateRightBtn = document.getElementById('rotate-right');
+    const excludePageBtn = document.getElementById('exclude-page');
+    const downloadBtn = document.getElementById('download-btn');
+    const loader = document.getElementById('loader');
+
+    // Global State
+    let pdfDoc = null;
+    let currentPageNum = 1;
+    let originalPdfBytes = null;
+    let pageRotations = {}; // Stores our ADDED rotations { pageNum: angle }
+    let pageOriginalRotations = {}; // Stores the page's original rotation
+    let excludedPages = new Set(); // Stores excluded page numbers
+    let hasChanges = false;
+
+    // --- Event Listeners ---
+    uploadInput.addEventListener('change', handleFileSelect);
+    rotateLeftBtn.addEventListener('click', () => rotatePage(-90));
+    rotateRightBtn.addEventListener('click', () => rotatePage(90));
+    excludePageBtn.addEventListener('click', togglePageExclusion);
+    downloadBtn.addEventListener('click', exportPdf);
+
+    // --- Functions ---
+    
+    function showLoader(show) {
+        loader.style.display = show ? 'flex' : 'none';
+    }
+
+    async function handleFileSelect(event) {
+        const file = event.target.files[0];
+        if (!file || file.type !== 'application/pdf') {
+            alert('Please select a valid PDF file.');
+            return;
+        }
+        showLoader(true);
+        const fileReader = new FileReader();
+        fileReader.onload = async (e) => {
+            // *** THE FIX IS HERE: Corrected typo from Uint8Afrray to Uint8Array ***
+            originalPdfBytes = new Uint8Array(e.target.result);
+            const loadingTask = pdfjsLib.getDocument({ data: originalPdfBytes.slice() });
+            
+            try {
+                pdfDoc = await loadingTask.promise;
+                await initializeEditor();
+            } catch (error) {
+                console.error('Error loading PDF:', error);
+                alert('Could not load the PDF. It might be corrupted or protected.');
+                showLoader(false);
+            }
+        };
+        fileReader.readAsArrayBuffer(file);
+    }
+
+    async function initializeEditor() {
+        uploaderSection.style.display = 'none';
+        editorSection.style.display = 'grid';
+        // Reset all states for a new file
+        pageRotations = {};
+        pageOriginalRotations = {}; 
+        excludedPages = new Set();
+        hasChanges = false;
+        downloadBtn.disabled = true;
+        
+        for (let i = 1; i <= pdfDoc.numPages; i++) {
+            const page = await pdfDoc.getPage(i);
+            pageOriginalRotations[i] = page.rotate; 
+        }
+
+        await renderAllThumbnails();
+        await renderPage(1);
+    }
+
+    async function renderAllThumbnails() {
+        thumbnailContainer.innerHTML = '';
+        for (let i = 1; i <= pdfDoc.numPages; i++) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'thumbnail';
+            wrapper.dataset.pageNum = i;
+            if (excludedPages.has(i)) wrapper.classList.add('excluded');
+            
+            const canvas = document.createElement('canvas');
+            wrapper.appendChild(canvas);
+            thumbnailContainer.appendChild(wrapper);
+
+            wrapper.addEventListener('click', () => renderPage(i));
+            
+            await updateThumbnail(i, canvas);
+        }
+    }
+
+    async function renderPage(num) {
+        showLoader(true);
+        currentPageNum = num;
+
+        pageInfo.textContent = `Page ${currentPageNum} / ${pdfDoc.numPages}`;
+        document.querySelectorAll('.thumbnail').forEach(thumb => {
+            thumb.classList.toggle('selected', parseInt(thumb.dataset.pageNum) === currentPageNum);
+        });
+        updatePageUiElements();
+
+        try {
+            const page = await pdfDoc.getPage(currentPageNum);
+            const originalRotation = pageOriginalRotations[currentPageNum] || 0;
+            const additionalRotation = pageRotations[currentPageNum] || 0;
+            const totalRotation = originalRotation + additionalRotation;
+            
+            const viewport = page.getViewport({ scale: 1.5, rotation: totalRotation });
+            
+            const context = mainCanvas.getContext('2d');
+            mainCanvas.height = viewport.height;
+            mainCanvas.width = viewport.width;
+
+            await page.render({ canvasContext: context, viewport: viewport }).promise;
+        } catch (error) {
+            console.error('Error rendering page:', error);
+        } finally {
+            showLoader(false);
+        }
+    }
+
+    function rotatePage(angle) {
+        if (excludedPages.has(currentPageNum)) {
+            alert('Cannot rotate an excluded page. Please include it first.');
+            return;
+        }
+        const currentRotation = pageRotations[currentPageNum] || 0;
+        let newRotation = (currentRotation + angle + 360) % 360; 
+        pageRotations[currentPageNum] = newRotation;
+        
+        hasChanges = true;
+        downloadBtn.disabled = false;
+
+        renderPage(currentPageNum);
+        updateThumbnail(currentPageNum);
+    }
+
+    function togglePageExclusion() {
+        if (excludedPages.has(currentPageNum)) {
+            excludedPages.delete(currentPageNum);
+        } else {
+            excludedPages.add(currentPageNum);
+        }
+        hasChanges = true;
+        downloadBtn.disabled = false;
+        
+        updatePageUiElements();
+        const thumbWrapper = document.querySelector(`.thumbnail[data-page-num='${currentPageNum}']`);
+        if (thumbWrapper) {
+            thumbWrapper.classList.toggle('excluded', excludedPages.has(currentPageNum));
+        }
+    }
+
+    function updatePageUiElements() {
+        const isExcluded = excludedPages.has(currentPageNum);
+        pageViewer.classList.toggle('excluded', isExcluded);
+        excludePageBtn.textContent = isExcluded ? 'Include Page' : 'Exclude Page';
+        rotateLeftBtn.disabled = isExcluded;
+        rotateRightBtn.disabled = isExcluded;
+    }
+
+    async function updateThumbnail(pageNum, canvasElement = null) {
+        const thumbWrapper = document.querySelector(`.thumbnail[data-page-num='${pageNum}']`);
+        if (!thumbWrapper) return;
+
+        const canvas = canvasElement || thumbWrapper.querySelector('canvas');
+        const page = await pdfDoc.getPage(pageNum);
+        
+        const originalRotation = pageOriginalRotations[pageNum] || 0;
+        const additionalRotation = pageRotations[pageNum] || 0;
+        const totalRotation = originalRotation + additionalRotation;
+
+        const viewport = page.getViewport({ scale: 0.3, rotation: totalRotation });
+        const context = canvas.getContext('2d');
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+        await page.render({ canvasContext: context, viewport: viewport }).promise;
+    }
+
+    async function exportPdf() {
+        if (!hasChanges) {
+            alert("No changes have been made.");
+            return;
+        }
+        showLoader(true);
+        try {
+            const { PDFDocument, degrees } = PDFLib;
+            const newPdfDoc = await PDFDocument.create();
+            const sourcePdfDoc = await PDFDocument.load(originalPdfBytes);
+            const totalPages = sourcePdfDoc.getPageCount();
+
+            for (let i = 0; i < totalPages; i++) {
+                const pageNum = i + 1;
+                if (excludedPages.has(pageNum)) continue;
+
+                const [copiedPage] = await newPdfDoc.copyPages(sourcePdfDoc, [i]);
+                
+                const originalRotation = pageOriginalRotations[pageNum] || 0;
+                const additionalRotation = pageRotations[pageNum] || 0;
+                const finalRotation = originalRotation + additionalRotation;
+                
+                copiedPage.setRotation(degrees(finalRotation));
+                newPdfDoc.addPage(copiedPage);
+            }
+
+            if (newPdfDoc.getPageCount() === 0) {
+                 alert("The new PDF has no pages. Please include at least one page.");
+                 showLoader(false);
+                 return;
+            }
+
+            const modifiedPdfBytes = await newPdfDoc.save();
+            
+            const blob = new Blob([modifiedPdfBytes], { type: 'application/pdf' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'modified_document.pdf';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(link.href);
+
+        } catch(error) {
+            console.error('Error exporting PDF:', error);
+            alert('An error occurred while creating the new PDF. Check the console for details.');
+        } finally {
+            showLoader(false);
+        }
+    }
+</script>
+</body>
+</html>
