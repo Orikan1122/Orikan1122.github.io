@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Chart Dashboard</title>
+    <link rel="stylesheet" href="https://leeoniya.github.io/uPlot/dist/uPlot.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div id="app-container">
+        <div id="controls-panel">
+            <h1>Dashboard-Steuerung</h1>
+
+            <div class="control-section">
+                <h2>1. Daten einfügen</h2>
+                <textarea id="dataInput" placeholder="TT.MM.JJJJ HH:mm	Wert1	Wert2..."></textarea>
+                <button id="generateChartBtn">Daten verarbeiten & Charts erstellen</button>
+            </div>
+
+            <div class="control-section">
+                <h2>2. Globale Chart-Optionen</h2>
+                <div class="weekday-filter-container">
+                    <label><input type="checkbox" class="weekday-filter" value="1" checked> Mo</label>
+                    <label><input type="checkbox" class="weekday-filter" value="2" checked> Di</label>
+                    <label><input type="checkbox" class="weekday-filter" value="3" checked> Mi</label>
+                    <label><input type="checkbox" class="weekday-filter" value="4" checked> Do</label>
+                    <label><input type="checkbox" class="weekday-filter" value="5" checked> Fr</label>
+                    <label><input type="checkbox" class="weekday-filter" value="6" checked> Sa</label>
+                    <label><input type="checkbox" class="weekday-filter" value="0" checked> So</label>
+                </div>
+                <div class="gap-control-container">
+                    <label><input type="checkbox" id="hideTimeGapsCheckbox"> Zeitlücken ausblenden</label>
+                </div>
+                <button id="resetZoomBtn">Globalen Zoom zurücksetzen</button>
+            </div>
+
+            <div class="control-section">
+                <h2>3. Wertefilter (Maximum)</h2>
+                <div class="filter-control-container">
+                    <label><input type="checkbox" id="enableValueFilter"> Filter für hohe Werte aktivieren</label>
+                    <div class="filter-options">
+                        <label for="valueThreshold">Schwellenwert:</label>
+                        <input type="number" id="valueThreshold" value="1000" placeholder="z.B. 1000">
+                        <label for="filterAction">Aktion:</label>
+                        <select id="filterAction">
+                            <option value="replace">Wert ersetzen (null)</option>
+                            <option value="filter">Zeile ausfiltern</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="control-section">
+                <h2>4. Wertefilter (Minimum)</h2>
+                <div class="filter-control-container">
+                    <label><input type="checkbox" id="enableMinValueFilter"> Filter für niedrige Werte aktivieren</label>
+                    <div class="filter-options">
+                        <label for="minValueThreshold">Schwellenwert:</label>
+                        <input type="number" id="minValueThreshold" value="0" placeholder="z.B. 0">
+                        <label for="minFilterAction">Aktion:</label>
+                        <select id="minFilterAction">
+                            <option value="replace">Wert ersetzen (null)</option>
+                            <option value="filter">Zeile ausfiltern</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h2>5. Spalten zuweisen & benennen</h2>
+                <div id="seriesConfigContainer" class="series-config-container">
+                    <p class="placeholder">Bitte zuerst Daten verarbeiten.</p>
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h2>6. Layout speichern / laden</h2>
+                <p class="layout-note">Hinweis: Der Layout-Export speichert die Wochentags- und Wertefilter, die Spaltennamen und die Zuweisung zu den Charts.</p>
+                <button id="exportSetupBtn">Layout exportieren</button>
+                <button id="importSetupBtn">Layout importieren</button>
+            </div>
+            
+            <div id="status" class="status-panel">Bereit.</div>
+        </div>
+
+        <div id="charts-area">
+            <div id="chart-wrapper-1" class="chart-wrapper">
+                <h3>Chart 1</h3>
+                <div id="chartContainer1" class="chart-container"></div>
+            </div>
+            <div id="chart-wrapper-2" class="chart-wrapper">
+                <h3>Chart 2</h3>
+                <div id="chartContainer2" class="chart-container"></div>
+            </div>
+            <div id="chart-wrapper-3" class="chart-wrapper">
+                <h3>Chart 3</h3>
+                <div id="chartContainer3" class="chart-container"></div>
+            </div>
+            <!-- Tooltip is shared by all charts -->
+            <div class="u-tooltip"></div>
+        </div>
+    </div>
+
+    <script src="https://leeoniya.github.io/uPlot/dist/uPlot.iife.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
