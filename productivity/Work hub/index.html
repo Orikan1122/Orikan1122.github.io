@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Work Hub</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Toggle Buttons -->
+    <div class="toggle-buttons">
+        <button id="toggle-sidebar" class="btn btn-secondary btn-small" title="Toggle Actions Sidebar">☰</button>
+        <button id="toggle-tools" class="btn btn-secondary btn-small" title="Toggle Tools Pane">Tools</button>
+        <button id="toggle-todos" class="btn btn-secondary btn-small" title="Toggle To-Dos Pane">To-Dos</button>
+    </div>
+
+    <!-- Main App Structure -->
+    <div class="hub-container">
+        <aside class="sidebar" id="sidebar">
+            <h2>Actions</h2>
+            
+            <!-- TOOL FORM -->
+            <h3>Add/Edit Tool</h3>
+            <form id="add-tool-form">
+                <div class="form-group">
+                    <label for="tool-name">Tool Name</label>
+                    <input type="text" id="tool-name" required>
+                </div>
+                <div class="form-group">
+                    <label for="tool-url">Tool URL</label>
+                    <input type="url" id="tool-url" placeholder="e.g., file:///C:/tools/my-tool.html" required>
+                </div>
+                <div class="form-group">
+                    <label>Category & Color</label>
+                    <div class="category-group">
+                        <div class="category-name">
+                             <input type="text" id="tool-category" list="category-suggestions" placeholder="Category Name">
+                             <datalist id="category-suggestions"></datalist>
+                        </div>
+                        <input type="color" id="tool-category-color" value="#3498db" title="Category Color">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="tool-status">Status</label>
+                    <select id="tool-status">
+                        <option value="not-set">Not Set</option>
+                        <option value="working">Working</option>
+                        <option value="unfinished">Unfinished</option>
+                        <option value="issues-to-be-fixed">Issues to be fixed</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="tool-description">Description</label>
+                    <textarea id="tool-description"></textarea>
+                </div>
+                <button type="submit">Add Tool</button>
+            </form>
+
+            <!-- TODO FORM -->
+            <h3>Add To-Do</h3>
+            <form id="add-todo-form">
+                <div class="form-group">
+                    <label for="todo-text">Task</label>
+                    <textarea id="todo-text" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Category & Color</label>
+                    <div class="category-group">
+                        <div class="category-name">
+                             <input type="text" id="todo-category" list="category-suggestions" placeholder="Category Name">
+                        </div>
+                        <input type="color" id="todo-category-color" value="#3498db" title="Category Color">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="todo-due-date">Due Date</label>
+                    <input type="date" id="todo-due-date">
+                </div>
+                <div class="form-group">
+                    <label for="todo-linked-tools">Link Tools (optional)</label>
+                    <select id="todo-linked-tools" multiple>
+                        <!-- Tool options will be populated here by JS -->
+                    </select>
+                </div>
+                <button type="submit">Add To-Do</button>
+            </form>
+
+            <!-- DATA ACTIONS -->
+            <div class="data-actions">
+                <button id="weekly-summary-btn" class="btn">Weekly Summary</button>
+                <div class="data-actions-row">
+                    <!-- ADD 'disabled' TO THESE TWO BUTTONS -->
+                    <button id="save-to-cloud-btn" class="btn" disabled>Save to Cloud</button>
+                    <button id="load-from-cloud-btn" class="btn" disabled>Load from Cloud</button>
+                </div>
+                <!-- Add a default status message -->
+                <div id="cloud-status" class="cloud-status-indicator loading">Connecting to cloud...</div>
+                <div class="data-actions-row">
+                    <button id="export-btn" class="btn">Export Data</button>
+                    <div class="btn-import-wrapper">
+                        <button class="btn">Import Data</button>
+                        <input type="file" id="import-file" accept=".json">
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+                <div class="content-pane" id="tools-pane">
+                    <div class="pane-header">
+                        <h2>My Tools</h2>
+                        <div class="header-controls">
+                            <input type="search" id="tool-search-input" class="filter-input" placeholder="Filter by name/desc...">
+                            <button id="launch-all-btn" class="btn btn-small" disabled>Launch All</button>
+                        </div>
+                    </div>
+                    <div class="pane-body">
+                        <div id="category-filters"></div>
+                        <div id="tool-list-container"></div>
+                    </div>
+                </div>
+            <div class="content-pane" id="todos-pane">
+                <div class="pane-header">
+                    <h2>My To-Do List</h2>
+                    <input type="search" id="todo-search-input" class="filter-input" placeholder="Filter by task...">
+                </div>
+                <div class="pane-body">
+                     <div class="todo-options">
+                        <label><input type="checkbox" id="show-done-todos" checked> Show Completed</label>
+                    </div>
+                    <div id="todo-list-container"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Weekly Summary Modal -->
+    <div class="modal-overlay" id="summary-modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Weekly Summary</h3>
+                <button class="close-btn" id="summary-modal-close-btn">×</button>
+            </div>
+            <div id="summary-modal-body">
+                <!-- Summary content will be injected here by JS -->
+            </div>
+        </div>
+    </div>
+    
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    
+    <script src="script.js" defer></script>
+</body>
+</html>
