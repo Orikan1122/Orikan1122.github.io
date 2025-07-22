@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Tool with Preview & Rotate</title>
+    
+    <!-- Load pdf-lib (for manipulation/merging) -->
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    
+    <!-- Load pdf.js (for rendering previews) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
+
+    <style>
+        body {
+            font-family: sans-serif;
+            line-height: 1.6;
+            margin: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            background-color: #fff;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            max-width: 850px; /* Increased width */
+            margin: 20px auto;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        /* --- Areas --- */
+        .file-input-area, .file-list-area, .actions-area {
+            margin-bottom: 20px;
+        }
+         /* --- File Input --- */
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #555;
+        }
+        input[type="file"] {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+         /* --- File List --- */
+        #fileList {
+            list-style: none;
+            padding: 0;
+            border: 1px solid #eee;
+            border-radius: 4px;
+            max-height: 450px; /* Increased height */
+            overflow-y: auto;
+        }
+        #fileList li {
+            padding: 10px 15px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            align-items: center; /* Align items vertically center */
+            justify-content: space-between;
+            background-color: #fff;
+            transition: background-color 0.2s;
+            min-height: 100px; /* Ensure space for preview */
+        }
+        #fileList li:last-child { border-bottom: none; }
+        #fileList li:hover { background-color: #f9f9f9; }
+
+        /* --- File Item Layout --- */
+        .file-item-content {
+            display: flex;
+            align-items: center;
+            flex-grow: 1; /* Take available space */
+            gap: 15px; /* Space between elements */
+        }
+
+        /* --- Preview --- */
+        .preview-container {
+            width: 80px; /* Fixed width for preview area */
+            height: 100px; /* Fixed height */
+            border: 1px solid #ddd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #f0f0f0;
+            position: relative; /* For potential loading indicator */
+            overflow: hidden; /* Hide parts of canvas if needed */
+        }
+         .preview-canvas {
+            max-width: 100%;
+            max-height: 100%;
+            display: block; /* Remove extra space below canvas */
+         }
+         .preview-loading {
+            font-size: 0.8em;
+            color: #888;
+         }
+
+        /* --- File Info & Controls --- */
+        .file-details {
+            display: flex;
+            flex-direction: column; /* Stack checkbox/name and rotate buttons */
+            justify-content: center; /* Vertically center */
+            flex-grow: 1; /* Take remaining space */
+            min-width: 0; /* Prevent text overflow issues */
+        }
+        .file-info {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px; /* Space between name and rotate buttons */
+            word-break: break-all;
+        }
+        .file-info input[type="checkbox"] {
+            margin-right: 10px;
+            transform: scale(1.2);
+            flex-shrink: 0; /* Prevent checkbox shrinking */
+        }
+        .file-name {
+             flex-grow: 1; /* Allow name to take space */
+             overflow: hidden; /* Hide overflow */
+             text-overflow: ellipsis; /* Add ellipsis */
+             white-space: nowrap; /* Prevent wrapping */
+        }
+
+        /* --- Rotation Controls --- */
+        .rotate-controls button {
+            margin-right: 5px;
+            padding: 3px 6px;
+            font-size: 0.8em;
+            cursor: pointer;
+            border: 1px solid #ccc;
+            background-color: #f8f8f8;
+            border-radius: 3px;
+        }
+        .rotate-controls button:hover {
+            background-color: #eee;
+        }
+
+        /* --- File Actions (Download/Remove) --- */
+        .file-actions {
+            display: flex;
+            flex-direction: column; /* Stack buttons vertically */
+            gap: 5px; /* Space between buttons */
+            margin-left: 10px; /* Space from main content */
+            flex-shrink: 0; /* Prevent shrinking */
+        }
+        .file-actions button {
+            padding: 5px 10px;
+            font-size: 0.9em;
+            cursor: pointer;
+            border: none;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+            min-width: 80px; /* Ensure buttons have minimum width */
+            text-align: center;
+        }
+        .download-btn { background-color: #5cb85c; color: white; }
+        .download-btn:hover { background-color: #4cae4c; }
+        .remove-btn { background-color: #d9534f; color: white; }
+        .remove-btn:hover { background-color: #c9302c; }
+
+        /* --- Main Action Button --- */
+        .main-action-btn {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            background-color: #0275d8;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+            margin-bottom: 10px;
+        }
+        .main-action-btn:hover { background-color: #025aa5; }
+        .main-action-btn:disabled { background-color: #cccccc; cursor: not-allowed; }
+
+        /* --- Status & Download Link --- */
+        #status {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 4px;
+            text-align: center;
+            font-weight: bold;
+        }
+        .status-info { background-color: #eef; color: #33a; }
+        .status-success { background-color: #dff0d8; color: #3c763d; }
+        .status-error { background-color: #f2dede; color: #a94442; }
+        #mergedLinkContainer { margin-top: 15px; text-align: center; }
+        #mergedLinkContainer a { display: inline-block; padding: 10px 20px; background-color: #5cb85c; color: white; text-decoration: none; border-radius: 4px; font-weight: bold; }
+        #mergedLinkContainer a:hover { background-color: #4cae4c; }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>PDF Tool with Preview & Rotate</h1>
+
+        <div class="file-input-area">
+            <label for="pdfFiles">Select PDF files:</label>
+            <input type="file" id="pdfFiles" accept=".pdf" multiple>
+        </div>
+
+        <div class="file-list-area">
+            <label>Loaded Files:</label>
+            <ul id="fileList">
+                <!-- File items will be added here -->
+            </ul>
+        </div>
+
+        <div class="actions-area">
+            <button id="mergeBtn" class="main-action-btn" disabled>Merge Selected PDFs</button>
+        </div>
+
+        <div id="status"></div>
+        <div id="mergedLinkContainer"></div>
+
+    </div>
+
+    <script>
+        // Access pdf-lib functions
+        const { PDFDocument, degrees } = PDFLib; // degrees is needed for rotation
+
+        // Configure pdf.js worker
+        if (window.pdfjsLib) {
+             // Check if running from file:// URL which might cause CORS issues for worker
+            let workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+            if (window.location.protocol === 'file:') {
+                 console.warn("pdf.js worker might not load correctly from file:// protocol due to CORS restrictions. Previews may fail. Consider running from a local web server.");
+                 // You might need to download the worker and reference it locally,
+                 // or use a different approach if file:// is mandatory.
+                 // workerSrc = './pdf.worker.min.js'; // If downloaded locally
+            }
+            window.pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc;
+        } else {
+             console.error("pdf.js library not loaded!");
+             alert("Error: pdf.js library failed to load. Previews will not work.");
+        }
+
+
+        const fileInput = document.getElementById('pdfFiles');
+        const fileList = document.getElementById('fileList');
+        const mergeBtn = document.getElementById('mergeBtn');
+        const statusDiv = document.getElementById('status');
+        const mergedLinkContainer = document.getElementById('mergedLinkContainer');
+
+        let loadedFiles = []; // Array to hold file objects, state, and rotation
+
+        fileInput.addEventListener('change', handleFileSelect);
+        mergeBtn.addEventListener('click', handleMerge);
+
+        function handleFileSelect(event) {
+            const files = event.target.files;
+            if (!files.length) return;
+
+            statusDiv.textContent = '';
+            mergedLinkContainer.innerHTML = '';
+
+            const newFiles = []; // Process new files separately
+
+            for (const file of files) {
+                if (file.type !== 'application/pdf') {
+                    updateStatus(`Skipped non-PDF file: ${file.name}`, 'error');
+                    continue;
+                }
+                if (loadedFiles.some(f => f.file.name === file.name)) {
+                     updateStatus(`File already loaded: ${file.name}`, 'info');
+                     continue;
+                }
+
+                const fileId = `file-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+                const fileData = {
+                    id: fileId,
+                    file: file,
+                    selected: true,
+                    rotation: 0 // Initial rotation
+                };
+                loadedFiles.push(fileData);
+                newFiles.push(fileData); // Add to new files to render preview
+            }
+
+            // Add elements and render previews asynchronously
+            newFiles.forEach(fileData => {
+                addFileToList(fileData);
+                // Render preview AFTER the element is in the DOM
+                setTimeout(() => renderPreview(fileData.id), 0);
+            });
+
+
+            updateMergeButtonState();
+            event.target.value = null; // Clear input
+        }
+
+        function addFileToList(fileData) {
+            const listItem = document.createElement('li');
+            listItem.id = fileData.id;
+
+            const contentDiv = document.createElement('div');
+            contentDiv.classList.add('file-item-content');
+
+            // Preview Area
+            const previewContainer = document.createElement('div');
+            previewContainer.classList.add('preview-container');
+            const previewCanvas = document.createElement('canvas');
+            previewCanvas.id = `canvas-${fileData.id}`;
+            previewCanvas.classList.add('preview-canvas');
+            const loadingText = document.createElement('span');
+            loadingText.textContent = 'Loading...';
+            loadingText.classList.add('preview-loading');
+            previewContainer.appendChild(loadingText); // Show loading initially
+            previewContainer.appendChild(previewCanvas); // Canvas is ready but hidden by CSS until drawn
+
+            // File Details (Checkbox, Name, Rotate Buttons)
+            const detailsDiv = document.createElement('div');
+            detailsDiv.classList.add('file-details');
+
+            const fileInfoDiv = document.createElement('div');
+            fileInfoDiv.classList.add('file-info');
+
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.checked = fileData.selected;
+            checkbox.addEventListener('change', (e) => {
+                fileData.selected = e.target.checked;
+                updateMergeButtonState();
+            });
+
+            const fileNameSpan = document.createElement('span');
+            fileNameSpan.textContent = fileData.file.name;
+            fileNameSpan.title = fileData.file.name; // Tooltip for long names
+            fileNameSpan.classList.add('file-name');
+
+            fileInfoDiv.appendChild(checkbox);
+            fileInfoDiv.appendChild(fileNameSpan);
+
+            // Rotation Controls
+            const rotateDiv = document.createElement('div');
+            rotateDiv.classList.add('rotate-controls');
+
+            const rotateCWBtn = document.createElement('button');
+            rotateCWBtn.textContent = 'Rotate  CW';
+            rotateCWBtn.title = 'Rotate Clockwise 90°';
+            rotateCWBtn.addEventListener('click', () => rotateFile(fileData.id, 90));
+
+            const rotateCCWBtn = document.createElement('button');
+            rotateCCWBtn.textContent = 'Rotate CCW';
+            rotateCCWBtn.title = 'Rotate Counter-Clockwise 90°';
+            rotateCCWBtn.addEventListener('click', () => rotateFile(fileData.id, -90));
+
+            rotateDiv.appendChild(rotateCCWBtn);
+            rotateDiv.appendChild(rotateCWBtn);
+
+            detailsDiv.appendChild(fileInfoDiv);
+            detailsDiv.appendChild(rotateDiv);
+
+            // Assemble Content Div
+            contentDiv.appendChild(previewContainer);
+            contentDiv.appendChild(detailsDiv);
+
+            // File Actions (Download/Remove)
+            const fileActionsDiv = document.createElement('div');
+            fileActionsDiv.classList.add('file-actions');
+
+            const downloadBtn = document.createElement('button');
+            downloadBtn.textContent = 'Download';
+            downloadBtn.classList.add('download-btn');
+            downloadBtn.addEventListener('click', () => downloadSingleFile(fileData));
+
+            const removeBtn = document.createElement('button');
+            removeBtn.textContent = 'Remove';
+            removeBtn.classList.add('remove-btn');
+            removeBtn.addEventListener('click', () => removeFile(fileData.id));
+
+            fileActionsDiv.appendChild(downloadBtn);
+            fileActionsDiv.appendChild(removeBtn);
+
+            // Add parts to list item
+            listItem.appendChild(contentDiv);
+            listItem.appendChild(fileActionsDiv);
+            fileList.appendChild(listItem);
+        }
+
+        async function renderPreview(fileId) {
+            const fileData = loadedFiles.find(f => f.id === fileId);
+            if (!fileData || !window.pdfjsLib) return;
+
+            const canvas = document.getElementById(`canvas-${fileId}`);
+            const container = canvas.parentElement;
+            const loadingIndicator = container.querySelector('.preview-loading');
+
+            if (!canvas || !container) return;
+
+            const ctx = canvas.getContext('2d');
+
+            try {
+                 // Show loading indicator during processing
+                 if (loadingIndicator) loadingIndicator.style.display = 'inline';
+                 canvas.style.display = 'none'; // Hide canvas while loading/clearing
+
+                 // Clear previous rendering
+                 ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                const arrayBuffer = await fileData.file.arrayBuffer();
+                const pdfDoc = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                const page = await pdfDoc.getPage(1); // Get the first page
+
+                const desiredWidth = 80; // Match container width
+                const viewport = page.getViewport({ scale: 1 });
+                const scale = desiredWidth / viewport.width;
+                const scaledViewport = page.getViewport({ scale: scale, rotation: fileData.rotation });
+
+                canvas.height = scaledViewport.height;
+                canvas.width = scaledViewport.width;
+
+                // Adjust canvas size within container if rotation makes it taller than wide
+                 if (scaledViewport.height > container.clientHeight) {
+                    const heightScale = container.clientHeight / scaledViewport.height;
+                    const adjustedViewport = page.getViewport({ scale: scale * heightScale, rotation: fileData.rotation });
+                    canvas.height = adjustedViewport.height;
+                    canvas.width = adjustedViewport.width;
+                     await page.render({ canvasContext: ctx, viewport: adjustedViewport }).promise;
+                 } else {
+                     await page.render({ canvasContext: ctx, viewport: scaledViewport }).promise;
+                 }
+
+
+                 // Hide loading, show canvas
+                 if (loadingIndicator) loadingIndicator.style.display = 'none';
+                 canvas.style.display = 'block';
+
+            } catch (error) {
+                console.error(`Error rendering preview for ${fileData.file.name}:`, error);
+                 if (loadingIndicator) loadingIndicator.textContent = 'Preview Error';
+                 else container.innerHTML = '<span style="font-size:0.8em; color:red;">Preview Error</span>'; // Fallback
+            }
+        }
+
+
+        function rotateFile(fileId, angle) {
+            const fileData = loadedFiles.find(f => f.id === fileId);
+            if (!fileData) return;
+
+            // Calculate new rotation (0, 90, 180, 270)
+            let newRotation = (fileData.rotation + angle) % 360;
+            if (newRotation < 0) {
+                newRotation += 360; // Ensure positive angle
+            }
+            fileData.rotation = newRotation;
+
+            // Update the preview immediately
+            renderPreview(fileId);
+            updateStatus(`Rotated ${fileData.file.name}. New angle: ${newRotation}°`, 'info');
+        }
+
+
+        function removeFile(fileId) {
+            loadedFiles = loadedFiles.filter(f => f.id !== fileId);
+            const listItem = document.getElementById(fileId);
+            if (listItem) {
+                listItem.remove();
+            }
+            updateMergeButtonState();
+            if (loadedFiles.length === 0) {
+                statusDiv.textContent = ''; // Clear status if list is empty
+                 mergedLinkContainer.innerHTML = '';
+            } else {
+                 updateStatus(`File removed.`, 'info');
+            }
+        }
+
+        function downloadSingleFile(fileData) {
+            // No changes needed here, download the original unmodified file
+            try {
+                const url = URL.createObjectURL(fileData.file);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = fileData.file.name;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                updateStatus(`Downloaded original: ${fileData.file.name}`, 'success');
+            } catch (error) {
+                console.error("Error creating download link:", error);
+                updateStatus(`Error downloading ${fileData.file.name}: ${error.message}`, 'error');
+            }
+        }
+
+        function updateMergeButtonState() {
+            const selectedFilesCount = loadedFiles.filter(f => f.selected).length;
+            mergeBtn.disabled = selectedFilesCount < 1; // Allow merging even a single file (if rotated)
+            // Or keep requirement for 2+ files: mergeBtn.disabled = selectedFilesCount < 2;
+        }
+
+        async function handleMerge() {
+            const filesToMerge = loadedFiles.filter(f => f.selected);
+
+            if (filesToMerge.length === 0) {
+                 updateStatus('Please select at least one PDF file.', 'error');
+                 return;
+            }
+            // if (filesToMerge.length < 2) { // Keep if you require 2+ for merging
+            //     updateStatus('Please select at least two PDF files to merge.', 'error');
+            //     return;
+            // }
+
+
+            updateStatus('Processing PDFs... Please wait.', 'info');
+            mergeBtn.disabled = true;
+            mergedLinkContainer.innerHTML = '';
+
+            try {
+                const mergedPdf = await PDFDocument.create();
+
+                for (const fileData of filesToMerge) {
+                    updateStatus(`Processing: ${fileData.file.name}...`, 'info');
+                    const arrayBuffer = await fileData.file.arrayBuffer();
+                    let pdfToCopy;
+                    try {
+                         pdfToCopy = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
+                    } catch (loadError){
+                         console.error(`Error loading ${fileData.file.name}:`, loadError);
+                         updateStatus(`Skipping file ${fileData.file.name} due to loading error: ${loadError.message}`, 'error');
+                         continue; // Skip this file
+                    }
+
+
+                    if (pdfToCopy.isEncrypted) {
+                         updateStatus(`Skipping encrypted file: ${fileData.file.name}.`, 'error');
+                         continue; // Skip encrypted files
+                    }
+
+                    const pageIndices = pdfToCopy.getPageIndices();
+
+                    // Apply rotation if needed BEFORE copying pages
+                    if (fileData.rotation !== 0) {
+                        updateStatus(`Applying ${fileData.rotation}° rotation to ${fileData.file.name}...`, 'info');
+                        pageIndices.forEach(index => {
+                            const page = pdfToCopy.getPage(index);
+                            const currentRotation = page.getRotation().angle;
+                            // Calculate final rotation, ensuring it stays within 0-359
+                            let finalRotation = (currentRotation + fileData.rotation) % 360;
+                            if (finalRotation < 0) finalRotation += 360;
+                            page.setRotation(degrees(finalRotation));
+                        });
+                    }
+
+                    // Copy the pages (original or rotated)
+                    const copiedPages = await mergedPdf.copyPages(pdfToCopy, pageIndices);
+                    copiedPages.forEach((page) => {
+                        mergedPdf.addPage(page);
+                    });
+                    updateStatus(`Added ${pageIndices.length} pages from ${fileData.file.name}.`, 'info');
+                }
+
+                if (mergedPdf.getPageCount() === 0) {
+                    updateStatus('No pages were added. Check if files were skipped (e.g., encrypted or load errors).', 'error');
+                    updateMergeButtonState(); // Re-enable based on remaining files
+                    return;
+                }
+
+                const mergedPdfBytes = await mergedPdf.save();
+
+                displayDownloadLink(mergedPdfBytes, 'merged_document.pdf');
+                updateStatus(`Successfully processed ${filesToMerge.length} files. Click the link below to download.`, 'success');
+
+            } catch (error) {
+                console.error("Error during PDF processing:", error);
+                updateStatus(`Processing failed: ${error.message}`, 'error');
+            } finally {
+                 updateMergeButtonState(); // Re-enable button correctly
+            }
+        }
+
+        function displayDownloadLink(bytes, filename) {
+            // No changes needed here
+            const blob = new Blob([bytes], { type: 'application/pdf' });
+            const url = URL.createObjectURL(blob);
+            mergedLinkContainer.innerHTML = '';
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.textContent = `Download Merged PDF (${(bytes.length / 1024 / 1024).toFixed(2)} MB)`;
+            mergedLinkContainer.appendChild(a);
+        }
+
+        function updateStatus(message, type = 'info') {
+            // No changes needed here
+            statusDiv.textContent = message;
+            statusDiv.className = `status-${type}`;
+        }
+
+        // Initial state
+        updateMergeButtonState();
+
+    </script>
+</body>
+</html>
