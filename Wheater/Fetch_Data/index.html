@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather Data Fetcher</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Leaflet CSS for the interactive map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+</head>
+<body>
+    <div class="container">
+        <h1>Advanced Weather Data Fetcher</h1>
+        <p>
+            Set the location and date range to fetch historical weather data. Use the checkboxes to select additional variables to display on the chart.
+        </p>
+
+        <!-- Map Container -->
+        <div id="map"></div>
+
+        <div class="form-grid">
+            <label for="latitude">Latitude:</label>
+            <input type="text" id="latitude" value="46.6220">
+            <label for="longitude">Longitude:</label>
+            <input type="text" id="longitude" value="9.1810">
+            <label for="start_date">Start Date:</label>
+            <input type="date" id="start_date">
+            <label for="end_date">End Date:</label>
+            <input type="date" id="end_date">
+        </div>
+
+        <!-- Checkboxes for optional weather variables -->
+        <div class="options-grid">
+            <label><input type="checkbox" id="chk-precipitation" data-variable="precipitation" data-label="Precipitation (mm)"> Precipitation</label>
+            <label><input type="checkbox" id="chk-windspeed" data-variable="wind_speed_10m" data-label="Wind Speed (km/h)"> Wind Speed</label>
+            <label><input type="checkbox" id="chk-humidity" data-variable="relative_humidity_2m" data-label="Humidity (%)"> Humidity</label>
+            <label><input type="checkbox" id="chk-solar" data-variable="shortwave_radiation" data-label="Solar Irradiance (W/m²)"> Solar Irradiance</label>
+        </div>
+
+        <button id="fetch-button">Fetch Weather Data</button>
+        <button id="download-csv-button" class="hidden">Download as CSV</button>
+
+        <div class="results">
+            <p id="status"></p>
+            <div class="chart-container">
+                <canvas id="weather-chart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chart.js Library -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Leaflet JS Library -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Your Custom Script -->
+    <script src="script.js"></script>
+</body>
+</html>
