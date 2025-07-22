@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Report Generator</title>
+
+    <!-- jsPDF Library from a CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <style>
+        /* --- General Styling --- */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f4f7f9;
+            color: #333;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 20px auto;
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        h1, h2 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+
+        /* --- Form & Input Styling --- */
+        .form-section {
+            margin-bottom: 30px;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #555;
+        }
+
+        input[type="text"],
+        input[type="date"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 1rem;
+        }
+
+        /* --- Image Upload & Preview --- */
+        input[type="file"] {
+            display: block;
+            margin-top: 10px;
+        }
+        
+        #image-preview-area {
+            margin-top: 20px;
+            border: 1px dashed #ccc;
+            padding: 15px;
+            min-height: 100px;
+            background-color: #fafafa;
+            border-radius: 5px;
+        }
+
+        .image-preview-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 20px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border: 1px solid #e0e0e0;
+            background-color: #fff;
+            border-radius: 5px;
+        }
+
+        .preview-img {
+            max-width: 200px;
+            max-height: 200px;
+            height: auto;
+            border-radius: 4px;
+            object-fit: cover;
+        }
+
+        .comment-box {
+            flex-grow: 1;
+        }
+
+        .comment-box textarea {
+            width: 100%;
+            min-height: 100px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            resize: vertical;
+            font-family: inherit;
+            font-size: 0.95rem;
+        }
+
+        /* --- Button Styling --- */
+        .action-button {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #fff;
+            background: linear-gradient(45deg, #3498db, #2980b9);
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s, transform 0.2s;
+            margin-top: 20px;
+        }
+        
+        .action-button:hover {
+            background: linear-gradient(45deg, #2980b9, #3498db);
+            transform: translateY(-2px);
+        }
+
+        .action-button:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Image Report Generator</h1>
+        <p>Create a professional PDF report from your images and comments.</p>
+
+        <!-- Step 1: Report Details -->
+        <div class="form-section">
+            <h2>Step 1: Fill Report Details</h2>
+            <div class="input-group">
+                <label for="report-title">Report Title</label>
+                <input type="text" id="report-title" placeholder="e.g., Quarterly Site Inspection">
+            </div>
+            <div class="input-group">
+                <label for="report-creator">Creator / Author</label>
+                <input type="text" id="report-creator" placeholder="e.g., John Doe">
+            </div>
+            <div class="input-group">
+                <label for="report-date">Date</label>
+                <input type="date" id="report-date">
+            </div>
+        </div>
+
+        <!-- Step 2: Upload Images -->
+        <div class="form-section">
+            <h2>Step 2: Upload Images & Add Comments</h2>
+            <input type="file" id="image-upload" multiple accept="image/*">
+            <div id="image-preview-area">
+                <p>Your uploaded images will appear here...</p>
+            </div>
+        </div>
+
+        <!-- Step 3: Generate PDF -->
+        <div class="form-section">
+            <h2>Step 3: Create Your Report</h2>
+            <button id="generate-pdf" class="action-button" disabled>Generate PDF Report</button>
+        </div>
+
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // --- DOM Element References ---
+            const imageUpload = document.getElementById('image-upload');
+            const previewArea = document.getElementById('image-preview-area');
+            const generatePdfBtn = document.getElementById('generate-pdf');
+            const reportTitleInput = document.getElementById('report-title');
+            const reportCreatorInput = document.getElementById('report-creator');
+            const reportDateInput = document.getElementById('report-date');
+            
+            // Set today's date as default
+            reportDateInput.valueAsDate = new Date();
+
+            let uploadedFiles = [];
+
+            // --- Event Listeners ---
+            imageUpload.addEventListener('change', handleImageUpload);
+            generatePdfBtn.addEventListener('click', generatePDF);
+
+
+            // --- Functions ---
+            function handleImageUpload(event) {
+                const files = event.target.files;
+                if (files.length === 0) return;
+
+                // Clear initial placeholder text
+                if (uploadedFiles.length === 0) {
+                    previewArea.innerHTML = '';
+                }
+
+                // Enable the PDF button
+                generatePdfBtn.disabled = false;
+
+                for (const file of files) {
+                    if (!file.type.startsWith('image/')) continue;
+
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const imageDataUrl = e.target.result;
+                        
+                        // Store file data for PDF generation
+                        const fileData = {
+                            id: `file-${Date.now()}-${Math.random()}`,
+                            name: file.name,
+                            dataUrl: imageDataUrl
+                        };
+                        uploadedFiles.push(fileData);
+                        
+                        // Create preview element
+                        const previewElement = createPreviewElement(fileData);
+                        previewArea.appendChild(previewElement);
+                    };
+                    reader.readAsDataURL(file);
+                }
+            }
+
+            function createPreviewElement(fileData) {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'image-preview-item';
+                itemDiv.id = fileData.id;
+
+                const img = document.createElement('img');
+                img.src = fileData.dataUrl;
+                img.className = 'preview-img';
+                img.alt = fileData.name;
+
+                const commentDiv = document.createElement('div');
+                commentDiv.className = 'comment-box';
+
+                const textarea = document.createElement('textarea');
+                textarea.placeholder = `Add a comment for ${fileData.name}...`;
+                
+                commentDiv.appendChild(textarea);
+                itemDiv.appendChild(img);
+                itemDiv.appendChild(commentDiv);
+
+                return itemDiv;
+            }
+
+            async function generatePDF() {
+                // Get the jsPDF constructor
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF({
+                    orientation: 'p', // portrait
+                    unit: 'mm', // millimeters
+                    format: 'a4' // A4 format
+                });
+
+                // --- Page Constants ---
+                const A4_WIDTH = 210;
+                const A4_HEIGHT = 297;
+                const MARGIN = 15;
+                const MAX_WIDTH = A4_WIDTH - MARGIN * 2;
+
+                // --- Get Report Metadata ---
+                const title = reportTitleInput.value || 'Untitled Report';
+                const creator = reportCreatorInput.value || 'Unknown Author';
+                const date = new Date(reportDateInput.value).toLocaleDateString();
+
+                // --- Add Title Page ---
+                doc.setFontSize(28);
+                doc.text(title, A4_WIDTH / 2, 60, { align: 'center' });
+                
+                doc.setFontSize(16);
+                doc.text(`Created by: ${creator}`, A4_WIDTH / 2, 80, { align: 'center' });
+                doc.text(`Date: ${date}`, A4_WIDTH / 2, 90, { align: 'center' });
+
+                doc.addPage();
+                
+                let yPosition = MARGIN;
+
+                // --- Add Images and Comments ---
+                for (const fileData of uploadedFiles) {
+                    const previewItem = document.getElementById(fileData.id);
+                    const comment = previewItem.querySelector('textarea').value;
+                    const imageDataUrl = fileData.dataUrl;
+
+                    // --- Calculate Image Dimensions ---
+                    const imgProps = doc.getImageProperties(imageDataUrl);
+                    const imgWidth = MAX_WIDTH;
+                    const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
+
+                    // --- Check for Page Break ---
+                    // 10mm for spacing, + space for comment
+                    const requiredSpace = imgHeight + 10 + (comment ? 20 : 0); 
+                    if (yPosition + requiredSpace > A4_HEIGHT - MARGIN) {
+                        doc.addPage();
+                        yPosition = MARGIN;
+                    }
+
+                    // Add Image
+                    doc.setFontSize(12);
+                    doc.setTextColor(100);
+                    doc.text(`Image: ${fileData.name}`, MARGIN, yPosition);
+                    yPosition += 7;
+                    doc.addImage(imageDataUrl, 'JPEG', MARGIN, yPosition, imgWidth, imgHeight);
+                    yPosition += imgHeight + 5; // 5mm space after image
+
+                    // Add Comment
+                    if (comment) {
+                        doc.setTextColor(0);
+                        doc.setFontSize(12);
+                        const splitComment = doc.splitTextToSize(comment, MAX_WIDTH);
+                        
+                        // Check for another page break just for the text
+                        const commentHeight = splitComment.length * 5; // Approx height
+                        if (yPosition + commentHeight > A4_HEIGHT - MARGIN) {
+                            doc.addPage();
+                            yPosition = MARGIN;
+                        }
+                        
+                        doc.text(splitComment, MARGIN, yPosition);
+                        yPosition += commentHeight + 10; // 10mm space after comment
+                    } else {
+                        yPosition += 5; // Add a little space anyway
+                    }
+                }
+
+                // --- Save the PDF ---
+                const safeTitle = title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+                doc.save(`${safeTitle}_report.pdf`);
+            }
+        });
+    </script>
+
+</body>
+</html>
