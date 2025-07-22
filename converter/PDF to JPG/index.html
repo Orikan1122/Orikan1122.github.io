@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF to JPG Converter</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="container">
+        <h1>PDF to JPG Converter</h1>
+        <p>Select a PDF file. The conversion happens entirely in your browser. No files are uploaded.</p>
+        
+        <div class="input-area">
+            <input type="file" id="pdf-file" accept=".pdf" style="display: none;">
+            <label for="pdf-file" class="file-label">Choose PDF File</label>
+        </div>
+
+        <div id="status"></div>
+        
+        <div id="output-container">
+            <!-- Generated JPGs will appear here -->
+        </div>
+    </div>
+
+    <!-- We need the PDF.js library from a CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
+    
+    <!-- Our custom script -->
+    <script src="script.js"></script>
+
+</body>
+</html>
