@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EPUB to PDF Converter (via Print)</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/epub.js/0.3.93/epub.min.js"></script>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        #controls {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #ccc;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+        }
+        #controls label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        #controls input[type="file"] {
+            display: block;
+            margin-bottom: 15px;
+        }
+        #status {
+            margin-top: 15px;
+            font-style: italic;
+            color: #555;
+        }
+        #printButton {
+            padding: 10px 15px;
+            font-size: 1em;
+            cursor: pointer;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            opacity: 0.5; /* Start disabled */
+            cursor: not-allowed;
+        }
+         #printButton.enabled {
+            opacity: 1;
+            cursor: pointer;
+         }
+        /* Area where epub.js renders (can be hidden) */
+        #viewer {
+           /* Make it very small or position off-screen if you don't want to see the rendering process */
+           /* Option 1: Small */
+           /* width: 1px; height: 1px; overflow: hidden; */
+
+           /* Option 2: Off-screen */
+           position: absolute;
+           left: -9999px;
+           top: -9999px;
+           width: 800px; /* Give it a reasonable width for rendering */
+           height: 1px;
+           overflow: hidden;
+
+           /* Option 3: Visible for debugging */
+           /* border: 1px dashed blue; height: 300px; width: 100%; overflow: auto; margin-top: 20px; */
+        }
+
+        /* Print specific styles */
+        @media print {
+            body {
+                padding: 0;
+                margin: 0;
+            }
+            /* Hide UI elements when printing */
+            #controls, #status {
+                display: none;
+            }
+            /* Ensure the viewer content is the only thing printed */
+            #viewer {
+                position: static; /* Reset positioning */
+                width: 100%;
+                height: auto;
+                overflow: visible; /* Show all content */
+                border: none;
+                margin: 0;
+                padding: 0;
+            }
+            /* Attempt to force page breaks before chapters -
+               Note: epub.js's print method handles pagination better */
+            /* h1, h2 { page-break-before: always; } */
+        }
+    </style>
+</head>
+<body>
+
+    <h1>EPUB to PDF Converter (via Browser Print)</h1>
+    <p>This tool uses your browser's "Print to PDF" feature after rendering the EPUB.</p>
+
+    <div id="controls">
+        <label for="epubFile">1. Select your EPUB file:</label>
+        <input type="file" id="epubFile" accept=".epub">
+
+        <button id="printButton" title="Select an EPUB file first">2. Prepare & Print to PDF</button>
+
+        <div id="status">Please select an EPUB file.</div>
+    </div>
+
+    <!-- This hidden div is where epub.js will render the book content -->
+    <div id="viewer"></div>
+
+    <script>
+        const fileInput = document.getElementById('epubFile');
+        const printButton = document.getElementById('printButton');
+        const statusDiv = document.getElementById('status');
+        const viewerDiv = document.getElementById('viewer');
+
+        let book = null;
+        let rendition = null;
+
+        printButton.disabled = true; // Start disabled
+
+        fileInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file && file.name.toLowerCase().endsWith('.epub')) {
+                statusDiv.textContent = 'Loading EPUB... Please wait.';
+                printButton.disabled = true;
+                printButton.classList.remove('enabled');
+                printButton.title = 'Loading EPUB...';
+
+                // Clear previous rendition if any
+                if (rendition) {
+                    rendition.destroy();
+                    viewerDiv.innerHTML = ''; // Clear viewer content
+                }
+
+                const reader = new FileReader();
+
+                reader.onload = function(e) {
+                    const bookData = e.target.result;
+                    book = ePub(bookData); // Pass ArrayBuffer directly
+
+                    // Render the book to the hidden div
+                    // We need to render it to access the print functionality
+                    rendition = book.renderTo("viewer", {
+                        width: "100%", // Use a reasonable width for layout calculation
+                        height: "1", // Minimal height as it's hidden/offscreen
+                        flow: "scrolled-doc", // Important for rendering content linearly for print
+                        spread: "none" // Ensure single page view
+                    });
+
+                    // Display the first section briefly to ensure loading starts
+                    rendition.display().then(() => {
+                        statusDiv.textContent = `EPUB "${file.name}" loaded. Ready to prepare for printing.`;
+                        printButton.disabled = false;
+                        printButton.classList.add('enabled');
+                        printButton.title = 'Prepare & Print to PDF';
+                        console.log("Book loaded and rendition ready.");
+                    }).catch(err => {
+                         console.error("Error displaying initial rendition:", err);
+                         statusDiv.textContent = `Error displaying EPUB: ${err.message || err}`;
+                         printButton.title = 'Error loading EPUB';
+                    });
+
+                };
+
+                reader.onerror = function(e) {
+                    console.error("FileReader error:", e);
+                    statusDiv.textContent = 'Error reading file.';
+                     printButton.title = 'Error reading file';
+                };
+
+                reader.readAsArrayBuffer(file); // Read as ArrayBuffer for epub.js
+
+            } else if (file) {
+                statusDiv.textContent = 'Please select a valid .epub file.';
+                printButton.disabled = true;
+                printButton.classList.remove('enabled');
+                printButton.title = 'Select an EPUB file first';
+                 if (rendition) rendition.destroy(); // Clean up if wrong file type selected
+                 viewerDiv.innerHTML = '';
+            }
+        });
+
+        printButton.addEventListener('click', () => {
+            if (!rendition || !book || printButton.disabled) {
+                alert("Please load an EPUB file first and wait for it to be ready.");
+                return;
+            }
+
+            statusDiv.textContent = 'Preparing content for printing... This might take a moment for large books.';
+            console.log("Preparing print...");
+
+            // Use epub.js's built-in print capability
+            // This method gathers all content and prepares it in a way suitable for window.print()
+            rendition.print()
+                .then(() => {
+                    console.log("Content prepared. Triggering browser print dialog...");
+                    statusDiv.innerHTML = `
+                        Content prepared. Your browser's Print dialog should appear.<br>
+                        <strong>IMPORTANT:</strong> In the print dialog, choose
+                        '<strong>Save as PDF</strong>', '<strong>Microsoft Print to PDF</strong>',
+                        or a similar PDF destination. Adjust layout/margins if needed.
+                    `;
+                    // rendition.print() should ideally trigger window.print() itself.
+                    // If it doesn't reliably, you might uncomment the next line, but test first.
+                    // window.print();
+                })
+                .catch(err => {
+                    console.error("Error during print preparation:", err);
+                    statusDiv.textContent = `Error preparing print: ${err.message || err}`;
+                });
+        });
+
+    </script>
+
+</body>
+</html>
