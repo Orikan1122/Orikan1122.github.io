@@ -1,0 +1,295 @@
+body {
+    font-family: 'Inter', sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background-color: #f0f2f5; /* Light gray background */
+    margin: 0;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.container {
+    background-color: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    width: 100%;
+    width: 96%; /* Use a percentage of the viewport width */
+    overflow: hidden;
+}
+
+header {
+    background-color: #007bff; /* Primary blue */
+    color: white;
+    padding: 25px 30px;
+    text-align: center;
+    border-bottom: 1px solid #0056b3;
+}
+
+header h1 {
+    margin: 0 0 5px 0;
+    font-size: 2.2em;
+}
+
+header p {
+    margin: 0;
+    font-size: 1.1em;
+    opacity: 0.9;
+}
+
+.main-grid {
+    display: grid;
+    grid-template-columns: 1fr; /* Single column for smaller screens */
+    gap: 20px;
+    padding: 20px;
+}
+
+@media (min-width: 992px) {
+    .main-grid {
+        grid-template-columns: 1fr 1.5fr; /* Two columns for larger screens */
+    }
+}
+
+.controls-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.card {
+    background-color: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    padding: 20px;
+    border: 1px solid #e0e0e0;
+}
+
+.card h2 {
+    color: #333;
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-size: 1.5em;
+    border-bottom: 2px solid #f0f0f0;
+    padding-bottom: 10px;
+}
+
+.card h3 {
+    color: #555;
+    margin-top: 15px;
+    margin-bottom: 10px;
+    font-size: 1.2em;
+}
+
+label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+    color: #555;
+    text-align: left;
+}
+
+input[type="text"],
+input[type="number"],
+input[type="datetime-local"],
+textarea,
+select {
+    width: calc(100% - 22px); /* Account for padding and border */
+    padding: 10px;
+    margin-bottom: 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 1em;
+    box-sizing: border-box; /* Include padding and border in the element's total width and height */
+}
+
+textarea {
+    resize: vertical;
+    min-height: 120px;
+}
+
+button {
+    background-color: #007bff;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 1em;
+    margin-top: 10px;
+    transition: background-color 0.2s ease;
+}
+
+button:hover {
+    background-color: #0056b3;
+}
+
+p {
+    margin-top: 10px;
+    color: #666;
+    line-height: 1.5;
+}
+
+code {
+    background-color: #e9ecef;
+    padding: 2px 4px;
+    border-radius: 4px;
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+    font-size: 0.9em;
+}
+
+#trainingStatus, #modelStatus, #predictionResult {
+    font-weight: bold;
+    margin-top: 15px;
+    padding: 8px;
+    border-radius: 4px;
+}
+
+#trainingStatus {
+    color: #007bff; /* Blue for training */
+}
+
+#trainingStatus.error, #modelStatus.error, #predictionResult.error {
+    color: #dc3545; /* Red for error */
+}
+
+#trainingStatus.success, #modelStatus.success, #predictionResult.success {
+    color: #28a745; /* Green for success */
+}
+
+/* Feature Definition Section */
+.feature-definition .feature-input {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.feature-definition .feature-input label {
+    flex-shrink: 0;
+    margin-right: 10px;
+    width: 80px; /* Adjust label width */
+}
+
+.feature-definition .feature-input input[type="text"] {
+    flex-grow: 1;
+    margin-bottom: 0;
+}
+
+.feature-definition .feature-input .remove-numerical-feature {
+    margin-left: 10px;
+    background-color: #6c757d; /* Gray for remove button */
+}
+
+.feature-definition .feature-input .remove-numerical-feature:hover {
+    background-color: #5a6268;
+}
+
+/* Time-Based Feature Engineering Section */
+.time-features-selector {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-top: 10px;
+}
+
+.time-features-selector input[type="checkbox"] {
+    margin-right: 5px;
+}
+
+.time-features-selector label {
+    display: inline-block;
+    margin-bottom: 0;
+    font-weight: normal;
+}
+
+/* Prediction Inputs */
+#predictionInputsContainer .prediction-input-group {
+    margin-bottom: 10px;
+}
+
+#predictionInputsContainer .prediction-input-group label {
+    width: auto;
+    margin-right: 10px;
+}
+
+#predictionInputsContainer .prediction-input-group input {
+    width: calc(100% - 120px); /* Adjust width for label */
+    display: inline-block;
+}
+
+/* Analysis Section */
+.analysis-section h2, .analysis-section h3 {
+    text-align: center;
+}
+
+#performanceMetrics p {
+    text-align: center;
+    margin-bottom: 5px;
+}
+
+#sensitivityFeatureSelect {
+    margin-bottom: 10px;
+}
+
+/* Chart containers */
+#trainingFitChart, #sensitivityChart, #scenarioSimulationChart, #disaggregatedTimeSeriesChart {
+    width: 100%;
+    height: 400px; /* Fixed height for charts */
+    margin-top: 20px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+}
+
+/* New Grid for Model Management, Prediction, and Scenario Simulation */
+.model-interaction-grid {
+    display: grid;
+    grid-template-columns: 1fr; /* Stack vertically on small screens */
+    gap: 20px;
+}
+
+@media (min-width: 768px) {
+    .model-interaction-grid {
+        grid-template-columns: 1fr 1fr; /* Two columns on medium screens */
+    }
+}
+
+@media (min-width: 1200px) {
+    .model-interaction-grid {
+        grid-template-columns: 1fr; /* For the controls panel layout, lets keep it simpler */
+    }
+    
+    .main-grid {
+        grid-template-columns: 450px 1fr; /* Tweak column widths for larger screens */
+    }
+}
+
+
+/* Tooltip styling */
+.tooltip-icon {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    line-height: 16px;
+    border-radius: 50%;
+    background-color: #007bff;
+    color: white;
+    text-align: center;
+    font-weight: bold;
+    cursor: help;
+    font-size: 12px;
+}
+
+.tooltip-icon:hover {
+    background-color: #0056b3;
+}
+/* Find this existing rule in your style.css */
+.chart-container {
+    background-color: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    padding: 20px;
+    border: 1px solid #e0e0e0;
+    
+    /* ADD THIS LINE */
+    overflow-x: hidden; /* Prevents horizontal scrollbars/growth */
+}
