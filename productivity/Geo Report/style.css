@@ -1,0 +1,227 @@
+body {
+    font-family: sans-serif;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    height: 100vh;
+    overflow: hidden; /* Prevent body scroll */
+}
+
+#app-container {
+    display: flex;
+    width: 100%;
+    height: 100%;
+}
+
+#map-container {
+    height: 100%;
+    width: 70%;
+    border-right: 1px solid #ccc;
+}
+
+#sidebar {
+    width: 30%;
+    height: 100%;
+    padding: 15px;
+    box-sizing: border-box;
+    overflow-y: auto; /* Allow sidebar to scroll if content overflows */
+    display: flex;
+    flex-direction: column;
+}
+
+#legend {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 15px 0;
+    max-height: 150px; /* Adjusted legend height */
+    overflow-y: auto; /* Scroll if too many items */
+}
+
+#legend li {
+    padding: 5px;
+    cursor: pointer;
+    border-bottom: 1px solid #eee;
+}
+
+#legend li:hover {
+    background-color: #f0f0f0;
+}
+
+#content-area {
+    /* flex-grow: 1; */ /* Let header inputs take space */
+    overflow-y: auto; /* Allow content area to scroll */
+    padding-bottom: 15px; /* Space before controls */
+    min-height: 150px; /* Ensure it has some minimum height */
+}
+
+#content-area h2 {
+    margin-top: 0;
+    font-size: 1.2em;
+}
+
+#content-area textarea {
+    width: 95%; /* Slightly less than 100% to prevent overflow */
+    min-height: 60px;
+    margin-bottom: 10px;
+    padding: 5px;
+    box-sizing: border-box;
+}
+
+#content-area input[type="file"] {
+    margin-bottom: 10px;
+}
+
+#content-area .delete-marker-button {
+     background-color: #e74c3c;
+     color: white;
+     border: none;
+     padding: 5px 10px;
+     font-size: 0.9em;
+     cursor: pointer;
+     border-radius: 3px;
+     margin-top: 15px;
+     display: block; /* Make it block level */
+     width: fit-content; /* Size to content */
+}
+
+#content-area .delete-marker-button:hover {
+     background-color: #c0392b;
+}
+
+
+#image-list {
+    margin-top: 10px;
+}
+
+.image-item {
+    border: 1px solid #ddd;
+    padding: 10px;
+    margin-bottom: 10px;
+    background-color: #f9f9f9;
+}
+
+.image-item img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin-bottom: 5px;
+}
+
+.image-item textarea {
+    width: 95%;
+    min-height: 40px;
+    margin-bottom: 5px;
+}
+
+.image-item button {
+    background-color: #e74c3c;
+    color: white;
+    border: none;
+    padding: 3px 8px;
+    font-size: 0.8em;
+    cursor: pointer;
+}
+
+.image-item button:hover {
+    background-color: #c0392b;
+}
+
+/* Report Header Input Styles */
+#report-header-inputs {
+    padding: 10px 0;
+}
+#report-header-inputs h3 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: 1.1em;
+}
+#report-header-inputs label {
+    display: block;
+    margin-bottom: 3px;
+    font-weight: bold;
+    font-size: 0.9em;
+}
+#report-header-inputs input[type="text"],
+#report-header-inputs textarea {
+    width: 95%;
+    padding: 6px;
+    margin-bottom: 10px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    box-sizing: border-box; /* Include padding and border in element's total width and height */
+}
+#report-header-inputs textarea {
+    resize: vertical; /* Allow vertical resize */
+}
+
+
+#controls {
+    margin-top: auto; /* Push controls to the bottom */
+    padding-top: 15px;
+    border-top: 1px solid #ccc;
+}
+
+#controls button,
+.button-label {
+    display: inline-block; /* Align buttons and label */
+    padding: 8px 15px;
+    margin-right: 10px;
+    margin-bottom: 5px; /* Allow wrapping */
+    background-color: #3498db;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 0.9em;
+}
+
+#controls button:hover,
+.button-label:hover {
+    background-color: #2980b9;
+}
+
+/* Style the label like a button */
+.button-label {
+    background-color: #2ecc71; /* Different color for import */
+}
+.button-label:hover {
+    background-color: #27ae60;
+}
+
+hr {
+    border: 0;
+    border-top: 1px solid #ccc;
+    margin: 15px 0;
+}
+
+/* Loading Overlay Styles */
+#loading-overlay {
+    position: fixed; /* Cover the whole screen */
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6); /* Semi-transparent black */
+    z-index: 10000; /* Ensure it's on top */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    font-size: 1.2em;
+}
+
+.loading-spinner {
+    border: 8px solid #f3f3f3; /* Light grey */
+    border-top: 8px solid #3498db; /* Blue */
+    border-radius: 50%;
+    width: 60px;
+    height: 60px;
+    animation: spin 1.5s linear infinite;
+    margin-bottom: 20px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
