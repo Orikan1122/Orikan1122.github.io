@@ -1,0 +1,459 @@
+/* === Grundlegende Styles & Layout === */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    margin: 0;
+    background-color: #f0f2f5;
+    color: #333;
+    display: flex;
+    min-height: 100vh;
+    font-size: 14px;
+}
+
+.app-container {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 1600px;
+    margin: 0 auto;
+    background-color: #fff;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.app-header {
+    background-color: #4a5568;
+    color: white;
+    padding: 10px 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.app-header h1 {
+    margin: 0 0 10px 0;
+    font-size: 1.4em;
+    text-align: center;
+}
+
+.controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    align-items: center;
+    padding: 10px;
+    background-color: #edf2f7;
+    border-radius: 4px;
+    color: #4a5568;
+}
+
+.control-group {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+.control-group.action-buttons {
+    margin-left: auto;
+}
+
+.controls label {
+    font-weight: 600;
+    font-size: 0.9em;
+}
+.controls input[type="text"],
+.controls input[type="file"],
+.controls input[type="number"] {
+    padding: 5px 8px;
+    border: 1px solid #cbd5e0;
+    border-radius: 3px;
+    font-size: 0.9em;
+}
+
+.controls button {
+    padding: 6px 12px;
+    cursor: pointer;
+    background-color: #3182ce;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 0.9em;
+    transition: background-color 0.2s ease;
+}
+.controls button:hover {
+    background-color: #2b6cb0;
+}
+#addSymbolButton {
+    background-color: #38a169; /* Green */
+}
+#addSymbolButton:hover {
+    background-color: #2f855a;
+}
+#exportPdfButton {
+    background-color: #667eea; /* Indigo */
+}
+#exportPdfButton:hover {
+    background-color: #5a67d8;
+}
+
+.main-content {
+    padding: 20px;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    overflow: hidden;
+}
+
+/* === Symbol/Map Area === */
+#mapContainer {
+    position: relative;
+    border: 1px solid #e2e8f0;
+    background-color: #f7fafc;
+    min-height: 350px;
+    max-height: 60vh;
+    overflow: auto;
+    cursor: crosshair;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
+}
+
+#mapImage {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    user-select: none;
+    -webkit-user-drag: none;
+}
+
+#markerLayer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: auto;
+}
+
+/* Symbol Styling */
+.symbol-marker {
+    position: absolute;
+    cursor: move;
+    box-sizing: border-box;
+    transform: translate(-50%, -50%); /* Center the div on the cursor */
+    transition: transform 0.1s ease;
+    -webkit-user-select: none; /* Safari */
+    -ms-user-select: none; /* IE 10+ */
+    user-select: none;
+}
+.symbol-marker svg {
+    width: 100%;
+    height: 100%;
+    overflow: visible; /* Prevent clipping of shadow */
+    filter: drop-shadow(0px 2px 3px rgba(0,0,0,0.4));
+}
+.symbol-marker.selected {
+    z-index: 10;
+}
+.symbol-marker.selected svg {
+    filter: drop-shadow(0px 0px 5px #3182ce) drop-shadow(0px 2px 3px rgba(0,0,0,0.4));
+}
+.symbol-marker.dragging {
+    z-index: 20;
+    transition: none; /* No transition while dragging */
+}
+
+
+/* === Table Area === */
+#markerTableContainer {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 200px;
+}
+
+#markerTableContainer h2 {
+    margin: 0 0 10px 0;
+    font-size: 1.2em;
+    color: #4a5568;
+}
+
+.table-wrapper {
+    flex-grow: 1;
+    overflow-y: auto;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+}
+
+#markerTable {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+#markerTable th,
+#markerTable td {
+    border: 1px solid #e2e8f0;
+    padding: 8px 12px;
+    text-align: left;
+    vertical-align: middle;
+    font-size: 0.9em;
+    line-height: 1.4;
+}
+
+#markerTable th {
+    background-color: #f7fafc;
+    font-weight: 600;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    color: #4a5568;
+}
+
+#markerTable tbody tr:nth-child(even) {
+    background-color: #f7fafc;
+}
+
+#markerTable tbody tr:hover {
+    background-color: #ebf8ff;
+}
+
+#markerTable .empty-message {
+    text-align: center;
+    color: #a0aec0;
+    padding: 20px;
+    font-style: italic;
+}
+
+/* Color Swatch in Table */
+#markerTable .color-swatch {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 1px solid #a0aec0;
+    border-radius: 3px;
+    vertical-align: middle;
+    margin-right: 6px;
+}
+
+/* Description column with Ellipsis */
+#markerTable td:nth-child(7) { /* Description is now 7th column */
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+#markerTable td[title] {
+    cursor: help;
+}
+
+/* Action Buttons in Table */
+#markerTable .action-button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 2px 5px;
+    font-size: 1.1em;
+    border-radius: 3px;
+    transition: background-color 0.2s ease, color 0.2s ease;
+    margin: 0 2px;
+    vertical-align: middle; /* Align buttons better */
+}
+#markerTable .edit-button {
+    color: #3182ce;
+}
+#markerTable .edit-button:hover {
+    background-color: #ebf8ff;
+}
+#markerTable .delete-button {
+    color: #e53e3e;
+}
+#markerTable .delete-button:hover {
+    background-color: #fff5f5;
+}
+
+/* Highlighted Table Row */
+#markerTable tbody tr.selected-row {
+    background-color: #bee3f8;
+    font-weight: 600;
+}
+
+
+/* === Modal Styling === */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.modal-content {
+    background-color: white;
+    padding: 25px 30px;
+    border-radius: 8px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    width: 100%;
+    max-width: 500px;
+    position: relative;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.modal-close-button {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    background: none;
+    border: none;
+    font-size: 1.8em;
+    line-height: 1;
+    color: #aaa;
+    cursor: pointer;
+    padding: 0;
+}
+.modal-close-button:hover {
+    color: #333;
+}
+
+.modal-content h2 {
+    margin-top: 0;
+    margin-bottom: 20px;
+    font-size: 1.3em;
+    color: #2d3748;
+    text-align: center;
+}
+
+#modalForm label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 600;
+    color: #4a5568;
+    font-size: 0.95em;
+}
+
+#modalForm .control-group {
+    margin-bottom: 15px;
+    gap: 10px;
+}
+
+#modalForm input[type="number"],
+#modalForm input[type="color"],
+#modalForm input[type="range"],
+#modalForm textarea,
+#modalForm select {
+    width: 100%;
+    padding: 8px 10px;
+    margin-bottom: 15px;
+    border: 1px solid #cbd5e0;
+    border-radius: 4px;
+    box-sizing: border-box;
+    font-size: 0.95em;
+    background-color: white;
+}
+
+#modalForm input[type="color"] {
+    padding: 2px;
+    height: 35px;
+}
+#modalForm input[type="range"] {
+    padding: 0;
+    flex-grow: 1;
+}
+.value-display {
+    font-weight: bold;
+    color: #2d3748;
+    min-width: 50px; /* Reserve space */
+    text-align: right;
+}
+
+
+#modalForm textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid #e2e8f0;
+}
+
+.modal-actions button {
+    padding: 8px 18px;
+    cursor: pointer;
+    border: none;
+    border-radius: 4px;
+    font-weight: 600;
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+#modalSaveButton {
+    background-color: #38a169;
+    color: white;
+}
+#modalSaveButton:hover {
+    background-color: #2f855a;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+#modalCancelButton {
+    background-color: #e2e8f0;
+    color: #4a5568;
+}
+#modalCancelButton:hover {
+    background-color: #cbd5e0;
+}
+
+/* === Loading Indicator Styling === */
+#loadingIndicator {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.85);
+    z-index: 2000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.6em;
+    color: #2d3748;
+    font-weight: bold;
+    text-align: center;
+}
+
+#loadingIndicator::after {
+    content: '';
+    display: inline-block;
+    width: 30px;
+    height: 30px;
+    margin-left: 15px;
+    border: 4px solid #e2e8f0;
+    border-top-color: #3182ce;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+/* Specific styling for the new number inputs inside the modal */
+#modalForm input[type="number"] {
+    width: 70px; /* Give it a fixed width */
+    text-align: right;
+    -moz-appearance: textfield; /* Hide arrows in Firefox */
+}
+
+/* Hide arrows in Chrome, Safari, Edge, Opera */
+#modalForm input[type="number"]::-webkit-outer-spin-button,
+#modalForm input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
