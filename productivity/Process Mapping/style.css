@@ -1,0 +1,298 @@
+body {
+    font-family: sans-serif;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    height: 100vh;
+    overflow: hidden; /* Prevent body scroll */
+}
+
+#app-container {
+    display: flex;
+    width: 100%;
+    height: 100%;
+}
+
+/* Image Display Area Styles */
+#image-display-area {
+    height: 100%;
+    width: 70%;
+    border-right: 1px solid #ccc;
+    display: flex; /* Use flexbox for centering */
+    justify-content: center;
+    align-items: center;
+    overflow: auto; /* Add scrollbars if image is larger than container */
+    background-color: #f0f0f0; /* Light background */
+    position: relative; /* Needed for absolute positioning of markers */
+}
+
+#image-container {
+    position: relative; /* Crucial for placing markers relative to the image */
+    max-width: 100%;
+    max-height: 100%;
+    line-height: 0; /* Prevent extra space below image */
+}
+
+#base-image {
+    display: block; /* Make image block level */
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain; /* Scale image while preserving aspect ratio */
+    cursor: crosshair; /* Indicate clickable area for markers */
+}
+
+#image-load-prompt {
+    text-align: center;
+    padding: 20px;
+    color: #555;
+}
+
+#image-load-prompt label.button-label { /* Style the label like other buttons */
+     display: inline-block; 
+     padding: 8px 15px;
+     margin-bottom: 10px;
+     background-color: #5cb85c; /* Green color for load */
+     color: white;
+     border: none;
+     border-radius: 3px;
+     cursor: pointer;
+     font-size: 0.9em;
+}
+#image-load-prompt label.button-label:hover {
+     background-color: #4cae4c;
+}
+
+
+/* Marker Styles (Placed on Image) */
+.image-marker {
+    position: absolute; /* Position relative to #image-container */
+    width: 15px;
+    height: 15px;
+    background-color: rgba(255, 0, 0, 0.7); /* Red, semi-transparent */
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    border-radius: 50%;
+    cursor: pointer;
+    transform: translate(-50%, -50%); /* Center the marker on the click point */
+    box-shadow: 0 0 5px rgba(0,0,0,0.5);
+    z-index: 10; /* Ensure markers are above the image */
+}
+.image-marker:hover {
+    background-color: rgba(255, 0, 0, 1); /* Solid red on hover */
+}
+.image-marker.selected { /* Style for the currently selected marker */
+     background-color: rgba(0, 0, 255, 0.8); /* Blue when selected */
+     border-color: white;
+     transform: translate(-50%, -50%) scale(1.2); /* Slightly larger when selected */
+}
+
+
+/* Sidebar Styles (Mostly same as GeoReport) */
+#sidebar {
+    width: 30%;
+    height: 100%;
+    padding: 15px;
+    box-sizing: border-box;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    background-color: #fff; /* White background for sidebar */
+}
+
+#legend {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 15px 0;
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+#legend li {
+    padding: 5px;
+    cursor: pointer;
+    border-bottom: 1px solid #eee;
+}
+
+#legend li:hover, #legend li.selected {
+    background-color: #f0f0f0;
+}
+
+#content-area {
+    overflow-y: auto;
+    padding-bottom: 15px;
+    min-height: 150px;
+}
+
+#content-area h2 {
+    margin-top: 0;
+    font-size: 1.2em;
+}
+
+#content-area textarea {
+    width: 95%;
+    min-height: 60px;
+    margin-bottom: 10px;
+    padding: 5px;
+    box-sizing: border-box;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+}
+
+#content-area input[type="file"] {
+    margin-bottom: 10px;
+}
+
+#content-area .delete-marker-button {
+     background-color: #e74c3c;
+     color: white;
+     border: none;
+     padding: 5px 10px;
+     font-size: 0.9em;
+     cursor: pointer;
+     border-radius: 3px;
+     margin-top: 15px;
+     display: block;
+     width: fit-content;
+}
+
+#content-area .delete-marker-button:hover {
+     background-color: #c0392b;
+}
+
+
+#image-list {
+    margin-top: 10px;
+}
+
+.image-item {
+    border: 1px solid #ddd;
+    padding: 10px;
+    margin-bottom: 10px;
+    background-color: #f9f9f9;
+}
+
+.image-item img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin-bottom: 5px;
+}
+
+.image-item textarea {
+    width: 95%;
+    min-height: 40px;
+    margin-bottom: 5px;
+}
+
+.image-item button {
+    background-color: #e74c3c;
+    color: white;
+    border: none;
+    padding: 3px 8px;
+    font-size: 0.8em;
+    cursor: pointer;
+}
+
+.image-item button:hover {
+    background-color: #c0392b;
+}
+
+/* Report Header Input Styles */
+#report-header-inputs {
+    padding: 10px 0;
+}
+#report-header-inputs h3 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: 1.1em;
+}
+#report-header-inputs label {
+    display: block;
+    margin-bottom: 3px;
+    font-weight: bold;
+    font-size: 0.9em;
+}
+#report-header-inputs input[type="text"],
+#report-header-inputs textarea {
+    width: 95%;
+    padding: 6px;
+    margin-bottom: 10px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    box-sizing: border-box;
+}
+#report-header-inputs textarea {
+    resize: vertical;
+}
+
+
+#controls {
+    margin-top: auto;
+    padding-top: 15px;
+    border-top: 1px solid #ccc;
+}
+
+#controls button,
+#controls label.button-label { /* Target label specifically */
+    display: inline-block;
+    padding: 8px 15px;
+    margin-right: 10px;
+    margin-bottom: 5px;
+    background-color: #3498db;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 0.9em;
+    text-align: center; /* Ensure text is centered */
+}
+
+#controls button:hover,
+#controls label.button-label:hover {
+    background-color: #2980b9;
+}
+
+/* Style the import label like a button */
+#controls label.button-label[for="import-input"] {
+    background-color: #2ecc71;
+}
+#controls label.button-label[for="import-input"]:hover {
+    background-color: #27ae60;
+}
+
+hr {
+    border: 0;
+    border-top: 1px solid #ccc;
+    margin: 15px 0;
+}
+
+/* Loading Overlay Styles (Same as GeoReport) */
+#loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    font-size: 1.2em;
+}
+
+.loading-spinner {
+    border: 8px solid #f3f3f3;
+    border-top: 8px solid #3498db;
+    border-radius: 50%;
+    width: 60px;
+    height: 60px;
+    animation: spin 1.5s linear infinite;
+    margin-bottom: 20px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
