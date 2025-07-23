@@ -110,27 +110,36 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     function saveToCloud() {
       if (!currentUserId) {
-        alert("Sign-in is still processing—try again in a moment.");
+        showCloudStatus("Cannot save: User not authenticated.", 'error');
         return;
       }
     
-      // Show loading indicator (assuming you have a UI element)
-      document.getElementById('loading-message').textContent = 'Saving to cloud...'; // Add this element to your HTML if needed
+      // Show a loading status to the user.
+      showCloudStatus("Saving to cloud...", 'loading', 0); // The '0' duration makes it persistent
     
-      const savePromise = db.collection("userData").doc(currentUserId).set({ data: jsonData });
+      // Prepare the data object to be saved.
+      // This object bundles the application's state arrays into a single JSON structure.
+      const dataToSave = {
+          tools: tools,
+          categories: categories,
+          todos: todos
+      };
     
-      // Add a timeout to detect hangs
-      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Save timed out")), 10000)); // 10 seconds
-    
-      Promise.race([savePromise, timeoutPromise])
+      // The core Firestore operation to save the data.
+      // It targets the 'userData' collection and uses the current user's ID as the document key.
+      // This ensures the data is saved to a location the user has permission to write to,
+      // according to your Firestore rules.
+      db.collection("userData").doc(currentUserId).set({
+          data: dataToSave // The 'data' field here matches what loadFromCloud expects.
+        })
         .then(() => {
-          alert("Data saved successfully!");
-          document.getElementById('cloud-status').textContent = ''; // Clear loading
+            // On success, show a confirmation message.
+            showCloudStatus("Data saved successfully!", 'success');
         })
         .catch(error => {
-          console.error("Save error:", error);
-          alert("Save failed: " + error.message);
-          document.getElementById('cloud-status').textContent = ''; // Clear loading
+            // If an error occurs, log it and show an error message to the user.
+            console.error("Error saving data to Firestore:", error);
+            showCloudStatus("Error: Failed to save data. " + error.message, 'error', 0);
         });
     }
 
