@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Process Symbol Tool</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="app-container">
+
+        <header class="app-header">
+            <h1>Process Symbol Map Tool</h1>
+            <div class="controls">
+                <div class="control-group">
+                    <label for="imageUpload">Bild laden:</label>
+                    <input type="file" id="imageUpload" accept="image/*">
+                </div>
+                
+                <div class="control-group">
+                    <label for="newSymbolSizeInput">Symbolgröße (px):</label>
+                    <input type="number" id="newSymbolSizeInput" value="80" min="30" max="250">
+                    <label for="newSymbolRotationInput">Symbolrotation (°):</label>
+                    <input type="number" id="newSymbolRotationInput" value="0" min="0" max="359">
+                </div>
+
+                 <div class="control-group">
+                     <label for="authorInput">Autor:</label>
+                     <input type="text" id="authorInput" placeholder="Name/Abteilung">
+                     <label for="lastUpdatedInput">Zuletzt aktualisiert:</label>
+                     <input type="text" id="lastUpdatedInput" placeholder="Datum/Info">
+                 </div>
+                <div class="control-group action-buttons">
+                    <button id="addSymbolButton">Symbol Hinzufügen</button>
+                    <button id="saveMapButton">Karte speichern (.json)</button>
+                    <button id="loadMapTriggerButton">Karte laden (.json)</button>
+                    <button id="exportPdfButton">Als PDF exportieren</button>
+                    <input type="file" id="loadMapInput" accept=".json" style="display: none;">
+                </div>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <div id="mapContainer">
+                <img id="mapImage" src="#" alt="Bitte laden Sie ein Hintergrundbild hoch.">
+                <div id="markerLayer">
+                    <!-- Symbols will be dynamically inserted here -->
+                </div>
+            </div>
+
+            <div id="markerTableContainer">
+                <h2>Symbol-Übersicht</h2>
+                <div class="table-wrapper">
+                    <table id="markerTable">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Nr.</th>
+                                <th>Typ</th>
+                                <th>Farbe</th>
+                                <th>Größe</th>
+                                <th>Rotation</th>
+                                <th>Beschreibung</th>
+                                <th>Aktionen</th>
+                            </tr>
+                        </thead>
+                        <tbody id="markerTableBody">
+                            <!-- Table rows are dynamically inserted here -->
+                            <tr><td colspan="8" class="empty-message">Karte laden oder Symbol hinzufügen.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+
+    </div> <!-- Ende .app-container -->
+
+    <!-- === MODAL DIALOG FOR EDITING SYMBOLS (UPDATED) === -->
+    <div id="editModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <button class="modal-close-button" id="modalCloseButton">×</button>
+            <h2 id="modalTitle">Symbol Details bearbeiten</h2>
+            <form id="modalForm" onsubmit="return false;">
+                <input type="hidden" id="editMarkerId">
+
+                <label for="modalShapeInput">Symboltyp:</label>
+                <select id="modalShapeInput" name="shape">
+                    <option value="arrow">Pfeil</option>
+                    <option value="circle">Kreis</option>
+                    <option value="rectangle">Rechteck</option>
+                </select>
+
+                <label for="modalNumberInput">Nummer (im Symbol):</label>
+                <input type="number" id="modalNumberInput" name="number" min="1" value="1">
+
+                <label for="modalColorInput">Symbolfarbe:</label>
+                <input type="color" id="modalColorInput" name="color">
+
+                <div class="control-group">
+                    <label for="modalSizeInput">Größe (px):</label>
+                    <input type="range" id="modalSizeInput" name="size" min="30" max="250" value="80">
+                    <input type="number" id="modalSizeNumberInput" min="30" max="250" value="80">
+                    <span id="modalSizeValue" class="value-display">80px</span>
+                </div>
+
+                <div class="control-group">
+                    <label for="modalRotationInput">Rotation (°):</label>
+                    <input type="range" id="modalRotationInput" name="rotation" min="0" max="359" value="0">
+                    <input type="number" id="modalRotationNumberInput" min="0" max="359" value="0">
+                    <span id="modalRotationValue" class="value-display">0°</span>
+                </div>
+
+                <label for="modalDescriptionInput">Prozessbeschreibung:</label>
+                <textarea id="modalDescriptionInput" name="description" rows="4" placeholder="z.B. Einleitung von Kühlwasser in den Hauptkanal..."></textarea>
+
+                <div class="modal-actions">
+                    <button type="button" id="modalSaveButton">Änderungen speichern</button>
+                    <button type="button" id="modalCancelButton">Abbrechen</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <!-- === END MODAL DIALOG === -->
+
+    <!-- Loading Indicator for PDF Export -->
+    <div id="loadingIndicator" style="display: none;">
+        PDF wird generiert... Bitte warten.
+    </div>
+    
+    <script src="html2canvas.min.js"></script>
+    <script src="jspdf.umd.min.js"></script>
+    <script src="jspdf.plugin.autotable.min.js"></script>
+    
+    <script src="script.js" defer></script>
+</body>
+</html>
