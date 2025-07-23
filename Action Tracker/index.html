@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Categorization & Mapping Tool</title>
+    <style>
+        /* --- Styles --- */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { height: 100%; overflow: hidden; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; display: flex; background-color: #f4f7f9; color: #333; }
+        .sidebar { width: 380px; min-width: 280px; height: 100%; padding: 20px; background-color: #ffffff; border-right: 1px solid #ccc; display: flex; flex-direction: column; overflow-y: auto; flex-shrink: 0; }
+        #vertical-resizer { width: 5px; height: 100%; background-color: #e0e0e0; cursor: col-resize; flex-shrink: 0; position: relative; z-index: 5; }
+        #vertical-resizer:hover, .resizing-v { background-color: #007bff; }
+        .main-content { flex-grow: 1; min-width: 400px; height: 100%; padding: 20px; display: flex; flex-direction: column; overflow: hidden; }
+        .diagram-container { position: relative; flex-basis: 60%; min-height: 200px; border: 1px solid #ccc; background-color: #fff; overflow: hidden; }
+        #idea-canvas { display: block; width: 100%; height: 100%; cursor: crosshair; /* Indicate clickable canvas */ }
+        .axis-label { position: absolute; font-size: 0.85em; color: #666; white-space: nowrap; }
+        .x-axis-label { bottom: 5px; left: 50%; transform: translateX(-50%); }
+        .y-axis-label { top: 50%; left: 5px; transform: translateY(-50%) rotate(-90deg); transform-origin: left top 0; }
+        #pulsing-ring-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+        #horizontal-resizer { height: 5px; width: 100%; background-color: #e0e0e0; cursor: row-resize; flex-shrink: 0; position: relative; z-index: 5; }
+        #horizontal-resizer:hover, .resizing-h { background-color: #007bff; }
+        .overview-container { flex-basis: 40%; min-height: 150px; display: flex; flex-direction: column; }
+        .overview-container h2 { margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        .overview-title-text { flex-grow: 1; font-size: 1em; margin-right: 5px;} /* Allow text to take space, adjust size */
+        #clear-point-filter { font-size: 0.8em; margin-left: 10px; cursor: pointer; color: #007bff; text-decoration: underline; display: none; /* Hidden initially */ flex-shrink: 0; /* Prevent shrinking */}
+        .overview-list { flex-grow: 1; overflow-y: auto; background-color: #fff; border: 1px solid #ccc; border-radius: 4px; }
+        #idea-list { list-style: none; }
+        .config-section, .rating-zone-section, .category-section, .filter-section, .scoring-summary-section, .add-idea-section, .storage-section { margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #eee; }
+        .config-section:last-child, .rating-zone-section:last-child, .category-section:last-child, .filter-section:last-child, .scoring-summary-section:last-child, .add-idea-section:last-child, .storage-section:last-child { margin-bottom: 0; border-bottom: none; }
+        h2 { font-size: 1.1em; margin-bottom: 15px; color: #555; font-weight: 600; }
+        h3 { font-size: 1em; margin-top: 15px; margin-bottom: 8px; color: #666; font-weight: 600; }
+        #rating-zone-list, #category-list, #category-scores, #location-scores { list-style: none; margin-bottom: 10px; padding-left: 0;}
+        #rating-zone-list li, #category-list li { display: flex; align-items: center; padding: 5px 0; font-size: 0.95em; }
+        .zone-color-swatch, .category-color-swatch { width: 15px; height: 15px; border-radius: 3px; margin-right: 8px; display: inline-block; border: 1px solid #ccc; flex-shrink: 0; }
+        .zone-name, .category-name { flex-grow: 1; margin-right: 5px; }
+        .zone-boundaries { font-size: 0.8em; color: #777; margin-right: 10px; }
+        #edit-zone-form { border-top: 1px solid #eee; margin-top: 15px; padding-top: 15px; }
+        #edit-zone-form label { margin-top: 10px; }
+        label { display: block; font-size: 0.9em; margin-bottom: 5px; color: #666; }
+        input[type="text"], textarea, select, input[type="number"].zone-input { width: 100%; padding: 8px 10px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.95em; }
+        textarea { resize: vertical; min-height: 60px; }
+        input[type="color"] { padding: 0; border: none; width: 40px; height: 30px; vertical-align: middle; margin-left: 10px; cursor: pointer; }
+        input[type="range"] { width: calc(100% - 55px); vertical-align: middle; }
+        input[type="number"] { width: 45px; margin-left: 10px; vertical-align: middle; text-align: center; -moz-appearance: textfield; }
+        input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        .slider-group { display: flex; align-items: center; margin-bottom: 10px; }
+        .slider-group label { margin-bottom: 0; margin-right: 5px; min-width: 70px; }
+        button { background-color: #007bff; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; font-size: 0.95em; transition: background-color 0.2s ease; margin-right: 5px; margin-bottom: 5px; }
+        button:last-child { margin-right: 0; }
+        button:hover { background-color: #0056b3; }
+        button.secondary { background-color: #6c757d; }
+        button.secondary:hover { background-color: #5a6268; }
+        button.danger { background-color: #dc3545; }
+        button.danger:hover { background-color: #c82333; }
+        button.info { background-color: #17a2b8; }
+        button.info:hover { background-color: #117a8b; }
+        .action-button { background: none; border: none; cursor: pointer; font-size: 1.1em; padding: 2px 5px; color: #666; margin-left: 5px; vertical-align: middle; line-height: 1; margin-bottom: 0; }
+        .action-button:hover { color: #000; }
+        .add-category-form { display: flex; align-items: center; }
+        .add-category-form input[type="text"] { flex-grow: 1; margin-right: 10px; margin-bottom: 0; }
+        #category-form-buttons button { padding: 8px 12px; }
+        #idea-list li { padding: 10px 15px; border-bottom: 1px solid #eee; display: flex; align-items: flex-start; transition: background-color 0.2s ease; cursor: default; }
+        #idea-list li:last-child { border-bottom: none; }
+        #idea-list li .category-color-swatch { flex-shrink: 0; margin-top: 3px; }
+        .idea-details { margin-left: 10px; flex-grow: 1; }
+        .idea-title { font-weight: 600; margin-right: 10px; display: inline; }
+        .idea-category-name { font-size: 0.85em; color: #555; margin-right: 10px; display: inline; }
+        .idea-scores { font-size: 0.85em; color: #555; display: block; margin-top: 2px; }
+        .idea-rating { font-size: 0.85em; font-style: italic; color: #333; display: block; margin-top: 2px; font-weight: 500; }
+        .idea-location { font-size: 0.85em; color: #555; display: block; margin-top: 2px; }
+        .idea-biodiversity-scores { font-size: 0.8em; color: #444; display: block; margin-top: 3px; } /* New style */
+        .idea-status-container { margin-top: 5px; display: flex; align-items: center; }
+        .idea-status-container label { font-size: 0.85em; margin-right: 5px; margin-bottom: 0; color: #555;}
+        .idea-status { font-size: 0.85em; padding: 2px 4px; border-radius: 3px; border: 1px solid #ccc; max-width: 150px; }
+        .idea-description-preview { font-size: 0.8em; color: #777; margin-top: 4px; display: block; }
+        .idea-actions { margin-left: auto; flex-shrink: 0; padding-left: 10px; align-self: center; }
+        #idea-list li.highlighted { background-color: #e7f3ff; }
+        #tooltip { position: absolute; background-color: rgba(0, 0, 0, 0.8); color: white; padding: 8px 12px; border-radius: 4px; font-size: 0.85em; pointer-events: none; display: none; white-space: normal; max-width: 250px; z-index: 1000; }
+        #tooltip ul { list-style: none; padding-left: 0; margin-top: 5px; }
+        #tooltip li { margin-bottom: 3px; display: flex; align-items: center; }
+        #tooltip .category-color-swatch { width: 10px; height: 10px; margin-right: 5px; flex-shrink: 0; }
+        .scoring-summary-section li { font-size: 0.9em; margin-bottom: 4px; padding-left: 5px; display: flex; align-items: center; } /* Style for score lists */
+        .scoring-summary-section strong { font-weight: 600; margin-right: 5px; }
+        .score-label { font-size: 0.9em; color: #555; margin-left: 8px;}
+        .score-value { margin-left: 3px; font-weight: 500; } /* Style score numbers */
+        #overall-scores { margin-bottom: 10px; font-size: 0.95em; display: flex; align-items: center;}
+        @keyframes pulse { 0% { transform: scale(1.3); opacity: 0.7; } 50% { transform: scale(1.6); opacity: 0.3; } 100% { transform: scale(1.9); opacity: 0; } }
+        .pulsing-ring { position: absolute; border: 2px solid #007bff; border-radius: 50%; transform: scale(1.3); opacity: 0; pointer-events: none; animation: pulse 0.7s ease-out; z-index: 10; will-change: transform, opacity; }
+        .no-select { -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; }
+    </style>
+</head>
+<body>
+
+    <aside class="sidebar" id="sidebar">
+        <section class="config-section">
+            <h2>Axis Configuration</h2>
+            <div> <label for="x-axis-label">X-Axis Label:</label> <input type="text" id="x-axis-label"> </div>
+            <div> <label for="y-axis-label">Y-Axis Label:</label> <input type="text" id="y-axis-label"> </div>
+        </section>
+
+        <section class="rating-zone-section">
+             <h2>Rating Zones</h2>
+             <ul id="rating-zone-list"></ul>
+             <form id="edit-zone-form" style="display: none;">
+                 <input type="hidden" id="editing-zone-index">
+                 <h3 id="edit-zone-header" style="margin-bottom: 10px; font-size: 1em;">Edit Zone</h3>
+                 <div> <label for="edit-zone-name">Zone Name:</label> <input type="text" id="edit-zone-name" required> </div>
+                 <div> <label for="edit-zone-color">Zone Color:</label> <input type="color" id="edit-zone-color"> </div>
+                 <div> <button type="submit" id="save-zone-button">Save Zone</button> <button type="button" id="cancel-edit-zone-button" class="secondary">Cancel</button> </div>
+             </form>
+        </section>
+
+        <section class="category-section">
+            <h2>Categories</h2>
+            <ul id="category-list"></ul>
+            <form id="add-category-form" class="add-category-form">
+                 <input type="hidden" id="editing-category-id">
+                 <input type="text" id="new-category-name" placeholder="Category Name" required>
+                 <input type="color" id="new-category-color" value="#3498db">
+                 <div id="category-form-buttons"> <button type="submit" id="save-category-button">+</button> <button type="button" id="cancel-edit-category-button" class="secondary" style="display: none;">Cancel</button> </div>
+            </form>
+        </section>
+
+        <section class="filter-section">
+            <h2>Filters</h2>
+            <div>
+                <label for="filter-category">Filter by Category:</label>
+                <select id="filter-category"> <option value="all">-- All Categories --</option> </select>
+            </div>
+             <div style="margin-top: 10px;">
+                <label for="filter-location">Filter by Location:</label>
+                <select id="filter-location"> <option value="all">-- All Locations --</option> </select>
+            </div>
+             <div style="margin-top: 10px;">
+                <label for="filter-status">Filter by Status:</label>
+                <select id="filter-status"> <option value="all">-- All Statuses --</option> </select>
+            </div>
+        </section>
+
+        <section class="scoring-summary-section">
+            <h2>Score Summary</h2>
+            <div id="overall-scores">
+                <strong>Overall:</strong> <span class="score-label">Pot:</span> <span id="overall-potential" class="score-value">0</span> | <span class="score-label">Ach:</span> <span id="overall-achieved" class="score-value">0</span>
+            </div>
+            <h3>By Category:</h3>
+            <ul id="category-scores"><!-- Populated by JS --></ul>
+            <h3>By Location:</h3>
+            <ul id="location-scores"><!-- Populated by JS --></ul>
+        </section>
+
+        <section class="add-idea-section">
+            <h2><span id="idea-form-title">Add New</span> Idea</h2>
+            <form id="add-idea-form">
+                <input type="hidden" id="editing-idea-id">
+                <div> <label for="idea-title">Title:</label> <input type="text" id="idea-title" required> </div>
+                <div> <label for="idea-location">Location:</label> <input type="text" id="idea-location"> </div>
+                <div> <label for="idea-description">Description:</label> <textarea id="idea-description"></textarea> </div>
+                <div> <label for="idea-category">Category:</label> <select id="idea-category" required> <option value="" disabled selected>-- Select Category --</option> </select> </div>
+                <div class="slider-group"> <label for="idea-x-score" id="idea-x-label">X:</label> <input type="range" id="idea-x-score" min="1" max="10" value="5"> <input type="number" id="idea-x-value" min="1" max="10" value="5"> </div>
+                <div class="slider-group"> <label for="idea-y-score" id="idea-y-label">Y:</label> <input type="range" id="idea-y-score" min="1" max="10" value="5"> <input type="number" id="idea-y-value" min="1" max="10" value="5"> </div>
+                <div id="idea-form-buttons"> <button type="submit" id="save-idea-button">Add Idea</button> <button type="button" id="cancel-edit-idea-button" class="secondary" style="display: none;">Cancel Edit</button> </div>
+            </form>
+        </section>
+
+         <section class="storage-section">
+             <h2>Data Storage</h2>
+             <button id="export-data-button" class="info">Export Data</button>
+             <button id="import-data-button" class="info">Import Data</button>
+             <input type="file" id="import-file-input" accept=".json" style="display: none;">
+             <hr style="margin: 15px 0;">
+             <button id="clear-data-button" class="danger">Clear All Saved Data</button>
+             <p style="font-size: 0.8em; color: #666; margin-top: 8px;">Data is saved automatically in your browser's local storage.</p>
+         </section>
+
+    </aside>
+
+    <div id="vertical-resizer"></div>
+
+    <main class="main-content" id="main-content">
+        <div class="diagram-container" id="diagram-container">
+            <canvas id="idea-canvas"></canvas>
+            <div class="axis-label x-axis-label" id="canvas-x-label">Cost</div>
+            <div class="axis-label y-axis-label" id="canvas-y-label">Effectiveness</div>
+             <div id="pulsing-ring-container"></div>
+        </div>
+         <div id="horizontal-resizer"></div>
+        <div class="overview-container" id="overview-container">
+             <h2>
+                 <span class="overview-title-text">Overview (<span id="visible-idea-count">0</span> / <span id="total-idea-count">0</span>)</span>
+                 <a href="#" id="clear-point-filter">Clear Point Filter</a>
+             </h2>
+             <div class="overview-list"> <ul id="idea-list"></ul> </div>
+        </div>
+         <div id="tooltip"></div>
+    </main>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- DOM Elements ---
+            const sidebar = document.getElementById('sidebar');
+            const verticalResizer = document.getElementById('vertical-resizer');
+            const mainContent = document.getElementById('main-content');
+            const diagramContainer = document.getElementById('diagram-container');
+            const horizontalResizer = document.getElementById('horizontal-resizer');
+            const overviewContainer = document.getElementById('overview-container');
+            const canvas = document.getElementById('idea-canvas');
+            const ctx = canvas.getContext('2d');
+            const tooltip = document.getElementById('tooltip');
+            const ideaListUl = document.getElementById('idea-list');
+            const categoryListUl = document.getElementById('category-list');
+            const ideaCategorySelect = document.getElementById('idea-category');
+            const xAxisLabelInput = document.getElementById('x-axis-label');
+            const yAxisLabelInput = document.getElementById('y-axis-label');
+            const canvasXLabel = document.getElementById('canvas-x-label');
+            const canvasYLabel = document.getElementById('canvas-y-label');
+            const ideaXLabel = document.getElementById('idea-x-label');
+            const ideaYLabel = document.getElementById('idea-y-label');
+            const addCategoryForm = document.getElementById('add-category-form');
+            const newCategoryNameInput = document.getElementById('new-category-name');
+            const newCategoryColorInput = document.getElementById('new-category-color');
+            const saveCategoryButton = document.getElementById('save-category-button');
+            const cancelEditCategoryButton = document.getElementById('cancel-edit-category-button');
+            const editingCategoryIdInput = document.getElementById('editing-category-id');
+            const addIdeaForm = document.getElementById('add-idea-form');
+            const ideaFormTitle = document.getElementById('idea-form-title');
+            const ideaTitleInput = document.getElementById('idea-title');
+            const ideaLocationInput = document.getElementById('idea-location');
+            const ideaDescriptionInput = document.getElementById('idea-description');
+            const ideaXScoreSlider = document.getElementById('idea-x-score');
+            const ideaXValueInput = document.getElementById('idea-x-value');
+            const ideaYScoreSlider = document.getElementById('idea-y-score');
+            const ideaYValueInput = document.getElementById('idea-y-value');
+            const saveIdeaButton = document.getElementById('save-idea-button');
+            const cancelEditIdeaButton = document.getElementById('cancel-edit-idea-button');
+            const editingIdeaIdInput = document.getElementById('editing-idea-id');
+            const ratingZoneListUl = document.getElementById('rating-zone-list');
+            const editZoneForm = document.getElementById('edit-zone-form');
+            const editingZoneIndexInput = document.getElementById('editing-zone-index');
+            const editZoneHeader = document.getElementById('edit-zone-header');
+            const editZoneNameInput = document.getElementById('edit-zone-name');
+            const editZoneColorInput = document.getElementById('edit-zone-color');
+            const cancelEditZoneButton = document.getElementById('cancel-edit-zone-button');
+            const pulsingRingContainer = document.getElementById('pulsing-ring-container');
+            // Filter Elements
+            const filterCategorySelect = document.getElementById('filter-category');
+            const filterLocationSelect = document.getElementById('filter-location');
+            const filterStatusSelect = document.getElementById('filter-status');
+            const clearPointFilterLink = document.getElementById('clear-point-filter');
+            // Overview Count Elements
+            const visibleIdeaCountSpan = document.getElementById('visible-idea-count');
+            const totalIdeaCountSpan = document.getElementById('total-idea-count');
+            // Scoring Elements
+            const overallPotentialSpan = document.getElementById('overall-potential');
+            const overallAchievedSpan = document.getElementById('overall-achieved');
+            const categoryScoresUl = document.getElementById('category-scores');
+            const locationScoresUl = document.getElementById('location-scores');
+            // Storage Elements
+            const clearDataButton = document.getElementById('clear-data-button');
+            const exportDataButton = document.getElementById('export-data-button');
+            const importDataButton = document.getElementById('import-data-button');
+            const importFileInput = document.getElementById('import-file-input');
+
+            // --- Constants ---
+            const pointRadius = 7;
+            const multiPointRadius = 10;
+            const padding = 40;
+            const storageKeys = {
+                axes: 'mappingTool_axisLabels_v1', // Added version suffix in case structure changes later
+                categories: 'mappingTool_categories_v1',
+                ideas: 'mappingTool_ideas_v2', // Version 2 includes status/location/scores implicitly
+                zones: 'mappingTool_ratingZones_v1'
+            };
+            const allowedStatuses = ["Not Started", "In Progress", "Completed", "On Hold"];
+            const defaultStatus = allowedStatuses[0];
+
+            // --- Default Data States ---
+            const defaultAxisLabels = { x: 'Cost', y: 'Effectiveness' };
+            const defaultCategories = [ { id: Date.now() + 1, name: 'General', color: '#cccccc' } ];
+            const defaultIdeas = []; // Will be populated with {id, title, location, description, categoryId, x, y, status}
+            const defaultRatingZones = [
+                { name: "Low Priority", xMin: 1, xMax: 5, yMin: 1, yMax: 5, color: "rgba(255, 204, 204, 0.2)" },
+                { name: "Re-evaluate", xMin: 6, xMax: 10, yMin: 1, yMax: 5, color: "rgba(255, 230, 204, 0.2)" },
+                { name: "Quick Wins", xMin: 1, xMax: 5, yMin: 6, yMax: 10, color: "rgba(204, 255, 204, 0.25)" },
+                { name: "Strategic", xMin: 6, xMax: 10, yMin: 6, yMax: 10, color: "rgba(204, 230, 255, 0.2)" }
+            ];
+
+            // --- Data Store ---
+            let categories = [];
+            let ideas = [];
+            let ratingZones = [];
+            let axisLabels = {};
+            let pointHitRegions = []; // Transient, calculated on draw
+            let pointFilterIds = null; // Stores IDs of ideas to show when a point is clicked, or null
+
+            // --- LOCAL STORAGE & DATA HANDLING ---
+            const saveData = () => {
+                try {
+                    localStorage.setItem(storageKeys.axes, JSON.stringify(axisLabels));
+                    localStorage.setItem(storageKeys.categories, JSON.stringify(categories));
+                    localStorage.setItem(storageKeys.ideas, JSON.stringify(ideas));
+                    localStorage.setItem(storageKeys.zones, JSON.stringify(ratingZones));
+                    console.log("Data saved to localStorage.");
+                } catch (e) {
+                    console.error("Error saving data to localStorage:", e);
+                    alert("Could not save data. Local storage might be full or disabled.");
+                }
+            };
+
+            const sanitizeLoadedData = () => {
+                axisLabels = typeof axisLabels === 'object' && axisLabels !== null ? axisLabels : { ...defaultAxisLabels };
+                categories = Array.isArray(categories) ? categories.map(c => ({ ...c, id: Number(c.id) })) : [...defaultCategories];
+                ideas = Array.isArray(ideas) ? ideas.map(i => ({
+                    ...i,
+                    id: Number(i.id),
+                    categoryId: Number(i.categoryId),
+                    x: Number(i.x),
+                    y: Number(i.y),
+                    status: i.status && allowedStatuses.includes(i.status) ? i.status : defaultStatus,
+                    location: typeof i.location === 'string' ? i.location : ""
+                })) : [...defaultIdeas];
+                ratingZones = Array.isArray(ratingZones) ? ratingZones.map(z => ({...z, xMin: Number(z.xMin), xMax: Number(z.xMax), yMin: Number(z.yMin), yMax: Number(z.yMax)})) : [...defaultRatingZones];
+
+                if (categories.length === 0) {
+                    categories.push({ id: Date.now(), name: 'Default', color: '#cccccc' });
+                }
+            };
+
+             const loadData = () => {
+                 try {
+                     const loadedAxes = localStorage.getItem(storageKeys.axes);
+                     const loadedCategories = localStorage.getItem(storageKeys.categories);
+                     const loadedIdeas = localStorage.getItem(storageKeys.ideas);
+                     const loadedZones = localStorage.getItem(storageKeys.zones);
+
+                     axisLabels = loadedAxes ? JSON.parse(loadedAxes) : { ...defaultAxisLabels };
+                     categories = loadedCategories ? JSON.parse(loadedCategories) : [...defaultCategories];
+                     ideas = loadedIdeas ? JSON.parse(loadedIdeas) : [...defaultIdeas];
+                     ratingZones = loadedZones ? JSON.parse(loadedZones) : [...defaultRatingZones];
+
+                     console.log("Data loaded from localStorage.");
+                 } catch (e) {
+                     console.error("Error loading data from localStorage:", e);
+                     alert("Could not load saved data. Using defaults. Saved data might be corrupted.");
+                     axisLabels = { ...defaultAxisLabels };
+                     categories = [...defaultCategories];
+                     ideas = [...defaultIdeas];
+                     ratingZones = [...defaultRatingZones];
+                 }
+                 sanitizeLoadedData();
+             };
+
+            const clearSavedData = () => {
+                if (window.confirm("Are you sure you want to clear ALL saved data for this tool? This cannot be undone.")) {
+                    try {
+                        Object.values(storageKeys).forEach(key => localStorage.removeItem(key));
+                        console.log("Saved data cleared from localStorage.");
+
+                        axisLabels = { ...defaultAxisLabels };
+                        categories = [...defaultCategories];
+                        ideas = [...defaultIdeas];
+                        ratingZones = [...defaultRatingZones];
+                        sanitizeLoadedData();
+
+                        pointFilterIds = null; // Reset point filter
+                        filterCategorySelect.value = "all";
+                        filterLocationSelect.value = "all";
+                        filterStatusSelect.value = "all";
+
+                        refreshUI();
+
+                        alert("Saved data cleared successfully.");
+
+                    } catch (e) {
+                        console.error("Error clearing data from localStorage:", e);
+                        alert("Could not clear saved data.");
+                    }
+                }
+            };
+
+            // --- IMPORT/EXPORT FUNCTIONS ---
+            const exportData = () => {
+                console.log("Exporting data...");
+                const dataToExport = {
+                    version: 2, // Increment version due to status/location fields
+                    exportedAt: new Date().toISOString(),
+                    axisLabels: axisLabels,
+                    categories: categories,
+                    ideas: ideas,
+                    ratingZones: ratingZones
+                };
+
+                const dataStr = JSON.stringify(dataToExport, null, 2);
+                const dataBlob = new Blob([dataStr], { type: 'application/json' });
+                const url = URL.createObjectURL(dataBlob);
+
+                const anchor = document.createElement('a');
+                anchor.href = url;
+                const dateStamp = new Date().toISOString().slice(0, 10);
+                anchor.download = `action_tracker_data_v2_${dateStamp}.json`; // Add version to filename
+                document.body.appendChild(anchor);
+                anchor.click();
+                document.body.removeChild(anchor);
+                URL.revokeObjectURL(url);
+                console.log("Export initiated.");
+            };
+
+            const importData = (event) => {
+                console.log("Import file selected...");
+                const file = event.target.files[0];
+                if (!file) { console.log("No file selected."); return; }
+                if (file.type !== 'application/json') { alert('Invalid file type. Please select a JSON file (.json) exported from this tool.'); importFileInput.value = null; return; }
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const importedData = JSON.parse(e.target.result);
+
+                        if (typeof importedData !== 'object' || importedData === null ||
+                            !importedData.hasOwnProperty('axisLabels') ||
+                            !importedData.hasOwnProperty('categories') ||
+                            !importedData.hasOwnProperty('ideas') ||
+                            !importedData.hasOwnProperty('ratingZones')) {
+                            throw new Error("Invalid file structure. Missing required data keys.");
+                        }
+                        // Basic version check (optional but recommended)
+                        // if (!importedData.version || importedData.version < 2) {
+                        //    console.warn("Importing older data format. Status/Location might be missing.");
+                        // }
+
+                        if (!window.confirm("Importing this file will OVERWRITE all current data in the tool. Are you sure you want to proceed?")) {
+                            console.log("Import cancelled by user.");
+                            importFileInput.value = null; return;
+                        }
+
+                        console.log("Applying imported data...");
+                        axisLabels = importedData.axisLabels;
+                        categories = importedData.categories;
+                        ideas = importedData.ideas; // Sanitization will handle missing fields if importing older versions
+                        ratingZones = importedData.ratingZones;
+
+                        sanitizeLoadedData(); // Crucial to add default status/location if missing
+                        saveData();
+
+                        pointFilterIds = null; // Reset filters after import
+                        filterCategorySelect.value = "all";
+                        filterLocationSelect.value = "all";
+                        filterStatusSelect.value = "all";
+
+                        refreshUI();
+                        alert('Data imported successfully!');
+                        console.log("Import successful.");
+
+                    } catch (error) {
+                        console.error("Error processing imported file:", error);
+                        alert(`Failed to import data: ${error.message}\n\nPlease ensure the file is a valid JSON exported from this tool.`);
+                    } finally {
+                        importFileInput.value = null;
+                    }
+                };
+                reader.onerror = (e) => { console.error("Error reading file:", e); alert('Error reading the selected file.'); importFileInput.value = null; };
+                reader.readAsText(file);
+            };
+
+             // --- SCORING LOGIC ---
+            // ** REVIEW AND ADJUST THIS FORMULA AS NEEDED **
+            const calculateBaseScore = (idea) => {
+                 if (!idea || typeof idea.x !== 'number' || typeof idea.y !== 'number') return 0;
+                 // Example: Effectiveness (1-10) times Inverse Cost (1-10)
+                 // Higher Y and Lower X give better scores. (11-X) maps 1->10, 10->1
+                 const score = Math.round((idea.y * 5) + (10 - idea.x));
+                 return Math.max(0, Math.round(score)); // Ensure score is non-negative integer
+            };
+
+            const calculatePotentialScore = (idea) => {
+                if (!idea || !idea.status || idea.status === "Completed") return 0;
+                return calculateBaseScore(idea);
+            };
+
+            const calculateAchievedScore = (idea) => {
+                if (!idea || idea.status !== "Completed") return 0;
+                return calculateBaseScore(idea);
+            };
+
+             const updateScoreSummary = () => {
+                 let overallPotential = 0;
+                 let overallAchieved = 0;
+                 const categoryScores = {}; // { categoryId: { potential: 0, achieved: 0, name: '...', color: '...' } }
+                 const locationScores = {}; // { locationName: { potential: 0, achieved: 0 } }
+
+                 categories.forEach(cat => { categoryScores[cat.id] = { potential: 0, achieved: 0, name: cat.name, color: cat.color }; });
+
+                 ideas.forEach(idea => {
+                     const potential = calculatePotentialScore(idea);
+                     const achieved = calculateAchievedScore(idea);
+                     overallPotential += potential;
+                     overallAchieved += achieved;
+
+                     const catData = categoryScores[idea.categoryId];
+                     if (catData) {
+                         catData.potential += potential;
+                         catData.achieved += achieved;
+                     } else { // Handle ideas with uncategorized/deleted categories
+                         const unknownCatId = 'unknown';
+                         if (!categoryScores[unknownCatId]) categoryScores[unknownCatId] = { potential: 0, achieved: 0, name: 'Uncategorized', color: '#cccccc'};
+                         categoryScores[unknownCatId].potential += potential;
+                         categoryScores[unknownCatId].achieved += achieved;
+                     }
+
+                     const locKey = idea.location?.trim() || '(No Location)'; // Group empty/whitespace locations
+                     if (!locationScores[locKey]) locationScores[locKey] = { potential: 0, achieved: 0 };
+                     locationScores[locKey].potential += potential;
+                     locationScores[locKey].achieved += achieved;
+                 });
+
+                 overallPotentialSpan.textContent = overallPotential;
+                 overallAchievedSpan.textContent = overallAchieved;
+
+                 categoryScoresUl.innerHTML = '';
+                 Object.values(categoryScores)
+                     .filter(scoreData => scoreData.potential > 0 || scoreData.achieved > 0) // Only show categories with scores
+                     .sort((a,b) => a.name.localeCompare(b.name))
+                     .forEach(scoreData => {
+                         const li = document.createElement('li');
+                         li.innerHTML = `<span class="category-color-swatch" style="background-color:${scoreData.color};"></span>
+                                        <strong>${scoreData.name}:</strong> <span class="score-label">Pot:</span> <span class="score-value">${scoreData.potential}</span> | <span class="score-label">Ach:</span> <span class="score-value">${scoreData.achieved}</span>`;
+                         categoryScoresUl.appendChild(li);
+                     });
+                 if (categoryScoresUl.children.length === 0) categoryScoresUl.innerHTML = '<li>No scores yet.</li>';
+
+                 locationScoresUl.innerHTML = '';
+                 Object.entries(locationScores)
+                     .filter(([locName, scoreData]) => scoreData.potential > 0 || scoreData.achieved > 0) // Only show locations with scores
+                     .sort((a, b) => a[0].localeCompare(b[0]))
+                     .forEach(([locName, scoreData]) => {
+                         const li = document.createElement('li');
+                         li.innerHTML = `<strong>${locName}:</strong> <span class="score-label">Pot:</span> <span class="score-value">${scoreData.potential}</span> | <span class="score-label">Ach:</span> <span class="score-value">${scoreData.achieved}</span>`;
+                         locationScoresUl.appendChild(li);
+                     });
+                  if (locationScoresUl.children.length === 0) locationScoresUl.innerHTML = '<li>No scores yet.</li>';
+             };
+
+
+            // --- Utility Functions ---
+            const getCategoryById = (id) => categories.find(cat => cat.id === parseInt(id));
+            const getIdeaById = (id) => ideas.find(idea => idea.id === parseInt(id));
+            const mapToCanvas = (value, axis) => { const dpr=window.devicePixelRatio||1; const cS=(axis==='x')?canvas.width/dpr:canvas.height/dpr; const gS=cS-2*padding; if(axis==='y'){return padding+gS-((value-1)/9)*gS;}else{return padding+((value-1)/9)*gS;} };
+            const getRatingForIdea = (idea) => { for (const zone of ratingZones){ if(idea.x>=zone.xMin&&idea.x<=zone.xMax&&idea.y>=zone.yMin&&idea.y<=zone.yMax){return zone.name;} } return "Unrated"; };
+            // getIdeasAtPoint used within drawPoints
+
+            // --- FILTERING LOGIC ---
+            const populateFilterDropdowns = () => {
+                // Categories
+                const currentCatFilter = filterCategorySelect.value;
+                filterCategorySelect.innerHTML = '<option value="all">-- All Categories --</option>';
+                categories.forEach(cat => {
+                    const opt = document.createElement('option');
+                    opt.value = cat.id;
+                    opt.textContent = cat.name;
+                    filterCategorySelect.appendChild(opt);
+                });
+                 if (filterCategorySelect.querySelector(`option[value="${currentCatFilter}"]`)) { filterCategorySelect.value = currentCatFilter; } else { filterCategorySelect.value = "all"; }
+
+                // Locations
+                const currentLocFilter = filterLocationSelect.value;
+                const uniqueLocations = [...new Set(ideas.map(idea => idea.location?.trim()).filter(loc => loc))].sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+                filterLocationSelect.innerHTML = '<option value="all">-- All Locations --</option>';
+                if (ideas.some(idea => !idea.location?.trim())) {
+                     const opt = document.createElement('option'); opt.value = "none"; opt.textContent = "(No Location)"; filterLocationSelect.appendChild(opt);
+                }
+                uniqueLocations.forEach(loc => { const opt = document.createElement('option'); opt.value = loc; opt.textContent = loc; filterLocationSelect.appendChild(opt); });
+                 if (filterLocationSelect.querySelector(`option[value="${currentLocFilter}"]`)) { filterLocationSelect.value = currentLocFilter; } else { filterLocationSelect.value = "all"; }
+
+                 // Statuses
+                 const currentStatusFilter = filterStatusSelect.value;
+                 filterStatusSelect.innerHTML = '<option value="all">-- All Statuses --</option>';
+                 allowedStatuses.forEach(status => { const opt = document.createElement('option'); opt.value = status; opt.textContent = status; filterStatusSelect.appendChild(opt); });
+                 if (allowedStatuses.includes(currentStatusFilter)) { filterStatusSelect.value = currentStatusFilter; } else { filterStatusSelect.value = "all"; }
+            };
+
+            const getFilteredIdeas = () => {
+                const selectedCategoryId = filterCategorySelect.value;
+                const selectedLocation = filterLocationSelect.value;
+                const selectedStatus = filterStatusSelect.value;
+
+                return ideas.filter(idea => {
+                    if (pointFilterIds && !pointFilterIds.includes(idea.id)) return false; // Point filter override
+
+                    const categoryMatch = selectedCategoryId === "all" || idea.categoryId === parseInt(selectedCategoryId);
+                    let locationMatch = selectedLocation === "all";
+                    if (selectedLocation === "none") locationMatch = !idea.location?.trim();
+                    else if (selectedLocation !== "all") locationMatch = idea.location === selectedLocation;
+                    const statusMatch = selectedStatus === "all" || idea.status === selectedStatus;
+
+                    return categoryMatch && locationMatch && statusMatch;
+                });
+            };
+
+             const clearPointFilter = () => {
+                 if (pointFilterIds !== null) {
+                     pointFilterIds = null;
+                     clearPointFilterLink.style.display = 'none';
+                     console.log("Point filter cleared.");
+                     refreshUI(); // Update list and diagram based on dropdown filters now
+                 }
+             };
+
+
+            // --- Rendering Functions ---
+            const resizeCanvas = () => { const dpr=window.devicePixelRatio||1; const rect=diagramContainer.getBoundingClientRect(); const nW=Math.max(rect.width,10); const nH=Math.max(rect.height,10); if(canvas.width!==nW*dpr||canvas.height!==nH*dpr){ canvas.width=nW*dpr; canvas.height=nH*dpr; canvas.style.width=`${nW}px`; canvas.style.height=`${nH}px`; drawDiagram(); } };
+            const drawRatingZones = () => { const dpr=window.devicePixelRatio||1; ctx.save(); ctx.scale(dpr,dpr); ratingZones.forEach(zone => { const stX=(mapToCanvas(2,'x')-mapToCanvas(1,'x')); const stY=(mapToCanvas(1,'y')-mapToCanvas(2,'y')); const zSX=mapToCanvas(zone.xMin-0.5,'x'); const zSY=mapToCanvas(zone.yMax+0.5,'y'); const zW=(zone.xMax-zone.xMin+1)*stX; const zH=(zone.yMax-zone.yMin+1)*stY; ctx.fillStyle=zone.color; ctx.fillRect(zSX,zSY,zW,zH); }); ctx.restore(); };
+            const drawGridAndAxes = () => { const dpr=window.devicePixelRatio||1; const sW=canvas.width/dpr; const sH=canvas.height/dpr; const gW=sW-2*padding; const gH=sH-2*padding; ctx.save(); ctx.scale(dpr,dpr); ctx.strokeStyle='#e0e0e0'; ctx.lineWidth=1/dpr; ctx.font=`${10/dpr}px sans-serif`; ctx.fillStyle='#666'; ctx.textAlign='center'; ctx.textBaseline='middle'; for(let i=1;i<=10;i++){ const x=mapToCanvas(i,'x'); const y=mapToCanvas(i,'y'); ctx.beginPath(); ctx.moveTo(x,padding); ctx.lineTo(x,padding+gH); ctx.stroke(); ctx.fillText(i.toString(),x,padding+gH+(15/dpr)); ctx.beginPath(); ctx.moveTo(padding,y); ctx.lineTo(padding+gW,y); ctx.stroke(); ctx.save(); ctx.textAlign='right'; ctx.fillText(i.toString(),padding-(10/dpr),y); ctx.restore(); } ctx.strokeStyle='#333'; ctx.lineWidth=1.5/dpr; ctx.beginPath(); ctx.moveTo(padding,padding+gH); ctx.lineTo(padding+gW,padding+gH); ctx.moveTo(padding,padding); ctx.lineTo(padding,padding+gH); ctx.stroke(); canvasXLabel.textContent=axisLabels.x; canvasYLabel.textContent=axisLabels.y; ctx.restore(); };
+
+             const drawPoints = () => {
+                 const dpr = window.devicePixelRatio || 1;
+                 pointHitRegions = [];
+                 const filteredIdeasToDraw = getFilteredIdeas(); // Get currently filtered ideas
+
+                 const getIdeasAtPointLocal = (x, y, ideaList) => ideaList.filter(idea => idea.x === x && idea.y === y);
+
+                 const groupedIdeas = filteredIdeasToDraw.reduce((acc, idea) => {
+                     const key = `${idea.x},${idea.y}`;
+                     if (!acc[key]) acc[key] = [];
+                     acc[key].push(idea);
+                     return acc;
+                 }, {});
+
+                 ctx.save();
+                 ctx.scale(dpr, dpr);
+
+                 Object.entries(groupedIdeas).forEach(([key, ideasAtPoint]) => {
+                     const [xStr, yStr] = key.split(',');
+                     const xVal = parseInt(xStr);
+                     const yVal = parseInt(yStr);
+                     const canvasX = mapToCanvas(xVal, 'x');
+                     const canvasY = mapToCanvas(yVal, 'y');
+                     const numIdeas = ideasAtPoint.length;
+                     const currentRadius = numIdeas > 1 ? multiPointRadius : pointRadius;
+                     const scaledRadius = currentRadius / dpr;
+
+                     if (numIdeas === 1) {
+                         const idea = ideasAtPoint[0];
+                         const cat = getCategoryById(idea.categoryId);
+                         ctx.fillStyle = cat ? cat.color : '#cccccc';
+                         ctx.beginPath(); ctx.arc(canvasX, canvasY, scaledRadius, 0, Math.PI * 2); ctx.fill();
+                     } else {
+                         const categoryCounts = ideasAtPoint.reduce((acc, idea) => { acc[idea.categoryId] = (acc[idea.categoryId] || 0) + 1; return acc; }, {});
+                         let startAngle = -Math.PI / 2;
+                         Object.entries(categoryCounts).forEach(([catId, count]) => {
+                             const cat = getCategoryById(catId);
+                             const proportion = count / numIdeas;
+                             const endAngle = startAngle + proportion * Math.PI * 2;
+                             ctx.fillStyle = cat ? cat.color : '#cccccc';
+                             ctx.beginPath(); ctx.moveTo(canvasX, canvasY); ctx.arc(canvasX, canvasY, scaledRadius, startAngle, endAngle); ctx.closePath(); ctx.fill();
+                             if (numIdeas > 1) { // Only draw stroke for multi-point pies
+                                 ctx.strokeStyle = '#fff'; ctx.lineWidth = 0.5 / dpr; ctx.stroke();
+                             }
+                             startAngle = endAngle;
+                         });
+                     }
+                     pointHitRegions.push({ x: canvasX * dpr, y: canvasY * dpr, radius: currentRadius, ideaIds: ideasAtPoint.map(i => i.id) });
+                 });
+                 ctx.restore();
+             };
+
+            const drawDiagram = () => { const dpr=window.devicePixelRatio||1; ctx.clearRect(0,0,canvas.width,canvas.height); drawRatingZones(); drawGridAndAxes(); drawPoints(); };
+
+            // --- UI Update Functions ---
+             const refreshUI = () => {
+                 console.log("Refreshing UI...");
+                 updateAxisInputsAndLabels();
+                 updateRatingZoneList();
+                 resetEditZoneForm();
+                 updateCategoryList();
+                 resetCategoryForm();
+                 updateCategoryDropdown();
+                 populateFilterDropdowns(); // Before list/diagram/scores
+                 updateScoreSummary();      // Before list
+                 updateIdeaList();
+                 resetIdeaForm();
+                 drawDiagram();
+                 clearPointFilterLink.style.display = pointFilterIds ? 'inline' : 'none';
+                 console.log("UI Refresh complete.");
+             }
+
+            const updateAxisInputsAndLabels = () => { xAxisLabelInput.value = axisLabels.x; yAxisLabelInput.value = axisLabels.y; canvasXLabel.textContent = axisLabels.x; canvasYLabel.textContent = axisLabels.y; ideaXLabel.textContent = axisLabels.x.substring(0, 12) + ':'; ideaYLabel.textContent = axisLabels.y.substring(0, 12) + ':'; };
+            const updateRatingZoneList = () => { ratingZoneListUl.innerHTML=''; ratingZones.forEach((zone,index)=>{ const li=document.createElement('li'); li.dataset.zoneIndex=index; li.innerHTML=`<span class="zone-color-swatch" style="background-color: ${zone.color};"></span><span class="zone-name">${zone.name}</span><span class="zone-boundaries">(X:${zone.xMin}-${zone.xMax},Y:${zone.yMin}-${zone.yMax})</span><button class="action-button edit-zone" title="Edit Zone Name/Color">✏️</button>`; ratingZoneListUl.appendChild(li); }); };
+            const resetEditZoneForm = () => { editZoneForm.style.display='none'; editingZoneIndexInput.value=''; editZoneNameInput.value=''; editZoneColorInput.value='#ffffff'; };
+            const updateCategoryList = () => { categoryListUl.innerHTML=''; categories.forEach(cat=>{ const li=document.createElement('li'); li.dataset.categoryId=cat.id; li.innerHTML=`<span class="category-color-swatch" style="background-color:${cat.color};"></span><span class="category-name">${cat.name}</span><button class="action-button edit-category" title="Edit Category">✏️</button><button class="action-button delete-category" title="Delete Category">🗑️</button>`; categoryListUl.appendChild(li); }); };
+            const updateCategoryDropdown = () => { const cV=ideaCategorySelect.value; ideaCategorySelect.innerHTML='<option value="" disabled>-- Select Category --</option>'; categories.forEach(cat=>{ const opt=document.createElement('option'); opt.value=cat.id; opt.textContent=cat.name; ideaCategorySelect.appendChild(opt); }); if(categories.some(c=>c.id===parseInt(cV))){ideaCategorySelect.value=cV;}else if(categories.length > 0 && ideaCategorySelect.options.length > 1){ ideaCategorySelect.value = categories[0].id; } else { ideaCategorySelect.value="";} };
+
+            const updateIdeaList = () => {
+                 ideaListUl.innerHTML = '';
+                 const filteredIdeasToList = getFilteredIdeas();
+
+                 filteredIdeasToList.forEach(idea => {
+                     const cat = getCategoryById(idea.categoryId);
+                     const rating = getRatingForIdea(idea);
+                     const potentialScore = calculatePotentialScore(idea);
+                     const achievedScore = calculateAchievedScore(idea);
+                     const li = document.createElement('li');
+                     li.dataset.ideaId = idea.id;
+
+                     let statusOptionsHtml = '';
+                     allowedStatuses.forEach(status => { statusOptionsHtml += `<option value="${status}" ${idea.status === status ? 'selected' : ''}>${status}</option>`; });
+
+                     li.innerHTML = `
+                        <span class="category-color-swatch" style="background-color:${cat ? cat.color : '#cccccc'};"></span>
+                        <div class="idea-details">
+                            <div><span class="idea-title">${idea.title}</span> <span class="idea-category-name">(${cat ? cat.name : 'Uncategorized'})</span></div>
+                            <span class="idea-scores">${axisLabels.x}: ${idea.x}, ${axisLabels.y}: ${idea.y}</span>
+                            <span class="idea-rating">Rating: ${rating}</span>
+                            <span class="idea-location">Location: ${idea.location || 'N/A'}</span>
+                            <span class="idea-biodiversity-scores">BioScore: <span class="score-label">Pot:</span> <span class="score-value">${potentialScore}</span> | <span class="score-label">Ach:</span> <span class="score-value">${achievedScore}</span></span>
+                            <div class="idea-status-container"><label for="status-${idea.id}">Status:</label><select class="idea-status" id="status-${idea.id}" data-idea-id="${idea.id}">${statusOptionsHtml}</select></div>
+                            ${idea.description ? `<span class="idea-description-preview">${idea.description.substring(0, 80)}${idea.description.length > 80 ? '...' : ''}</span>` : ''}
+                        </div>
+                        <div class="idea-actions"><button class="action-button edit-idea" title="Edit Idea">✏️</button> <button class="action-button delete-idea" title="Delete Idea">🗑️</button></div>`;
+
+                     li.addEventListener('mouseenter', (e) => { if (!e.target.closest('.idea-actions, .idea-status')) { highlightPoint(idea.id, true); li.classList.add('highlighted'); } });
+                     li.addEventListener('mouseleave', () => { highlightPoint(idea.id, false); li.classList.remove('highlighted'); });
+                     ideaListUl.appendChild(li);
+                 });
+
+                 visibleIdeaCountSpan.textContent = filteredIdeasToList.length;
+                 totalIdeaCountSpan.textContent = ideas.length;
+                 // Update overview title if point filter active
+                 const titleSpan = overviewContainer.querySelector('.overview-title-text');
+                 if (pointFilterIds) {
+                     const pointCoords = ideas.find(i => i.id === pointFilterIds[0]); // Get coords from first idea in filter
+                     titleSpan.textContent = `Overview (Filtered to point ${pointCoords ? `(${pointCoords.x},${pointCoords.y})` : ''} - ${filteredIdeasToList.length} item${filteredIdeasToList.length !== 1 ? 's' : ''})`;
+                 } else {
+                     titleSpan.textContent = `Overview (${filteredIdeasToList.length} / ${ideas.length})`;
+                 }
+             };
+
+            const resetCategoryForm = () => { editingCategoryIdInput.value=''; newCategoryNameInput.value=''; newCategoryColorInput.value='#3498db'; saveCategoryButton.textContent='+'; cancelEditCategoryButton.style.display='none'; };
+            const resetIdeaForm = () => {
+                 editingIdeaIdInput.value=''; ideaTitleInput.value=''; ideaLocationInput.value = ''; ideaDescriptionInput.value='';
+                 ideaXScoreSlider.value=5; ideaXValueInput.value=5; ideaYScoreSlider.value=5; ideaYValueInput.value=5;
+                 ideaFormTitle.textContent='Add New'; saveIdeaButton.textContent='Add Idea'; cancelEditIdeaButton.style.display='none';
+                 if (categories.length > 0 && !editingIdeaIdInput.value) ideaCategorySelect.value = categories[0].id;
+                 else if (!categories.some(c => c.id === parseInt(ideaCategorySelect.value))) ideaCategorySelect.value = ""; // Ensure selected category exists or reset
+            };
+
+            // --- Event Handlers ---
+            xAxisLabelInput.addEventListener('input', (e) => { axisLabels.x = e.target.value || defaultAxisLabels.x; refreshUI(); saveData(); }); // Refresh includes score updates
+            yAxisLabelInput.addEventListener('input', (e) => { axisLabels.y = e.target.value || defaultAxisLabels.y; refreshUI(); saveData(); }); // Refresh includes score updates
+            ideaXScoreSlider.addEventListener('input', (e) => ideaXValueInput.value = e.target.value); ideaXValueInput.addEventListener('input', (e) => ideaXScoreSlider.value = e.target.value);
+            ideaYScoreSlider.addEventListener('input', (e) => ideaYValueInput.value = e.target.value); ideaYValueInput.addEventListener('input', (e) => ideaYScoreSlider.value = e.target.value);
+
+            addCategoryForm.addEventListener('submit', (e) => { e.preventDefault(); const name=newCategoryNameInput.value.trim(); const color=newCategoryColorInput.value; const edId=parseInt(editingCategoryIdInput.value); if(!name){alert("Category name cannot be empty.");return;} if(categories.some(c=>c.name.toLowerCase()===name.toLowerCase()&&c.id!==edId)){alert("Category name must be unique.");return;} if(edId){const idx=categories.findIndex(c=>c.id===edId);if(idx>-1){categories[idx].name=name;categories[idx].color=color; refreshUI(); resetCategoryForm();saveData();}}else{const nC={id:Date.now(),name:name,color:color};categories.push(nC); refreshUI(); resetCategoryForm();saveData();} });
+            cancelEditCategoryButton.addEventListener('click', resetCategoryForm);
+
+            addIdeaForm.addEventListener('submit', (e) => {
+                 e.preventDefault();
+                 const catId = parseInt(ideaCategorySelect.value); const title = ideaTitleInput.value.trim(); const location = ideaLocationInput.value.trim();
+                 const edId = parseInt(editingIdeaIdInput.value); const xVal = parseInt(ideaXValueInput.value); const yVal = parseInt(ideaYValueInput.value);
+                 if (!title) { alert("Idea title cannot be empty."); return; } if (!catId || isNaN(catId)) { alert("Please select a category."); return; }
+
+                 const iD = { title: title, location: location, description: ideaDescriptionInput.value.trim(), categoryId: catId, x: xVal, y: yVal };
+
+                 if (edId) {
+                     const idx = ideas.findIndex(i => i.id === edId);
+                     if (idx > -1) {
+                         const existingStatus = ideas[idx].status || defaultStatus;
+                         ideas[idx] = { ...ideas[idx], ...iD, status: existingStatus }; // Preserve status on edit
+                         refreshUI(); resetIdeaForm(); saveData();
+                     }
+                 } else {
+                     const nI = { id: Date.now(), ...iD, status: defaultStatus };
+                     ideas.push(nI);
+                     refreshUI(); resetIdeaForm(); saveData();
+                 }
+             });
+            cancelEditIdeaButton.addEventListener('click', resetIdeaForm);
+
+            editZoneForm.addEventListener('submit', (e) => { e.preventDefault(); const idx=parseInt(editingZoneIndexInput.value); const nN=editZoneNameInput.value.trim(); const nCHex=editZoneColorInput.value; let nCRgba=ratingZones[idx]?.color||'rgba(0,0,0,0.1)'; try{ const r=parseInt(nCHex.slice(1,3),16);const g=parseInt(nCHex.slice(3,5),16);const b=parseInt(nCHex.slice(5,7),16); const aM=ratingZones[idx]?.color.match(/rgba?\([^)]+,([\d.]+)\)/); const a=aM?aM[1]:'0.2'; nCRgba=`rgba(${r}, ${g}, ${b}, ${a})`; }catch(err){console.error("Error parsing color for zone:", err);} if(idx>=0&&idx<ratingZones.length&&nN){ ratingZones[idx].name=nN; ratingZones[idx].color=nCRgba; refreshUI(); resetEditZoneForm(); saveData(); }else if(!nN){alert("Zone name cannot be empty.");} });
+            cancelEditZoneButton.addEventListener('click', resetEditZoneForm);
+
+
+            // --- Event Delegation ---
+            categoryListUl.addEventListener('click', (e) => { const tgt=e.target;const li=tgt.closest('li');if(!li)return;const cId=parseInt(li.dataset.categoryId); if(tgt.classList.contains('delete-category')){ const iIC = ideas.filter(idea => idea.categoryId === cId); if(iIC.length>0){alert(`Cannot delete category "${getCategoryById(cId)?.name}". It is assigned to ${iIC.length} idea(s). Reassign/delete ideas first.`);return;} if(categories.length <= 1) { alert("Cannot delete the last category."); return; } if(window.confirm(`Delete category "${getCategoryById(cId)?.name}"?`)){ categories=categories.filter(c=>c.id!==cId); refreshUI(); resetCategoryForm(); saveData(); }} else if(tgt.classList.contains('edit-category')){ const cat=getCategoryById(cId); if(cat){ editingCategoryIdInput.value=cat.id; newCategoryNameInput.value=cat.name; newCategoryColorInput.value=cat.color; saveCategoryButton.textContent='Save'; cancelEditCategoryButton.style.display='inline-block'; newCategoryNameInput.focus(); }} });
+            ratingZoneListUl.addEventListener('click', (e) => { const tgt=e.target; if(tgt.classList.contains('edit-zone')){ const li=tgt.closest('li'); const zIdx=parseInt(li.dataset.zoneIndex); const zone=ratingZones[zIdx]; if(zone){ editingZoneIndexInput.value=zIdx; editZoneNameInput.value=zone.name; try{ const m=zone.color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*[\d.]+)?\)/); if(m){const r=parseInt(m[1]).toString(16).padStart(2,'0');const g=parseInt(m[2]).toString(16).padStart(2,'0');const b=parseInt(m[3]).toString(16).padStart(2,'0'); editZoneColorInput.value=`#${r}${g}${b}`; }else{editZoneColorInput.value=zone.color;} }catch(err){editZoneColorInput.value='#ffffff';} editZoneHeader.textContent=`Edit Zone: ${zone.name}`; editZoneForm.style.display='block'; editZoneNameInput.focus(); }} });
+
+            ideaListUl.addEventListener('click', (e) => {
+                 const tgt = e.target; const li = tgt.closest('li'); if (!li) return;
+                 const iId = parseInt(li.dataset.ideaId); const idea = getIdeaById(iId); if (!idea) return;
+                 if (tgt.classList.contains('delete-idea')) {
+                     if (window.confirm(`Delete idea "${idea.title}"?`)) {
+                         ideas = ideas.filter(i => i.id !== iId);
+                         refreshUI(); resetIdeaForm(); saveData();
+                     }
+                 } else if (tgt.classList.contains('edit-idea')) {
+                     editingIdeaIdInput.value = idea.id; ideaTitleInput.value = idea.title; ideaLocationInput.value = idea.location || ''; ideaDescriptionInput.value = idea.description;
+                     ideaCategorySelect.value = idea.categoryId; ideaXScoreSlider.value = idea.x; ideaXValueInput.value = idea.x; ideaYScoreSlider.value = idea.y; ideaYValueInput.value = idea.y;
+                     ideaFormTitle.textContent = 'Edit'; saveIdeaButton.textContent = 'Save Idea'; cancelEditIdeaButton.style.display = 'inline-block'; ideaTitleInput.focus(); addIdeaForm.scrollIntoView({ behavior: 'smooth' });
+                 }
+             });
+
+            ideaListUl.addEventListener('change', (e) => {
+                  if (e.target.classList.contains('idea-status')) {
+                      const selectElement = e.target; const ideaId = parseInt(selectElement.dataset.ideaId); const newStatus = selectElement.value;
+                      const idea = getIdeaById(ideaId);
+                      if (idea && allowedStatuses.includes(newStatus) && idea.status !== newStatus) {
+                          idea.status = newStatus;
+                          console.log(`Status for idea ${ideaId} updated to: ${newStatus}`);
+                          saveData();
+                          updateScoreSummary(); // Update aggregate scores
+                          // Update individual item score in list
+                          const listItem = selectElement.closest('li');
+                          if (listItem) {
+                               const potScoreEl = listItem.querySelector('.idea-biodiversity-scores .score-value:nth-child(1)'); // More robust selection?
+                               const achScoreEl = listItem.querySelector('.idea-biodiversity-scores .score-value:nth-child(2)');
+                               if(potScoreEl) potScoreEl.textContent = calculatePotentialScore(idea);
+                               if(achScoreEl) achScoreEl.textContent = calculateAchievedScore(idea);
+                          }
+                      } else if (idea && idea.status === newStatus) { /* No change */ }
+                        else { console.error(`Status update failed for idea ${ideaId}`); selectElement.value = idea ? idea.status : defaultStatus; } // Revert UI
+                  }
+             });
+
+            // --- Canvas Interaction ---
+             canvas.addEventListener('click', (e) => {
+                 const r = canvas.getBoundingClientRect(); const dpr = window.devicePixelRatio || 1; const mX = (e.clientX - r.left) * dpr; const mY = (e.clientY - r.top) * dpr;
+                 let hitPoint = null; let minDistSq = Infinity;
+                 const clickTolerance = (5 * dpr)**2; // 5px tolerance squared
+
+                 pointHitRegions.forEach(reg => {
+                     const distSq = (mX - reg.x) ** 2 + (mY - reg.y) ** 2;
+                     const hitRadiusSq = (reg.radius * dpr + (5*dpr)) ** 2; // Use DPR for radius calc too
+                     // console.log(`Checking point ${reg.ideaIds[0]}: distSq=${distSq}, hitRadiusSq=${hitRadiusSq}`);
+                     if (distSq < hitRadiusSq && distSq < minDistSq) {
+                         minDistSq = distSq;
+                         hitPoint = reg;
+                     }
+                 });
+
+                 if (hitPoint) {
+                     console.log("Point clicked, filtering to IDs:", hitPoint.ideaIds);
+                     pointFilterIds = [...hitPoint.ideaIds]; // Set filter
+                     clearPointFilterLink.style.display = 'inline'; // Show clear link
+                     refreshUI(); // Update list and diagram
+                 } else if (pointFilterIds !== null) { // Clicked background while filter active
+                     clearPointFilter();
+                 } else {
+                    // console.log("Canvas background clicked (no filter active).");
+                 }
+            });
+
+            canvas.addEventListener('mousemove', (e) => { const r=canvas.getBoundingClientRect(); const dpr=window.devicePixelRatio||1; const mX=(e.clientX-r.left)*dpr; const mY=(e.clientY-r.top)*dpr; let hP=null; let mDSq=Infinity; pointHitRegions.forEach(reg=>{ const dSq=(mX-reg.x)**2+(mY-reg.y)**2; const hR=(reg.radius*dpr+(3*dpr))**2; if(dSq<hR&&dSq<mDSq){ mDSq=dSq; hP=reg; }}); clearHighlights(); hideTooltip(); if(hP){ showTooltip(e.clientX,e.clientY,hP.ideaIds); highlightListItems(hP.ideaIds); lastHoveredPointIds=hP.ideaIds; } });
+            canvas.addEventListener('mouseout', () => { hideTooltip(); clearHighlights(); });
+
+             const showTooltip = (cX, cY, ids) => {
+                 const ideasToShow = ideas.filter(i => ids.includes(i.id)); if (ideasToShow.length === 0) return;
+                 let content = ''; const firstIdea = ideasToShow[0];
+                 if (ideasToShow.length === 1) {
+                     const idea = ideasToShow[0]; const cat = getCategoryById(idea.categoryId); const pot = calculatePotentialScore(idea); const ach = calculateAchievedScore(idea);
+                     content = `<strong>${idea.title}</strong><br><span class="category-color-swatch" style="background-color:${cat?.color || '#ccc'};"></span> ${cat?.name || 'Uncat.'}<br>${axisLabels.x}: ${idea.x}, ${axisLabels.y}: ${idea.y}<br>Status: ${idea.status}<br>Loc: ${idea.location || 'N/A'}<br>BioScore: Pot: ${pot} | Ach: ${ach}${idea.description ? `<br><small>${idea.description.substring(0, 50)}...</small>` : ''}`;
+                 } else {
+                     content = `<strong>Multi (${ideasToShow.length}) @ (${firstIdea.x}, ${firstIdea.y})</strong><ul>`;
+                     ideasToShow.slice(0, 5).forEach(idea => { const cat = getCategoryById(idea.categoryId); content += `<li><span class="category-color-swatch" style="background-color:${cat?.color || '#ccc'};"></span> ${idea.title.substring(0, 20)}... (${idea.status})</li>`;});
+                     if (ideasToShow.length > 5) content += `<li>... and ${ideasToShow.length - 5} more</li>`; content += '</ul>';
+                 }
+                 tooltip.innerHTML=content; tooltip.style.display='block'; const tR=tooltip.getBoundingClientRect(); let top=cY+15; let left=cX+10; if(left+tR.width>window.innerWidth-10)left=cX-tR.width-10; if(top+tR.height>window.innerHeight-10)top=cY-tR.height-15; tooltip.style.left=`${left}px`; tooltip.style.top=`${top}px`;
+             };
+            const hideTooltip = () => { tooltip.style.display = 'none'; };
+            const highlightListItems = (ids) => { ids.forEach(id => { const li=ideaListUl.querySelector(`li[data-idea-id="${id}"]`); if(li) li.classList.add('highlighted'); }); };
+            const clearHighlights = () => { lastHoveredPointIds.forEach(id=>{const li=ideaListUl.querySelector(`li[data-idea-id="${id}"]`);if(li)li.classList.remove('highlighted');}); lastHoveredPointIds=[]; document.querySelectorAll('#idea-list li.highlighted').forEach(li=>{li.classList.remove('highlighted');}); pulsingRingContainer.innerHTML=''; };
+            const highlightPoint = (id, show) => { const idea=ideas.find(i=>i.id===id);if(!idea)return; const reg=pointHitRegions.find(r=>r.ideaIds.includes(id));if(!reg)return; pulsingRingContainer.innerHTML=''; const dpr=window.devicePixelRatio||1; if(show){const pR=document.createElement('div');pR.classList.add('pulsing-ring'); const rS=(reg.radius+5)*2; pR.style.width=`${rS}px`; pR.style.height=`${rS}px`; pR.style.left=`${(reg.x/dpr)-rS/2}px`; pR.style.top=`${(reg.y/dpr)-rS/2}px`; pR.style.borderColor=getCategoryById(idea.categoryId)?.color||'#007bff'; pulsingRingContainer.appendChild(pR); pR.addEventListener('animationend',()=>{const li=ideaListUl.querySelector(`li[data-idea-id="${id}"]:hover`);if(!li&&pR.parentNode){try{pR.remove();}catch(e){}}}); } };
+
+            // --- Resizer Logic ---
+            let isResizingV = false; let isResizingH = false;
+            verticalResizer.addEventListener('mousedown', (e) => { isResizingV=true; document.body.style.cursor='col-resize'; document.body.classList.add('no-select'); verticalResizer.classList.add('resizing-v'); const sX=e.clientX; const sW=sidebar.offsetWidth; function hMMV(e){ if(!isResizingV)return; const cX=e.clientX; const dX=cX-sX; let nW=sW+dX; const mSW=parseInt(getComputedStyle(sidebar).minWidth,10); const mMW=parseInt(getComputedStyle(mainContent).minWidth,10); const tW=sidebar.offsetWidth+mainContent.offsetWidth; if(nW<mSW)nW=mSW; if(tW-nW<mMW)nW=tW-mMW; sidebar.style.width=`${nW}px`; resizeCanvas(); } function hMUV(){ if(isResizingV){ isResizingV=false; document.body.style.cursor='default'; document.body.classList.remove('no-select'); verticalResizer.classList.remove('resizing-v'); document.removeEventListener('mousemove',hMMV); document.removeEventListener('mouseup',hMUV); resizeCanvas(); }} document.addEventListener('mousemove',hMMV); document.addEventListener('mouseup',hMUV); });
+            horizontalResizer.addEventListener('mousedown', (e) => { isResizingH=true; document.body.style.cursor='row-resize'; document.body.classList.add('no-select'); horizontalResizer.classList.add('resizing-h'); const sY=e.clientY; const sH=diagramContainer.offsetHeight; function hMMH(e){ if(!isResizingH)return; const cY=e.clientY; const dY=cY-sY; let nH=sH+dY; const mDH=parseInt(getComputedStyle(diagramContainer).minHeight,10); const mOH=parseInt(getComputedStyle(overviewContainer).minHeight,10); const tH=diagramContainer.offsetHeight+overviewContainer.offsetHeight; if(nH<mDH)nH=mDH; if(tH-nH<mOH)nH=tH-mOH; diagramContainer.style.flexBasis=`${nH}px`; overviewContainer.style.flexBasis=`${tH-nH}px`; resizeCanvas(); } function hMUH(){ if(isResizingH){ isResizingH=false; document.body.style.cursor='default'; document.body.classList.remove('no-select'); horizontalResizer.classList.remove('resizing-h'); document.removeEventListener('mousemove',hMMH); document.removeEventListener('mouseup',hMUH); resizeCanvas(); }} document.addEventListener('mousemove',hMMH); document.addEventListener('mouseup',hMUH); });
+
+            // --- Storage, Filter & Other Event Listeners ---
+            clearDataButton.addEventListener('click', clearSavedData);
+            exportDataButton.addEventListener('click', exportData);
+            importDataButton.addEventListener('click', () => importFileInput.click());
+            importFileInput.addEventListener('change', importData);
+
+            filterCategorySelect.addEventListener('change', () => { if(pointFilterIds) clearPointFilter(); else refreshUI(); });
+            filterLocationSelect.addEventListener('change', () => { if(pointFilterIds) clearPointFilter(); else refreshUI(); });
+            filterStatusSelect.addEventListener('change', () => { if(pointFilterIds) clearPointFilter(); else refreshUI(); });
+
+            clearPointFilterLink.addEventListener('click', (e) => { e.preventDefault(); clearPointFilter(); });
+
+            // --- Initialization ---
+            loadData();
+            refreshUI(); // Initial full UI setup based on loaded/default data
+            resizeCanvas(); // Ensure correct canvas size on load
+            window.addEventListener('resize', resizeCanvas); // Handle browser window resize
+        });
+    </script>
+
+</body>
+</html>
