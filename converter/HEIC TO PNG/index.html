@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HEIC to PNG Converter</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+            text-align: center;
+            width: 90%;
+            max-width: 500px;
+        }
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+        }
+        input[type="file"] {
+            display: block;
+            margin: 20px auto;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        button:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+        }
+        #status {
+            margin-top: 20px;
+            font-weight: bold;
+            min-height: 20px; /* Reserve space */
+        }
+        #result {
+            margin-top: 30px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        #result img {
+            max-width: 100%;
+            max-height: 300px;
+            border: 1px solid #ddd;
+            margin-bottom: 15px;
+            border-radius: 4px;
+        }
+        #downloadLink {
+            display: inline-block;
+            background-color: #2ecc71;
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 4px;
+            font-size: 15px;
+            transition: background-color 0.3s ease;
+        }
+        #downloadLink:hover {
+            background-color: #27ae60;
+        }
+        .loader {
+            border: 5px solid #f3f3f3; /* Light grey */
+            border-top: 5px solid #3498db; /* Blue */
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 10px auto;
+            display: none; /* Hidden by default */
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+    <!-- heic2any library from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
+</head>
+<body>
+
+    <div class="container">
+        <h1>HEIC to PNG Converter</h1>
+        <p>Convert your .heic files to high-resolution .png images, right in your browser.</p>
+
+        <input type="file" id="heicFile" accept=".heic,.HEIC">
+        <button id="convertButton" onclick="convertHeic()">Convert to PNG</button>
+
+        <div id="status"></div>
+        <div class="loader" id="loader"></div>
+
+        <div id="result">
+            <!-- Preview and download link will appear here -->
+        </div>
+    </div>
+
+    <script>
+        const heicFileInput = document.getElementById('heicFile');
+        const convertButton = document.getElementById('convertButton');
+        const statusDiv = document.getElementById('status');
+        const resultDiv = document.getElementById('result');
+        const loader = document.getElementById('loader');
+
+        function convertHeic() {
+            const file = heicFileInput.files[0];
+
+            if (!file) {
+                statusDiv.textContent = 'Please select a .HEIC file first.';
+                statusDiv.style.color = 'red';
+                return;
+            }
+
+            if (!file.name.toLowerCase().endsWith('.heic')) {
+                statusDiv.textContent = 'Invalid file type. Please select a .HEIC file.';
+                statusDiv.style.color = 'red';
+                heicFileInput.value = ''; // Clear the input
+                return;
+            }
+
+            statusDiv.textContent = 'Converting... Please wait.';
+            statusDiv.style.color = 'orange';
+            loader.style.display = 'block';
+            convertButton.disabled = true;
+            resultDiv.innerHTML = ''; // Clear previous results
+
+            heic2any({
+                blob: file,
+                toType: "image/png",
+                quality: 0.95 // 0.0 to 1.0. Higher means better quality & larger file for PNG (less compression)
+                               // For PNG (lossless), quality usually refers to compression level.
+                               // heic2any might pass this to an underlying canvas toDataURL which means it could affect something.
+                               // For "high resolution", we want minimal processing artifacts.
+            })
+            .then(conversionResult => { // conversionResult is a Blob
+                const imageUrl = URL.createObjectURL(conversionResult);
+                const originalFileName = file.name.substring(0, file.name.lastIndexOf('.')) || 'converted';
+                const pngFileName = `${originalFileName}.png`;
+
+                const imgPreview = document.createElement('img');
+                imgPreview.src = imageUrl;
+                imgPreview.alt = 'Converted PNG preview';
+
+                const downloadLink = document.createElement('a');
+                downloadLink.href = imageUrl;
+                downloadLink.download = pngFileName;
+                downloadLink.id = 'downloadLink';
+                downloadLink.textContent = `Download ${pngFileName}`;
+
+                resultDiv.appendChild(imgPreview);
+                resultDiv.appendChild(downloadLink);
+
+                statusDiv.textContent = 'Conversion successful!';
+                statusDiv.style.color = 'green';
+            })
+            .catch(error => {
+                console.error('Conversion error:', error);
+                statusDiv.textContent = `Conversion failed: ${error.message || error}`;
+                statusDiv.style.color = 'red';
+            })
+            .finally(() => {
+                loader.style.display = 'none';
+                convertButton.disabled = false;
+                heicFileInput.value = ''; // Clear the input for next use
+            });
+        }
+
+        // Optional: Add event listener to file input for immediate feedback
+        heicFileInput.addEventListener('change', () => {
+            if (heicFileInput.files.length > 0) {
+                statusDiv.textContent = `Selected: ${heicFileInput.files[0].name}`;
+                statusDiv.style.color = '#333';
+                resultDiv.innerHTML = ''; // Clear results if a new file is selected
+            } else {
+                statusDiv.textContent = '';
+            }
+        });
+    </script>
+
+</body>
+</html>
