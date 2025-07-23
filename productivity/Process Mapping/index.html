@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Process Mapper</title>
+    <!-- Removed Leaflet CSS -->
+    <link rel="stylesheet" href="style.css">
+    <!-- Removed Leaflet JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" integrity="sha512-BNaRQnYJYiPSqHHDb58B0yaPfCu+Wgds8Gp/gU33kqBtgNS4tSPHuGibyoeqMV/TJlSKda6FXzoEyYGjTe+vXA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script> 
+</head>
+<body>
+    <div id="app-container">
+        <!-- Image Display Area -->
+        <div id="image-display-area">
+            <div id="image-container"> 
+                <!-- Base image will be loaded here -->
+                <img id="base-image" src="#" alt="Load a base image" style="display: none; max-width: 100%; max-height: 100%;">
+                <!-- Markers will be added inside this container -->
+            </div>
+             <div id="image-load-prompt">
+                 <label for="base-image-input" class="button-label">Load Base Image</label>
+                 <input type="file" id="base-image-input" accept="image/*" style="display: none;">
+                 <p>Load an image (e.g., process diagram, floor plan) to start placing markers.</p>
+             </div>
+        </div>
+
+        <!-- Sidebar (Similar to GeoReport) -->
+        <div id="sidebar">
+            <h2>Markers</h2>
+            <ul id="legend"></ul>
+            <hr>
+            <div id="content-area">
+                <p>Load a base image and click on it to add a marker, or click a marker/legend item to view details.</p>
+            </div>
+            <hr>
+            <div id="report-header-inputs">
+                 <h3>Report Header</h3>
+                 <label for="creator-name">Creator Name:</label>
+                 <input type="text" id="creator-name" name="creator-name" placeholder="Your Name">
+                 <label for="report-description">Report Description:</label>
+                 <textarea id="report-description" name="report-description" rows="3" placeholder="Brief description of the report..."></textarea>
+            </div>
+             <hr>
+            <div id="controls">
+                <button id="report-button">Generate PDF Report</button>
+                <button id="export-button">Export Data</button>
+                <label for="import-input" class="button-label">Import Data</label> <!-- Changed label 'for' attribute -->
+                <input type="file" id="import-input" accept=".json" style="display: none;">
+                <!-- Removed the extra trigger button for import -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay (Same as GeoReport) -->
+    <div id="loading-overlay" style="display: none;">
+        <div class="loading-spinner"></div>
+        <p>Generating Report...</p>
+    </div>
+
+    <script src="script.js" defer></script> 
+</body>
+</html>
