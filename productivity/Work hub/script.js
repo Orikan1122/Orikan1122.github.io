@@ -109,22 +109,29 @@ document.addEventListener('DOMContentLoaded', () => {
      * Saves the current application data (tools, todos, categories) to Firestore.
      */
     function saveToCloud() {
-        if (!currentUserId) {
-            showCloudStatus("Cannot save: User not authenticated.", 'error');
-            return;
-        }
-        showCloudStatus("Saving to cloud...", 'loading', 0); // Show loading message indefinitely
-        const dataToSave = { tools, categories, todos };
-        
-        // Use the user's ID to create a specific document for them.
-        db.collection("userData").doc(currentUserId).set({ data: dataToSave })
-            .then(() => {
-                showCloudStatus("Data saved successfully!", 'success');
-            })
-            .catch(error => {
-                console.error("Error saving data to Firestore:", error);
-                showCloudStatus("Error: Failed to save data.", 'error');
-            });
+      if (!currentUserId) {
+        alert("Sign-in is still processing—try again in a moment.");
+        return;
+      }
+    
+      // Show loading indicator (assuming you have a UI element)
+      document.getElementById('loading-message').textContent = 'Saving to cloud...'; // Add this element to your HTML if needed
+    
+      const savePromise = db.collection("userData").doc(currentUserId).set({ data: jsonData });
+    
+      // Add a timeout to detect hangs
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Save timed out")), 10000)); // 10 seconds
+    
+      Promise.race([savePromise, timeoutPromise])
+        .then(() => {
+          alert("Data saved successfully!");
+          document.getElementById('loading-message').textContent = ''; // Clear loading
+        })
+        .catch(error => {
+          console.error("Save error:", error);
+          alert("Save failed: " + error.message);
+          document.getElementById('loading-message').textContent = ''; // Clear loading
+        });
     }
 
     /**
