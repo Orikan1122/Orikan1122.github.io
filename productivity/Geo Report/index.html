@@ -1,0 +1,56 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GeoReport</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+          crossorigin=""/>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+            crossorigin=""></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    <!-- Removed leaflet-image CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" integrity="sha512-BNaRQnYJYiPSqHHDb58B0yaPfCu+Wgds8Gp/gU33kqBtgNS4tSPHuGibyoeqMV/TJlSKda6FXzoEyYGjTe+vXA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script> 
+</head>
+<body>
+    <div id="app-container">
+        <div id="map-container"></div>
+        <div id="sidebar">
+            <h2>Markers</h2>
+            <ul id="legend"></ul>
+            <hr>
+            <div id="content-area">
+                <p>Click on the map to add a marker, or click a marker/legend item to view details.</p>
+            </div>
+            <hr>
+            <div id="report-header-inputs">
+                 <h3>Report Header</h3>
+                 <label for="creator-name">Creator Name:</label>
+                 <input type="text" id="creator-name" name="creator-name" placeholder="Your Name">
+                 <label for="report-description">Report Description:</label>
+                 <textarea id="report-description" name="report-description" rows="3" placeholder="Brief description of the report..."></textarea>
+            </div>
+             <hr>
+            <div id="controls">
+                <button id="report-button">Generate PDF Report</button>
+                <button id="export-button">Export Data</button>
+                <label for="import-input-button" class="button-label">Import Data</label>
+                <input type="file" id="import-input" accept=".json" style="display: none;">
+                <button id="import-input-button" onclick="document.getElementById('import-input').click();" style="display: none;">Trigger Import</button> <!-- Hidden, label triggers it -->
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" style="display: none;">
+        <div class="loading-spinner"></div>
+        <p>Generating Report...</p>
+    </div>
+
+    <script src="script.js" defer></script> 
+</body>
+</html>
