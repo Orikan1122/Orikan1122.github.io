@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced CSV Data Viewer</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Include Chart.js and its date adapter -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <!-- Include Math.js for formula evaluation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.min.js"></script>
+</head>
+<body>
+    <h1>Advanced CSV Data Viewer</h1>
+
+    <div class="controls card">
+        <div class="control-group">
+            <label for="csvFileInput">Upload CSV File:</label>
+            <input type="file" id="csvFileInput" accept=".csv">
+        </div>
+        <div class="control-group">
+            <button id="resetButton" disabled>Reset All & New File</button>
+        </div>
+    </div>
+
+    <div id="categoryManagementSection" class="card" style="display:none;">
+        <h2>Manage Categories</h2>
+        <div id="existingCategoriesList">
+            <!-- Existing categories will be listed here by script.js -->
+        </div>
+        <div class="add-category-form">
+            <h3>Add New Category</h3>
+            <input type="text" id="newCategoryName" placeholder="Category Name (e.g., Flow Rate)">
+            <input type="text" id="newCategoryUnit" placeholder="Unit (e.g., m³/h)">
+            <button id="addCategoryButton">Add Category</button>
+        </div>
+    </div>
+
+    <div id="columnAllocationSection" class="card" style="display:none;">
+        <h2>Column to Category Allocation</h2>
+        <div id="columnSelectorsContainer">
+            <!-- Dropdowns for column allocation will be populated here by script.js -->
+        </div>
+        <button id="applyAllocationButton" style="margin-top:15px;">Apply Allocation & Update Charts</button>
+    </div>
+
+    <!-- Calculation Section -->
+    <div id="calculationSection" class="card" style="display:none;">
+        <h2>Calculated Columns</h2>
+        <div id="existingCalculationsList">
+            <!-- Existing calculations will be listed here. Each will get an Edit button. -->
+        </div>
+        <div class="add-calculation-form">
+            <h3 id="calculationFormTitle">Add New Calculation</h3> <!-- IMPORTANT: This H3 must have this ID -->
+            <div class="form-grid">
+                <input type="text" id="newCalcName" placeholder="New Column Name (e.g., Temp Diff)">
+                <input type="text" id="newCalcUnit" placeholder="Unit (e.g., °C)">
+                <input type="text" id="newCalcFormula" placeholder="Formula, e.g., data['Col A'] - data['Col B']">
+            </div>
+            <button id="addOrUpdateCalculationButton">Add Calculation</button>
+            <!-- ADD THE NEW BUTTON HERE -->
+            <button id="exportCalculationsButton" disabled>Export Calculations to CSV</button>
+            <button id="cancelEditButton" class="secondary-button" style="display: none;">Cancel Edit</button>
+        </div>
+        <div class="available-columns-helper">
+            <h4>Available Columns (Click to Add to Formula):</h4>
+            <div id="availableColumnsForCalc"> <!-- IMPORTANT: This DIV must have this ID -->
+                <!-- Available column tags will be populated by script.js -->
+            </div>
+        </div>
+    </div>
+
+    <div class="time-range-controls card" style="display:none;">
+        <h3>Filter by Time Range:</h3>
+        <div class="slider-container">
+            <label for="startTimeSlider">Start Time:</label>
+            <input type="range" id="startTimeSlider" disabled>
+            <span id="selectedStartTime">N/A</span>
+        </div>
+        <div class="slider-container">
+            <label for="endTimeSlider">End Time:</label>
+            <input type="range" id="endTimeSlider" disabled>
+            <span id="selectedEndTime">N/A</span>
+        </div>
+    </div>
+
+    <div class="config-controls card" style="display:none;">
+        <h3>Configuration Management</h3>
+        <button id="exportConfigButton">Export Configuration</button>
+        <label for="importConfigFileInput" class="file-input-label">Import Configuration:</label>
+        <input type="file" id="importConfigFileInput" accept=".json" style="display: none;"> <!-- Hidden, triggered by label -->
+    </div>
+
+    <div id="chartsArea">
+        <!-- Charts will be dynamically added here -->
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
