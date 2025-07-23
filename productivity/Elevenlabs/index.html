@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ElevenLabs Advanced Manager</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f0f2f5;
+        }
+        .container {
+            display: grid;
+            gap: 20px;
+        }
+        .section {
+            border: 1px solid #ccc;
+            padding: 20px;
+            border-radius: 8px;
+            background-color: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .key-list {
+            display: grid;
+            gap: 10px;
+        }
+        .key-item {
+            display: grid;
+            grid-template-columns: 1fr auto auto;
+            gap: 10px;
+            align-items: center;
+            padding: 10px;
+            background-color: #f5f5f5;
+            border-radius: 4px;
+        }
+        .voice-selector, .model-selector, .language-selector, .s2t-options {
+            margin: 10px 0;
+        }
+        button {
+            padding: 8px 16px;
+            cursor: pointer;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .error {
+            color: red;
+            margin-top: 10px;
+        }
+        .success {
+            color: green;
+            margin-top: 10px;
+        }
+        textarea {
+            width: 100%;
+            box-sizing: border-box;
+            height: 100px;
+            margin: 10px 0;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            resize: vertical;
+        }
+        .usage-info {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #e9ecef;
+            border-radius: 4px;
+        }
+        audio {
+            width: 100%;
+            margin-top: 10px;
+        }
+        select, input[type="file"] {
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            width: 100%;
+            max-width: 300px;
+        }
+        .audio-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-top: 10px;
+        }
+        .tab-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .tab-button {
+            background-color: #e9ecef;
+            color: #333;
+        }
+        .tab-button.active {
+            background-color: #007bff;
+            color: white;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .download-button {
+            background-color: #28a745;
+        }
+        .download-button:hover {
+            background-color: #218838;
+        }
+        .record-button {
+            background-color: #dc3545;
+        }
+        .record-button:hover {
+            background-color: #c82333;
+        }
+        input[type="text"] {
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            width: 300px;
+            margin-right: 10px;
+        }
+        .s2t-input-group {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin-top: 15px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="section">
+            <h2>API Keys Management</h2>
+            <p>Your keys are now securely stored in your Firebase account.</p>
+            <div class="key-list" id="keyList">
+                <!-- Keys will be inserted here -->
+            </div>
+            <div style="margin-top: 20px;">
+                <input type="text" id="newKeyInput" placeholder="Enter new API key">
+                <button onclick="addNewKey()">Add Key</button>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>ElevenLabs Generator</h2>
+            <div class="tab-buttons">
+                <button class="tab-button active" onclick="switchTab('tts')">Text to Speech</button>
+                <button class="tab-button" onclick="switchTab('sound')">Sound Design</button>
+                <button class="tab-button" onclick="switchTab('s2t')">Speech to Text</button>
+            </div>
+
+            <div id="tts-tab" class="tab-content active">
+                <h3>Text to Speech</h3>
+                <select id="apiKeySelect"></select>
+                <div class="voice-selector">
+                    <select id="voiceSelect"><option value="">Loading voices...</option></select>
+                </div>
+                <div class="model-selector">
+                    <select id="modelSelect"><option value="">Loading models...</option></select>
+                </div>
+                <textarea id="textInput" placeholder="Enter text to convert to speech"></textarea>
+                <button onclick="generateSpeech()">Generate Speech</button>
+                <div class="audio-controls">
+                    <audio id="audioPlayer" controls></audio>
+                    <button onclick="downloadAudio('tts')" class="download-button">Download Audio</button>
+                </div>
+                <div id="ttsStatus" class="status"></div>
+            </div>
+
+            <div id="sound-tab" class="tab-content">
+                <h3>Sound Design</h3>
+                <select id="soundApiKeySelect"></select>
+                <textarea id="soundDescription" placeholder="Describe the sound you want to generate (e.g., 'A deep, rumbling thunder followed by rain')"></textarea>
+                <button onclick="generateSound()">Generate Sound</button>
+                <div class="audio-controls">
+                    <audio id="soundPlayer" controls></audio>
+                    <button onclick="downloadAudio('sound')" class="download-button">Download Sound</button>
+                </div>
+                <div id="soundStatus" class="status"></div>
+            </div>
+
+            <div id="s2t-tab" class="tab-content">
+                <h3>Speech to Text (Scribe)</h3>
+                <select id="s2tApiKeySelect"></select>
+                
+                <div class="s2t-input-group">
+                    <h4>Option 1: Record Audio</h4>
+                    <button id="startRecordingBtn" onclick="startRecording()">Start Recording</button>
+                    <button id="stopRecordingBtn" onclick="stopRecording()" disabled class="record-button">Stop Recording</button>
+                    <div id="recordingStatus" class="status"></div>
+                    <audio id="recordedAudioPlayer" controls></audio>
+                </div>
+
+                <div class="s2t-input-group">
+                    <h4>Option 2: Upload Audio File</h4>
+                    <input type="file" id="audioFileInput" accept="audio/*,video/*">
+                </div>
+
+                <div style="margin-top: 20px;">
+                    <button id="transcribeBtn" onclick="transcribeAudio()">Transcribe</button>
+                </div>
+
+                <div id="s2tStatus" class="status"></div>
+                <h4>Transcription Result:</h4>
+                <textarea id="transcriptionResult" placeholder="Transcription will appear here..." readonly></textarea>
+            </div>
+        </div>
+    </div>
+    
+    <!-- ADDED: Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    
+    <script>
+        // Global variables
+        let apiKeys = [];
+        let currentTTSBlob = null;
+        let currentSoundBlob = null;
+        let currentTTSFileName = '';
+        let currentSoundFileName = '';
+
+        let mediaRecorder;
+        let audioChunks = [];
+        let recordedAudioBlob = null;
+
+        const defaultKeys = [
+            '866f355f0c138130ff9afa77e40041bf',
+            'sk_030849f5720ff120d1e51afd8360dee0aca8622617e8c6a2'
+        ];
+
+        // --- ADDED: FIREBASE SETUP ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyBoZtDWEJwPFYvvR6LJgPM8fIqQWrQgDFs",
+            authDomain: "json-database-1122.firebaseapp.com",
+            projectId: "json-database-1122",
+            storageBucket: "json-database-1122.appspot.com",
+            messagingSenderId: "332768532067",
+            appId: "1:332768532067:web:3bc80fee92d17c046c8a56"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+        let currentUserId = null;
+
+        // --- ADDED: ANONYMOUS AUTHENTICATION ---
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                currentUserId = user.uid;
+                console.log("Firebase User signed in with ID:", currentUserId);
+                // Now that we have a user, load their keys from Firebase
+                loadKeysFromFirebase();
+            } else {
+                // No user signed in, so sign them in anonymously
+                auth.signInAnonymously().catch(error => {
+                    console.error("Anonymous sign-in failed:", error);
+                    alert("Could not connect to the cloud. Please refresh the page.");
+                });
+            }
+        });
+
+
+        // --- MODIFIED: FIREBASE KEY MANAGEMENT ---
+
+        /**
+         * Loads API keys from the user's document in Firestore.
+         * If no keys exist, it initializes with default keys and saves them.
+         */
+        async function loadKeysFromFirebase() {
+            if (!currentUserId) {
+                console.error("Cannot load keys, user not authenticated.");
+                return;
+            }
+
+            try {
+                const docRef = db.collection("userData").doc(currentUserId);
+                const doc = await docRef.get();
+
+                if (doc.exists && doc.data().elevenLabsKeys) {
+                    // Keys found in Firestore
+                    apiKeys = doc.data().elevenLabsKeys;
+                    console.log("Keys loaded from Firebase.");
+                } else {
+                    // No keys found, use default keys and save them to Firestore for the first time
+                    console.log("No keys found in Firebase. Initializing with defaults.");
+                    apiKeys = defaultKeys;
+                    await saveKeysToFirebase(apiKeys); 
+                }
+
+                updateKeyList();
+                updateAllKeySelects();
+            } catch (error)
+            {
+                console.error("Error loading keys from Firebase:", error);
+                alert("Failed to load API keys from the cloud. Please check the console for errors.");
+            }
+        }
+
+        /**
+         * Saves the provided array of keys to the user's document in Firestore.
+         * @param {string[]} keysToSave The array of keys to save.
+         * @returns A Promise that resolves when the save is complete.
+         */
+        function saveKeysToFirebase(keysToSave) {
+            if (!currentUserId) {
+                console.error("Cannot save keys, user not authenticated.");
+                return Promise.reject(new Error("User not authenticated."));
+            }
+            // Use set with merge:true to create the document if it doesn't exist
+            // or just update the elevenLabsKeys field if it does.
+            return db.collection("userData").doc(currentUserId).set({
+                elevenLabsKeys: keysToSave
+            }, { merge: true });
+        }
+        
+        /**
+         * Adds a new key to the local state and saves the updated list to Firebase.
+         */
+        async function addNewKey() {
+            const newKey = document.getElementById('newKeyInput').value.trim();
+            if (newKey && !apiKeys.includes(newKey)) {
+                const updatedKeys = [...apiKeys, newKey];
+                try {
+                    await saveKeysToFirebase(updatedKeys);
+                    apiKeys = updatedKeys; // Update local state only after successful save
+                    updateKeyList();
+                    updateAllKeySelects();
+                    document.getElementById('newKeyInput').value = '';
+                    console.log("Key added and saved to Firebase.");
+                } catch (error) {
+                    console.error("Failed to add new key to Firebase:", error);
+                    alert("Error saving the new key. Please try again.");
+                }
+            }
+        }
+        
+        /**
+         * Removes a key from the local state and saves the updated list to Firebase.
+         * @param {number} index The index of the key to remove.
+         */
+        async function removeKey(index) {
+            // Create a new array without the key at the specified index.
+            const updatedKeys = apiKeys.filter((_, i) => i !== index);
+            try {
+                await saveKeysToFirebase(updatedKeys);
+                apiKeys = updatedKeys; // Update local state only after successful save
+                updateKeyList();
+                updateAllKeySelects();
+                console.log("Key removed and saved to Firebase.");
+            } catch (error) {
+                console.error("Failed to remove key from Firebase:", error);
+                alert("Error removing the key. Please try again.");
+            }
+        }
+
+        // --- UNCHANGED ORIGINAL FUNCTIONS ---
+
+        function updateKeyList() {
+            const keyList = document.getElementById('keyList');
+            if (!keyList) return;
+            keyList.innerHTML = '';
+            apiKeys.forEach((key, index) => {
+                const keyItem = document.createElement('div');
+                keyItem.className = 'key-item';
+                keyItem.innerHTML = `
+                    <span>${key.slice(0, 4)}...${key.slice(-4)}</span>
+                    <button onclick="checkKeyUsage('${key}')">Check Usage</button>
+                    <button onclick="removeKey(${index})">Remove</button>
+                    <div class="usage-info" id="usage-${key}"></div>
+                `;
+                keyList.appendChild(keyItem);
+            });
+        }
+
+        function updateAllKeySelects() {
+            const selects = [
+                document.getElementById('apiKeySelect'),
+                document.getElementById('soundApiKeySelect'),
+                document.getElementById('s2tApiKeySelect')
+            ];
+            const options = apiKeys.map(key => 
+                `<option value="${key}">${key.slice(0, 4)}...${key.slice(-4)}</option>`
+            ).join('');
+            
+            selects.forEach(select => {
+                if (select) select.innerHTML = options;
+            });
+            
+            const ttsSelect = document.getElementById('apiKeySelect');
+            if (ttsSelect) {
+                ttsSelect.removeEventListener('change', onTtsKeyChange);
+                ttsSelect.addEventListener('change', onTtsKeyChange);
+            }
+            
+            if (apiKeys.length > 0) {
+                loadVoices(apiKeys[0]);
+                loadModels(apiKeys[0]);
+            }
+        }
+        
+        function onTtsKeyChange() {
+            loadVoices(this.value);
+            loadModels(this.value);
+        }
+
+        async function checkKeyUsage(key) {
+            const usageDiv = document.getElementById(`usage-${key}`);
+            usageDiv.innerHTML = 'Checking...';
+            try {
+                const response = await fetch('https://api.elevenlabs.io/v1/user/subscription', {
+                    headers: { 'xi-api-key': key }
+                });
+                if (!response.ok) throw new Error(`API error: ${response.statusText}`);
+                const data = await response.json();
+                usageDiv.innerHTML = `
+                    Characters: ${data.character_count} / ${data.character_limit}<br>
+                    Tier: ${data.tier}
+                `;
+            } catch (error) {
+                console.error('Error checking usage:', error);
+                usageDiv.innerHTML = `<span class="error">Error checking usage.</span>`;
+            }
+        }
+
+        async function loadVoices(apiKey) {
+            if (!apiKey) return;
+            const voiceSelect = document.getElementById('voiceSelect');
+            voiceSelect.innerHTML = '<option value="">Loading voices...</option>';
+            try {
+                const response = await fetch('https://api.elevenlabs.io/v1/voices', {
+                    headers: { 'xi-api-key': apiKey }
+                });
+                if (!response.ok) throw new Error('Failed to load voices');
+                const data = await response.json();
+                voiceSelect.innerHTML = data.voices.map(voice => 
+                    `<option value="${voice.voice_id}">${voice.name}</option>`
+                ).join('');
+            } catch (error) {
+                console.error('Error loading voices:', error);
+                voiceSelect.innerHTML = '<option value="">Error loading voices</option>';
+            }
+        }
+
+        async function loadModels(apiKey) {
+            if (!apiKey) return;
+            const modelSelect = document.getElementById('modelSelect');
+            modelSelect.innerHTML = '<option value="">Loading models...</option>';
+            try {
+                const response = await fetch('https://api.elevenlabs.io/v1/models', {
+                    headers: { 'xi-api-key': apiKey }
+                });
+                if (!response.ok) throw new Error('Failed to load models');
+                const data = await response.json();
+                modelSelect.innerHTML = data.map(model => 
+                    `<option value="${model.model_id}">${model.name}</option>`
+                ).join('');
+            } catch (error) {
+                console.error('Error loading models:', error);
+                modelSelect.innerHTML = '<option value="">Error loading models</option>';
+            }
+        }
+
+        async function generateSpeech() {
+            const apiKey = document.getElementById('apiKeySelect').value;
+            const voiceId = document.getElementById('voiceSelect').value;
+            const modelId = document.getElementById('modelSelect').value;
+            const text = document.getElementById('textInput').value;
+            const status = document.getElementById('ttsStatus');
+
+            if (!text) {
+                status.innerHTML = '<div class="error">Please enter text to convert.</div>';
+                return;
+            }
+
+            status.innerHTML = '<div>Generating speech...</div>';
+            try {
+                const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+                    method: 'POST',
+                    headers: { 'xi-api-key': apiKey, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: text, model_id: modelId })
+                });
+
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.detail.message || 'Speech generation failed');
+                }
+
+                currentTTSBlob = await response.blob();
+                document.getElementById('audioPlayer').src = URL.createObjectURL(currentTTSBlob);
+                currentTTSFileName = `speech_${new Date().toISOString().replace(/[:.]/g, '-')}.mp3`;
+                status.innerHTML = '<div class="success">Speech generated successfully!</div>';
+            } catch (error) {
+                console.error('Error generating speech:', error);
+                status.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+
+        async function generateSound() {
+            const apiKey = document.getElementById('soundApiKeySelect').value;
+            const description = document.getElementById('soundDescription').value;
+            const status = document.getElementById('soundStatus');
+
+            if (!description) {
+                status.innerHTML = '<div class="error">Please enter a sound description.</div>';
+                return;
+            }
+
+            status.innerHTML = '<div>Generating sound...</div>';
+            try {
+                const response = await fetch('https://api.elevenlabs.io/v1/sound-generation', {
+                    method: 'POST',
+                    headers: { 'xi-api-key': apiKey, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: description, duration_seconds: 5 })
+                });
+
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.detail.message || 'Sound generation failed');
+                }
+
+                currentSoundBlob = await response.blob();
+                document.getElementById('soundPlayer').src = URL.createObjectURL(currentSoundBlob);
+                currentSoundFileName = `sound_${new Date().toISOString().replace(/[:.]/g, '-')}.mp3`;
+                status.innerHTML = '<div class="success">Sound generated successfully!</div>';
+            } catch (error) {
+                console.error('Error generating sound:', error);
+                status.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+
+        async function startRecording() {
+            const status = document.getElementById('recordingStatus');
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+                audioChunks = [];
+
+                mediaRecorder.ondataavailable = event => {
+                    audioChunks.push(event.data);
+                };
+
+                mediaRecorder.onstop = () => {
+                    recordedAudioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    const audioUrl = URL.createObjectURL(recordedAudioBlob);
+                    document.getElementById('recordedAudioPlayer').src = audioUrl;
+                    document.getElementById('audioFileInput').value = '';
+                };
+
+                mediaRecorder.start();
+                status.innerHTML = '<div class="success">Recording...</div>';
+                document.getElementById('startRecordingBtn').disabled = true;
+                document.getElementById('stopRecordingBtn').disabled = false;
+
+            } catch (err) {
+                console.error("Error starting recording:", err);
+                status.innerHTML = '<div class="error">Could not start recording. Please grant microphone permission.</div>';
+            }
+        }
+
+        function stopRecording() {
+            if (mediaRecorder && mediaRecorder.state === "recording") {
+                mediaRecorder.stop();
+                document.getElementById('recordingStatus').innerHTML = '<div>Recording stopped. Ready to transcribe.</div>';
+                document.getElementById('startRecordingBtn').disabled = false;
+                document.getElementById('stopRecordingBtn').disabled = true;
+            }
+        }
+
+        async function transcribeAudio() {
+            const transcribeButton = document.getElementById('transcribeBtn');
+            const apiKey = document.getElementById('s2tApiKeySelect').value;
+            const status = document.getElementById('s2tStatus');
+            const resultArea = document.getElementById('transcriptionResult');
+            const fileInput = document.getElementById('audioFileInput');
+            
+            let audioSource = null;
+            let fileName = '';
+
+            if (fileInput.files.length > 0) {
+                audioSource = fileInput.files[0];
+                fileName = audioSource.name;
+            } else if (recordedAudioBlob) {
+                audioSource = recordedAudioBlob;
+                fileName = `recording-${Date.now()}.webm`;
+            }
+
+            if (!audioSource) {
+                status.innerHTML = '<div class="error">Please record or upload an audio file first.</div>';
+                return;
+            }
+            if (!apiKey) {
+                status.innerHTML = '<div class="error">Please select an API key.</div>';
+                return;
+            }
+
+            status.innerHTML = '<div>Transcribing, please wait...</div>';
+            resultArea.value = '';
+            transcribeButton.disabled = true;
+
+            const formData = new FormData();
+            formData.append('file', audioSource, fileName);
+            formData.append('model_id', 'scribe_v1');
+
+            try {
+                const url = 'https://api.elevenlabs.io/v1/speech-to-text';
+
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'xi-api-key': apiKey },
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(JSON.stringify(err.detail) || 'Transcription failed');
+                }
+
+                const data = await response.json();
+                resultArea.value = data.text;
+                status.innerHTML = '<div class="success">Transcription successful!</div>';
+
+            } catch (error) {
+                console.error('Error transcribing audio:', error);
+                status.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            } finally {
+                transcribeButton.disabled = false;
+            }
+        }
+        
+        function downloadAudio(type) {
+            let blob, filename;
+            if (type === 'tts' && currentTTSBlob) {
+                blob = currentTTSBlob;
+                filename = currentTTSFileName;
+            } else if (type === 'sound' && currentSoundBlob) {
+                blob = currentSoundBlob;
+                filename = currentSoundFileName;
+            }
+
+            if (blob) {
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            }
+        }
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-button').forEach(button => button.classList.remove('active'));
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+            document.querySelector(`[onclick="switchTab('${tabName}')"]`).classList.add('active');
+        }
+    </script>
+</body>
+</html>
