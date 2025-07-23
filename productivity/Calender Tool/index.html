@@ -1,0 +1,3208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audit Schedule Generator Pro</title> <!-- Updated Title -->
+    <!-- Add FullCalendar and pdfmake via CDN -->
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js'></script>
+    <script src='https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.9/pdfmake.min.js'></script>
+    <script src='https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.9/vfs_fonts.js'></script> <!-- Required for standard fonts -->
+    <style>
+        /* --- Improved UI Styles --- */
+        :root {
+            --primary-color: #0078d4;
+            --primary-hover: #005a9e;
+            --secondary-color: #5cb85c;
+            --secondary-hover: #449d44;
+            --warning-color: #f0ad4e;
+            --warning-hover: #ec971f;
+            --danger-color: #d9534f;
+            --danger-hover: #c9302c;
+            --info-color: #5bc0de;
+            --info-hover: #31b0d5;
+            --light-bg: #f8f9fa;
+            --medium-bg: #e9ecef;
+            --dark-bg: #dee2e6;
+            --text-color: #212529;
+            --muted-text: #6c757d;
+            --border-color: #ced4da;
+            --border-radius: 0.3rem;
+            --box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+
+            /* Timeline specific */
+            --timeline-bg: #f4f4f4;
+            --block-bg: #a7c7e7; /* Light Blue - Keep for blocks */
+            --block-border: #6a9fd4;
+            --handle-bg: #444;
+            --selected-border: var(--danger-color); /* Use danger color for selection */
+            --panel-bg: #ffffff;
+            --panel-border: var(--border-color);
+            --axis-label-color: var(--muted-text);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--light-bg);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            line-height: 1.5;
+            position: relative; /* Needed for absolute positioning of details panel */
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1600px; /* Increased width */
+            margin: 20px auto;
+            padding: 30px;
+            background-color: #ffffff;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            border: 1px solid var(--border-color);
+        }
+
+        h2 {
+            color: var(--primary-color);
+            margin-top: 0;
+            margin-bottom: 1.5rem;
+            text-align: center;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.5rem;
+        }
+
+        h3, h4, h5 {
+            margin-top: 0;
+        }
+
+        .section-heading {
+            font-size: 1.3em;
+            margin: 25px 0 15px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid var(--primary-color);
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            font-size: 0.95em;
+        }
+
+        input[type="text"],
+        input[type="email"],
+        input[type="datetime-local"],
+        input[type="date"], /* Added date type */
+        textarea {
+            width: 100%;
+            padding: 0.6rem 0.8rem;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            font-size: 1em;
+            transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+        }
+
+        input[type="text"]:focus,
+        input[type="email"]:focus,
+        input[type="datetime-local"]:focus,
+        input[type="date"]:focus, /* Added date type */
+        textarea:focus {
+            border-color: var(--primary-color);
+            outline: 0;
+            box-shadow: 0 0 0 0.1rem rgba(0, 120, 212, 0.25);
+        }
+
+        textarea {
+             resize: vertical;
+             min-height: 80px;
+        }
+
+        button {
+            display: inline-block;
+            font-weight: 400;
+            color: #fff;
+            text-align: center;
+            vertical-align: middle;
+            cursor: pointer;
+            user-select: none;
+            background-color: var(--primary-color);
+            border: 1px solid var(--primary-color);
+            padding: 0.5rem 1rem;
+            font-size: 1rem;
+            line-height: 1.5;
+            border-radius: var(--border-radius);
+            transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+            width: auto; /* Override default full width */
+            margin-top: 5px;
+            margin-right: 5px; /* Add some spacing between buttons */
+        }
+
+        button:hover {
+            background-color: var(--primary-hover);
+            border-color: var(--primary-hover);
+        }
+
+        button:focus {
+            outline: 0;
+            box-shadow: 0 0 0 0.1rem rgba(0, 120, 212, 0.5);
+        }
+
+        /* Specific Button Styles */
+        button.btn-add { background-color: var(--secondary-color); border-color: var(--secondary-color); }
+        button.btn-add:hover { background-color: var(--secondary-hover); border-color: var(--secondary-hover); }
+        button.btn-save-load { background-color: var(--info-color); border-color: var(--info-color); }
+        button.btn-save-load:hover { background-color: var(--info-hover); border-color: var(--info-hover); }
+        button.btn-generate-single { background-color: var(--secondary-color); border-color: var(--secondary-color); }
+        button.btn-generate-single:hover { background-color: var(--secondary-hover); border-color: var(--secondary-hover); }
+        button.btn-generate-selected { background-color: var(--warning-color); border-color: var(--warning-color); color: var(--text-color); }
+        button.btn-generate-selected:hover { background-color: var(--warning-hover); border-color: var(--warning-hover); }
+        button.btn-generate-pdf { background-color: #6f42c1; border-color: #6f42c1; } /* Purple for PDF */
+        button.btn-generate-pdf:hover { background-color: #5a349b; border-color: #5a349b; }
+        button.btn-remove, button.delete { background-color: var(--danger-color); border-color: var(--danger-color); font-size: 0.8em; padding: 0.2rem 0.5rem; }
+        button.btn-remove:hover, button.delete:hover { background-color: var(--danger-hover); border-color: var(--danger-hover); }
+        button.edit { background-color: var(--info-color); border-color: var(--info-color); font-size: 0.8em; padding: 0.2rem 0.5rem; }
+        button.edit:hover { background-color: var(--info-hover); border-color: var(--info-hover); }
+
+        /* Participant Input Row */
+        .participant-input-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            align-items: flex-end;
+        }
+        .participant-input-row .form-group {
+            flex-grow: 1;
+            margin-bottom: 0;
+        }
+        .participant-input-row button {
+            flex-shrink: 0; /* Prevent button from shrinking */
+            margin-bottom: 0; /* Align with bottom of inputs */
+            padding: 0.6rem 1rem; /* Match input height */
+        }
+
+        /* Participant List */
+        #participantContainer {
+             margin-top:10px;
+             padding: 15px;
+             background-color: var(--medium-bg);
+             border: 1px solid var(--border-color);
+             border-radius: var(--border-radius);
+             max-height: 250px;
+             overflow-y: auto;
+        }
+         #participantContainer p.placeholder, .sections-list p.placeholder { /* Shared placeholder style */
+             color: var(--muted-text);
+             font-style: italic;
+             text-align: center;
+             margin: 10px 0;
+         }
+        .participant-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            padding: 8px 10px;
+            border-radius: var(--border-radius);
+            background-color: #fff;
+            border: 1px solid var(--dark-bg);
+        }
+        .participant-row input[type="checkbox"] {
+            margin-right: 10px;
+            flex-shrink: 0;
+            height: 1.1em; /* Make checkbox slightly larger */
+            width: 1.1em;
+        }
+        .participant-row span {
+            flex-grow: 1;
+             word-break: break-all;
+             font-size: 0.95em;
+             margin-right: 10px;
+        }
+        .participant-row button { /* Style for remove button */
+             width: auto;
+             padding: 4px 8px;
+             margin-left: auto; /* Pushes button to the right */
+             flex-shrink: 0;
+        }
+
+        /* Timeline Setup */
+        .timeline-setup {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: var(--panel-bg);
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            border: 1px solid var(--border-color); /* Use consistent border */
+        }
+
+        /* Timeline Container */
+        .timeline-container {
+            position: relative;
+            width: 100%;
+            height: 350px; /* Slightly taller */
+            background-color: var(--timeline-bg);
+            border: 1px solid var(--panel-border);
+            overflow-x: auto;
+            overflow-y: hidden; /* Keep hidden for now */
+            margin-bottom: 20px;
+            border-radius: var(--border-radius); /* Add border radius */
+        }
+
+        #timeline-axis-wrapper {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 30px;
+            border-top: 1px dashed var(--panel-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 10px;
+            box-sizing: border-box;
+            pointer-events: none;
+        }
+        .axis-label {
+            font-size: 10px;
+            color: var(--axis-label-color);
+            white-space: nowrap;
+        }
+
+        #timeline-blocks-wrapper {
+            position: relative; /* Changed from absolute */
+            top: 0;
+            left: 0;
+            /* width: 100%; Removed - will be set by JS */
+            min-width: 100%; /* Ensure it takes at least the container width */
+            height: calc(100% - 30px);
+        }
+
+        /* Schedule Block (Meeting) */
+        .schedule-block {
+            position: absolute;
+            min-height: 30px;
+            top: 20px; /* Default */
+            background-color: var(--block-bg);
+            border: 1px solid var(--block-border);
+            border-radius: var(--border-radius); /* Use consistent radius */
+            box-shadow: var(--box-shadow);
+            cursor: grab;
+            display: flex; /* Keep flex for potential internal content */
+            overflow: visible; /* Allow title below to show */
+            color: var(--text-color);
+            white-space: nowrap;
+            padding: 4px 8px; /* Add some padding */
+            font-size: 0.9em; /* Slightly smaller text */
+            align-items: center; /* Center content horizontally */
+            justify-content: center; /* Center content vertically */
+            flex-direction: column; /* Stack internal elements vertically */
+            /* writing-mode: vertical-lr; Removed */
+            /* text-orientation: mixed; Removed */
+            /* padding-top: 5px; Removed */
+        }
+        .block-title-below {
+            writing-mode: vertical-lr;
+            text-orientation: mixed;
+            font-size: 0.9em;
+            /* margin-top: 2px; Removed - Use top positioning */
+            text-align: center;
+            /* width: 100%; Removed - Let it size naturally */
+            color: var(--text-color);
+            position: absolute; /* Position relative to the wrapper */
+            /* bottom: -25px; Removed - Use top */
+            left: 50%; /* Center horizontally initially (will be updated by JS) */
+            transform: translateX(-50%); /* Adjust for centering */
+            white-space: nowrap;
+            pointer-events: none; /* Prevent interfering with drag */
+            z-index: 5; /* Ensure it's behind handles but visible */
+            top: 100%; /* Position below the block (will be updated by JS) */
+            margin-top: 3px; /* Add small gap */
+        }
+        .schedule-block.dragging {
+            opacity: 0.7;
+            cursor: grabbing;
+            z-index: 1000;
+        }
+        .schedule-block.selected {
+            border: 2px solid var(--selected-border);
+            box-shadow: 0 0 5px var(--selected-border);
+        }
+
+        /* Remove inner content if not needed for sections */
+        /* .block-inner-content { display: flex; width: 100%; height: 100%; } */
+
+        /* Resize Handles */
+        .resize-handle {
+            position: absolute;
+            background-color: var(--handle-bg);
+            opacity: 0.5;
+            z-index: 10;
+        }
+        .resize-handle:hover {
+            opacity: 0.8;
+        }
+        .resize-handle-left, .resize-handle-right {
+            top: 0;
+            bottom: 0;
+            width: 8px;
+            cursor: col-resize;
+        }
+        .resize-handle-left { left: -1px; border-top-left-radius: var(--border-radius); border-bottom-left-radius: var(--border-radius); }
+        .resize-handle-right { right: -1px; border-top-right-radius: var(--border-radius); border-bottom-right-radius: var(--border-radius); }
+        .resize-handle-bottom {
+            left: 0;
+            right: 0;
+            bottom: -1px;
+            height: 8px;
+            cursor: row-resize;
+            border-bottom-left-radius: var(--border-radius);
+            border-bottom-right-radius: var(--border-radius);
+        }
+
+        /* Remove Block Section Styles */
+        /* .block-section { ... } */
+        /* .block-section:last-child { ... } */
+        /* .block-section.section-selected::after { ... } */
+
+        /* Main Content Area Layout */
+        .main-content-area {
+            display: flex;
+            gap: 20px; /* Space between timeline and details */
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+
+        .timeline-section {
+            flex-grow: 1; /* Timeline takes available space */
+            min-width: 400px; /* Ensure timeline has minimum width */
+        }
+
+        /* Details Panel (Integrated) */
+        .details-panel-integrated {
+            /* position: fixed; REMOVED */
+            width: 450px; /* Increased width */
+            flex-shrink: 0; /* Prevent shrinking */
+            background-color: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow); /* Use consistent shadow */
+            padding: 20px;
+            /* z-index: 1001; No longer needed */
+            max-height: 600px; /* Set a max-height for scrolling */
+            overflow-y: auto; /* Allow scrolling within the panel */
+            position: relative; /* Needed for close button positioning */
+        }
+        .details-panel-integrated .close-button { /* Target integrated panel */
+            position: absolute;
+            top: 8px; /* Keep position relative to panel */
+            right: 12px;
+            font-size: 1.6em;
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--muted-text);
+            padding: 0;
+            line-height: 1;
+        }
+        .details-panel-integrated .close-button:hover { /* Target integrated panel */
+            color: var(--danger-color);
+        }
+        .details-panel-integrated hr { /* Target integrated panel */
+            border: none;
+            border-top: 1px solid var(--medium-bg); /* Lighter hr */
+            margin: 15px 0;
+        }
+        .details-panel-integrated h3, .details-panel-integrated h4 { /* Target integrated panel */
+            margin-bottom: 10px;
+            color: var(--primary-color);
+        }
+        .details-panel-integrated .form-group { /* Target integrated panel */
+            margin-bottom: 0.8rem; /* Slightly less margin */
+        }
+        .details-panel-integrated label { /* Target integrated panel */
+            font-size: 0.9em; /* Smaller labels */
+            margin-bottom: 0.3rem;
+        }
+        .details-panel-integrated input[type="text"], /* Target integrated panel */
+        .details-panel-integrated input[type="datetime-local"], /* Target integrated panel */
+        .details-panel-integrated input[type="color"], /* Target integrated panel */
+        .details-panel-integrated textarea { /* Target integrated panel */
+             width: 100%; /* Ensure full width */
+             font-size: 0.95em;
+        }
+        /* Ensure form groups in flex rows within the panel share space equally */
+        .details-panel-integrated div[style*="display: flex"] > .form-group {
+            flex-basis: 0; /* Allow shrinking and growing from zero */
+            flex-grow: 1;
+        }
+        /* Participant list within details panel */
+        .sections-list { /* Reusing class name, but for participants now */
+            list-style: none;
+            padding: 0;
+            margin-bottom: 15px;
+            max-height: 150px; /* Keep scrollable */
+            overflow-y: auto;
+            background-color: var(--light-bg); /* Light background */
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            padding: 10px;
+        }
+        .sections-list li {
+            padding: 5px 0; /* Adjust padding */
+            margin-bottom: 3px;
+            display: flex; /* Use flex for alignment */
+            align-items: center;
+            /* Remove background/border from li directly */
+        }
+        .sections-list li input[type="checkbox"] {
+            margin-right: 8px;
+        }
+        .sections-list li label { /* Style the label next to checkbox */
+            margin-bottom: 0;
+            font-weight: normal;
+            font-size: 0.9em;
+            flex-grow: 1;
+            cursor: pointer;
+        }
+
+        /* Remove Section Specific Styles */
+        /* #edit-section-form button { ... } */
+        /* #delete-section-button { ... } */
+        /* #delete-section-button:hover { ... } */
+        /* .section-color-preview { ... } */
+
+        /* Block Time Info */
+        .block-time-info {
+            position: absolute;
+            font-size: 10px;
+            color: var(--muted-text); /* Muted color */
+            background-color: rgba(255, 255, 255, 0.85); /* Slightly more opaque */
+            padding: 1px 4px;
+            border-radius: var(--border-radius);
+            white-space: nowrap;
+            z-index: 9;
+            pointer-events: none;
+            text-align: center;
+            transform: translateX(-50%);
+            margin-top: 3px;
+            border: 1px solid var(--medium-bg); /* Subtle border */
+        }
+
+        /* Button groups */
+        .button-group {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center; /* Center buttons */
+        }
+        .button-group button {
+            flex-grow: 1; /* Allow buttons to grow */
+            min-width: 150px; /* Minimum width */
+        }
+
+        hr {
+            margin: 30px 0;
+            border: 0;
+            border-top: 1px solid var(--border-color);
+        }
+
+        /* Provisional/Calendar Styles (Can add later if view toggle is implemented) */
+        /* .provisional-controls { ... } */
+        /* #provisionalMeetingsContainer { ... } */
+        /* .provisional-item { ... } */
+        /* #calendarContainer { ... } */
+        /* .fc-event { ... } */
+        /* .fc .fc-toolbar.fc-header-toolbar { ... } */
+        /* .fc .fc-button { ... } */
+
+        /* Vertical Time Info Styles */
+        .block-time-info-vertical {
+            position: absolute;
+            font-size: 10px;
+            color: var(--muted-text);
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 0px 3px;
+            border-radius: 2px;
+            white-space: nowrap;
+            z-index: 11; /* Above block content */
+            pointer-events: none;
+            writing-mode: vertical-lr; /* Vertical text */
+            text-orientation: mixed;
+            line-height: 1;
+        }
+        .block-time-info-start {
+            left: 2px; /* Position near the left edge */
+            top: 50%;
+            transform: translateY(-50%); /* Center vertically */
+        }
+
+        /* Live Time Indicator Style */
+        #live-time-indicator {
+            position: fixed; /* Position relative to viewport, near cursor */
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 4px 8px;
+            border-radius: var(--border-radius);
+            font-size: 0.85em;
+            white-space: nowrap;
+            z-index: 2000; /* Ensure it's above everything else */
+            pointer-events: none; /* Don't interfere with mouse events */
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+
+        /* Live Axis Time Indicator Styles */
+        .live-axis-indicator {
+            position: absolute;
+            bottom: 0; /* Align line bottom with axis wrapper bottom */
+            top: -8px; /* Extend line slightly above axis line */
+            width: 1px;
+            z-index: 1500;
+            pointer-events: none;
+        }
+        .live-axis-indicator.start {
+            background-color: var(--secondary-color); /* Green for start */
+        }
+        .live-axis-indicator.end {
+            background-color: var(--danger-color); /* Red for end */
+        }
+
+        .live-axis-indicator-label {
+            position: absolute;
+            transform: translateX(-50%); /* Center label horizontally */
+            font-size: 9px;
+            padding: 1px 3px;
+            border-radius: 2px;
+            white-space: nowrap;
+            color: white;
+        }
+        .live-axis-indicator-label.start {
+            bottom: 32px; /* Position START label ABOVE the axis wrapper (height 30px) */
+            background-color: var(--secondary-color); /* Green */
+        }
+        .live-axis-indicator-label.end {
+            bottom: 2px;  /* Position END label slightly above the bottom edge */
+            background-color: var(--danger-color); /* Red */
+        }
+
+
+        .block-time-info-end {
+            right: 2px; /* Position near the right edge */
+            top: 50%;
+            transform: translateY(-50%); /* Center vertically */
+        }
+    </style>
+</head>
+<body>
+<div class="container"> <!-- Wrap content in a container -->
+    <h2>Audit Schedule Generator Pro</h2> <!-- Updated H1 to H2 -->
+
+    <!-- Audit Plan Header Details Section -->
+    <div class="section-heading">Audit Plan Header Details</div>
+    <div class="form-group">
+        <label for="auditOrg">Organisation:</label>
+        <input type="text" id="auditOrg" value="Coca-Cola HBC Schweiz AG">
+    </div>
+    <div class="form-group">
+        <label for="auditAddr">Adresse:</label>
+        <input type="text" id="auditAddr" value="Thurgauerstrasse 134, 8152 Glattpark (Opfikon)">
+    </div>
+    <div style="display: flex; gap: 15px;">
+        <div class="form-group" style="flex-grow: 1;">
+            <label for="auditAuditor">Leitender Auditor:</label>
+            <input type="text" id="auditAuditor" value="Helma Quentmeier">
+        </div>
+        <div class="form-group" style="flex-grow: 1;">
+            <label for="auditNorms">Normen:</label>
+            <input type="text" id="auditNorms" value="ISO 46001">
+        </div>
+        <div class="form-group" style="flex-grow: 1;">
+            <label for="auditLang">Sprache:</label>
+            <input type="text" id="auditLang" value="Deutsch">
+        </div>
+    </div>
+    <hr>
+
+    <div class="timeline-setup">
+        <h3 class="section-heading">Timeline Range & Controls</h3> <!-- Changed H2 to H3 -->
+        <div style="display: flex; gap: 15px; align-items: flex-end;">
+            <div class="form-group" style="flex-grow: 1; margin-bottom: 0;">
+                <label for="start-date">Timeline Start:</label>
+                <input type="date" id="start-date">
+            </div>
+            <div class="form-group" style="flex-grow: 1; margin-bottom: 0;">
+                <label for="end-date">Timeline End:</label>
+                <input type="date" id="end-date">
+            </div>
+            <button id="setup-timeline" style="margin-bottom: 0;">Set/Update Timeline</button>
+            <button id="add-block" class="btn-add" style="margin-bottom: 0;">Add New Meeting Block</button> <!-- Combined Add button -->
+        </div>
+    </div>
+
+    <!-- Main Content Area (Timeline + Details) -->
+    <div class="main-content-area">
+        <!-- Visual Timeline Container -->
+        <div class="timeline-section">
+            <div class="timeline-container">
+                <div id="timeline-axis-wrapper">
+                    <!-- Axis labels will be generated here by JS -->
+                </div>
+                <div id="timeline-blocks-wrapper">
+                    <!-- Schedule Blocks (Meetings) will be added here by JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Separator/Resize Handle (Optional, can add JS later) -->
+        <!-- <div class="resize-handle-vertical"></div> -->
+
+        <!-- Details Panel (Integrated) -->
+        <div id="details-panel" class="details-panel-integrated"> <!-- Changed class -->
+            <button class="close-button" id="close-details" title="Deselect Meeting">×</button> <!-- Changed title -->
+            <h3>Meeting Details</h3>
+            <p style="font-size: 0.8em; color: var(--muted-text);">ID: <span id="details-block-id"></span></p>
+
+        <div class="form-group">
+            <label for="details-title">Title / Topic:</label>
+            <input type="text" id="details-title" required>
+         </div>
+         <div style="display: flex; gap: 15px;">
+             <div class="form-group"> <!-- Removed inline style -->
+                 <label for="details-location">Location:</label>
+                 <input type="text" id="details-location">
+             </div>
+             <div class="form-group"> <!-- Removed inline style -->
+                 <label for="details-topic">Area / Audit Section:</label>
+                 <input type="text" id="details-topic">
+             </div>
+         </div>
+        <div class="form-group">
+            <label for="details-body">Details (Description):</label>
+            <textarea id="details-body" rows="3" required></textarea>
+        </div>
+        <div style="display: flex; gap: 15px;">
+            <div class="form-group"> <!-- Removed inline style -->
+                <label for="details-startDate">Start Date & Time:</label>
+                <input type="datetime-local" id="details-startDate" required>
+            </div>
+            <div class="form-group"> <!-- Removed inline style -->
+                <label for="details-endDate">End Date & Time:</label>
+                <input type="datetime-local" id="details-endDate" required>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="details-rjPage">Related Link (Optional):</label>
+            <input type="text" id="details-rjPage">
+        </div>
+        <div class="form-group">
+            <label for="details-fileName">ICS File Name:</label>
+            <input type="text" id="details-fileName">
+        </div>
+        <div class="form-group">
+            <label for="details-color">Block Color:</label>
+            <input type="color" id="details-color" style="height: 30px; padding: 2px; width: 50px; vertical-align: middle;"> <!-- Added color input -->
+        </div>
+
+        <hr>
+        <h4>Manage Attendees for this Meeting</h4>
+        <div id="details-participants-list" class="sections-list" style="max-height: 100px;">
+             <!-- Participant checkboxes for the selected meeting will be generated here -->
+             <p class="placeholder">Select a meeting to manage attendees.</p>
+        </div>
+
+        <div class="button-group" style="margin-top: 15px;">
+             <button type="button" id="update-meeting-button" class="btn-add">Update Meeting Details</button>
+             <button type="button" id="copy-block-button" class="btn-save-load">Copy This Meeting</button>
+             <button type="button" id="delete-meeting-button" class="btn-remove">Delete This Meeting</button>
+        </div>
+        </div> <!-- End of details-panel-integrated -->
+    </div> <!-- End of main-content-area -->
+
+
+    <!-- Participant Management Section -->
+    <hr>
+    <div class="section-heading">Audit Participants (Master List)</div>
+    <div class="participant-input-row">
+         <div class="form-group">
+            <label for="participantName" style="margin-bottom: 2px;">Participant Name:</label>
+            <input type="text" id="participantName" placeholder="Name">
+        </div>
+        <div class="form-group">
+            <label for="participantEmail" style="margin-bottom: 2px;">Participant Email:</label>
+            <input type="email" id="participantEmail" placeholder="Email">
+        </div>
+        <button type="button" onclick="addParticipant()" class="btn-add">Add Participant</button>
+    </div>
+    <label>Current Participants (Master List):</label>
+    <div id="participantContainer">
+         <p class="placeholder">No participants added yet.</p>
+    </div>
+
+    <!-- Save/Load Overall Settings -->
+    <div class="button-group">
+        <button type="button" onclick="saveSettings()" class="btn-save-load">Save All Settings (Header, Plan & Participants)</button>
+        <button type="button" onclick="loadSettings()" class="btn-save-load">Load All Settings</button>
+    </div>
+
+    <!-- Provisional List / Calendar Section (Simplified for now) -->
+    <hr>
+    <div class="provisional-controls">
+         <div class="section-heading">Meeting Plan Overview</div>
+         <!-- Toggle button can be added later if needed -->
+         <!-- <button type="button" id="toggleViewBtn" onclick="toggleCalendarView()">Show Calendar View</button> -->
+    </div>
+    <p style="font-size: 0.9em; color: var(--muted-text); margin-bottom: 15px;">Meetings added appear on the timeline above. Use buttons below to generate outputs.</p>
+    <!-- List/Calendar containers can be added later if needed -->
+    <!-- <div id="provisionalMeetingsContainer"></div> -->
+    <!-- <div id="calendarContainer" style="display: none;"><div id="calendar"></div></div> -->
+
+    <!-- Batch Generation Buttons -->
+    <div class="button-group">
+        <button type="button" onclick="generateSelectedICS()" class="btn-generate-selected" title="Generate ICS for the currently selected meeting on the timeline">Generate Selected ICS File</button>
+        <button type="button" id="generate-all-ics-button" onclick="generateAllICS()" class="btn-generate-selected" title="Generate separate ICS files for ALL meetings currently in the plan">Generate All ICS Files</button>
+        <button type="button" onclick="generateAuditPlanPDF()" class="btn-generate-pdf">Generate Audit Plan PDF</button>
+    </div>
+
+    <!-- Live Time Indicator (Initially Hidden) -->
+    <div id="live-time-indicator" style="display: none;"></div>
+
+</div> <!-- End of container -->
+
+    <!-- Load JS files (order matters) -->
+    <script>
+        // --- UTILS.JS ---
+        // Simple ID generator
+        function generateId(prefix = 'item') {
+            return `${prefix}-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+        }
+
+        // Format Date object to YYYY-MM-DD for input fields
+        function formatDateForInput(date) {
+            if (!date) return '';
+            const year = date.getFullYear();
+            const month = (date.getMonth() + 1).toString().padStart(2, '0');
+            const day = date.getDate().toString().padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        // Format Date object for display (e.g., "Jan 15, 2024")
+        function formatDateForDisplay(date) {
+            if (!date) return 'N/A';
+            return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+        }
+
+        // Generate a random light color
+        function getRandomColor() {
+            const h = Math.floor(Math.random() * 360);
+            const s = Math.floor(Math.random() * 30) + 70; // Saturation between 70-100%
+            const l = Math.floor(Math.random() * 20) + 70; // Lightness between 70-90% (ensure light)
+            return `hsl(${h}, ${s}%, ${l}%)`;
+        }
+
+        // Debounce function to limit calls
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        // Helper to convert pixel offset within timeline to Date (Uses totalPixelWidth)
+        function pixelsToDate(pixelOffset, totalPixelWidth, timelineStartMs, timelineDurationMs) {
+            if (totalPixelWidth <= 0 || timelineDurationMs <= 0) {
+                return new Date(timelineStartMs); // Avoid division by zero
+            }
+            const msOffset = (pixelOffset / totalPixelWidth) * timelineDurationMs;
+            const targetDate = new Date(timelineStartMs + msOffset);
+             // Keep rounding? Or make it precise? Keeping rounding for now.
+             // targetDate.setHours(0, 0, 0, 0); // Removed rounding to start of day
+             return targetDate;
+        }
+
+        // Helper to convert Date to pixel offset within timeline (Uses totalPixelWidth)
+        function dateToPixels(date, totalPixelWidth, timelineStartMs, timelineDurationMs) {
+             if (timelineDurationMs <= 0 || totalPixelWidth <= 0) {
+                return 0; // Avoid division by zero or negative results
+            }
+            const msOffset = date.getTime() - timelineStartMs;
+            const pixelOffset = (msOffset / timelineDurationMs) * totalPixelWidth;
+            // Clamp pixel offset to be within the total width
+            return Math.max(0, Math.min(pixelOffset, totalPixelWidth));
+        }
+
+        // Helper for deep cloning objects, including Dates and nested arrays/objects
+        function deepClone(obj) {
+            if (typeof structuredClone === 'function') {
+                // Use built-in structuredClone if available (more robust)
+                try {
+                    return structuredClone(obj);
+                } catch (e) {
+                    // Fallback if structuredClone fails (e.g., non-serializable parts, though unlikely here)
+                    console.warn("structuredClone failed, falling back to manual clone:", e);
+                }
+            }
+
+            // Manual fallback (simplified, assumes JSON-serializable structure + Dates)
+            if (obj === null || typeof obj !== 'object') {
+                return obj;
+            }
+
+            if (obj instanceof Date) {
+                return new Date(obj.getTime());
+            }
+
+            if (Array.isArray(obj)) {
+                return obj.map(item => deepClone(item));
+            }
+
+            const clonedObj = {};
+            for (const key in obj) {
+                if (Object.prototype.hasOwnProperty.call(obj, key)) {
+                    clonedObj[key] = deepClone(obj[key]);
+                }
+            }
+            return clonedObj;
+        }
+
+        // --- ICS Generation Helpers ---
+
+        // Folds a long line according to RFC 5545 rules (max 75 octets per line)
+        // Simple version assuming UTF-8 where most chars are 1 octet.
+        // More robust version would need byte length calculation.
+        function foldLine(line) {
+            if (!line) return '';
+            const maxLength = 75;
+            let result = '';
+            let currentLine = '';
+
+            // Handle potential multi-byte characters simply by reducing max length slightly
+            // A more accurate approach would calculate byte length.
+            const effectiveMaxLength = maxLength - 5; // Be conservative
+
+            while (line.length > 0) {
+                let segmentLength = result.length > 0 ? effectiveMaxLength - 1 : effectiveMaxLength; // Account for space prefix
+                if (line.length <= segmentLength) {
+                    currentLine = line;
+                    line = '';
+                } else {
+                    // Try to break at the last space within the segment length
+                    let breakPoint = line.lastIndexOf(' ', segmentLength);
+                    if (breakPoint === -1 || breakPoint === 0) {
+                        // No space found, or space is at the beginning, force break at segment length
+                        breakPoint = segmentLength;
+                    }
+                    currentLine = line.substring(0, breakPoint);
+                    line = line.substring(breakPoint).trimStart(); // Remove leading space for next line
+                }
+
+                if (result.length > 0) {
+                    result += '\r\n '; // Add CRLF and a space for folded lines
+                }
+                result += currentLine;
+            }
+            return result;
+        }
+
+
+        // Formats a JS Date or date string into ICS format (YYYYMMDDTHHMMSSZ)
+        function formatICSDate(dateString) {
+            if (!dateString) return '';
+            try {
+                const date = new Date(dateString);
+                // Ensure it's a valid date
+                if (isNaN(date.getTime())) {
+                    throw new Error("Invalid date value");
+                }
+                // Format to UTC string and remove separators
+                return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+            } catch (e) {
+                console.error("Error formatting date:", dateString, e);
+                return ''; // Return empty string on error
+            }
+        }
+
+        // Helper to format datetime-local input value to a Date object
+        function parseDateTimeLocal(dateTimeLocalString) {
+            if (!dateTimeLocalString) return null;
+            try {
+                // datetime-local format is 'YYYY-MM-DDTHH:mm'
+                return new Date(dateTimeLocalString);
+            } catch (e) {
+                console.error("Error parsing datetime-local:", dateTimeLocalString, e);
+                return null;
+            }
+        }
+
+        // Helper to format a Date object back to datetime-local string
+        function formatToDateTimeLocal(date) {
+            if (!date || isNaN(date.getTime())) return '';
+            try {
+                // Pad month, day, hour, minute to two digits
+                const year = date.getFullYear();
+                const month = (date.getMonth() + 1).toString().padStart(2, '0');
+                const day = date.getDate().toString().padStart(2, '0');
+                const hours = date.getHours().toString().padStart(2, '0');
+                const minutes = date.getMinutes().toString().padStart(2, '0');
+                return `${year}-${month}-${day}T${hours}:${minutes}`;
+            } catch (e) {
+                console.error("Error formatting to datetime-local:", date, e);
+                return '';
+            }
+        }
+
+        // Helper function to snap a Date object to the nearest specified minute interval
+        function snapDateToMinutes(date, intervalMinutes) {
+            if (!date || isNaN(date.getTime()) || intervalMinutes <= 0) {
+                return date; // Return original if invalid input
+            }
+            const msInInterval = intervalMinutes * 60 * 1000;
+            const currentMs = date.getTime();
+
+            // Calculate the remainder when dividing by the interval
+            const remainder = currentMs % msInInterval;
+
+            // Round to the nearest interval
+            let snappedMs;
+            if (remainder === 0) {
+                snappedMs = currentMs; // Already on an interval
+            } else if (remainder < msInInterval / 2) {
+                // Round down
+                snappedMs = currentMs - remainder;
+            } else {
+                // Round up
+                snappedMs = currentMs + (msInInterval - remainder);
+            }
+
+            return new Date(snappedMs);
+        }
+
+        // Helper function to check if two time ranges overlap
+        // Assumes dateAStart, dateAEnd, dateBStart, dateBEnd are valid Date objects
+        function doTimeRangesOverlap(dateAStart, dateAEnd, dateBStart, dateBEnd) {
+            if (!dateAStart || !dateAEnd || !dateBStart || !dateBEnd) {
+                return false; // Cannot compare invalid dates
+            }
+            // Overlap occurs if one range starts before the other ends, AND ends after the other starts.
+            // Add a tiny buffer (1ms) to treat adjacent blocks as non-overlapping.
+            const buffer = 1;
+            return dateAStart.getTime() < (dateBEnd.getTime() - buffer) &&
+                   (dateAEnd.getTime() - buffer) > dateBStart.getTime();
+        }
+    </script>
+    <script>
+        // --- TIMELINE.JS ---
+        // --- Timeline Configuration ---
+        const PIXELS_PER_HOUR = 100; // Define a fixed scale (e.g., 100 pixels per hour)
+
+        let timelineConfig = {
+            startDate: null,
+            endDate: null,
+            totalDurationMs: 0,
+            totalPixelWidth: 0, // Renamed from containerWidth - Represents the calculated total width
+            pixelsPerMs: 0, // Pixels per millisecond based on totalPixelWidth
+        };
+
+        // --- DOM Elements ---
+        // --- DOM Elements ---
+        // (References to timeline elements remain the same)
+        const timelineAxisWrapper = document.getElementById('timeline-axis-wrapper');
+        const timelineBlocksWrapper = document.getElementById('timeline-blocks-wrapper');
+        const startDateInput = document.getElementById('start-date');
+        const endDateInput = document.getElementById('end-date');
+        // Note: `meetingsData` is now the global array, defined in block.js (which we'll rename conceptually)
+
+        // --- Functions ---
+
+        function setDefaultDates() {
+            const today = new Date();
+            const tomorrow = new Date(today);
+            tomorrow.setDate(today.getDate() + 1);
+            const nextWeek = new Date(today);
+            nextWeek.setDate(today.getDate() + 7);
+
+            startDateInput.value = formatDateForInput(today);
+            // Set end date slightly in the future
+            endDateInput.value = formatDateForInput(nextWeek);
+        }
+
+        function initializeTimeline() {
+            const startValue = startDateInput.value;
+            const endValue = endDateInput.value;
+
+            if (!startValue || !endValue) {
+                alert("Please select both start and end dates.");
+                return false;
+            }
+
+            const start = new Date(startValue);
+            start.setHours(0, 0, 0, 0); // Normalize to start of day
+            const end = new Date(endValue);
+            end.setHours(23, 59, 59, 999); // Normalize to end of day
+
+            if (end <= start) {
+                alert("End date must be after start date.");
+                return false;
+            }
+
+            // Set NEW timeline config
+            timelineConfig.startDate = start;
+            timelineConfig.endDate = end;
+            timelineConfig.totalDurationMs = timelineConfig.endDate.getTime() - timelineConfig.startDate.getTime();
+
+            // Calculate total width based on fixed scale
+            const totalHours = timelineConfig.totalDurationMs / (1000 * 60 * 60);
+            // Use the timeline container's current visible width as a minimum
+            const minWidth = timelineBlocksWrapper.parentElement.offsetWidth;
+            timelineConfig.totalPixelWidth = Math.max(minWidth, totalHours * PIXELS_PER_HOUR);
+
+            // Set the calculated width to the wrappers
+            timelineBlocksWrapper.style.width = `${timelineConfig.totalPixelWidth}px`;
+            timelineAxisWrapper.style.width = `${timelineConfig.totalPixelWidth}px`;
+
+            // Calculate pixelsPerMs based on the *total* width
+            timelineConfig.pixelsPerMs = timelineConfig.totalDurationMs > 0 ? timelineConfig.totalPixelWidth / timelineConfig.totalDurationMs : 0;
+
+
+            console.log("Timeline initialized:", timelineConfig);
+
+            // --- REMOVED Date Adjustment Block ---
+            // The logic previously here that adjusted meeting dates based on relative percentages
+            // when the timeline changed has been removed to prevent overwriting loaded dates.
+            // Relative percentages are now recalculated correctly within loadSettings.
+
+            renderTimelineAxis();
+            renderAllMeetings(); // Re-render meetings based on new timeline scale
+            return true;
+        }
+
+        function renderTimelineAxis() {
+            timelineAxisWrapper.innerHTML = ''; // Clear previous markers
+
+            // Use totalPixelWidth in the check
+            if (!timelineConfig.startDate || !timelineConfig.endDate || timelineConfig.totalPixelWidth <= 0) return;
+
+            // Simple axis: Start and End Dates
+            const startLabel = document.createElement('span');
+            startLabel.className = 'axis-label';
+            startLabel.textContent = formatDateForDisplay(timelineConfig.startDate);
+            startLabel.style.position = 'absolute';
+            startLabel.style.left = '5px';
+
+
+            // Position end label relative to the calculated total width
+            const endLabel = document.createElement('span');
+            endLabel.className = 'axis-label';
+            endLabel.textContent = formatDateForDisplay(timelineConfig.endDate);
+            endLabel.style.position = 'absolute';
+            // endLabel.style.right = '5px'; // Position relative to wrapper edge
+            endLabel.style.left = `${timelineConfig.totalPixelWidth - 5}px`; // Position near the right edge
+            endLabel.style.transform = 'translateX(-100%)'; // Align right edge of text
+
+
+            timelineAxisWrapper.appendChild(startLabel);
+            timelineAxisWrapper.appendChild(endLabel);
+
+            // --- Enhanced Time Markers ---
+            const totalHours = timelineConfig.totalDurationMs / (1000 * 60 * 60);
+            let intervalHours;
+            let labelFormatOptions;
+
+            // Always use hourly interval
+            intervalHours = 1; // 1 hour interval
+            // Determine label format based on total duration for clarity
+            if (totalHours <= 48) { // Up to 2 days, show HH:MM
+                 labelFormatOptions = { hour: '2-digit', minute: '2-digit' };
+            } else { // More than 2 days, show Day + HH:MM
+                 labelFormatOptions = { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' };
+            }
+
+
+            const intervalMs = intervalHours * 60 * 60 * 1000;
+            let currentTimeMs = timelineConfig.startDate.getTime();
+            // Increase initial padding to avoid overlap with the static start date label
+            let lastLabelEndPos = 50; // Increased from 15
+
+            // Add a small buffer to avoid placing the first marker exactly at the start
+            currentTimeMs += intervalMs / 4;
+
+            while (currentTimeMs < timelineConfig.endDate.getTime()) {
+                const currentDate = new Date(currentTimeMs);
+                // Use totalPixelWidth for dateToPixels calculation
+                const datePos = dateToPixels(currentDate, timelineConfig.totalPixelWidth, timelineConfig.startDate.getTime(), timelineConfig.totalDurationMs);
+
+                // Estimate label width (very rough estimate)
+                const estimatedLabelWidth = (JSON.stringify(labelFormatOptions).length * 4) + 10; // Adjust multiplier as needed
+
+                // Check if marker position is within the *total* width and doesn't overlap
+                if (datePos > lastLabelEndPos && datePos < timelineConfig.totalPixelWidth - (estimatedLabelWidth / 2) - 5) {
+                     const marker = document.createElement('div');
+                     marker.style.position = 'absolute';
+                     marker.style.left = `${datePos}px`;
+                     marker.style.top = '-5px'; // Position line slightly above axis text
+                     marker.style.bottom = '0px';
+                     marker.style.width = '1px';
+                     marker.style.backgroundColor = 'var(--border-color)'; // Use theme color
+                     marker.style.zIndex = '-1'; // Behind labels
+
+                     const label = document.createElement('span');
+                     label.className = 'axis-label';
+                     label.textContent = currentDate.toLocaleTimeString('de-CH', labelFormatOptions); // Use dynamic format
+                     label.style.position = 'absolute';
+                     // Center the label above the marker, adjusting slightly if near edges
+                     let labelLeftPos = datePos - (estimatedLabelWidth / 2);
+                     if (labelLeftPos < 5) labelLeftPos = 5; // Prevent going off left edge
+                     // Check against totalPixelWidth for right edge
+                     if (labelLeftPos + estimatedLabelWidth > timelineConfig.totalPixelWidth - 5) {
+                         labelLeftPos = timelineConfig.totalPixelWidth - estimatedLabelWidth - 5; // Prevent going off right edge
+                     }
+                     label.style.left = `${labelLeftPos}px`;
+                     label.style.bottom = '5px'; // Position label above the axis line
+
+                     timelineAxisWrapper.appendChild(marker);
+                     timelineAxisWrapper.appendChild(label);
+
+                     // Update the position of the last label's end
+                     lastLabelEndPos = labelLeftPos + estimatedLabelWidth + 5; // Add padding
+                 }
+
+                currentTimeMs += intervalMs; // Move to the next interval
+            }
+            // --- End Enhanced Time Markers ---
+        }
+
+        // Renamed: Renders a single meeting's position and size on the timeline
+        function renderMeetingPositionAndSize(meetingData) {
+            const meetingElement = document.getElementById(meetingData.id);
+            // Use totalPixelWidth in the check
+            if (!meetingElement || !timelineConfig.startDate || timelineConfig.totalDurationMs <= 0 || timelineConfig.totalPixelWidth <= 0) {
+                 console.warn("Cannot render meeting position: Element or timeline config missing/invalid for", meetingData.id);
+                return;
+            }
+
+            // Use Date objects directly from meetingData if they are already Date objects
+            // Otherwise, parse them (important after loading from JSON)
+            const meetingStartDate = meetingData.startDate instanceof Date ? meetingData.startDate : parseDateTimeLocal(meetingData.startDate);
+            const meetingEndDate = meetingData.endDate instanceof Date ? meetingData.endDate : parseDateTimeLocal(meetingData.endDate);
+
+            if (!meetingStartDate || !meetingEndDate || isNaN(meetingStartDate.getTime()) || isNaN(meetingEndDate.getTime())) {
+                console.error("Invalid start or end date for meeting:", meetingData.id, meetingData.startDate, meetingData.endDate);
+                meetingElement.style.display = 'none'; // Hide if dates are invalid
+                const titleElement = document.getElementById(`${meetingData.id}-title`); // Also hide title
+                if (titleElement) titleElement.style.display = 'none';
+                return;
+            }
+
+            const timelineStartMs = timelineConfig.startDate.getTime();
+            const meetingStartMs = meetingStartDate.getTime();
+            const meetingEndMs = meetingEndDate.getTime();
+
+            // Calculate pixel positions using totalPixelWidth, clamping within the total width
+            const startPixel = Math.max(0, (meetingStartMs - timelineStartMs) * timelineConfig.pixelsPerMs);
+            // Clamp endPixel to the totalPixelWidth
+            const endPixel = Math.min(timelineConfig.totalPixelWidth, (meetingEndMs - timelineStartMs) * timelineConfig.pixelsPerMs);
+
+            const widthPixel = Math.max(10, endPixel - startPixel); // Ensure minimum width
+
+            // Check if the meeting is completely outside the visible range horizontally
+            if (meetingEndMs < timelineStartMs || meetingStartMs > timelineConfig.endDate.getTime()) {
+                 meetingElement.style.display = 'none';
+                 const titleElement = document.getElementById(`${meetingData.id}-title`); // Also hide title
+                 if (titleElement) titleElement.style.display = 'none';
+                 return;
+            }
+
+            // Make visible if hidden
+            meetingElement.style.display = 'flex'; // Keep flex for vertical centering of text
+
+            // Apply styles from data
+            meetingElement.style.left = `${startPixel}px`;
+            meetingElement.style.width = `${widthPixel}px`;
+            meetingElement.style.height = `${meetingData.height}px`;
+            meetingElement.style.top = `${meetingData.top}px`;
+            meetingElement.style.backgroundColor = meetingData.color || '#a7c7e7'; // Apply color from data or default
+
+            // Update the separate title element's text content and position
+            const titleElement = document.getElementById(`${meetingData.id}-title`);
+            if (titleElement) {
+                titleElement.textContent = meetingData.title || '(No Title)';
+                // Position the title element horizontally centered with the block
+                titleElement.style.left = `${startPixel + widthPixel / 2}px`;
+                // Position below the block
+                titleElement.style.top = `${parseFloat(meetingElement.style.top) + parseFloat(meetingElement.style.height) + 3}px`; // Add 3px margin
+                // Ensure it's visible if the block is
+                titleElement.style.display = meetingElement.style.display;
+            } else {
+                // If title element doesn't exist, recreate and position it
+                console.warn(`Title element missing for ${meetingData.id}, recreating.`);
+                const newTitleElement = document.createElement('div');
+                newTitleElement.className = 'block-title-below';
+                newTitleElement.id = `${meetingData.id}-title`;
+                newTitleElement.textContent = meetingData.title || '(No Title)';
+                newTitleElement.style.left = `${startPixel + widthPixel / 2}px`; // Set initial position
+                newTitleElement.style.top = `${parseFloat(meetingElement.style.top) + parseFloat(meetingElement.style.height) + 3}px`; // Set initial position
+                timelineBlocksWrapper.appendChild(newTitleElement); // Append to wrapper
+            }
+
+            // Tooltip remains on the main block element for hover info
+            meetingElement.title = `${meetingData.title}\n${meetingData.location || ''}\n${meetingData.topic || ''}`;
+
+            // REMOVED: renderSectionsInBlock(meetingData.id);
+
+            // Update the vertical time displays
+            updateVerticalTimeDisplays(meetingData);
+
+            // REMOVED: Call to renderMeetingTimeInfo(meetingData);
+        }
+
+        // Renamed: Renders all meetings on the timeline
+        function renderAllMeetings() {
+            if (!timelineConfig.startDate) return;
+            // Use meetingsData (defined globally, likely in block.js)
+            meetingsData.forEach(meeting => {
+                // Ensure elements exist (might be needed if timeline re-inited after meeting deletion)
+                const meetingElement = document.getElementById(meeting.id);
+                if (meetingElement) {
+                    renderMeetingPositionAndSize(meeting);
+                } else {
+                     // Optionally recreate elements if data exists but DOM is gone
+                     console.warn(`Meeting data ${meeting.id} exists but element missing. Recreating.`);
+                     createMeetingElements(meeting); // Assumes createMeetingElements exists in block.js
+                     renderMeetingPositionAndSize(meeting);
+                     // This path needs careful handling to avoid duplicates if timeline re-init is complex
+                }
+            });
+        }
+
+        // Function to update the vertical time displays within a meeting block
+        function updateVerticalTimeDisplays(meetingData) {
+            const startTimeElement = document.getElementById(`${meetingData.id}-time-start`);
+            const endTimeElement = document.getElementById(`${meetingData.id}-time-end`);
+
+            if (!startTimeElement || !endTimeElement) return;
+
+            const startDate = meetingData.startDate instanceof Date ? meetingData.startDate : parseDateTimeLocal(meetingData.startDate);
+            const endDate = meetingData.endDate instanceof Date ? meetingData.endDate : parseDateTimeLocal(meetingData.endDate);
+
+            if (startDate && !isNaN(startDate.getTime())) {
+                startTimeElement.textContent = startDate.toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' });
+            } else {
+                startTimeElement.textContent = '??:??';
+            }
+
+            if (endDate && !isNaN(endDate.getTime())) {
+                endTimeElement.textContent = endDate.toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' });
+            } else {
+                endTimeElement.textContent = '??:??';
+            }
+        }
+
+        // REMOVED: renderMeetingTimeInfo function
+
+
+        // Resize handler needs to re-initialize timeline which now recalculates total width
+        const handleResize = debounce(() => {
+            console.log("Window resized");
+            // Get current scroll position before re-initializing
+            const scrollContainer = timelineBlocksWrapper.parentElement; // The .timeline-container
+            const currentScrollLeft = scrollContainer.scrollLeft;
+
+            if (initializeTimeline()) { // This recalculates total width and re-renders
+                console.log("Timeline re-initialized on resize");
+                // Restore scroll position after re-render (might need slight delay)
+                setTimeout(() => {
+                    scrollContainer.scrollLeft = currentScrollLeft;
+                }, 0);
+            }
+        }, 250);
+    </script>
+    <script>
+        // --- BLOCK.JS ---
+        // --- Global State ---
+        let isLoadingSettings = false; // Flag to prevent adjustments during load
+
+        // --- Meetings Data Store ---
+        let meetingsData = []; // Array of meeting Objects (formerly blocksData)
+        let masterParticipantList = []; // Holds {name, email, id}
+
+        // Function to create the DOM elements for a meeting block
+        function createMeetingElements(meetingData) {
+            // Create Meeting Block Element
+            const meetingElement = document.createElement('div');
+            meetingElement.id = meetingData.id;
+            meetingElement.className = 'schedule-block'; // Use existing class for styling
+            meetingElement.dataset.blockId = meetingData.id; // Keep dataset name for interaction code
+            meetingElement.style.top = meetingData.top !== undefined ? `${meetingData.top}px` : '20px';
+            meetingElement.style.height = `${meetingData.height}px`;
+            // meetingElement.textContent = meetingData.title || '(No Title)'; // REMOVED - Title is now in a separate div below
+
+            // Add resize handles (Horizontal)
+            const leftHandle = document.createElement('div');
+            leftHandle.className = 'resize-handle resize-handle-left';
+            leftHandle.dataset.handleType = 'left';
+            meetingElement.appendChild(leftHandle);
+
+            const rightHandle = document.createElement('div');
+            rightHandle.className = 'resize-handle resize-handle-right';
+            rightHandle.dataset.handleType = 'right';
+            meetingElement.appendChild(rightHandle);
+
+            // Add resize handle (Vertical - Bottom)
+            const bottomHandle = document.createElement('div');
+            bottomHandle.className = 'resize-handle resize-handle-bottom';
+            bottomHandle.dataset.handleType = 'bottom';
+            meetingElement.appendChild(bottomHandle);
+
+            // Append meeting block to the timeline FIRST
+            timelineBlocksWrapper.appendChild(meetingElement);
+
+            // Create and append the title element below the block (APPEND TO WRAPPER)
+            const titleElement = document.createElement('div');
+            titleElement.className = 'block-title-below';
+            titleElement.id = `${meetingData.id}-title`; // Give it an ID for easy access
+            titleElement.textContent = meetingData.title || '(No Title)';
+            timelineBlocksWrapper.appendChild(titleElement); // Append title to the main wrapper
+
+            // Create Vertical Time Info Elements (Start and End) - Append to meetingElement
+            const startTimeElement = document.createElement('div');
+            startTimeElement.id = `${meetingData.id}-time-start`;
+            startTimeElement.className = 'block-time-info-vertical block-time-info-start';
+            meetingElement.appendChild(startTimeElement); // Append to the meeting block
+
+            const endTimeElement = document.createElement('div');
+            endTimeElement.id = `${meetingData.id}-time-end`;
+            endTimeElement.className = 'block-time-info-vertical block-time-info-end';
+            meetingElement.appendChild(endTimeElement); // Append to the meeting block
+
+            // Add event listeners (using existing handlers, assuming dataset.blockId is used)
+            meetingElement.addEventListener('mousedown', handleBlockMouseDown);
+            meetingElement.addEventListener('click', handleBlockClick);
+
+            return meetingElement;
+        }
+
+        // --- Function to create a new meeting ---
+        function createNewMeeting() {
+            if (!timelineConfig.startDate) {
+                alert("Please set the timeline range first.");
+                return;
+            }
+
+            const meetingId = generateId('meeting');
+
+            // Default times: Start slightly ahead, last 1 hour, within timeline bounds
+            const nowMs = Date.now();
+            const timelineStartMs = timelineConfig.startDate.getTime();
+            const timelineEndMs = timelineConfig.endDate.getTime();
+
+            let defaultStartMs = Math.max(nowMs, timelineStartMs);
+            // If timeline starts in future, start meeting at timeline start
+            if (defaultStartMs < timelineStartMs) defaultStartMs = timelineStartMs;
+
+            let defaultEndMs = defaultStartMs + 3600000; // Default 1 hour duration
+
+            // Clamp to timeline boundaries
+            if (defaultStartMs >= timelineEndMs) {
+                alert("Cannot create meeting - timeline start is after timeline end.");
+                return;
+            }
+            if (defaultEndMs > timelineEndMs) {
+                defaultEndMs = timelineEndMs;
+                // If clamping end makes duration too short or negative, adjust start
+                if (defaultEndMs <= defaultStartMs) {
+                    defaultStartMs = Math.max(timelineStartMs, defaultEndMs - 3600000); // Try to keep 1hr duration before end
+                    if (defaultStartMs >= defaultEndMs) { // Still invalid? Make it minimal duration at end
+                         defaultStartMs = timelineEndMs - 600000; // 10 min before end
+                         if(defaultStartMs < timelineStartMs) defaultStartMs = timelineStartMs; // Final clamp
+                         defaultEndMs = timelineEndMs;
+                    }
+                }
+            }
+             if (defaultStartMs < timelineStartMs) { // Double check start clamp
+                 defaultStartMs = timelineStartMs;
+                 if (defaultEndMs <= defaultStartMs) defaultEndMs = defaultStartMs + 3600000; // Re-adjust end if needed
+                 if (defaultEndMs > timelineEndMs) defaultEndMs = timelineEndMs; // Re-clamp end
+             }
+
+
+            const defaultStart = new Date(defaultStartMs);
+            const defaultEnd = new Date(defaultEndMs);
+
+            // --- Calculate next available vertical position ---
+            // REVERTED: Use a fixed top position for now to keep blocks on the same line
+            const nextTopPosition = 20; // Default starting position
+            // const blockSpacing = 10; // Space between blocks vertically
+            // const existingBlocks = Array.from(timelineBlocksWrapper.children).filter(el => el.classList.contains('schedule-block'));
+
+            // if (existingBlocks.length > 0) {
+            //     let maxBottom = 0;
+            //     existingBlocks.forEach(block => {
+            //         const blockTop = parseFloat(block.style.top) || 0;
+            //         const blockHeight = parseFloat(block.style.height) || 30; // Use default height if not set
+            //         maxBottom = Math.max(maxBottom, blockTop + blockHeight);
+            //     });
+            //     nextTopPosition = maxBottom + blockSpacing;
+            // }
+            // --- End Calculate next available vertical position ---
+
+
+            // Capture currently checked participants from the master list
+            const participantsForMeeting = masterParticipantList.map(p => ({
+                id: p.id, // Keep master ID for reference if needed
+                name: p.name,
+                email: p.email,
+                checked: p.checked // Capture current checked state for this meeting instance
+            }));
+
+            const newMeetingData = {
+                id: meetingId,
+                title: "New Meeting",
+                location: "",
+                topic: "",
+                body: "",
+                startDate: defaultStart, // Store as Date objects
+                endDate: defaultEnd,     // Store as Date objects
+                durationMs: defaultEnd.getTime() - defaultStart.getTime(),
+                rjPage: "",
+                fileName: `meeting_${meetingId}.ics`, // Default filename
+                participants: participantsForMeeting, // Array of participant objects {name, email, checked}
+                height: 60, // Default height
+                top: nextTopPosition, // Use calculated top position
+                color: '#a7c7e7', // Default color (light blue from original CSS)
+                // NEW: Store initial relative position
+                relativeStartPercent: 0,
+                relativeEndPercent: 0,
+            };
+
+            // Calculate initial relative position
+            if (timelineConfig.totalDurationMs > 0) {
+                newMeetingData.relativeStartPercent = (newMeetingData.startDate.getTime() - timelineConfig.startDate.getTime()) / timelineConfig.totalDurationMs;
+                newMeetingData.relativeEndPercent = (newMeetingData.endDate.getTime() - timelineConfig.startDate.getTime()) / timelineConfig.totalDurationMs;
+            }
+
+            meetingsData.push(newMeetingData);
+
+            // Create DOM Elements
+            createMeetingElements(newMeetingData);
+
+            // Calculate initial position and size, including time info
+            renderMeetingPositionAndSize(newMeetingData); // From timeline.js
+            // renderMeetingTimeInfo(newMeetingData); // Called within renderMeetingPositionAndSize
+
+            // Select the newly created meeting block
+            selectBlock(meetingId); // Use existing selection function from ui.js
+
+            console.log("Created new meeting:", newMeetingData);
+        }
+
+        // Function to find meeting data by ID
+        function findMeetingData(meetingId) {
+            return meetingsData.find(meeting => meeting.id === meetingId);
+        }
+
+        // Function to update meeting data
+        function updateMeetingData(meetingId, updates) {
+            const meetingIndex = meetingsData.findIndex(meeting => meeting.id === meetingId);
+            if (meetingIndex > -1) {
+                const currentData = meetingsData[meetingIndex];
+                // Ensure dates in updates are Date objects if provided
+                if (updates.startDate && !(updates.startDate instanceof Date)) {
+                    updates.startDate = parseDateTimeLocal(updates.startDate);
+                }
+                if (updates.endDate && !(updates.endDate instanceof Date)) {
+                    updates.endDate = parseDateTimeLocal(updates.endDate);
+                }
+
+                const newData = { ...currentData, ...updates };
+
+                // Recalculate duration if dates change and are valid
+                if ((updates.startDate || updates.endDate) && newData.startDate && newData.endDate && !isNaN(newData.startDate.getTime()) && !isNaN(newData.endDate.getTime())) {
+                    // Clamp dates FIRST
+                     if (newData.startDate < timelineConfig.startDate) newData.startDate = new Date(timelineConfig.startDate);
+                     if (newData.endDate > timelineConfig.endDate) newData.endDate = new Date(timelineConfig.endDate);
+
+                     // Ensure start is before end AFTER clamping
+                     if(newData.startDate >= newData.endDate) {
+                         console.warn("Attempted to set start date after/on end date. Adjusting end date slightly.");
+                          const minDuration = 600000; // 10 min minimum?
+                         newData.endDate = new Date(newData.startDate.getTime() + Math.max(minDuration, currentData.durationMs > 0 ? currentData.durationMs : minDuration));
+                          if (newData.endDate > timelineConfig.endDate) newData.endDate = new Date(timelineConfig.endDate);
+                          if (newData.startDate >= newData.endDate) {
+                              console.error("Meeting dates invalid after correction.");
+                              return currentData; // Prevent invalid state
+                          }
+                     }
+                     newData.durationMs = newData.endDate.getTime() - newData.startDate.getTime();
+                } else if (updates.startDate || updates.endDate) {
+                     // Handle cases where one of the updated dates might be invalid
+                     console.warn("Invalid date update attempted for meeting:", meetingId);
+                     // Revert date changes if invalid
+                     newData.durationMs = currentData.durationMs;
+                     // Keep existing relative percentages if dates are invalid
+                     newData.relativeStartPercent = currentData.relativeStartPercent;
+                     newData.relativeEndPercent = currentData.relativeEndPercent;
+                } else if (newData.startDate && newData.endDate && timelineConfig.totalDurationMs > 0) {
+                     // Dates were valid or became valid, recalculate relative position
+                     const timelineStartMs = timelineConfig.startDate.getTime();
+                     newData.relativeStartPercent = (newData.startDate.getTime() - timelineStartMs) / timelineConfig.totalDurationMs;
+                     newData.relativeEndPercent = (newData.endDate.getTime() - timelineStartMs) / timelineConfig.totalDurationMs;
+                }
+
+
+                // Basic validation for height/top
+                if (newData.height !== undefined && newData.height < 30) newData.height = 30;
+                if (newData.top !== undefined && newData.top < 0) newData.top = 0;
+
+                // Update filename if title changed and filename was default
+                if (updates.title && newData.fileName === `meeting_${currentData.id}.ics`) {
+                    newData.fileName = newData.title.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '') + '.ics';
+                }
+                // Ensure filename ends with .ics
+                if (newData.fileName && !newData.fileName.toLowerCase().endsWith('.ics')) {
+                    newData.fileName += '.ics';
+                }
+
+                // Ensure color is a valid hex color? Basic check for now.
+                if (updates.color && !/^#[0-9A-F]{6}$/i.test(updates.color)) {
+                     console.warn("Invalid color format provided:", updates.color, "Using previous color.");
+                     newData.color = currentData.color; // Revert if invalid
+                }
+
+
+                meetingsData[meetingIndex] = newData;
+                console.log("Updated meeting data:", newData);
+                return meetingsData[meetingIndex]; // Return the updated data
+            }
+            console.warn("Could not find meeting to update:", meetingId);
+            return null;
+        }
+
+        // Function to delete a meeting
+        function deleteMeeting(meetingId) {
+             console.log("Deleting meeting:", meetingId);
+            const meetingIndex = meetingsData.findIndex(meeting => meeting.id === meetingId);
+            if (meetingIndex > -1) {
+                // Remove DOM elements (Meeting Block, Title, and Time Info)
+                const meetingElement = document.getElementById(meetingId);
+                const titleElement = document.getElementById(`${meetingId}-title`); // Find title element
+                const startTimeElement = document.getElementById(`${meetingId}-time-start`);
+                const endTimeElement = document.getElementById(`${meetingId}-time-end`);
+
+                if (startTimeElement) startTimeElement.remove();
+                if (endTimeElement) endTimeElement.remove();
+                if (titleElement) titleElement.remove(); // Remove title element
+                if (meetingElement) meetingElement.remove(); // Remove main block element
+
+
+                // Remove data
+                meetingsData.splice(meetingIndex, 1);
+
+                // If the deleted meeting was selected, hide panel
+                if (appState.selectedBlockId === meetingId) { // appState still uses blockId
+                    deselectAllBlocks(); // In ui.js
+                }
+                 console.log("Remaining meetings:", meetingsData);
+                 return true;
+            } else {
+                console.warn("Could not find meeting to delete:", meetingId);
+                return false;
+            }
+        }
+
+
+        // Function to Duplicate a meeting
+        function duplicateMeeting(originalMeetingId) {
+            const originalMeetingData = findMeetingData(originalMeetingId);
+            if (!originalMeetingData) {
+                console.error("Cannot duplicate: Original meeting not found", originalMeetingId);
+                return;
+            }
+
+            console.log("Duplicating meeting:", originalMeetingId);
+
+            // Create a deep copy of the data
+            const copiedMeetingData = deepClone(originalMeetingData);
+
+            // Generate NEW unique ID
+            copiedMeetingData.id = generateId('meeting');
+            // Participants array is already deep cloned by deepClone
+            // Color is also deep cloned (string)
+
+            // --- Offset the copied meeting slightly ---
+            let offsetMs = 0;
+            if (timelineConfig.pixelsPerMs && timelineConfig.pixelsPerMs > 0) {
+                const pixelOffset = 15; // Slightly larger offset
+                offsetMs = pixelOffset / timelineConfig.pixelsPerMs;
+            } else {
+                offsetMs = 3600000; // Fallback to 1 hour offset
+            }
+
+            // Ensure original dates are Date objects before offsetting
+            const originalStartDate = originalMeetingData.startDate instanceof Date ? originalMeetingData.startDate : parseDateTimeLocal(originalMeetingData.startDate);
+            const originalEndDate = originalMeetingData.endDate instanceof Date ? originalMeetingData.endDate : parseDateTimeLocal(originalMeetingData.endDate);
+
+            if (!originalStartDate || !originalEndDate) {
+                console.error("Cannot duplicate: Original meeting has invalid dates.");
+                return; // Or handle differently
+            }
+
+
+            let newStartDate = new Date(originalStartDate.getTime() + offsetMs);
+            let newEndDate = new Date(originalEndDate.getTime() + offsetMs);
+            const duration = copiedMeetingData.durationMs; // Use cloned duration
+
+            // Clamp to timeline boundaries (similar logic as createNewMeeting)
+            const timelineStartMs = timelineConfig.startDate.getTime();
+            const timelineEndMs = timelineConfig.endDate.getTime();
+
+            if (newEndDate.getTime() > timelineEndMs) {
+                newEndDate = new Date(timelineEndMs);
+                newStartDate = new Date(newEndDate.getTime() - duration);
+                if (newStartDate.getTime() < timelineStartMs) {
+                    newStartDate = new Date(timelineStartMs);
+                    if (newStartDate.getTime() + duration > timelineEndMs) {
+                        newEndDate = new Date(timelineEndMs);
+                    } else {
+                        newEndDate = new Date(newStartDate.getTime() + duration);
+                    }
+                }
+            }
+            if (newStartDate.getTime() < timelineStartMs) {
+                 newStartDate = new Date(timelineStartMs);
+                 newEndDate = new Date(newStartDate.getTime() + duration);
+                 if (newEndDate.getTime() > timelineEndMs) {
+                    newEndDate = new Date(timelineEndMs);
+                 }
+            }
+
+            copiedMeetingData.startDate = newStartDate;
+            copiedMeetingData.endDate = newEndDate;
+            copiedMeetingData.durationMs = newEndDate.getTime() - newStartDate.getTime(); // Recalculate
+
+            // Update default filename
+            copiedMeetingData.fileName = `meeting_${copiedMeetingData.id}.ics`;
+            if (copiedMeetingData.title && copiedMeetingData.title !== "New Meeting") {
+                 copiedMeetingData.fileName = copiedMeetingData.title.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '') + `_copy.ics`;
+            }
+
+
+            // Add the new meeting data to the main array
+            meetingsData.push(copiedMeetingData);
+
+            // Create DOM elements for the copied meeting
+            createMeetingElements(copiedMeetingData);
+
+            // Render its position, size, and time info
+            renderMeetingPositionAndSize(copiedMeetingData); // From timeline.js
+
+            // Select the newly created meeting
+            selectBlock(copiedMeetingData.id); // Use existing selection function
+
+            console.log("Created copy:", copiedMeetingData);
+        }
+
+
+        // --- Participant Management (Master List) ---
+        function addParticipant() {
+            const nameField = document.getElementById('participantName');
+            const emailField = document.getElementById('participantEmail');
+            const name = nameField.value.trim();
+            const email = emailField.value.trim().toLowerCase(); // Store email lowercase for comparison
+
+            if (!name || !email) { alert("Please enter both participant name and email."); return; }
+            if (!/\S+@\S+\.\S+/.test(email)) { alert("Please enter a valid email address."); return; }
+
+            // Check if participant already exists in master list
+            if (masterParticipantList.some(p => p.email === email)) {
+                alert(`Participant with email ${email} already exists in the master list.`);
+                return;
+            }
+
+            const participantId = generateId('participant');
+            const newParticipant = { id: participantId, name: name, email: email, checked: true }; // Default to checked
+            masterParticipantList.push(newParticipant);
+
+            renderMasterParticipantList(); // Update the UI
+
+            // Clear fields and focus name for next entry
+            nameField.value = '';
+            emailField.value = '';
+            nameField.focus();
+        }
+
+        function removeParticipant(participantId) {
+            masterParticipantList = masterParticipantList.filter(p => p.id !== participantId);
+            // Also remove this participant from all existing meetings' participant lists
+            meetingsData.forEach(meeting => {
+                meeting.participants = meeting.participants.filter(p => p.email !== masterParticipantList.find(mp => mp.id === participantId)?.email); // Find email by ID before filtering
+            });
+            renderMasterParticipantList(); // Update the UI
+            // If a meeting is selected, refresh its participant list in the details panel
+            if (appState.selectedBlockId) {
+                renderParticipantsInPanel(appState.selectedBlockId);
+            }
+        }
+
+        function renderMasterParticipantList() {
+            const container = document.getElementById('participantContainer');
+            container.innerHTML = ''; // Clear existing
+
+            if (masterParticipantList.length === 0) {
+                container.innerHTML = '<p class="placeholder">No participants added yet.</p>';
+                return;
+            }
+
+            masterParticipantList.forEach(participant => {
+                const participantRow = document.createElement('div');
+                participantRow.className = 'participant-row';
+
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.value = participant.email; // Use email as value? Or ID? Using email for consistency.
+                checkbox.setAttribute('data-name', participant.name);
+                checkbox.setAttribute('data-participant-id', participant.id); // Store ID
+                checkbox.checked = participant.checked; // Reflect current master checked state
+                checkbox.title = `Include ${participant.name} by default when adding new meetings`;
+                checkbox.addEventListener('change', (e) => {
+                    // Update the checked state in the master list
+                    const pIndex = masterParticipantList.findIndex(p => p.id === participant.id);
+                    if (pIndex > -1) {
+                        masterParticipantList[pIndex].checked = e.target.checked;
+                    }
+                });
+                participantRow.appendChild(checkbox);
+
+                const labelSpan = document.createElement('span');
+                labelSpan.textContent = `${participant.name} (${participant.email})`;
+                participantRow.appendChild(labelSpan);
+
+                const removeBtn = document.createElement('button');
+                removeBtn.type = 'button';
+                removeBtn.textContent = 'Remove';
+                removeBtn.className = 'btn-remove';
+                removeBtn.title = `Remove ${participant.name} from master list`;
+                removeBtn.onclick = () => removeParticipant(participant.id); // Use onclick for simplicity here
+                participantRow.appendChild(removeBtn);
+
+                container.appendChild(participantRow);
+            });
+        }
+
+        // --- Settings Save/Load ---
+        function saveSettings() {
+            // 1. Get Audit Header Data
+            const auditHeaderData = {
+                auditOrg: document.getElementById('auditOrg').value,
+                auditAddr: document.getElementById('auditAddr').value,
+                auditAuditor: document.getElementById('auditAuditor').value,
+                auditNorms: document.getElementById('auditNorms').value,
+                auditLang: document.getElementById('auditLang').value,
+            };
+
+            // 2. Get Master Participant List (already up-to-date in masterParticipantList)
+
+            // 3. Get Meetings Data (ensure dates are strings for JSON)
+            const meetingsToSave = meetingsData.map(m => ({
+                ...m,
+                startDate: m.startDate instanceof Date ? formatToDateTimeLocal(m.startDate) : m.startDate,
+                endDate: m.endDate instanceof Date ? formatToDateTimeLocal(m.endDate) : m.endDate,
+            }));
+
+
+            // 4. Create the main settings object
+            const settings = {
+                savedAt: new Date().toISOString(),
+                auditHeaderData: auditHeaderData,
+                masterParticipantList: masterParticipantList,
+                meetingsData: meetingsToSave, // Use the stringified date version
+            };
+
+            // Save logic
+            const jsonFileName = 'audit_schedule_settings.json';
+            const blob = new Blob([JSON.stringify(settings, null, 2)], { type: 'application/json' });
+            const link = document.createElement('a');
+            link.href = window.URL.createObjectURL(blob);
+            link.download = jsonFileName;
+            link.click();
+            setTimeout(() => window.URL.revokeObjectURL(link.href), 100);
+            alert(`Settings saved to ${jsonFileName}. Includes Header, ${masterParticipantList.length} Participants, and ${meetingsData.length} Meetings.`);
+        }
+
+        function loadSettings() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'application/json,.json';
+            input.onchange = function(event) {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        isLoadingSettings = true; // Set flag before processing
+                        try {
+                            const settings = JSON.parse(e.target.result);
+
+                            // Validate structure
+                            if (!settings || !settings.masterParticipantList || !settings.meetingsData || !settings.auditHeaderData) {
+                                throw new Error("Invalid settings file structure.");
+                            }
+
+                            // 1. Restore Audit Header Fields
+                            document.getElementById('auditOrg').value = settings.auditHeaderData.auditOrg || '';
+                            document.getElementById('auditAddr').value = settings.auditHeaderData.auditAddr || '';
+                            document.getElementById('auditAuditor').value = settings.auditHeaderData.auditAuditor || '';
+                            document.getElementById('auditNorms').value = settings.auditHeaderData.auditNorms || '';
+                            document.getElementById('auditLang').value = settings.auditHeaderData.auditLang || '';
+
+                            // 2. Restore Master Participant List
+                            masterParticipantList = settings.masterParticipantList || [];
+                            renderMasterParticipantList(); // Update UI
+
+                            // 3. Restore Meetings Data (parse dates back to Date objects and filter invalid)
+                            meetingsData = (settings.meetingsData || []).map(m => ({
+                                ...m,
+                                startDate: parseDateTimeLocal(m.startDate), // Convert back to Date
+                                endDate: parseDateTimeLocal(m.endDate),     // Convert back to Date
+                            })).filter(m => m.startDate && m.endDate && !isNaN(m.startDate.getTime()) && !isNaN(m.endDate.getTime())); // Filter out invalid dates
+
+                            // 4. Determine Date Range from Loaded Meetings
+                            let minStartDate = null;
+                            let maxEndDate = null;
+                            if (meetingsData.length > 0) {
+                                minStartDate = new Date(Math.min(...meetingsData.map(m => m.startDate.getTime())));
+                                maxEndDate = new Date(Math.max(...meetingsData.map(m => m.endDate.getTime())));
+                            }
+
+                            // 5. Reset existing timeline config to prevent unwanted adjustments
+                            timelineConfig.startDate = null;
+                            timelineConfig.endDate = null;
+                            timelineConfig.totalDurationMs = 0;
+                            timelineConfig.totalPixelWidth = 0;
+                            timelineConfig.pixelsPerMs = 0;
+                            console.log("Reset timelineConfig before loading.");
+
+                            // 6. Set Timeline Input Fields based on Loaded Data Range
+                            if (minStartDate && maxEndDate) {
+                                // Set inputs to the day of the earliest start and latest end
+                                startDateInput.value = formatDateForInput(minStartDate);
+                                endDateInput.value = formatDateForInput(maxEndDate);
+                                console.log(`Set timeline inputs based on loaded data: ${startDateInput.value} to ${endDateInput.value}`);
+                            } else {
+                                // Fallback if no valid meetings loaded
+                                setDefaultDates();
+                                console.log("No valid meetings loaded, using default timeline dates.");
+                            }
+
+                            // 7. Clear existing meeting elements from timeline
+                            timelineBlocksWrapper.innerHTML = '';
+
+                            // 8. Initialize timeline using the dates NOW set in the input fields
+                            // Since timelineConfig was reset, the date adjustment logic inside initializeTimeline should be skipped.
+                            if (!initializeTimeline()) {
+                                 console.warn("Timeline could not be initialized after loading settings and setting dates.");
+                            } else {
+                                // Timeline initialized. Recalculate relative positions based on the *correct* timeline range.
+                                // This ensures relative positions are correct for future timeline adjustments.
+                                if (timelineConfig.totalDurationMs > 0) {
+                                    const currentTimelineStartMs = timelineConfig.startDate.getTime();
+                                    meetingsData.forEach(m => {
+                                        m.relativeStartPercent = (m.startDate.getTime() - currentTimelineStartMs) / timelineConfig.totalDurationMs;
+                                        m.relativeEndPercent = (m.endDate.getTime() - currentTimelineStartMs) / timelineConfig.totalDurationMs;
+                                    });
+                                    console.log("Recalculated relative percentages for loaded meetings based on derived timeline.");
+                                }
+                            }
+
+                            // 9. Recreate meeting elements
+                            meetingsData.forEach(meeting => {
+                                createMeetingElements(meeting); // Create DOM elements
+                            });
+
+                            // 9. Re-render positions based on current timeline settings
+                            renderAllMeetings(); // In timeline.js
+
+                            // 10. Clear selection and hide details panel
+                            deselectAllBlocks();
+
+                            alert(`Settings loaded successfully. Header, ${masterParticipantList.length} Participants, and ${meetingsData.length} Meetings restored.`);
+
+                        } catch (error) {
+                             alert('Error loading or parsing settings file: ' + error.message);
+                             console.error("Load Settings Error:", error);
+                        } finally {
+                            isLoadingSettings = false; // Ensure flag is reset after processing (success or error)
+                        }
+                    };
+                     reader.onerror = () => {
+                         alert('Error reading file.');
+                         isLoadingSettings = false; // Reset flag on read error too
+                     };
+                    reader.readAsText(file);
+                }
+            };
+            input.click();
+        }
+
+
+        // --- ICS Generation ---
+        // Generates ICS files for meetings selected via checkbox (now integrated with timeline selection)
+        function generateSelectedICS() {
+            if (!appState.selectedBlockId) {
+                 alert("Please select a meeting on the timeline first.");
+                 return;
+             }
+             const meetingData = findMeetingData(appState.selectedBlockId);
+             if (!meetingData) {
+                 alert("Selected meeting data not found.");
+                 return;
+             }
+
+             if (!confirm(`Generate ICS file for the selected meeting: "${meetingData.title || meetingData.id}"?`)) {
+                 return;
+             }
+
+             try {
+                 createICSFromData(meetingData); // Use the single data object
+                 alert(`ICS file "${meetingData.fileName}" generated for the selected meeting.`);
+             } catch (error) {
+                 console.error(`ICS Error for "${meetingData.title || meetingData.id}":`, error);
+                 alert(`Error generating ICS for selected meeting: ${error.message}`);
+             }
+        }
+
+        // Helper: Create ICS from specific meeting data object
+        function createICSFromData(meetingData) {
+            const { id, title, body, startDate, endDate, rjPage, location, fileName, participants } = meetingData;
+
+            // Ensure dates are Date objects
+            const start = startDate instanceof Date ? startDate : parseDateTimeLocal(startDate);
+            const end = endDate instanceof Date ? endDate : parseDateTimeLocal(endDate);
+
+            if (!start || !end || isNaN(start.getTime()) || isNaN(end.getTime())) {
+                throw new Error(`Invalid start or end date for meeting ID ${id}`);
+            }
+            if (!title) {
+                console.warn(`Meeting ID ${id} has no title.`);
+                // Optionally throw error or use a default title
+            }
+
+            const startICS = formatICSDate(start);
+            const endICS = formatICSDate(end);
+            const dtStampICS = formatICSDate(new Date());
+
+            if (!startICS || !endICS) throw new Error(`Could not format dates for meeting ID ${id}`);
+
+            let attendeeLines = '';
+            if (Array.isArray(participants)) {
+                participants.forEach(p => {
+                    if (p.checked && p.email) { // Only include checked participants with an email
+                        attendeeLines += foldLine(`ATTENDEE;CN=${p.name || p.email};ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=TRUE:mailto:${p.email}`) + '\r\n';
+                    }
+                });
+            }
+
+            const uid = `${id}@audit-schedule-tool.local`; // Unique ID
+            const descriptionContent = (body || '').replace(/\n/g, '\\n'); // Escape newlines
+
+            let icsContent = `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//YourCompanyName//AuditScheduleGenerator//EN\r\nCALSCALE:GREGORIAN\r\nBEGIN:VEVENT\r\nUID:${uid}\r\nDTSTAMP:${dtStampICS}\r\nDTSTART:${startICS}\r\nDTEND:${endICS}\r\nSUMMARY:${foldLine(title || '(No Title)')}\r\n`;
+
+            if (descriptionContent) {
+                icsContent += `DESCRIPTION:${foldLine(descriptionContent)}\r\n`;
+            }
+            if (location) {
+                icsContent += `LOCATION:${foldLine(location)}\r\n`;
+            }
+            if (attendeeLines) {
+                icsContent += attendeeLines;
+            }
+            if (rjPage) {
+                try {
+                    new URL(rjPage); // Validate URL
+                    icsContent += foldLine(`URL;VALUE=URI:${rjPage}`) + '\r\n';
+                } catch (_) {
+                    console.warn("Invalid URL provided, adding to description:", rjPage);
+                    // Add invalid URL to description if DESCRIPTION exists, otherwise create it
+                    if (icsContent.includes('DESCRIPTION:')) {
+                         icsContent = icsContent.replace(/DESCRIPTION:(.*?)(\r\n[A-Z]|$)/s, (match, desc, nextField) => `DESCRIPTION:${foldLine(desc.replace(/\\n/g, '\n') + '\\n\\nRelated Link (Invalid URL): ' + rjPage).replace(/\n/g, '\\n')}${nextField}`);
+                    } else {
+                         icsContent += `DESCRIPTION:${foldLine('Related Link (Invalid URL): ' + rjPage)}\r\n`;
+                    }
+                }
+            }
+
+            icsContent += `STATUS:CONFIRMED\r\nSEQUENCE:0\r\nTRANSP:OPAQUE\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n`;
+
+            // Trigger download
+            const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+            const link = document.createElement('a');
+            link.href = window.URL.createObjectURL(blob);
+            link.download = fileName || `meeting_${id}.ics`; // Use meeting filename or default
+            link.click();
+            setTimeout(() => window.URL.revokeObjectURL(link.href), 100);
+        }
+
+        // --- PDF Generation (Placeholder/Trigger) ---
+        // The actual PDF generation logic is complex and better placed in main.js or ui.js
+        // This function just gathers the necessary data.
+        function generateAuditPlanPDF() {
+            if (meetingsData.length === 0) {
+                alert("No meetings in the plan to generate PDF.");
+                return;
+            }
+
+            // Get Header Values
+            const auditHeaderData = {
+                auditOrg: document.getElementById('auditOrg').value || '',
+                auditAddr: document.getElementById('auditAddr').value || '',
+                auditAuditor: document.getElementById('auditAuditor').value || '',
+                auditNorms: document.getElementById('auditNorms').value || '',
+                auditLang: document.getElementById('auditLang').value || '',
+            };
+
+            // Sort meetings (ensure dates are Date objects for sorting)
+            const sortedMeetings = [...meetingsData]
+                .map(m => ({ // Ensure dates are Date objects
+                    ...m,
+                    startDate: m.startDate instanceof Date ? m.startDate : parseDateTimeLocal(m.startDate),
+                    endDate: m.endDate instanceof Date ? m.endDate : parseDateTimeLocal(m.endDate),
+                }))
+                .filter(m => m.startDate && m.endDate) // Filter out meetings with invalid dates
+                .sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
+
+            console.log("Data prepared for PDF:", { auditHeaderData, sortedMeetings });
+            alert("PDF generation initiated (check console for data). Actual PDF creation logic needs to be implemented using pdfmake.");
+
+            // --- Call the actual pdfmake implementation ---
+            // This function should be defined elsewhere (e.g., main.js)
+            createAndDownloadPdf(auditHeaderData, sortedMeetings);
+        }
+
+        // --- Generate ALL ICS Files ---
+        function generateAllICS() {
+            if (meetingsData.length === 0) {
+                alert("No meetings in the plan to generate ICS files.");
+                return;
+            }
+            if (!confirm(`Generate ${meetingsData.length} separate ICS file(s) for all meetings in the plan?`)) {
+                return;
+            }
+
+            let generatedCount = 0;
+            let errors = [];
+
+            meetingsData.forEach(meeting => {
+                try {
+                    createICSFromData(meeting); // Reuse the existing helper function
+                    generatedCount++;
+                } catch (error) {
+                    console.error(`ICS Error for "${meeting.title || meeting.id}":`, error);
+                    errors.push(`"${meeting.fileName || meeting.id}": ${error.message}`);
+                }
+            });
+
+            let message = "";
+            if (generatedCount > 0) {
+                message += `Generated ${generatedCount} ICS file(s).`;
+            }
+            if (errors.length > 0) {
+                message += `\nEncountered ${errors.length} error(s) while generating some files:\n- ${errors.join('\n- ')}`;
+            }
+            alert(message || "No files were generated (check console for errors).");
+        }
+    </script>
+    <script>
+        // --- UI.JS ---
+        // --- UI State & Elements ---
+        const detailsPanel = document.getElementById('details-panel');
+        const detailsBlockId = document.getElementById('details-block-id'); // Now Meeting ID
+        // References to specific input fields in the details panel
+        const detailsTitleInput = document.getElementById('details-title');
+        const detailsLocationInput = document.getElementById('details-location');
+        const detailsTopicInput = document.getElementById('details-topic');
+        const detailsBodyInput = document.getElementById('details-body');
+        const detailsStartDateInput = document.getElementById('details-startDate');
+        const detailsEndDateInput = document.getElementById('details-endDate');
+        const detailsRjPageInput = document.getElementById('details-rjPage');
+        const detailsFileNameInput = document.getElementById('details-fileName');
+        const detailsColorInput = document.getElementById('details-color'); // Added color input reference
+        const detailsParticipantsListUl = document.getElementById('details-participants-list'); // Container for participant checkboxes
+
+        // Buttons in the details panel
+        const closeDetailsButton = document.getElementById('close-details');
+        const updateMeetingButton = document.getElementById('update-meeting-button');
+        const copyBlockButton = document.getElementById('copy-block-button'); // Renamed conceptually to copyMeetingButton
+        const deleteMeetingButton = document.getElementById('delete-meeting-button');
+
+        // --- UI Management Functions ---
+
+        // Selects a meeting block on the timeline
+        function selectBlock(meetingId) { // Keep name `selectBlock` as interaction.js uses it
+            if (!meetingId) {
+                deselectAllBlocks();
+                return;
+            }
+
+            // Deselect previous if any
+            if (appState.selectedBlockId && appState.selectedBlockId !== meetingId) {
+                const prevSelected = document.getElementById(appState.selectedBlockId);
+                if (prevSelected) {
+                    prevSelected.classList.remove('selected');
+                }
+            }
+
+            appState.selectedBlockId = meetingId; // Store the selected meeting ID
+
+            // Highlight the new meeting block
+            const meetingElement = document.getElementById(meetingId);
+            if (meetingElement) {
+                meetingElement.classList.add('selected');
+            } else {
+                console.warn("Could not find element for selected meeting:", meetingId);
+                appState.selectedBlockId = null;
+                hideDetailsPanel();
+                return;
+            }
+
+            // Show details panel populated with this meeting's data
+            showDetailsPanel(meetingId);
+        }
+
+        // Deselects any currently selected meeting block
+        function deselectAllBlocks() {
+            if (appState.selectedBlockId) {
+                const selectedElement = document.getElementById(appState.selectedBlockId);
+                if (selectedElement) {
+                    selectedElement.classList.remove('selected');
+                }
+            }
+            appState.selectedBlockId = null;
+            hideDetailsPanel();
+        }
+
+        // Shows the details panel and populates it with data for the given meetingId
+        function showDetailsPanel(meetingId) {
+            const meetingData = findMeetingData(meetingId); // Use findMeetingData from block.js
+            if (!meetingData) {
+                hideDetailsPanel();
+                return;
+            }
+
+            // Populate Meeting Info Fields
+            detailsBlockId.textContent = meetingData.id;
+            detailsTitleInput.value = meetingData.title || '';
+            detailsLocationInput.value = meetingData.location || '';
+            detailsTopicInput.value = meetingData.topic || '';
+            detailsBodyInput.value = meetingData.body || '';
+            // Ensure dates are formatted correctly for datetime-local input
+            detailsStartDateInput.value = formatToDateTimeLocal(meetingData.startDate);
+            detailsEndDateInput.value = formatToDateTimeLocal(meetingData.endDate);
+            detailsRjPageInput.value = meetingData.rjPage || '';
+            detailsFileNameInput.value = meetingData.fileName || '';
+            detailsColorInput.value = meetingData.color || '#a7c7e7'; // Populate color input
+
+            // Populate Participants List for this specific meeting
+            renderParticipantsInPanel(meetingId);
+
+            // Show the panel (it's now part of the layout)
+            detailsPanel.style.display = ''; // Use empty string to revert to default display (likely block or flex based on CSS)
+            // Or explicitly set: detailsPanel.style.display = 'block';
+        }
+
+        // Hides the details panel (or clears it if always visible)
+        function hideDetailsPanel() {
+            // Instead of hiding, clear the content and maybe show a placeholder?
+            // Or just hide it if preferred. Hiding seems simpler for now.
+            detailsPanel.style.display = 'none';
+
+            // Clear fields when hiding/deselecting
+            detailsBlockId.textContent = '-';
+            detailsTitleInput.value = '';
+            detailsLocationInput.value = '';
+            detailsTopicInput.value = '';
+            detailsBodyInput.value = '';
+            detailsStartDateInput.value = '';
+            detailsEndDateInput.value = '';
+            detailsRjPageInput.value = '';
+            detailsFileNameInput.value = '';
+            detailsColorInput.value = '#a7c7e7'; // Reset color to default
+            detailsParticipantsListUl.innerHTML = '<p class="placeholder">Select a meeting to manage attendees.</p>';
+        }
+
+        // Renders the participant checklist within the details panel for the selected meeting
+        function renderParticipantsInPanel(meetingId) {
+            const meetingData = findMeetingData(meetingId);
+            detailsParticipantsListUl.innerHTML = ''; // Clear current list
+
+            if (!meetingData) {
+                detailsParticipantsListUl.innerHTML = '<p class="placeholder">Meeting data not found.</p>';
+                return;
+            }
+            if (masterParticipantList.length === 0) {
+                detailsParticipantsListUl.innerHTML = '<p class="placeholder">No participants in master list.</p>';
+                return;
+            }
+
+            // Get the participant list specific to this meeting
+            const meetingParticipants = meetingData.participants || [];
+
+            masterParticipantList.forEach(masterParticipant => {
+                const li = document.createElement('li');
+
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.id = `detail-participant-${masterParticipant.id}-${meetingId}`; // Unique ID
+                checkbox.value = masterParticipant.email;
+                checkbox.setAttribute('data-participant-id', masterParticipant.id);
+
+                // Check if this participant is included in *this specific meeting's* list
+                const meetingParticipantData = meetingParticipants.find(p => p.email === masterParticipant.email);
+                checkbox.checked = meetingParticipantData ? meetingParticipantData.checked : false;
+
+                // Add event listener to update the meeting's participant data directly
+                checkbox.addEventListener('change', (e) => {
+                    const isChecked = e.target.checked;
+                    const participantEmail = e.target.value;
+                    const participantName = masterParticipant.name; // Get name from master list ref
+
+                    // Find the meeting again (in case data changed)
+                    const currentMeetingData = findMeetingData(meetingId);
+                    if (!currentMeetingData) return;
+
+                    let participantIndex = currentMeetingData.participants.findIndex(p => p.email === participantEmail);
+
+                    if (isChecked) {
+                        // Add or update participant in the meeting's list
+                        if (participantIndex > -1) {
+                            currentMeetingData.participants[participantIndex].checked = true;
+                        } else {
+                            // Add participant from master list if not present
+                            currentMeetingData.participants.push({
+                                id: masterParticipant.id, // Reference master ID
+                                name: participantName,
+                                email: participantEmail,
+                                checked: true
+                            });
+                        }
+                    } else {
+                        // Mark as unchecked if they exist in the meeting's list
+                        if (participantIndex > -1) {
+                            currentMeetingData.participants[participantIndex].checked = false;
+                        }
+                        // We don't remove them entirely, just mark as unchecked for this meeting
+                    }
+                    console.log(`Updated participants for meeting ${meetingId}:`, currentMeetingData.participants);
+                });
+
+                const label = document.createElement('label');
+                label.htmlFor = checkbox.id;
+                label.textContent = `${masterParticipant.name} (${masterParticipant.email})`;
+
+                li.appendChild(checkbox);
+                li.appendChild(label);
+                detailsParticipantsListUl.appendChild(li);
+            });
+        }
+
+
+        // --- Event Listeners for Panel ---
+        closeDetailsButton.addEventListener('click', deselectAllBlocks);
+
+        // Update Meeting Button
+        updateMeetingButton.addEventListener('click', () => {
+            const meetingId = appState.selectedBlockId;
+            if (!meetingId) {
+                alert("No meeting selected.");
+                return;
+            }
+
+            // Gather updated participant checked states from the panel
+            const updatedParticipantsData = [];
+            const checkboxes = detailsParticipantsListUl.querySelectorAll('input[type="checkbox"]');
+            checkboxes.forEach(cb => {
+                const masterP = masterParticipantList.find(p => p.id === cb.getAttribute('data-participant-id'));
+                if (masterP) {
+                    updatedParticipantsData.push({
+                        id: masterP.id,
+                        name: masterP.name,
+                        email: masterP.email,
+                        checked: cb.checked
+                    });
+                }
+            });
+
+
+            // Gather other updated details
+            const updates = {
+                title: detailsTitleInput.value.trim(),
+                location: detailsLocationInput.value.trim(),
+                topic: detailsTopicInput.value.trim(),
+                body: detailsBodyInput.value.trim(),
+                startDate: parseDateTimeLocal(detailsStartDateInput.value), // Convert string to Date
+                endDate: parseDateTimeLocal(detailsEndDateInput.value),     // Convert string to Date
+                rjPage: detailsRjPageInput.value.trim(),
+                fileName: detailsFileNameInput.value.trim() || `meeting_${meetingId}.ics`, // Ensure filename exists
+                color: detailsColorInput.value, // Include color in updates
+                participants: updatedParticipantsData // Overwrite with current panel state
+            };
+
+            // Validate dates
+            if (!updates.startDate || !updates.endDate || updates.startDate >= updates.endDate) {
+                alert("Invalid start or end date.");
+                return;
+            }
+
+            const updatedData = updateMeetingData(meetingId, updates); // Call update function from block.js
+
+            if (updatedData) {
+                renderMeetingPositionAndSize(updatedData); // Re-render the block on the timeline
+                alert("Meeting details updated.");
+                // Optionally hide panel after update? Or keep open? Keeping open for now.
+                // hideDetailsPanel();
+            } else {
+                alert("Failed to update meeting details.");
+            }
+        });
+
+        // Delete Meeting Button
+        deleteMeetingButton.addEventListener('click', () => {
+            const meetingId = appState.selectedBlockId;
+            if (!meetingId) {
+                alert("No meeting selected to delete.");
+                return;
+            }
+            const meetingData = findMeetingData(meetingId);
+            const meetingTitle = meetingData ? meetingData.title : meetingId;
+
+            if (confirm(`Are you sure you want to delete meeting "${meetingTitle}"?`)) {
+                const success = deleteMeeting(meetingId); // Call delete function from block.js
+                if (success) {
+                    // deselectAllBlocks() is called within deleteMeeting if it was selected
+                    alert(`Meeting "${meetingTitle}" deleted.`);
+                } else {
+                    alert("Failed to delete meeting.");
+                }
+            }
+        });
+
+
+        // Copy Meeting Button (Listener was already present, ensure it calls the right function)
+        copyBlockButton.addEventListener('click', () => { // Keep ID copy-block-button for now
+            if (appState.selectedBlockId) {
+                duplicateMeeting(appState.selectedBlockId); // Call the function from block.js
+            } else {
+                alert("Please select a meeting to copy first.");
+            }
+        });
+
+        // REMOVED Section-related form listeners
+    </script>
+    <script>
+        // --- INTERACTION.JS ---
+        // --- Interaction State ---
+        // Keep the same state structure, but selectedBlockId now refers to a meeting ID
+        let appState = {
+            selectedBlockId: null, // Now represents the selected Meeting ID
+            // selectedSectionId: null, // REMOVED
+            isDragging: false,
+            isResizingHorizontally: false,
+            isResizingVertically: false,
+            resizeHandleType: null, // 'left', 'right', or 'bottom'
+            draggedBlockDataRef: null, // Will hold reference to meeting data during drag/resize
+            actionStartX: 0,
+            actionStartY: 0,
+            actionInitialBlockStart: null, // Date object snapshot
+            actionInitialBlockEnd: null,   // Date object snapshot
+            actionInitialHeight: 0,
+            actionInitialTop: 0,
+            dragThresholdMet: false, // NEW: Flag to track if drag threshold is passed
+        };
+
+        // Drag threshold in pixels
+        const DRAG_THRESHOLD = 5;
+
+        // Reference to the live time indicator element
+        const liveTimeIndicator = document.getElementById('live-time-indicator');
+        // References for axis indicators (will be created/removed dynamically)
+        let liveAxisIndicatorStart = null;
+        let liveAxisIndicatorEnd = null;
+
+        // --- Event Handlers ---
+
+        // Handles mousedown on a meeting block or its resize handles
+        function handleBlockMouseDown(event) {
+            if (event.button !== 0) return; // Ignore right clicks
+
+            const target = event.target;
+            const meetingElement = target.closest('.schedule-block'); // Element represents a meeting
+            if (!meetingElement) return;
+
+            const meetingId = meetingElement.dataset.blockId; // Get meeting ID from dataset
+            const meetingData = findMeetingData(meetingId); // Use findMeetingData
+            if (!meetingData) {
+                console.warn("Data not found for meeting element:", meetingId);
+                return;
+            }
+
+            // Select the meeting block immediately on mousedown if not clicking a handle
+            if (!target.classList.contains('resize-handle')) {
+                selectBlock(meetingId); // Call selection function (from ui.js)
+            }
+
+            // Store initial state for drag/resize calculations
+            appState.draggedBlockDataRef = meetingData; // Store reference to the actual meeting data object
+            appState.actionStartX = event.clientX;
+            appState.actionStartY = event.clientY;
+            // Ensure we store Date objects
+            appState.actionInitialBlockStart = meetingData.startDate instanceof Date ? new Date(meetingData.startDate) : parseDateTimeLocal(meetingData.startDate);
+            appState.actionInitialBlockEnd = meetingData.endDate instanceof Date ? new Date(meetingData.endDate) : parseDateTimeLocal(meetingData.endDate);
+            appState.actionInitialHeight = meetingData.height;
+            appState.actionInitialTop = meetingData.top;
+            appState.dragThresholdMet = false; // Reset threshold flag
+
+            // Determine action type (drag or resize)
+            if (target.classList.contains('resize-handle')) {
+                const handleType = target.dataset.handleType;
+                appState.resizeHandleType = handleType;
+                meetingElement.classList.add('resizing');
+
+                if (handleType === 'left' || handleType === 'right') {
+                    appState.isResizingHorizontally = true;
+                    console.log('Starting horizontal resize:', handleType);
+                } else if (handleType === 'bottom') {
+                    appState.isResizingVertically = true;
+                    console.log('Starting vertical resize');
+                }
+            } else {
+                appState.isDragging = true;
+                meetingElement.classList.add('dragging');
+                console.log('Starting drag for meeting:', meetingId);
+            }
+
+            // Add global listeners for move and up events
+            document.addEventListener('mousemove', handleDragMove);
+            document.addEventListener('mouseup', handleDragOrResizeEnd);
+
+            // Show the live time indicator on mousedown
+            if (liveTimeIndicator) {
+                liveTimeIndicator.style.display = 'block';
+            }
+            // Create and show axis indicators on mousedown
+            createOrUpdateAxisIndicators(meetingData.startDate, meetingData.endDate);
+        }
+
+        // Handles mouse movement during drag or resize
+        function handleDragMove(event) {
+            event.preventDefault(); // Prevent text selection, etc.
+
+            const anyAction = appState.isDragging || appState.isResizingHorizontally || appState.isResizingVertically;
+            // Ensure an action is in progress and we have the data reference
+            if (!anyAction || !appState.draggedBlockDataRef) return;
+            // Ensure timeline is configured for calculations
+            if (!timelineConfig.pixelsPerMs || timelineConfig.pixelsPerMs <= 0) return;
+
+            const currentX = event.clientX;
+            const currentY = event.clientY;
+            const deltaX = currentX - appState.actionStartX;
+            const deltaY = currentY - appState.actionStartY;
+
+            const meetingId = appState.draggedBlockDataRef.id;
+            const meetingElement = document.getElementById(meetingId);
+            if (!meetingElement) return; // Safety check
+
+            const timelineStartMs = timelineConfig.startDate.getTime();
+
+            // --- Dragging Logic ---
+            if (appState.isDragging) {
+                // Check if drag threshold has been met
+                if (!appState.dragThresholdMet) {
+                    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+                    if (distance >= DRAG_THRESHOLD) {
+                        appState.dragThresholdMet = true;
+                        console.log("Drag threshold met.");
+                    } else {
+                        return; // Don't process drag until threshold is met
+                    }
+                }
+
+                // Threshold met, proceed with horizontal drag logic only
+                const deltaMs = deltaX / timelineConfig.pixelsPerMs;
+                // Calculate new potential start/end times based on initial state + delta
+                const newStartMs = appState.actionInitialBlockStart.getTime() + deltaMs;
+                const newEndMs = appState.actionInitialBlockEnd.getTime() + deltaMs;
+                let newStartDate = new Date(newStartMs);
+                let newEndDate = new Date(newEndMs);
+
+                // Clamping logic (keep as is, ensures block stays within timeline horizontally)
+                const timelineEndMs = timelineConfig.endDate.getTime();
+                const currentDuration = appState.draggedBlockDataRef.durationMs;
+                if (newStartDate.getTime() < timelineStartMs) {
+                    newStartDate = new Date(timelineStartMs);
+                    newEndDate = new Date(newStartDate.getTime() + currentDuration);
+                }
+                if (newEndDate.getTime() > timelineEndMs) {
+                    newEndDate = new Date(timelineEndMs);
+                    newStartDate = new Date(newEndDate.getTime() - currentDuration);
+                    if (newStartDate.getTime() < timelineStartMs) newStartDate = new Date(timelineStartMs);
+                }
+                // End clamping
+
+                // End clamping
+
+                // --- Snap to 5-minute grid ---
+                const snappedStartDate = snapDateToMinutes(newStartDate, 5);
+                // Maintain duration when dragging after snapping start time
+                const snappedEndDate = new Date(snappedStartDate.getTime() + currentDuration);
+
+                // --- Check for Overlaps (Dragging) ---
+                let overlapDetected = false;
+                for (const otherMeeting of meetingsData) {
+                    if (otherMeeting.id === meetingId) continue; // Skip self
+                    // Simple check: only prevent overlap if blocks are visually at the same vertical position
+                    if (Math.abs(otherMeeting.top - appState.draggedBlockDataRef.top) < 10) { // Allow small tolerance
+                         if (doTimeRangesOverlap(snappedStartDate, snappedEndDate, otherMeeting.startDate, otherMeeting.endDate)) {
+                            overlapDetected = true;
+                            break;
+                         }
+                    }
+                }
+
+                if (!overlapDetected) {
+                    // Update the temporary data reference ONLY if no overlap
+                    appState.draggedBlockDataRef.startDate = snappedStartDate;
+                    appState.draggedBlockDataRef.endDate = snappedEndDate; // Use duration-adjusted end date
+
+                    // Update visual position (left) using snapped date
+                    const startPixel = (snappedStartDate.getTime() - timelineStartMs) * timelineConfig.pixelsPerMs;
+                    meetingElement.style.left = `${startPixel}px`;
+                } else {
+                     // Optional: Add visual feedback for blocked move (e.g., temporary red border)
+                     console.log("Overlap detected during drag, move prevented.");
+                }
+
+                // --- REMOVED Vertical Dragging ---
+                // // Update visual position (top) based on Y movement (Overlap check for vertical is harder, skip for now)
+                // // This needs to happen regardless of horizontal overlap detection
+                // const newTop = Math.max(0, appState.actionInitialTop + deltaY); // Prevent dragging above top=0
+                // appState.draggedBlockDataRef.top = newTop; // Update temporary data - REMOVED
+                // meetingElement.style.top = `${newTop}px`; // Update visual style - REMOVED
+            }
+            // --- Horizontal Resizing Logic ---
+            else if (appState.isResizingHorizontally) {
+                // Check threshold for resizing as well? Optional, but consistent.
+                if (!appState.dragThresholdMet) {
+                    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+                    if (distance >= DRAG_THRESHOLD) {
+                        appState.dragThresholdMet = true;
+                    } else {
+                        return; // Don't process resize until threshold is met
+                    }
+                }
+
+                const deltaMs = deltaX / timelineConfig.pixelsPerMs;
+                let newStart = new Date(appState.actionInitialBlockStart);
+                let newEnd = new Date(appState.actionInitialBlockEnd);
+                const minDurationMs = 600000; // 10 minutes minimum duration?
+
+                if (appState.resizeHandleType === 'left') {
+                    const proposedStartMs = appState.actionInitialBlockStart.getTime() + deltaMs;
+                    const maxStartMs = newEnd.getTime() - minDurationMs;
+                    newStart = new Date(Math.min(maxStartMs, Math.max(timelineConfig.startDate.getTime(), proposedStartMs)));
+                } else { // 'right' handle
+                    const proposedEndMs = appState.actionInitialBlockEnd.getTime() + deltaMs;
+                    const minEndMs = newStart.getTime() + minDurationMs;
+                    newEnd = new Date(Math.max(minEndMs, Math.min(timelineConfig.endDate.getTime(), proposedEndMs)));
+                }
+
+                // Ensure dates don't cross and respect min duration
+                if (newEnd.getTime() - newStart.getTime() < minDurationMs) {
+                    if (appState.resizeHandleType === 'left') {
+                        newStart = new Date(newEnd.getTime() - minDurationMs);
+                    } else {
+                        newEnd = new Date(newStart.getTime() + minDurationMs);
+                    }
+                }
+                // Final clamping
+                if (newStart < timelineConfig.startDate) newStart = new Date(timelineConfig.startDate);
+                if (newEnd > timelineConfig.endDate) newEnd = new Date(timelineConfig.endDate);
+                // Recalculate if clamping changed things
+                if (newEnd.getTime() - newStart.getTime() < minDurationMs) {
+                     if (appState.resizeHandleType === 'left') newStart = new Date(newEnd.getTime() - minDurationMs);
+                     else newEnd = new Date(newStart.getTime() + minDurationMs);
+                }
+
+
+                // --- Snap Resized Dates ---
+                const snappedNewStart = snapDateToMinutes(newStart, 5);
+                const snappedNewEnd = snapDateToMinutes(newEnd, 5);
+
+                // Ensure minimum duration after snapping
+                if (snappedNewEnd.getTime() - snappedNewStart.getTime() < minDurationMs) {
+                     if (appState.resizeHandleType === 'left') {
+                         // If resizing left handle caused duration issue, adjust start further back
+                         snappedNewStart = new Date(snappedNewEnd.getTime() - minDurationMs);
+                     } else {
+                         // If resizing right handle caused duration issue, adjust end further forward
+                         snappedNewEnd = new Date(snappedNewStart.getTime() + minDurationMs);
+                     }
+                     // Re-clamp to timeline boundaries after duration adjustment
+                     if (snappedNewStart < timelineConfig.startDate) snappedNewStart = new Date(timelineConfig.startDate);
+                     if (snappedNewEnd > timelineConfig.endDate) snappedNewEnd = new Date(timelineConfig.endDate);
+                }
+
+
+                // --- Check for Overlaps (Resizing) ---
+                let resizeOverlapDetected = false;
+                for (const otherMeeting of meetingsData) {
+                    if (otherMeeting.id === meetingId) continue;
+                     if (Math.abs(otherMeeting.top - appState.draggedBlockDataRef.top) < 10) {
+                         if (doTimeRangesOverlap(snappedNewStart, snappedNewEnd, otherMeeting.startDate, otherMeeting.endDate)) {
+                            resizeOverlapDetected = true;
+                            break;
+                         }
+                     }
+                }
+
+                if (!resizeOverlapDetected) {
+                    // Update temporary data reference with snapped dates ONLY if no overlap
+                    appState.draggedBlockDataRef.startDate = snappedNewStart;
+                    appState.draggedBlockDataRef.endDate = snappedNewEnd;
+
+                    // Update visual style (position and width) using snapped dates
+                    const startPixel = (snappedNewStart.getTime() - timelineStartMs) * timelineConfig.pixelsPerMs;
+                    const endPixel = (snappedNewEnd.getTime() - timelineStartMs) * timelineConfig.pixelsPerMs;
+                    const widthPixel = Math.max(10, endPixel - startPixel); // Min visual width
+
+                    meetingElement.style.left = `${startPixel}px`;
+                    meetingElement.style.width = `${widthPixel}px`;
+                } else {
+                    console.log("Overlap detected during resize, resize prevented.");
+                    // Don't update visual width/position if overlap
+                }
+
+                // REMOVED: renderSectionsInBlock(meetingId);
+            }
+            // --- Vertical Resizing Logic ---
+            else if (appState.isResizingVertically) {
+                 // Check threshold for resizing as well? Optional, but consistent.
+                 if (!appState.dragThresholdMet) {
+                    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+                    if (distance >= DRAG_THRESHOLD) {
+                        appState.dragThresholdMet = true;
+                    } else {
+                        return; // Don't process resize until threshold is met
+                    }
+                }
+                const newHeight = Math.max(30, appState.actionInitialHeight + deltaY); // Min height 30px
+                appState.draggedBlockDataRef.height = newHeight; // Update temporary data
+                meetingElement.style.height = `${newHeight}px`; // Update visual style
+            }
+
+            // --- Live Update Time Info (Only if threshold met) ---
+            if (!appState.dragThresholdMet) return; // Don't update indicators if threshold not met
+
+            // Call the new function to update vertical displays
+            updateVerticalTimeDisplays(appState.draggedBlockDataRef);
+
+            // --- Live Update Details Panel (if selected) ---
+            if (meetingId === appState.selectedBlockId) {
+                // Use the potentially updated dates from the draggedBlockDataRef
+                const liveStartDate = appState.draggedBlockDataRef.startDate;
+                const liveEndDate = appState.draggedBlockDataRef.endDate;
+                if (liveStartDate && liveEndDate) {
+                    detailsStartDateInput.value = formatToDateTimeLocal(liveStartDate);
+                    detailsEndDateInput.value = formatToDateTimeLocal(liveEndDate);
+                }
+            }
+
+            // --- Update Live Time Indicator Position and Content ---
+            if (liveTimeIndicator) {
+                // Position near the mouse cursor
+                const indicatorOffsetX = 15; // Offset from cursor X
+                const indicatorOffsetY = 10; // Offset from cursor Y
+                liveTimeIndicator.style.left = `${event.clientX + indicatorOffsetX}px`;
+                liveTimeIndicator.style.top = `${event.clientY + indicatorOffsetY}px`;
+
+                // Update content with current dragged/resized times
+                const liveStart = appState.draggedBlockDataRef.startDate;
+                const liveEnd = appState.draggedBlockDataRef.endDate;
+                if (liveStart && liveEnd) {
+                    const startStr = liveStart.toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' });
+                    const endStr = liveEnd.toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' });
+                    liveTimeIndicator.textContent = `${startStr} - ${endStr}`;
+                } else {
+                    liveTimeIndicator.textContent = '...';
+                }
+            }
+
+            // --- Update Live Axis Indicators ---
+            createOrUpdateAxisIndicators(appState.draggedBlockDataRef.startDate, appState.draggedBlockDataRef.endDate);
+        }
+
+
+        // Helper function to create or update the live indicators on the timeline axis
+        function createOrUpdateAxisIndicators(startDate, endDate) {
+            if (!timelineConfig.startDate || !timelineConfig.pixelsPerMs) return; // Need timeline config
+
+            const timelineStartMs = timelineConfig.startDate.getTime();
+
+            // --- Start Indicator ---
+            if (startDate && !isNaN(startDate.getTime())) {
+                const startPixel = (startDate.getTime() - timelineStartMs) * timelineConfig.pixelsPerMs;
+                if (!liveAxisIndicatorStart) {
+                    // Create elements if they don't exist
+                    liveAxisIndicatorStart = document.createElement('div');
+                    liveAxisIndicatorStart.className = 'live-axis-indicator start'; // Add 'start' class
+                    liveAxisIndicatorStart.style.left = `${startPixel}px`;
+
+                    const label = document.createElement('span');
+                    label.className = 'live-axis-indicator-label start'; // Add 'start' class
+                    label.textContent = startDate.toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' });
+                    liveAxisIndicatorStart.appendChild(label);
+                    timelineAxisWrapper.appendChild(liveAxisIndicatorStart);
+                } else {
+                    // Update existing elements
+                    liveAxisIndicatorStart.style.left = `${startPixel}px`;
+                    liveAxisIndicatorStart.querySelector('.live-axis-indicator-label').textContent = startDate.toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' });
+                }
+                liveAxisIndicatorStart.style.display = '';
+            } else if (liveAxisIndicatorStart) {
+                liveAxisIndicatorStart.style.display = 'none';
+            }
+
+            // --- End Indicator ---
+            if (endDate && !isNaN(endDate.getTime())) {
+                const endPixel = (endDate.getTime() - timelineStartMs) * timelineConfig.pixelsPerMs;
+                 if (!liveAxisIndicatorEnd) {
+                    // Create elements if they don't exist
+                    liveAxisIndicatorEnd = document.createElement('div');
+                    liveAxisIndicatorEnd.className = 'live-axis-indicator end'; // Add 'end' class
+                    liveAxisIndicatorEnd.style.left = `${endPixel}px`;
+
+                    const label = document.createElement('span');
+                    label.className = 'live-axis-indicator-label end'; // Add 'end' class
+                    label.textContent = endDate.toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' });
+                    liveAxisIndicatorEnd.appendChild(label);
+                    timelineAxisWrapper.appendChild(liveAxisIndicatorEnd);
+                } else {
+                    // Update existing elements
+                    liveAxisIndicatorEnd.style.left = `${endPixel}px`;
+                    liveAxisIndicatorEnd.querySelector('.live-axis-indicator-label').textContent = endDate.toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' });
+                }
+                 liveAxisIndicatorEnd.style.display = ''; // Ensure visible
+            } else if (liveAxisIndicatorEnd) {
+                liveAxisIndicatorEnd.style.display = 'none'; // Hide if date is invalid
+            }
+        }
+
+        // Helper function to remove the live axis indicators
+        function removeAxisIndicators() {
+            if (liveAxisIndicatorStart) {
+                liveAxisIndicatorStart.remove();
+                liveAxisIndicatorStart = null;
+            }
+            if (liveAxisIndicatorEnd) {
+                liveAxisIndicatorEnd.remove();
+                liveAxisIndicatorEnd = null;
+            }
+        }
+
+
+        // Handles mouseup after drag or resize
+        function handleDragOrResizeEnd(event) {
+            const wasDragging = appState.isDragging;
+            const wasResizingH = appState.isResizingHorizontally;
+            const wasResizingV = appState.isResizingVertically;
+            const thresholdWasMet = appState.dragThresholdMet; // Check if threshold was ever met
+
+            // Only proceed if an action was actually in progress
+            if (!wasDragging && !wasResizingH && !wasResizingV) {
+                 // If no action was in progress, still need to clean up listeners and indicators
+                 document.removeEventListener('mousemove', handleDragMove);
+                 document.removeEventListener('mouseup', handleDragOrResizeEnd);
+                 if (liveTimeIndicator) liveTimeIndicator.style.display = 'none';
+                 removeAxisIndicators();
+                 // Reset state just in case
+                 appState.draggedBlockDataRef = null;
+                 appState.dragThresholdMet = false;
+                 return;
+            }
+
+            // If an action was in progress, but threshold wasn't met, treat as a click (no data change)
+            if (!thresholdWasMet) {
+                console.log("Mouseup before drag threshold met. No changes applied.");
+                // Cleanup is handled below, no data update needed.
+                // Ensure selection state is correct (handled by handleBlockClick potentially)
+            }
+
+            const meetingId = appState.draggedBlockDataRef?.id; // Get ID before clearing ref
+
+            if (meetingId && appState.draggedBlockDataRef && thresholdWasMet) { // Only update data if threshold was met
+                const meetingElement = document.getElementById(meetingId);
+                if (meetingElement) {
+                    meetingElement.classList.remove('dragging', 'resizing');
+                }
+
+                // --- Final Overlap Check before Saving ---
+                let finalOverlap = false;
+                const finalStartDate = appState.draggedBlockDataRef.startDate;
+                const finalEndDate = appState.draggedBlockDataRef.endDate;
+                const finalTop = appState.draggedBlockDataRef.top;
+
+                for (const otherMeeting of meetingsData) {
+                    if (otherMeeting.id === meetingId) continue;
+                    if (Math.abs(otherMeeting.top - finalTop) < 10) { // Check at the same vertical level
+                        if (doTimeRangesOverlap(finalStartDate, finalEndDate, otherMeeting.startDate, otherMeeting.endDate)) {
+                            finalOverlap = true;
+                            break;
+                        }
+                    }
+                }
+
+                let updatePayload;
+                if (finalOverlap) {
+                    console.warn("Final overlap detected on mouseup. Reverting changes.");
+                    // Revert to initial state before the drag/resize started
+                    updatePayload = {
+                        startDate: appState.actionInitialBlockStart,
+                        endDate: appState.actionInitialBlockEnd,
+                        height: appState.actionInitialHeight,
+                        top: appState.actionInitialTop // Revert top as well
+                    };
+                } else {
+                    // Use the state from the end of the drag/resize
+                    // IMPORTANT: Use actionInitialTop for drag/horizontal resize to prevent vertical shift
+                    const finalHeight = wasResizingV ? appState.draggedBlockDataRef.height : appState.actionInitialHeight;
+                    updatePayload = {
+                        startDate: finalStartDate,
+                        endDate: finalEndDate,
+                        height: finalHeight,
+                        top: appState.actionInitialTop // Always use initial top unless vertical drag is implemented
+                    };
+                }
+
+                // Finalize Data Update using updateMeetingData from block.js
+                const finalData = updateMeetingData(meetingId, updatePayload);
+
+                // Perform final render using the confirmed data returned by updateMeetingData
+                    // Other properties like title, participants etc. are NOT changed by drag/resize
+
+                // Perform final render using the confirmed data returned by updateMeetingData
+                if (finalData) {
+                    renderMeetingPositionAndSize(finalData); // Re-render block with final data (includes time info update)
+
+                    // Update details panel ONLY if this meeting is currently selected
+                    if (appState.selectedBlockId === meetingId) {
+                        // Check if there was actual movement to avoid unnecessary updates on simple clicks
+                        const moved = event.clientX !== appState.actionStartX || event.clientY !== appState.actionStartY;
+                        if (moved || wasResizingH || wasResizingV) {
+                            showDetailsPanel(meetingId); // Refresh panel with updated dates/times
+                        }
+                    }
+                } else {
+                    console.error("Failed to finalize meeting update for ID:", meetingId);
+                    // Attempt to revert visual changes if update failed by re-rendering original data
+                    const originalData = findMeetingData(meetingId); // Get original data again
+                    if (originalData && meetingElement) {
+                        renderMeetingPositionAndSize(originalData); // Re-render with original data
+                    }
+                }
+            }
+
+            // Clean up interaction state
+            appState.isDragging = false;
+            appState.isResizingHorizontally = false;
+            appState.isResizingVertically = false;
+            appState.resizeHandleType = null;
+            appState.draggedBlockDataRef = null; // Clear the reference to the data object
+            appState.actionStartX = 0;
+            appState.actionStartY = 0;
+            appState.actionInitialBlockStart = null;
+            appState.actionInitialBlockEnd = null;
+            appState.actionInitialHeight = 0;
+            appState.actionInitialTop = 0;
+            appState.dragThresholdMet = false; // Reset threshold flag
+
+            // Remove global listeners
+            document.removeEventListener('mousemove', handleDragMove);
+            document.removeEventListener('mouseup', handleDragOrResizeEnd);
+
+            // Hide the live time indicator on mouseup
+            if (liveTimeIndicator) {
+                liveTimeIndicator.style.display = 'none';
+            }
+            // Remove axis indicators on mouseup
+            removeAxisIndicators();
+
+            console.log('Drag/Resize ended');
+        }
+
+        // Handle Clicks on meeting blocks (for selection)
+        function handleBlockClick(event) {
+            // Check if mouse moved significantly during the mousedown->mouseup sequence
+            const movedSignificantly = Math.abs(event.clientX - appState.actionStartX) > 5 || Math.abs(event.clientY - appState.actionStartY) > 5;
+
+            // Only process as a 'click' if an action wasn't in progress OR if movement was minimal
+            if (appState.isDragging || appState.isResizingHorizontally || appState.isResizingVertically) {
+                if (movedSignificantly) {
+                    // console.log("Ignoring click after significant movement (drag/resize end).");
+                    return; // It was likely the end of a drag/resize, not a distinct click
+                }
+                // If minimal movement, allow click processing (e.g., click without moving after starting resize)
+            }
+
+            // Ignore clicks directly on resize handles
+            if (event.target.classList.contains('resize-handle')) {
+                return;
+            }
+
+            // REMOVED Section check: if (event.target.closest('.block-section')) { return; }
+
+            const meetingElement = event.currentTarget; // Listener is on the block itself
+            const meetingId = meetingElement.dataset.blockId;
+
+            // Selection is now handled primarily in handleBlockMouseDown for responsiveness.
+            // This handler mainly prevents interference from drag/resize end events.
+            // If needed, you could re-call selectBlock(meetingId) here, but it might be redundant.
+            console.log("Meeting block clicked (or drag/resize ended with minimal movement):", meetingId);
+            // Ensure selection if somehow missed in mousedown (e.g., if mousedown logic changes)
+            if (appState.selectedBlockId !== meetingId) {
+                selectBlock(meetingId);
+            }
+        }
+
+        // REMOVED: handleSectionMouseDown function
+
+        // Handle clicks outside interactive elements (meeting blocks, details panel) to deselect
+        // MODIFIED: Removed the logic that deselects the block on outside click.
+        // The panel should now only close when the 'X' button is pressed.
+        function handleDocumentClick(event) {
+            // const clickedElement = event.target;
+            // // Check if the click was outside a meeting block AND outside the *integrated* details panel
+            // if (!clickedElement.closest('.schedule-block') && !clickedElement.closest('.details-panel-integrated')) { // Use the correct class name
+            //     if (appState.selectedBlockId) { // Check if something is actually selected
+            //         console.log("Clicked outside interactive areas, deselecting meeting:", appState.selectedBlockId);
+            //         // deselectAllBlocks(); // Call deselect function from ui.js - REMOVED
+            //     }
+            // }
+            // Intentionally left empty or can be removed if no other document-level clicks are needed.
+        }
+    </script>
+    <script>
+        // --- MAIN.JS ---
+        // --- Main Application Entry Point ---
+
+        // --- DOM Element References (Main Controls) ---
+        const setupTimelineButton = document.getElementById('setup-timeline');
+        const addMeetingButton = document.getElementById('add-block'); // ID remains 'add-block' in HTML
+
+        // --- Initialization ---
+        function bindInitialEventListeners() {
+            setupTimelineButton.addEventListener('click', initializeTimeline);
+            addMeetingButton.addEventListener('click', createNewMeeting); // Use createNewMeeting
+
+            // Global listener for clicks outside blocks/panel (from interaction.js)
+            document.addEventListener('click', handleDocumentClick);
+
+            // Global listener for resize (from timeline.js)
+            window.addEventListener('resize', handleResize);
+
+            // Note: Listeners for Save/Load, Generate ICS/PDF are directly on the buttons via onclick in HTML
+            // and call functions defined in block.js
+        }
+
+        // --- PDF Generation Logic (using pdfmake) ---
+        function createAndDownloadPdf(auditHeaderData, sortedMeetings) {
+            console.log("Starting PDF generation with pdfmake...");
+            try {
+                // 1. Group meetings strictly by Date
+                const groupedByDate = sortedMeetings.reduce((acc, meeting) => {
+                    try {
+                        // Use only the date string as the key
+                        const dateKey = meeting.startDate.toLocaleDateString('de-CH', { weekday: 'long', year: 'numeric', month: 'numeric', day: 'numeric' });
+                        if (!acc[dateKey]) acc[dateKey] = [];
+                        acc[dateKey].push(meeting); // Add the whole meeting object
+                    } catch (e) {
+                        console.error("Error grouping meeting by date for PDF:", meeting, e);
+                    }
+                    return acc;
+                }, {});
+
+                // 2. Define PDF Structure using pdfmake syntax
+                const docDefinition = {
+                    info: { title: 'Audit Plan', author: 'Audit Schedule Generator Pro' },
+                    pageMargins: [ 40, 70, 40, 60 ], // [left, top, right, bottom]
+                    header: { // Define page header
+                        columns: [
+                            { text: 'Coca-Cola HBC\nSchweiz • Suisse • Svizzera', style: 'headerLeft', margin: [40, 20, 0, 0] },
+                            { text: `${auditHeaderData.auditOrg}\n${auditHeaderData.auditAddr}\nwww.coca-colahellenic.ch`, style: 'headerRight', alignment: 'right', margin: [0, 20, 40, 0] }
+                        ],
+                        margin: [0, 0, 0, 10] // Margin below header before content
+                    },
+                    content: [
+                        { // Audit Info Table
+                            style: 'auditInfoTable',
+                            table: {
+                                widths: [100, '*', 60, 100], // Column widths
+                                body: [
+                                    ['Organisation:', auditHeaderData.auditOrg, '', ''],
+                                    ['Adresse:', auditHeaderData.auditAddr, 'Datum:', 'Calculated Range'], // Date range placeholder
+                                    ['Leitender Auditor:', auditHeaderData.auditAuditor, '', ''],
+                                    ['Normen:', auditHeaderData.auditNorms, '', ''],
+                                    ['Sprache:', auditHeaderData.auditLang, '', '']
+                                ]
+                            },
+                            layout: 'noBorders' // No borders for this info table
+                        },
+                        // Loop through date-grouped meetings and generate content for each day
+                        ...Object.entries(groupedByDate).flatMap(([dateKey, meetingsOnDate], dayIndex) => {
+                            const dayContent = [
+                                // Main header for the Date only
+                                { text: dateKey, style: 'dayHeader' }
+                            ];
+
+                            // Table for all meetings on this date
+                            const tableBody = [
+                                // Table Header Row
+                                [{ text: 'Zeit', style: 'tableHeader' }, { text: 'Gebiet / Abteilung / Prozess / Funktion', style: 'tableHeader' }, { text: 'Kontaktperson', style: 'tableHeader' }]
+                            ];
+
+                            // Add rows for each meeting on this date
+                            meetingsOnDate.forEach(meeting => { // Iterate through meetings for the current date
+                                let timeString = 'Invalid Time';
+                                try {
+                                    // Ensure startDate is a Date object before formatting
+                                    const startDateObj = meeting.startDate instanceof Date ? meeting.startDate : parseDateTimeLocal(meeting.startDate);
+                                    if (startDateObj && !isNaN(startDateObj.getTime())) {
+                                        timeString = startDateObj.toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' });
+                                    }
+                                } catch (e) { console.error("Error formatting time for PDF:", meeting.startDate, e); }
+
+                                const attendees = (meeting.participants || [])
+                                    .filter(p => p.checked)
+                                    .map(p => p.name)
+                                    .join('\n') || '-'; // List checked attendees
+
+                                // Prepare meeting details stack (Title, Location, Topic, Body, Link)
+                                const meetingDetailsStack = [];
+                                if (meeting.title) {
+                                    meetingDetailsStack.push({ text: meeting.title, bold: true, marginBottom: 2 });
+                                }
+                                // Add Location and Topic below title if they exist
+                                let locationTopic = [];
+                                if (meeting.location) locationTopic.push(`Ort: ${meeting.location}`);
+                                if (meeting.topic) locationTopic.push(`Gebiet: ${meeting.topic}`);
+                                if (locationTopic.length > 0) {
+                                     meetingDetailsStack.push({ text: locationTopic.join(' / '), fontSize: 9, italics: true, marginBottom: 2 });
+                                }
+
+                                let bodyText = (meeting.body || '').replace(/[\-\*•]\s+/g, '  • '); // Format bullet points
+                                if (bodyText) {
+                                    meetingDetailsStack.push({ text: bodyText, fontSize: 9, marginLeft: 5 });
+                                }
+                                if (meeting.rjPage) { // Add related link if present
+                                     meetingDetailsStack.push({ text: `Link: ${meeting.rjPage}`, link: meeting.rjPage, style: 'linkStyle', fontSize: 9, marginLeft: 5, marginTop: 2 });
+                                }
+
+
+                                tableBody.push([
+                                    { text: timeString, style: 'tableCell', alignment: 'left', marginTop: 2 },
+                                    { stack: meetingDetailsStack.length > 0 ? meetingDetailsStack : [{text: '(No Details)', italics: true}], style: 'tableCell' }, // Use stack for details
+                                    { text: attendees, style: 'tableCell', alignment: 'left', marginTop: 2 }
+                                ]);
+                            }); // End loop for meetings on this date
+
+                            // Add the table for the current date to the day's content
+                            dayContent.push({
+                                style: 'meetingTable',
+                                table: {
+                                    widths: [50, '*', 120], // Time, Details, Attendees
+                                    body: tableBody
+                                },
+                                layout: { // Custom table layout (same as before)
+                                    hLineWidth: (i, node) => (i === 0 || i === 1 || i === node.table.body.length) ? 1 : 0.5,
+                                    vLineWidth: () => 0,
+                                    hLineColor: (i) => (i === 0 || i === 1) ? 'black' : '#cccccc',
+                                    paddingTop: (i) => (i === 0) ? 4 : 6,
+                                    paddingBottom: () => 6,
+                                }
+                            });
+                            // Add "End of Day" text *after* processing all meetings for this date
+                            dayContent.push({ text: `Ende Tag ${dayIndex + 1}`, alignment: 'left', bold: true, margin: [0, 10, 0, 10]});
+                            return dayContent; // Return array of content elements for this day
+                        }) // End flatMap for dates
+                    ],
+                    // Define styles used in the document
+                    styles: {
+                        headerLeft: { fontSize: 10, bold: true, color: '#C00000' }, // Red color like example
+                        headerRight: { fontSize: 9, color: '#6c757d' },
+                        auditInfoTable: { margin: [0, 5, 0, 20], fontSize: 10 },
+                        dayHeader: { fontSize: 11, bold: true, background: '#dee2e6', margin: [0, 15, 0, 5], padding: 3 },
+                        tableHeader: { bold: true, fontSize: 10, color: 'black', fillColor: '#e9ecef', margin: [0, 4, 0, 4], alignment: 'center' },
+                        tableCell: { fontSize: 10, margin: [0, 2, 0, 2] },
+                        meetingTable: { margin: [0, 0, 0, 10] },
+                        linkStyle: { color: 'blue', decoration: 'underline' }
+                    },
+                    defaultStyle: {
+                        font: 'Roboto' // Use Roboto font provided by vfs_fonts.js
+                    }
+                };
+
+                // Calculate Date Range for the header table
+                if (sortedMeetings.length > 0) {
+                    try {
+                        const firstDate = sortedMeetings[0].startDate;
+                        const lastDate = sortedMeetings[sortedMeetings.length - 1].startDate;
+                        const range = `${firstDate.toLocaleDateString('de-CH', {day:'2-digit', month:'2-digit'})} - ${lastDate.toLocaleDateString('de-CH', {day:'2-digit', month:'2-digit', year:'numeric'})}`; // Include year
+                        // Find the row containing 'Adresse:' and update the date range cell
+                        const dateRow = docDefinition.content[0].table.body.find(row => row[0] === 'Adresse:');
+                        if (dateRow) {
+                            dateRow[3] = range;
+                        } else {
+                            console.warn("Could not find 'Adresse:' row in PDF definition to insert date range.");
+                        }
+                    } catch(e) {
+                        console.error("Error calculating or inserting PDF Date Range:", e);
+                    }
+                }
+
+                // 3. Generate and Download PDF
+                pdfMake.createPdf(docDefinition).download('audit_plan.pdf');
+                console.log("PDF generation request sent.");
+
+            } catch (error) {
+                console.error("PDF Generation Error:", error);
+                alert("Error generating PDF. Check console for details.");
+            }
+        }
+
+
+        // --- Run on Load ---
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log("DOM fully loaded and parsed");
+            setDefaultDates();      // Set default date inputs for timeline range
+            if (initializeTimeline()) { // Initialize timeline with default dates
+                console.log("Initial timeline setup complete.");
+            } else {
+                console.error("Initial timeline setup failed.");
+            }
+            renderMasterParticipantList(); // Render participant list (might be empty initially)
+            bindInitialEventListeners(); // Attach button listeners etc.
+
+            // Optional: Load saved settings automatically?
+            // loadSettings(); // Or trigger via button click
+        });
+    </script>
+</body>
+</html>
