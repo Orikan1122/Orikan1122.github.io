@@ -1,0 +1,339 @@
+:root {
+    --primary-color: #007bff;
+    --secondary-color: #6c757d;
+    --bg-color: #f8f9fa;
+    --panel-bg: #ffffff;
+    --border-color: #dee2e6;
+    --text-color: #212529;
+    --danger-color: #dc3545;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    margin: 0;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+}
+
+#app-container {
+    display: flex;
+    width: 100%;
+    height: 100%;
+}
+
+/* Left Panel: Hierarchy */
+#hierarchy-panel {
+    width: 350px;
+    flex-shrink: 0;
+    background-color: var(--panel-bg);
+    border-right: 1px solid var(--border-color);
+    padding: 20px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+}
+
+#hierarchy-panel h2 {
+    margin-top: 0;
+    color: var(--primary-color);
+}
+
+#hierarchy-controls, #file-controls, #production-controls { /* Added #production-controls */
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 15px;
+}
+
+#hierarchy-controls button, 
+#file-controls button, 
+.file-label, 
+#production-controls button { /* Added #production-controls button */
+    padding: 8px 12px;
+    border: 1px solid var(--secondary-color);
+    background-color: transparent;
+    color: var(--secondary-color);
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s;
+}
+
+#hierarchy-controls button:hover, 
+#file-controls button:hover, 
+.file-label:hover, 
+#production-controls button:hover { /* Added #production-controls button:hover */
+    background-color: var(--secondary-color);
+    color: white;
+}
+
+#hierarchy-controls button:disabled, 
+#production-controls button:disabled { /* Added #production-controls button:disabled */
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+#hierarchy-tree ul, #production-tree ul { /* Added #production-tree ul */
+    list-style-type: none;
+    padding-left: 20px;
+}
+
+#hierarchy-tree li, #production-tree li { /* Added #production-tree li */
+    position: relative;
+}
+
+#hierarchy-tree .node-label, #production-tree .node-label { /* Added #production-tree .node-label */
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 4px;
+    display: block;
+}
+
+#hierarchy-tree .node-label.selected, 
+#production-tree .node-label.selected { /* Added #production-tree .node-label.selected */
+    background-color: var(--primary-color);
+    color: white;
+}
+
+/* Drag and Drop Styles */
+#hierarchy-tree li.dragging, 
+#production-tree li.dragging { /* Added #production-tree li.dragging */
+    opacity: 0.5;
+}
+
+#hierarchy-tree .drag-over, 
+#production-tree .drag-over { /* Added #production-tree .drag-over */
+    border-top: 2px solid var(--primary-color);
+}
+
+
+/* Right Panel: Main Content */
+#main-panel {
+    flex-grow: 1;
+    padding: 20px;
+    overflow-y: auto;
+}
+
+#welcome-message {
+    text-align: center;
+    color: var(--secondary-color);
+    margin-top: 100px;
+}
+
+.hidden {
+    display: none !important;
+}
+
+.card {
+    background: var(--panel-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.card h3, .card h4 {
+    margin-top: 0;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 10px;
+    margin-bottom: 15px;
+}
+.card hr {
+    border: none;
+    border-top: 1px solid var(--border-color);
+    margin: 20px 0;
+}
+
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+input[type="text"], input[type="number"], select, textarea {
+    width: 100%;
+    padding: 8px;
+    box-sizing: border-box;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+}
+
+textarea {
+    font-family: monospace;
+    resize: vertical;
+}
+
+button {
+    padding: 10px 15px;
+    border: none;
+    background-color: var(--primary-color);
+    color: white;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+button:hover {
+    background-color: #0056b3;
+}
+
+#process-data-btn {
+    margin-top: 10px;
+}
+
+/* Data Tables */
+#data-table-container, #analysis-table-container {
+    max-height: 300px;
+    overflow-y: auto;
+}
+#data-table, #analysis-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+#data-table th, #data-table td, #analysis-table th, #analysis-table td {
+    text-align: left;
+    padding: 8px;
+    border-bottom: 1px solid var(--border-color);
+}
+#data-table th, #analysis-table th {
+    background-color: var(--bg-color);
+    position: sticky;
+    top: 0;
+}
+.delete-row-btn {
+    background-color: var(--danger-color);
+    color: white;
+    padding: 4px 8px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+/* File Import */
+input[type="file"] {
+    display: none;
+}
+.file-label {
+    display: inline-block;
+    background-color: #6c757d;
+    color: white;
+}
+
+/* Time Frame Selector */
+.time-frame-selector {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+.time-frame-selector label {
+    margin-bottom: 0;
+}
+.time-frame-selector input[type="date"] {
+    width: auto;
+}
+
+/* Styles for chart controls */
+.chart-controls {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+    margin-bottom: 20px;
+    background-color: #f8f9fa;
+    padding: 10px;
+    border-radius: 5px;
+    flex-wrap: wrap;
+}
+.chart-controls label {
+    font-size: 14px;
+    font-weight: normal;
+}
+.chart-controls input[type="number"] {
+    width: 80px;
+}
+.chart-controls select {
+    width: auto;
+    padding: 4px;
+}
+.checkbox-control {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+.checkbox-control label {
+    margin-bottom: 0;
+}
+
+
+/* Charts */
+.chart-container {
+    width: 100%;
+    min-height: 350px;
+}
+
+/* Styles for View Tabs and Regression View */
+.view-tabs {
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.view-tab-btn {
+    padding: 10px 20px;
+    border: none;
+    background-color: transparent;
+    cursor: pointer;
+    font-size: 16px;
+    margin-bottom: -1px; /* Overlap border */
+    border-bottom: 3px solid transparent;
+    color: var(--secondary-color); /* Default text color for inactive tabs */
+}
+
+.view-tab-btn.active {
+    color: var(--primary-color); /* Ensures active tab is clearly primary color */
+    border-bottom-color: var(--primary-color);
+    font-weight: bold;
+}
+
+.checklist-container {
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid var(--border-color);
+    padding: 10px;
+    border-radius: 4px;
+}
+
+.checklist-container div { /* Style for individual checkbox+label pairs */
+    margin-bottom: 5px;
+    display: flex; /* Aligns checkbox and label nicely */
+    align-items: center;
+}
+
+.checklist-container input[type="checkbox"] {
+    width: auto; /* Override general input width */
+    margin-right: 8px;
+}
+
+.checklist-container label {
+    font-weight: normal; /* Override general label bolding */
+    margin-bottom: 0;
+}
+
+/* Highcharts Dashboard Specifics */
+#regression-dashboard-container .highcharts-dashboards-component-title {
+    font-size: 1.1em;
+    font-weight: bold;
+    color: var(--text-color);
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 10px;
+}
