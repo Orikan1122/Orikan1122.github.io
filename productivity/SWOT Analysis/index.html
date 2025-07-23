@@ -1,0 +1,1444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced SWOT Board (Standalone)</title>
+    <style>
+        /* Content from style.css */
+        body {
+            font-family: sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f8f9fa; /* Light grey background */
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        h1 {
+            text-align: center;
+            color: #343a40; /* Dark grey */
+            margin-bottom: 20px;
+        }
+
+        .controls {
+            margin-bottom: 20px;
+            display: flex;
+            align-items: flex-start; /* Align items to the top */
+            gap: 20px;
+        }
+
+        #add-note-btn {
+            padding: 10px 20px;
+            font-size: 1em;
+            cursor: pointer;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            transition: background-color 0.3s ease;
+        }
+
+        #add-note-btn:hover {
+            background-color: #0056b3;
+        }
+
+        #new-note-area {
+            border: 2px dashed #ced4da; /* Dashed border for new notes */
+            padding: 10px;
+            min-height: 150px; /* Ensure it has some height */
+            flex-grow: 1; /* Allow it to take available space */
+            background-color: #e9ecef; /* Slightly different background */
+            border-radius: 5px;
+            display: flex; /* Use flexbox for internal layout */
+            flex-direction: column;
+        }
+
+        #new-note-area h3 {
+            margin-top: 0;
+            color: #6c757d; /* Muted color */
+            text-align: center;
+            font-size: 1em;
+            margin-bottom: 10px;
+        }
+
+        /* Data Management Styles */
+        .data-management {
+            margin: 15px 0;
+            padding: 10px;
+            background-color: #e9ecef;
+            border-radius: 5px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap; /* Allow wrapping */
+        }
+
+        .data-management button,
+        .data-management .import-button-label {
+            padding: 8px 12px;
+            font-size: 0.9em;
+            cursor: pointer;
+            background-color: #6c757d; /* Grey */
+            color: white;
+            border: none;
+            border-radius: 4px;
+            transition: background-color 0.3s ease;
+            display: inline-block; /* Ensure label behaves like button */
+        }
+        .data-management button:hover,
+        .data-management .import-button-label:hover {
+            background-color: #5a6268;
+        }
+
+
+        .swot-board {
+            display: grid;
+            grid-template-columns: 1fr 1fr; /* Two columns */
+            grid-template-rows: 1fr 1fr;    /* Two rows */
+            gap: 15px;
+            flex-grow: 1; /* Make the board take remaining vertical space */
+            border: 1px solid #dee2e6; /* Light border around the board */
+            padding: 15px;
+            background-color: #fff; /* White background for the board */
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+            margin-bottom: 30px; /* Add space before AI section */
+        }
+
+        .quadrant {
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            border-radius: 5px;
+            min-height: 200px; /* Minimum height for drop zones */
+            position: relative; /* Needed for absolute positioning of notes if desired */
+            display: flex;
+            flex-direction: column; /* Stack header and notes container */
+            transition: background-color 0.3s ease; /* For drag hover effect */
+        }
+
+        .quadrant-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e9ecef;
+            flex-shrink: 0; /* Prevent header from shrinking */
+        }
+
+        .quadrant-header h2 {
+            margin: 0;
+            font-size: 1.2em;
+            color: #495057;
+        }
+
+        .completeness-indicator {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.8em;
+            color: #6c757d;
+        }
+
+        .completeness-indicator progress {
+            width: 70px; /* Adjust width as needed */
+            height: 8px;
+        }
+        .completeness-indicator span {
+            min-width: 25px; /* Ensure space for percentage */
+            text-align: right;
+        }
+
+
+        /* Container for notes within each quadrant */
+        .notes-container {
+            display: grid;
+            /* Create up to 3 columns, each at least 120px wide */
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 10px; /* Gap between notes */
+            align-content: start; /* Align items to the start of the container */
+            flex-grow: 1; /* Allow container to grow */
+            overflow-y: auto; /* Add scroll if notes overflow */
+            min-height: 50px; /* Ensure container has some height */
+        }
+
+
+        /* Specific Quadrant Styling (Optional Colors) */
+        #strengths { background-color: #d4edda; border-color: #c3e6cb; } /* Light green */
+        #weaknesses { background-color: #f8d7da; border-color: #f5c6cb; } /* Light red */
+        #opportunities { background-color: #cce5ff; border-color: #b8daff; } /* Light blue */
+        #threats { background-color: #fff3cd; border-color: #ffeeba; } /* Light yellow */
+        #new-note-area { background-color: #e9ecef; border-color: #ced4da; } /* Grey */
+
+
+        /* Styling for the post-it notes */
+        .post-it {
+            background-color: #ffc; /* Classic yellow */
+            padding: 5px; /* Reduced padding */
+            border: 1px solid #e6e6a0;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+            cursor: grab; /* Indicate draggable */
+            width: 120px; /* Fixed width - adjust if needed */
+            height: 120px; /* Fixed height */
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; /* Hide overflowing content */
+            position: relative; /* For absolute positioning of delete button */
+            transition: box-shadow 0.2s ease;
+            box-sizing: border-box;
+        }
+
+        .post-it:hover {
+            box-shadow: 3px 3px 7px rgba(0,0,0,0.15);
+        }
+
+        .post-it .note-title {
+            font-weight: bold;
+            padding: 3px 5px;
+            margin-bottom: 3px;
+            border-bottom: 1px dashed #ccc;
+            font-size: 0.9em;
+            white-space: nowrap; /* Prevent title wrap */
+            overflow: hidden;
+            text-overflow: ellipsis; /* Add ellipsis if title too long */
+            cursor: pointer; /* Indicate clickable for modal */
+            flex-shrink: 0; /* Prevent title from shrinking */
+            min-height: 1.2em; /* Ensure space even if empty */
+            background-color: rgba(255, 255, 255, 0.3); /* Slight background */
+        }
+
+        .post-it .note-content-preview { /* Placeholder for potential future use */
+            flex-grow: 1;
+            font-size: 0.8em;
+            color: #555;
+            padding: 3px 5px;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 3; /* Show ~3 lines of details preview */
+            -webkit-box-orient: vertical;
+            cursor: pointer; /* Indicate clickable for modal */
+        }
+
+
+        .post-it .delete-note-btn {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            background: rgba(0,0,0,0.1);
+            border: none;
+            color: #333;
+            cursor: pointer;
+            font-size: 0.8em;
+            line-height: 1;
+            padding: 2px 4px;
+            border-radius: 3px;
+            display: none; /* Hidden by default */
+            z-index: 10; /* Ensure it's above other content */
+        }
+
+        .post-it:hover .delete-note-btn {
+            display: block; /* Show on hover */
+        }
+
+        /* Styling for drag operations */
+        .post-it.dragging {
+            opacity: 0.6;
+            cursor: grabbing;
+            box-shadow: 5px 5px 15px rgba(0,0,0,0.2);
+            transform: rotate(3deg); /* Slight rotation when dragging */
+            z-index: 1000; /* Ensure dragged item is on top */
+        }
+
+        .quadrant.drag-over .notes-container { /* Highlight the notes container */
+            background-color: rgba(0, 0, 0, 0.05); /* Subtle highlight */
+            outline: 2px dashed #adb5bd;
+            outline-offset: -5px; /* Offset inside padding */
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none; /* Hidden by default */
+            position: fixed; /* Stay in place */
+            z-index: 1001; /* Sit on top of everything */
+            left: 0;
+            top: 0;
+            width: 100%; /* Full width */
+            height: 100%; /* Full height */
+            overflow: auto; /* Enable scroll if needed */
+            background-color: rgba(0,0,0,0.5); /* Darker overlay */
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 10% auto; /* Adjusted margin */
+            padding: 25px;
+            border: 1px solid #888;
+            width: 90%;
+            max-width: 600px; /* Slightly wider modal */
+            border-radius: 8px;
+            position: relative;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .modal-content h3 {
+            margin-top: 0;
+            color: #333;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+            margin-bottom: 15px; /* Reduced margin */
+        }
+
+        .contextual-prompt {
+            font-size: 0.9em;
+            font-style: italic;
+            color: #0056b3; /* Blue to stand out */
+            background-color: #e7f3ff;
+            padding: 8px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            border-left: 3px solid #0056b3;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 15px; /* Space between groups in a row */
+            margin-bottom: 15px;
+            flex-wrap: wrap; /* Allow wrapping on smaller screens */
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1; /* Allow groups to grow */
+            min-width: 150px; /* Minimum width for groups */
+        }
+        .form-group.full-width {
+            flex-basis: 100%; /* Make group take full width */
+            min-width: auto; /* Override min-width */
+        }
+
+
+        .form-group label {
+            margin-bottom: 5px;
+            font-weight: bold;
+            font-size: 0.9em;
+            color: #555;
+        }
+
+        .form-group input[type="text"],
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 8px; /* Slightly smaller padding */
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 0.95em;
+        }
+
+        .form-group textarea {
+            resize: vertical; /* Allow vertical resize */
+            min-height: 60px; /* Minimum height for details */
+        }
+
+        .modal-content button {
+             padding: 10px 20px;
+            background-color: #28a745; /* Green */
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background-color 0.3s ease;
+            float: right; /* Align button to the right */
+            margin-top: 5px; /* Add some margin */
+        }
+
+        .modal-content button:hover {
+            background-color: #218838; /* Darker green */
+        }
+
+        .close-button {
+            color: #aaa;
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 28px;
+            font-weight: bold;
+            line-height: 1;
+        }
+
+        .close-button:hover,
+        .close-button:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        /* AI Analysis & Report Section Styles */
+        .ai-analysis-section,
+        .report-section {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-top: 30px; /* Increased margin */
+        }
+
+        .ai-analysis-section h2,
+        .report-section h2 {
+            margin-top: 0;
+            color: #0056b3;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+
+        .ai-controls {
+            display: flex;
+            flex-wrap: wrap; /* Allow controls to wrap on smaller screens */
+            gap: 15px; /* Space between control groups */
+            align-items: flex-end; /* Align items to the bottom */
+            margin-bottom: 20px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Special layout for API key group */
+        .api-key-group {
+            flex-direction: row; /* Place input and button side-by-side */
+            align-items: flex-end; /* Align items to bottom */
+            gap: 5px; /* Small gap between input and button */
+            flex-wrap: wrap; /* Allow wrap */
+        }
+        .api-key-group label {
+            width: 100%; /* Make label take full width above */
+            margin-bottom: 5px;
+        }
+        .api-key-group input[type="password"] {
+            flex-grow: 1; /* Allow input to take available space */
+            margin-bottom: 0; /* Remove bottom margin */
+            min-width: 150px; /* Ensure input doesn't get too small */
+        }
+        .api-key-group button {
+            padding: 8px 10px; /* Adjust padding */
+            height: 36px; /* Match input height */
+            flex-shrink: 0; /* Prevent button from shrinking */
+            background-color: #6c757d; /* Grey */
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        .api-key-group button:hover {
+            background-color: #5a6268;
+        }
+        .api-key-group small {
+            width: 100%; /* Make warning take full width below */
+            margin-top: 3px;
+            flex-basis: 100%; /* Ensure it takes full width */
+        }
+
+
+        .control-group label {
+            margin-bottom: 5px;
+            font-weight: bold;
+            font-size: 0.9em;
+            color: #555;
+        }
+
+        .control-group select,
+        .control-group input[type="password"] { /* Style applies but layout overridden by .api-key-group */
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            min-width: 150px; /* Minimum width for selects/inputs */
+        }
+
+        .control-group small {
+            font-size: 0.8em;
+            color: #6c757d; /* Muted grey for status/warnings */
+            margin-top: 3px;
+        }
+        .control-group small.error {
+            color: #dc3545; /* Red for errors */
+        }
+
+        #analyze-btn {
+            padding: 8px 15px;
+            background-color: #17a2b8; /* Info blue */
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            height: 36px; /* Match input height */
+        }
+
+        #analyze-btn:hover:not(:disabled) {
+            background-color: #117a8b; /* Darker info blue */
+        }
+
+        #analyze-btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        #ai-result-area {
+            margin-top: 20px;
+        }
+
+        #ai-result-area h3,
+        #report-display-area h3 { /* Style report subheadings */
+            margin-top: 15px;
+            margin-bottom: 8px;
+            color: #333;
+            font-size: 1.1em;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 4px;
+        }
+        #report-display-area h3:first-child {
+            margin-top: 0;
+        }
+
+
+        .result-content,
+        .report-content { /* Shared style for result/report display */
+            background-color: #f9f9f9;
+            border: 1px solid #eee;
+            padding: 15px;
+            border-radius: 5px;
+            min-height: 100px;
+            white-space: pre-wrap; /* Preserve whitespace and line breaks */
+            font-family: monospace; /* Good for code/structured output */
+            font-size: 0.9em;
+            color: #444;
+            max-height: 400px; /* Limit height and add scroll */
+            overflow-y: auto;
+        }
+
+        .report-section button {
+             padding: 8px 12px;
+            font-size: 0.9em;
+            cursor: pointer;
+            background-color: #28a745; /* Green */
+            color: white;
+            border: none;
+            border-radius: 4px;
+            transition: background-color 0.3s ease;
+            margin-right: 10px; /* Space between buttons */
+        }
+        .report-section button:hover {
+            background-color: #218838;
+        }
+
+
+        .result-content.loading {
+            color: #888;
+            font-style: italic;
+        }
+
+        .result-content.error {
+            color: #dc3545; /* Red for errors */
+            font-weight: bold;
+        }
+    </style>
+    <style media="print">
+        /* Content from print-style.css */
+        @media print {
+            body {
+                font-size: 10pt; /* Adjust font size for print */
+                margin: 1cm; /* Add margins */
+                padding: 0;
+                background-color: #fff; /* Ensure white background */
+                color: #000; /* Ensure black text */
+            }
+
+            /* Hide elements not relevant for the printed report */
+            .controls,
+            .data-management,
+            .ai-analysis-section,
+            .modal,
+            .report-section button, /* Hide report buttons */
+            .post-it .delete-note-btn { /* Hide delete buttons on notes */
+                display: none !important;
+            }
+
+            h1 {
+                text-align: left;
+                font-size: 16pt;
+                margin-bottom: 1cm;
+                border-bottom: 1px solid #ccc;
+                padding-bottom: 5mm;
+            }
+
+            .swot-board {
+                display: block; /* Change grid to block for simpler print layout */
+                border: none;
+                box-shadow: none;
+                padding: 0;
+                margin: 0;
+            }
+
+            .quadrant {
+                border: 1px solid #ccc; /* Simple border for print */
+                background-color: #fff !important; /* Override background colors */
+                margin-bottom: 1cm;
+                padding: 10px;
+                page-break-inside: avoid; /* Try to keep quadrants on one page */
+            }
+
+            .quadrant-header {
+                border-bottom: 1px solid #999;
+            }
+
+            .quadrant-header h2 {
+                font-size: 12pt;
+            }
+
+            .completeness-indicator {
+                display: none; /* Hide progress bars in print */
+            }
+
+            .notes-container {
+                display: block; /* Notes as block elements */
+                columns: 2; /* Try 2 columns for notes */
+                column-gap: 10px;
+                overflow: visible; /* Remove scrollbars */
+            }
+
+            .post-it {
+                background-color: #f9f9f9 !important; /* Light grey background for notes */
+                border: 1px solid #ddd;
+                box-shadow: none;
+                width: auto; /* Allow notes to take column width */
+                height: auto; /* Allow height to adjust */
+                margin-bottom: 5mm;
+                padding: 5px;
+                page-break-inside: avoid; /* Try to keep notes intact */
+                overflow: visible; /* Show all content */
+                cursor: default;
+            }
+
+            .post-it .note-title {
+                font-size: 10pt;
+                border-bottom: 1px solid #eee;
+                background-color: transparent;
+                cursor: default;
+            }
+
+            /* Style the generated report area for printing */
+            .report-section {
+                border: none;
+                box-shadow: none;
+                padding: 0;
+                margin-top: 1cm;
+            }
+
+            .report-section h2 {
+                display: none; /* Hide the "Report" heading itself */
+            }
+
+            #report-display-area {
+                border: none;
+                padding: 0;
+                background-color: #fff;
+                max-height: none; /* Remove height limit */
+                overflow: visible; /* Remove scroll */
+                font-family: sans-serif; /* Use standard font */
+            }
+
+            #report-display-area h1 { /* Style report title */
+                 text-align: left;
+                font-size: 16pt;
+                margin-bottom: 1cm;
+                border-bottom: 1px solid #ccc;
+                padding-bottom: 5mm;
+            }
+             #report-display-area h3 { /* Style report section titles */
+                font-size: 12pt;
+                margin-top: 1cm;
+                margin-bottom: 0.5cm;
+                border-bottom: 1px solid #999;
+                padding-bottom: 2mm;
+                page-break-after: avoid; /* Try to keep heading with content */
+            }
+             #report-display-area ul {
+                padding-left: 20px;
+                margin-top: 0;
+            }
+             #report-display-area li {
+                margin-bottom: 0.5cm;
+                page-break-inside: avoid;
+            }
+             #report-display-area small {
+                font-size: 9pt;
+                color: #555;
+            }
+
+            /* Ensure main content is printed, not modals etc. */
+            body > *:not(.main-content) {
+                display: none;
+            }
+            .main-content {
+                display: block !important;
+            }
+
+        }
+    </style>
+</head>
+<body>
+    <div class="main-content"> <!-- Wrap main content for print styling -->
+        <h1>Enhanced SWOT Board</h1>
+
+        <div class="controls">
+            <button id="add-note-btn">Add New Post-it</button>
+            <div id="new-note-area" class="quadrant" data-quadrant="new">
+                <h3>New Notes</h3>
+                <div class="notes-container">
+                    <!-- New notes will appear here initially -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Data Management Controls -->
+        <div class="data-management">
+            <button id="export-json-btn">Export Board (JSON)</button>
+            <label for="import-json-input" class="import-button-label">Import Board (JSON)</label>
+            <input type="file" id="import-json-input" accept=".json" style="display: none;">
+        </div>
+
+        <div class="swot-board">
+            <div class="quadrant" id="strengths" data-quadrant="strengths">
+                <div class="quadrant-header">
+                    <h2>Strengths</h2>
+                    <div class="completeness-indicator">
+                        <progress id="strengths-progress" value="0" max="100"></progress>
+                        <span id="strengths-progress-label">0%</span>
+                    </div>
+                </div>
+                <div class="notes-container">
+                    <!-- Post-its will be dropped here -->
+                </div>
+            </div>
+            <div class="quadrant" id="weaknesses" data-quadrant="weaknesses">
+                 <div class="quadrant-header">
+                    <h2>Weaknesses</h2>
+                    <div class="completeness-indicator">
+                        <progress id="weaknesses-progress" value="0" max="100"></progress>
+                        <span id="weaknesses-progress-label">0%</span>
+                    </div>
+                </div>
+                 <div class="notes-container">
+                    <!-- Post-its will be dropped here -->
+                </div>
+            </div>
+            <div class="quadrant" id="opportunities" data-quadrant="opportunities">
+                 <div class="quadrant-header">
+                    <h2>Opportunities</h2>
+                     <div class="completeness-indicator">
+                        <progress id="opportunities-progress" value="0" max="100"></progress>
+                        <span id="opportunities-progress-label">0%</span>
+                    </div>
+                </div>
+                 <div class="notes-container">
+                    <!-- Post-its will be dropped here -->
+                </div>
+            </div>
+            <div class="quadrant" id="threats" data-quadrant="threats">
+                 <div class="quadrant-header">
+                    <h2>Threats</h2>
+                     <div class="completeness-indicator">
+                        <progress id="threats-progress" value="0" max="100"></progress>
+                        <span id="threats-progress-label">0%</span>
+                    </div>
+                </div>
+                 <div class="notes-container">
+                    <!-- Post-its will be dropped here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- AI Analysis Section -->
+        <div class="ai-analysis-section">
+            <h2>AI Analysis</h2>
+            <div class="ai-controls">
+                <div class="control-group">
+                    <label for="ai-provider">Select Provider:</label>
+                    <select id="ai-provider">
+                        <option value="">-- Select --</option>
+                        <option value="perplexity">Perplexity</option>
+                        <option value="groq">Groq</option>
+                        <option value="cerebras">Cerebras</option>
+                        <!-- Add other providers if needed -->
+                    </select>
+                </div>
+                <div class="control-group api-key-group" style="display: none;">
+                    <label for="api-key">API Key:</label>
+                    <input type="password" id="api-key" placeholder="Enter your API Key">
+                    <button id="load-models-btn">Load Models</button>
+                    <small>Warning: Entering API keys here is insecure.</small>
+                </div>
+                 <div class="control-group model-select-group" style="display: none;">
+                    <label for="ai-model">Select Model:</label>
+                    <select id="ai-model">
+                        <option value=''>-- Load models first --</option>
+                        <!-- Models will be populated by JS -->
+                    </select>
+                     <small id="model-load-status"></small>
+                </div>
+                <button id="analyze-btn" disabled>Analyze SWOT</button>
+            </div>
+            <div id="ai-result-area">
+                <h3>Analysis Result:</h3>
+                <div id="ai-result-content" class="result-content">
+                    Select a provider, enter API key, load models, choose a model, and click "Analyze SWOT".
+                </div>
+            </div>
+        </div>
+
+        <!-- Report Section -->
+        <div class="report-section">
+            <h2>Report</h2>
+            <button id="generate-report-btn">Generate Report</button>
+            <button id="print-report-btn" style="display: none;">Print Report (PDF)</button>
+            <div id="report-display-area" class="report-content">
+                Click "Generate Report" to see the summary here.
+            </div>
+        </div>
+
+    </div> <!-- End main-content -->
+
+
+    <!-- Modal for editing note details -->
+    <div id="note-details-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="closeNoteModal()">&times;</span>
+            <h3>Edit Note Details</h3>
+            <p class="contextual-prompt" id="modal-contextual-prompt"></p> <!-- Contextual Prompt -->
+            <input type="hidden" id="modal-note-id">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="modal-note-title">Title:</label>
+                    <input type="text" id="modal-note-title" placeholder="Enter note title...">
+                </div>
+            </div>
+             <div class="form-row">
+                 <div class="form-group">
+                    <label for="modal-note-impact">Impact (1-5):</label>
+                    <select id="modal-note-impact">
+                        <option value="1">1 (Low)</option>
+                        <option value="2">2</option>
+                        <option value="3" selected>3 (Medium)</option>
+                        <option value="4">4</option>
+                        <option value="5">5 (High)</option>
+                    </select>
+                 </div>
+                 <div class="form-group">
+                    <label for="modal-note-confidence">Confidence:</label>
+                    <select id="modal-note-confidence">
+                        <option value="confirmed" selected>Confirmed</option>
+                        <option value="speculative">Speculative</option>
+                    </select>
+                 </div>
+                 <div class="form-group">
+                    <label for="modal-note-timeframe">Timeframe:</label>
+                    <select id="modal-note-timeframe">
+                        <option value="short-term">Short-term</option>
+                        <option value="medium-term" selected>Medium-term</option>
+                        <option value="long-term">Long-term</option>
+                    </select>
+                 </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group full-width">
+                    <label for="modal-note-details">Details:</label>
+                    <textarea id="modal-note-details" rows="4" placeholder="Enter additional details..."></textarea>
+                </div>
+            </div>
+             <div class="form-row">
+                 <div class="form-group full-width">
+                    <label for="modal-note-stakeholders">Stakeholders (comma-separated):</label>
+                    <input type="text" id="modal-note-stakeholders" placeholder="e.g., Sales, Marketing, R&D">
+                 </div>
+            </div>
+            <button onclick="saveNoteDetails()">Save Details</button>
+        </div>
+    </div>
+
+    <script>
+        // Content from script.js
+        // --- DOM Elements ---
+        const addNoteBtn = document.getElementById('add-note-btn');
+        const newNoteAreaContainer = document.querySelector('#new-note-area .notes-container');
+        const quadrants = document.querySelectorAll('.swot-board .quadrant');
+        const noteDetailModal = document.getElementById('note-details-modal');
+        const modalNoteIdInput = document.getElementById('modal-note-id');
+        const modalNoteTitleInput = document.getElementById('modal-note-title');
+        const modalNoteDetailsTextarea = document.getElementById('modal-note-details');
+        const modalNoteImpactSelect = document.getElementById('modal-note-impact');
+        const modalNoteConfidenceSelect = document.getElementById('modal-note-confidence');
+        const modalNoteTimeframeSelect = document.getElementById('modal-note-timeframe');
+        const modalNoteStakeholdersInput = document.getElementById('modal-note-stakeholders');
+        const modalContextualPrompt = document.getElementById('modal-contextual-prompt');
+
+        // AI Elements
+        const aiProviderSelect = document.getElementById('ai-provider');
+        const apiKeyInput = document.getElementById('api-key');
+        const apiKeyGroup = document.querySelector('.api-key-group');
+        const loadModelsBtn = document.getElementById('load-models-btn');
+        const aiModelSelect = document.getElementById('ai-model');
+        const modelSelectGroup = document.querySelector('.model-select-group');
+        const modelLoadStatus = document.getElementById('model-load-status');
+        const analyzeBtn = document.getElementById('analyze-btn');
+        const aiResultContent = document.getElementById('ai-result-content');
+
+        // Data Management & Report Elements
+        const exportJsonBtn = document.getElementById('export-json-btn');
+        const importJsonInput = document.getElementById('import-json-input');
+        const generateReportBtn = document.getElementById('generate-report-btn');
+        const printReportBtn = document.getElementById('print-report-btn');
+        const reportDisplayArea = document.getElementById('report-display-area');
+
+
+        // --- State ---
+        let draggedItem = null;
+        let noteCounter = 0; // Will be updated based on loaded data
+
+        // --- Configuration ---
+        const LOCAL_STORAGE_KEY = 'swotBoardState';
+        const COMPLETENESS_TARGET = 5; // Target number of notes per quadrant for 100%
+
+        const CONTEXTUAL_PROMPTS = {
+            strengths: "What unique resources or capabilities give an advantage? Quantify if possible.",
+            weaknesses: "What internal factors hinder performance or are lacking? Be specific.",
+            opportunities: "What external trends, markets, or changes could be beneficial?",
+            threats: "What external factors, competitors, or risks could negatively impact?",
+            new: "Add a title and details, then drag this note to the appropriate quadrant." // Prompt for new notes area
+        };
+
+        // --- AI Configuration (Endpoints only) ---
+        const AI_PROVIDERS = {
+            perplexity: {
+                endpointBase: 'https://api.perplexity.ai',
+                authPrefix: 'Bearer '
+            },
+            groq: {
+                endpointBase: 'https://api.groq.com/openai/v1',
+                authPrefix: 'Bearer '
+            },
+            cerebras: {
+                endpointBase: 'https://api.cerebras.ai/v1',
+                authPrefix: 'Bearer '
+            }
+        };
+
+        // --- Create Note Function ---
+        function createNoteElement(noteData) {
+            const note = document.createElement('div');
+            note.classList.add('post-it');
+            note.setAttribute('draggable', 'true');
+            note.id = noteData.id;
+            note.dataset.title = noteData.title || 'Untitled Note';
+            note.dataset.details = noteData.details || '';
+            note.dataset.impact = noteData.impact || '3';
+            note.dataset.confidence = noteData.confidence || 'confirmed';
+            note.dataset.timeframe = noteData.timeframe || 'medium-term';
+            note.dataset.stakeholders = noteData.stakeholders || '';
+
+            const noteTitle = document.createElement('div');
+            noteTitle.classList.add('note-title');
+            noteTitle.textContent = note.dataset.title;
+            noteTitle.onclick = () => openNoteModal(note.id);
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.classList.add('delete-note-btn');
+            deleteBtn.innerHTML = '&times;';
+            deleteBtn.title = 'Delete Note';
+            deleteBtn.onclick = (e) => {
+                e.stopPropagation();
+                if (confirm(`Delete note "${noteTitle.textContent}"?`)) {
+                    note.remove();
+                    saveStateToLocalStorage();
+                    updateAllCompletenessIndicators();
+                    checkAnalyzeButtonState();
+                }
+            };
+
+            note.appendChild(noteTitle);
+            note.appendChild(deleteBtn);
+
+            note.addEventListener('dragstart', (e) => {
+                if (e.target.classList.contains('delete-note-btn')) {
+                    e.preventDefault(); return;
+                }
+                draggedItem = note;
+                setTimeout(() => note.classList.add('dragging'), 0);
+            });
+
+            note.addEventListener('dragend', () => {
+                setTimeout(() => {
+                    if (draggedItem && draggedItem.classList.contains('dragging')) {
+                         draggedItem.classList.remove('dragging');
+                    }
+                    draggedItem = null;
+                    saveStateToLocalStorage();
+                }, 0);
+            });
+
+            return note;
+        }
+
+        // --- Event Listener for Add Note Button ---
+        addNoteBtn.addEventListener('click', () => {
+            const newNoteData = {
+                id: `note-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+                title: 'New Note', details: '', impact: '3', confidence: 'confirmed', timeframe: 'medium-term', stakeholders: ''
+            };
+            const newNoteElement = createNoteElement(newNoteData);
+            newNoteAreaContainer.appendChild(newNoteElement);
+            saveStateToLocalStorage();
+            updateAllCompletenessIndicators();
+            checkAnalyzeButtonState();
+        });
+
+        // --- Drag and Drop Event Listeners for Quadrant Containers ---
+        const allDropZoneContainers = [newNoteAreaContainer, ...Array.from(quadrants).map(q => q.querySelector('.notes-container'))];
+
+        allDropZoneContainers.forEach(container => {
+            container.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                container.closest('.quadrant').classList.add('drag-over');
+            });
+            container.addEventListener('dragenter', (e) => {
+                e.preventDefault();
+                container.closest('.quadrant').classList.add('drag-over');
+            });
+            container.addEventListener('dragleave', (e) => {
+                 if (!container.contains(e.relatedTarget) && !container.closest('.quadrant').contains(e.relatedTarget)) {
+                    container.closest('.quadrant').classList.remove('drag-over');
+                }
+            });
+            container.addEventListener('drop', (e) => {
+                e.preventDefault();
+                const droppedOnQuadrant = container.closest('.quadrant');
+                droppedOnQuadrant.classList.remove('drag-over');
+                if (draggedItem && container !== draggedItem.parentNode) {
+                    container.appendChild(draggedItem);
+                    const quadrantName = droppedOnQuadrant.dataset.quadrant || 'new';
+                    console.log(`Note ${draggedItem.id} dropped into ${quadrantName}`);
+                    saveStateToLocalStorage();
+                    updateAllCompletenessIndicators();
+                    checkAnalyzeButtonState();
+                }
+                if (draggedItem) {
+                    draggedItem.classList.remove('dragging');
+                }
+                draggedItem = null;
+            });
+        });
+
+        // --- Modal Functions ---
+        function openNoteModal(noteId) {
+            const noteElement = document.getElementById(noteId);
+            if (!noteElement) return;
+            modalNoteIdInput.value = noteId;
+            modalNoteTitleInput.value = noteElement.dataset.title || '';
+            modalNoteDetailsTextarea.value = noteElement.dataset.details || '';
+            modalNoteImpactSelect.value = noteElement.dataset.impact || '3';
+            modalNoteConfidenceSelect.value = noteElement.dataset.confidence || 'confirmed';
+            modalNoteTimeframeSelect.value = noteElement.dataset.timeframe || 'medium-term';
+            modalNoteStakeholdersInput.value = noteElement.dataset.stakeholders || '';
+            const parentQuadrant = noteElement.closest('.quadrant');
+            const quadrantType = parentQuadrant ? parentQuadrant.dataset.quadrant : 'new';
+            modalContextualPrompt.textContent = CONTEXTUAL_PROMPTS[quadrantType] || '';
+            modalContextualPrompt.style.display = quadrantType ? 'block' : 'none';
+            noteDetailModal.style.display = 'block';
+            modalNoteTitleInput.focus();
+        }
+
+        function closeNoteModal() {
+            noteDetailModal.style.display = 'none';
+        }
+
+        function saveNoteDetails() {
+            const noteId = modalNoteIdInput.value;
+            const noteElement = document.getElementById(noteId);
+            if (!noteElement) return;
+            const newTitle = modalNoteTitleInput.value.trim() || 'Untitled Note';
+            const newDetails = modalNoteDetailsTextarea.value.trim();
+            const newImpact = modalNoteImpactSelect.value;
+            const newConfidence = modalNoteConfidenceSelect.value;
+            const newTimeframe = modalNoteTimeframeSelect.value;
+            const newStakeholders = modalNoteStakeholdersInput.value.trim();
+            noteElement.dataset.title = newTitle;
+            noteElement.dataset.details = newDetails;
+            noteElement.dataset.impact = newImpact;
+            noteElement.dataset.confidence = newConfidence;
+            noteElement.dataset.timeframe = newTimeframe;
+            noteElement.dataset.stakeholders = newStakeholders;
+            const titleElement = noteElement.querySelector('.note-title');
+            if (titleElement) titleElement.textContent = newTitle;
+            console.log(`Note ${noteId} updated`);
+            closeNoteModal();
+            saveStateToLocalStorage();
+            updateAllCompletenessIndicators();
+            checkAnalyzeButtonState();
+        }
+
+        // --- Persistence Functions ---
+        function getBoardState() {
+            const notes = [];
+            document.querySelectorAll('.post-it').forEach(noteElement => {
+                const parentContainer = noteElement.closest('.notes-container');
+                const parentQuadrant = parentContainer.closest('.quadrant');
+                notes.push({
+                    id: noteElement.id,
+                    title: noteElement.dataset.title,
+                    details: noteElement.dataset.details,
+                    impact: noteElement.dataset.impact,
+                    confidence: noteElement.dataset.confidence,
+                    timeframe: noteElement.dataset.timeframe,
+                    stakeholders: noteElement.dataset.stakeholders,
+                    quadrantId: parentQuadrant ? parentQuadrant.id : 'new-note-area'
+                });
+            });
+            return notes;
+        }
+
+        function saveStateToLocalStorage() {
+            const notes = getBoardState();
+            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(notes));
+            console.log("State saved to Local Storage.");
+        }
+
+        function loadState(notes) {
+             // Clear existing notes before loading
+            allDropZoneContainers.forEach(container => container.innerHTML = '');
+            let maxIdNum = 0;
+            notes.forEach(noteData => {
+                // Ensure essential fields exist
+                noteData.id = noteData.id || `note-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+                noteData.title = noteData.title || 'Untitled Note';
+
+                const noteElement = createNoteElement(noteData);
+                const parentElement = document.getElementById(noteData.quadrantId);
+                const container = parentElement ? parentElement.querySelector('.notes-container') : newNoteAreaContainer;
+                if (container) {
+                    container.appendChild(noteElement);
+                } else {
+                    console.warn(`Could not find container for quadrantId: ${noteData.quadrantId}`);
+                    newNoteAreaContainer.appendChild(noteElement);
+                }
+                const idNum = parseInt(noteData.id.split('-')[1]);
+                if (!isNaN(idNum) && idNum > maxIdNum) maxIdNum = idNum;
+            });
+            noteCounter = maxIdNum + 1;
+            updateAllCompletenessIndicators();
+            checkAnalyzeButtonState();
+        }
+
+        function loadStateFromLocalStorage() {
+            const savedState = localStorage.getItem(LOCAL_STORAGE_KEY);
+            if (savedState) {
+                try {
+                    const notes = JSON.parse(savedState);
+                    loadState(notes); // Use the common loadState function
+                    console.log("State loaded from Local Storage.");
+                } catch (e) {
+                    console.error("Error loading state from Local Storage:", e);
+                    localStorage.removeItem(LOCAL_STORAGE_KEY);
+                }
+            } else {
+                console.log("No saved state found in Local Storage.");
+            }
+        }
+
+
+        // --- Completeness Indicator Functions ---
+        function updateCompletenessIndicator(quadrantId) {
+            const quadrant = document.getElementById(quadrantId);
+            if (!quadrant) return;
+            const notesContainer = quadrant.querySelector('.notes-container');
+            const progressElement = document.getElementById(`${quadrantId}-progress`);
+            const labelElement = document.getElementById(`${quadrantId}-progress-label`);
+            if (notesContainer && progressElement && labelElement) {
+                const noteCount = notesContainer.children.length;
+                const percentage = Math.min(Math.round((noteCount / COMPLETENESS_TARGET) * 100), 100);
+                progressElement.value = percentage;
+                labelElement.textContent = `${percentage}%`;
+            }
+        }
+
+        function updateAllCompletenessIndicators() {
+            ['strengths', 'weaknesses', 'opportunities', 'threats'].forEach(id => {
+                updateCompletenessIndicator(id);
+            });
+        }
+
+
+        // --- AI Analysis Functions ---
+        function resetModelSelection() {
+            aiModelSelect.innerHTML = '<option value="">-- Load models first --</option>';
+            modelSelectGroup.style.display = 'none';
+            modelLoadStatus.textContent = '';
+            modelLoadStatus.classList.remove('error');
+        }
+
+        async function loadModelsHandler() {
+            const provider = aiProviderSelect.value;
+            const apiKey = apiKeyInput.value.trim();
+            const config = AI_PROVIDERS[provider];
+            if (!provider || !apiKey || !config) {
+                modelLoadStatus.textContent = 'Provider & API Key required.';
+                modelLoadStatus.classList.add('error'); return;
+            }
+            const modelsUrl = `${config.endpointBase}/models`;
+            modelLoadStatus.textContent = 'Loading models...';
+            modelLoadStatus.classList.remove('error');
+            aiModelSelect.innerHTML = '<option value="">Loading...</option>';
+            modelSelectGroup.style.display = 'flex';
+            analyzeBtn.disabled = true;
+            try {
+                const response = await fetch(modelsUrl, { method: 'GET', headers: { 'Authorization': `${config.authPrefix}${apiKey}` } });
+                if (!response.ok) {
+                     const errorData = await response.json().catch(() => ({ message: response.statusText }));
+                    throw new Error(`API Error (${response.status}): ${errorData.error?.message || errorData.message || 'Failed to fetch models'}`);
+                }
+                const result = await response.json();
+                const models = result.data?.map(model => model.id).sort() || [];
+                aiModelSelect.innerHTML = '';
+                if (models.length > 0) {
+                    models.forEach(modelName => {
+                        const option = document.createElement('option'); option.value = modelName; option.textContent = modelName; aiModelSelect.appendChild(option);
+                    });
+                    modelLoadStatus.textContent = `Loaded ${models.length} models.`;
+                } else {
+                    aiModelSelect.innerHTML = '<option value="">No models found</option>';
+                    modelLoadStatus.textContent = 'No models returned from API.'; modelLoadStatus.classList.add('error');
+                }
+            } catch (error) {
+                console.error("Load Models Error:", error);
+                aiModelSelect.innerHTML = '<option value="">Error loading</option>';
+                modelLoadStatus.textContent = `Error: ${error.message}`; modelLoadStatus.classList.add('error');
+            } finally {
+                 checkAnalyzeButtonState();
+            }
+        }
+
+        function checkAnalyzeButtonState() {
+            const provider = aiProviderSelect.value;
+            const apiKey = apiKeyInput.value.trim();
+            const modelSelected = aiModelSelect.value && aiModelSelect.value !== '';
+            const hasNotes = document.querySelectorAll('.swot-board .quadrant .notes-container .post-it').length > 0;
+            analyzeBtn.disabled = !(provider && apiKey && modelSelected && hasNotes);
+        }
+
+        aiProviderSelect.addEventListener('change', () => {
+            const provider = aiProviderSelect.value;
+            resetModelSelection();
+            if (provider) { apiKeyGroup.style.display = 'flex'; } else { apiKeyGroup.style.display = 'none'; }
+            checkAnalyzeButtonState();
+        });
+        apiKeyInput.addEventListener('input', checkAnalyzeButtonState);
+        aiModelSelect.addEventListener('change', checkAnalyzeButtonState);
+        loadModelsBtn.addEventListener('click', loadModelsHandler);
+
+        function gatherSwotDataForAI() { // Renamed to avoid conflict
+            const data = { strengths: [], weaknesses: [], opportunities: [], threats: [] };
+            quadrants.forEach(quadrant => {
+                const type = quadrant.id;
+                if (data.hasOwnProperty(type)) {
+                    const notes = quadrant.querySelectorAll('.notes-container .post-it');
+                    notes.forEach(note => {
+                        data[type].push({
+                            title: note.dataset.title || 'Untitled', details: note.dataset.details || '',
+                            impact: note.dataset.impact || '3', confidence: note.dataset.confidence || 'confirmed',
+                            timeframe: note.dataset.timeframe || 'medium-term', stakeholders: note.dataset.stakeholders || ''
+                        });
+                    });
+                }
+            });
+            return data;
+        }
+
+        function formatPrompt(swotData) {
+            let prompt = "Analyze the following SWOT data and provide strategic insights. Consider the impact, confidence, and timeframe where provided:\n\n";
+            for (const type in swotData) {
+                if (swotData[type].length > 0) {
+                    prompt += `**${type.charAt(0).toUpperCase() + type.slice(1)}:**\n`;
+                    swotData[type].forEach(item => {
+                        prompt += `- ${item.title}`;
+                        let meta = [];
+                        if (item.details) meta.push(`Details: ${item.details}`);
+                        meta.push(`Impact: ${item.impact}`); meta.push(`Confidence: ${item.confidence}`); meta.push(`Timeframe: ${item.timeframe}`);
+                        if (item.stakeholders) meta.push(`Stakeholders: ${item.stakeholders}`);
+                        if (meta.length > 0) prompt += ` (${meta.join(', ')})`;
+                        prompt += "\n";
+                    });
+                    prompt += "\n";
+                }
+            }
+            prompt += "Based on this SWOT analysis, suggest potential SO (Strengths-Opportunities), WO (Weaknesses-Opportunities), ST (Strengths-Threats), and WT (Weaknesses-Threats) strategies. Be concise and actionable.";
+            return prompt;
+        }
+
+        async function handleAnalysis() {
+            const provider = aiProviderSelect.value; const apiKey = apiKeyInput.value.trim(); const model = aiModelSelect.value; const config = AI_PROVIDERS[provider];
+            if (!provider || !apiKey || !model || !config) {
+                aiResultContent.textContent = 'Error: Please select provider, enter API key, load and choose a model.'; aiResultContent.classList.add('error'); return;
+            }
+            const swotData = gatherSwotDataForAI();
+            if (Object.values(swotData).every(arr => arr.length === 0)) {
+                 aiResultContent.textContent = 'Error: No SWOT items found on the board to analyze.'; aiResultContent.classList.add('error'); return;
+            }
+            const userPrompt = formatPrompt(swotData); const systemPrompt = "You are a helpful assistant performing a SWOT analysis based on user input.";
+            aiResultContent.textContent = 'Analyzing... Please wait.'; aiResultContent.classList.remove('error'); aiResultContent.classList.add('loading');
+            analyzeBtn.disabled = true; const chatUrl = `${config.endpointBase}/chat/completions`;
+            try {
+                const response = await fetch(chatUrl, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `${config.authPrefix}${apiKey}` },
+                    body: JSON.stringify({ model: model, messages: [ { role: "system", content: systemPrompt }, { role: "user", content: userPrompt } ] })
+                });
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ message: response.statusText }));
+                     throw new Error(`API Error (${response.status}): ${errorData.error?.message || errorData.message || 'Unknown error'}`);
+                }
+                const result = await response.json(); let analysisText = 'No content found in response.';
+                if (result.choices && result.choices[0]?.message?.content) { analysisText = result.choices[0].message.content; }
+                aiResultContent.textContent = analysisText; aiResultContent.classList.remove('loading');
+            } catch (error) {
+                console.error("AI Analysis Error:", error);
+                aiResultContent.textContent = `Error during analysis: ${error.message}`; aiResultContent.classList.add('error'); aiResultContent.classList.remove('loading');
+            } finally { checkAnalyzeButtonState(); }
+        }
+        analyzeBtn.addEventListener('click', handleAnalysis);
+
+
+        // --- Data Export/Import Functions ---
+        function exportToJson() {
+            const notes = getBoardState(); // Use the existing function that gets data for saving
+            const jsonString = JSON.stringify(notes, null, 2); // Pretty print JSON
+            const blob = new Blob([jsonString], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `swot-board-${new Date().toISOString().slice(0, 10)}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function importFromJson(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const notes = JSON.parse(e.target.result);
+                    // Basic validation: check if it's an array
+                    if (!Array.isArray(notes)) {
+                        throw new Error("Invalid JSON format: Expected an array of notes.");
+                    }
+                    // Further validation could check for required fields (id, title, quadrantId)
+                    if (confirm(`Importing will replace the current board. Continue?`)) {
+                        loadState(notes); // Use the common loadState function
+                        saveStateToLocalStorage(); // Save the newly imported state
+                        alert(`Successfully imported ${notes.length} notes.`);
+                    }
+                } catch (error) {
+                    console.error("Error importing JSON:", error);
+                    alert(`Error importing file: ${error.message}`);
+                } finally {
+                     // Reset file input to allow importing the same file again if needed
+                     event.target.value = null;
+                }
+            };
+            reader.onerror = function() {
+                alert(`Error reading file: ${reader.error}`);
+                 event.target.value = null;
+            };
+            reader.readAsText(file);
+        }
+
+        exportJsonBtn.addEventListener('click', exportToJson);
+        importJsonInput.addEventListener('change', importFromJson);
+
+
+        // --- Report Generation Functions ---
+        function generateReportHtml() {
+            const swotData = gatherSwotDataForAI(); // Use the AI data gathering function
+            let reportHtml = `<h1>SWOT Analysis Report (${new Date().toLocaleDateString()})</h1>`;
+
+            for (const type in swotData) {
+                if (swotData.hasOwnProperty(type)) {
+                     reportHtml += `<h3>${type.charAt(0).toUpperCase() + type.slice(1)}</h3>`;
+                     if (swotData[type].length > 0) {
+                         reportHtml += '<ul>';
+                         // Sort by impact for report? Optional.
+                         // const sortedItems = [...swotData[type]].sort((a, b) => b.impact - a.impact);
+                         swotData[type].forEach(item => {
+                             reportHtml += `<li><strong>${item.title || 'Untitled'}</strong>`;
+                             let meta = [];
+                             if (item.details) meta.push(`Details: ${item.details}`);
+                             meta.push(`Impact: ${item.impact}`);
+                             meta.push(`Confidence: ${item.confidence}`);
+                             meta.push(`Timeframe: ${item.timeframe}`);
+                             if (item.stakeholders) meta.push(`Stakeholders: ${item.stakeholders}`);
+                             if (meta.length > 0) reportHtml += `<br><small>(${meta.join(', ')})</small>`;
+                             reportHtml += `</li>`;
+                         });
+                         reportHtml += '</ul>';
+                     } else {
+                         reportHtml += '<p><i>No items added.</i></p>';
+                     }
+                }
+            }
+            return reportHtml;
+        }
+
+        generateReportBtn.addEventListener('click', () => {
+            const reportHtml = generateReportHtml();
+            reportDisplayArea.innerHTML = reportHtml;
+            printReportBtn.style.display = 'inline-block'; // Show print button
+        });
+
+        printReportBtn.addEventListener('click', () => {
+            window.print(); // Trigger browser's print dialog
+        });
+
+
+        // --- Initial Setup ---
+        window.onclick = function(event) {
+            if (event.target == noteDetailModal) {
+                closeNoteModal();
+            }
+        }
+
+        // Load state from local storage on page load
+        loadStateFromLocalStorage();
+
+    </script>
+</body>
+</html>
+<environment_details>
+# VSCode Visible Files
+(No visible files)
+
+# VSCode Open Tabs
+(No open tabs)
+
+# Current Time
+3/30/2025, 8:55:37 PM (Europe/Zurich, UTC+2:00)
+
+# Current Mode
+ACT MODE
+</environment_details>
