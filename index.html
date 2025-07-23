@@ -15,38 +15,57 @@
       text-align: center;
       margin-bottom: 0.5rem;
     }
-    p {
+    p.subtitle {
       text-align: center;
       margin-top: 0;
       color: #586069;
     }
-    #tools-container {
+    #tools-grid-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1.5rem;
       margin-top: 30px;
     }
-    ul {
-      list-style-type: none;
-      padding-left: 20px;
+    .tool-card {
+      background-color: #ffffff;
+      border: 1px solid #d1d5da;
+      border-radius: 6px;
+      padding: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     }
-    li {
-      margin-bottom: 10px;
-    }
-    .folder {
+    .folder-title {
       font-weight: bold;
+      font-size: 1.25rem;
       cursor: pointer;
+      margin: 0;
     }
-    .folder::before {
+    .folder-title::before {
       content: '📁';
-      margin-right: 8px;
+      margin-right: 10px;
+    }
+    .tool-list {
+      list-style-type: none;
+      padding-left: 0;
+      margin-top: 1rem;
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease-in-out;
+    }
+    .tool-list.expanded {
+      max-height: 500px; /* Adjust as needed */
+    }
+    .tool-list li {
+      margin-bottom: 10px;
     }
     .tool-button {
       text-decoration: none;
       color: white;
       background-color: #2ea44f;
-      padding: 8px 16px;
+      padding: 10px 15px;
       border-radius: 6px;
       font-size: 1rem;
-      display: inline-block;
-      margin-top: 5px;
+      display: block;
+      text-align: center;
       transition: background-color 0.2s ease-in-out;
     }
     .tool-button:hover {
@@ -56,9 +75,9 @@
 </head>
 <body>
   <h1>My Project Tools</h1>
-  <p>Select a tool from the list below to run it.</p>
+  <p class="subtitle">Select a tool from the list below to run it.</p>
 
-  <div id="tools-container"><p>Loading tools, please wait...</p></div>
+  <div id="tools-grid-container"><p>Loading tools, please wait...</p></div>
 
 <script>
   (async () => {
@@ -67,7 +86,7 @@
     const repo = 'orikan1122.github.io';
     const apiUrl = `https://api.github.com/repos/${user}/${repo}/git/trees/main?recursive=1`;
 
-    const container = document.getElementById('tools-container');
+    const container = document.getElementById('tools-grid-container');
     container.innerHTML = ''; // Clear the "Loading..." message
 
     try {
@@ -95,29 +114,48 @@
       });
 
       const buildHtml = (tree, element) => {
-        const ul = document.createElement('ul');
         for (const key in tree) {
-          if (key === '_files') {
-            tree[key].forEach(file => {
-              const li = document.createElement('li');
-              const button = document.createElement('a');
-              button.href = file.path;
-              button.textContent = file.name.replace(/_/g, ' ');
-              button.className = 'tool-button';
-              li.appendChild(button);
-              ul.appendChild(li);
-            });
-          } else {
-            const li = document.createElement('li');
-            const folderSpan = document.createElement('span');
-            folderSpan.className = 'folder';
-            folderSpan.textContent = key;
-            li.appendChild(folderSpan);
-            buildHtml(tree[key], li);
-            ul.appendChild(li);
-          }
+          if (key === '_files') continue;
+
+          const card = document.createElement('div');
+          card.className = 'tool-card';
+          
+          const title = document.createElement('h2');
+          title.className = 'folder-title';
+          title.textContent = key.replace(/_/g, ' ');
+          card.appendChild(title);
+          
+          const ul = document.createElement('ul');
+          ul.className = 'tool-list';
+          
+          title.onclick = () => ul.classList.toggle('expanded');
+
+          addFilesToUl(tree[key], ul);
+
+          card.appendChild(ul);
+          element.appendChild(card);
         }
-        element.appendChild(ul);
+      };
+      
+      const addFilesToUl = (tree, ul) => {
+          if (tree._files) {
+              tree._files.forEach(file => {
+                  const li = document.createElement('li');
+                  const button = document.createElement('a');
+                  button.href = file.path;
+                  button.textContent = file.name.replace(/_/g, ' ');
+                  button.className = 'tool-button';
+                  li.appendChild(button);
+                  ul.appendChild(li);
+              });
+          }
+
+          for (const key in tree) {
+              if (key !== '_files') {
+                  // You might want to add sub-folder styling here if needed
+                  addFilesToUl(tree[key], ul);
+              }
+          }
       };
 
       buildHtml(fileTree, container);
