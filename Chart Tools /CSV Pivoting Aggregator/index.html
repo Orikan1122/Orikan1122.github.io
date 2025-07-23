@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSV Pivoting Aggregator</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            margin: 0;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 95%; /* Wider for pivoted table */
+            background-color: #fff;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #1a535c;
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+
+        .controls-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            border: 1px dashed #a8dadc;
+            border-radius: 8px;
+            background-color: #f1faee;
+            align-items: end;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        label {
+            font-weight: 600;
+            color: #457b9d;
+        }
+
+        #csv-files { display: none; }
+        
+        .file-label {
+            background-color: #a8dadc;
+            color: #1d3557;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            text-align: center;
+        }
+        .file-label:hover { background-color: #457b9d; color: #fff; }
+        
+        #file-list { margin-top: 10px; font-size: 0.9em; color: #555; }
+
+        input[type="datetime-local"], select, button {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 1em;
+            box-sizing: border-box;
+            width: 100%;
+        }
+
+        button { cursor: pointer; }
+
+        #process-btn {
+            background-color: #e63946;
+            color: white;
+            border: none;
+            font-weight: bold;
+            transition: background-color 0.3s;
+            grid-column: 1 / -1; /* Span full width in grid */
+            margin-top: 1rem;
+        }
+        #process-btn:hover { background-color: #d62828; }
+        #process-btn:disabled { background-color: #ccc; cursor: not-allowed; }
+
+        #results-container { margin-top: 2rem; overflow-x: auto; }
+
+        #export-btn {
+            display: none;
+            margin-top: 1.5rem;
+            background-color: #2a9d8f;
+            color: white;
+            border: none;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        #export-btn:hover { background-color: #264653; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+        th, td { padding: 12px 15px; text-align: left; border: 1px solid #e0e0e0; }
+        thead tr { background-color: #457b9d; color: #ffffff; }
+        tbody tr:nth-of-type(even) { background-color: #f8f9fa; }
+        tbody tr:hover { background-color: #e9ecef; }
+        td:not(:first-child) { text-align: right; }
+        
+        .status { text-align: center; margin-top: 1rem; color: #6c757d; font-style: italic; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>CSV Pivoting Aggregator</h1>
+
+        <div class="controls-grid">
+            <div class="control-group">
+                <label for="csv-files" class="file-label">Click to Select CSV Files</label>
+                <input type="file" id="csv-files" multiple accept=".csv">
+                <div id="file-list">No files selected.</div>
+            </div>
+
+            <div class="control-group">
+                <label for="time-cycle">Time Cycle:</label>
+                <select id="time-cycle">
+                    <option value="15">15 Minutes</option>
+                    <option value="30">30 Minutes</option>
+                    <option value="60" selected>1 Hour</option>
+                    <option value="1440">1 Day</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label for="start-date">Filter From (optional):</label>
+                <input type="datetime-local" id="start-date">
+            </div>
+
+            <div class="control-group">
+                <label for="end-date">Filter To (optional):</label>
+                <input type="datetime-local" id="end-date">
+            </div>
+             <button id="process-btn" disabled>Process Files & Apply Filter</button>
+        </div>
+
+        <div id="results-container">
+            <p class="status">Results will be displayed here.</p>
+        </div>
+        
+        <div style="text-align:center;">
+             <button id="export-btn">Export Table as CSV</button>
+        </div>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('csv-files');
+        const fileListDisplay = document.getElementById('file-list');
+        const timeCycleSelect = document.getElementById('time-cycle');
+        const startDateInput = document.getElementById('start-date');
+        const endDateInput = document.getElementById('end-date');
+        const processBtn = document.getElementById('process-btn');
+        const exportBtn = document.getElementById('export-btn');
+        const resultsContainer = document.getElementById('results-container');
+
+        let filteredPivotedData = [];
+        let columnHeaders = [];
+
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files.length > 0) {
+                fileListDisplay.textContent = `${fileInput.files.length} file(s) selected.`;
+                processBtn.disabled = false;
+            } else {
+                fileListDisplay.textContent = 'No files selected.';
+                processBtn.disabled = true;
+            }
+        });
+
+        processBtn.addEventListener('click', handleFileProcessing);
+        exportBtn.addEventListener('click', exportToCSV);
+
+        async function handleFileProcessing() {
+            const files = fileInput.files;
+            if (files.length === 0) {
+                alert('Please select at least one CSV file.');
+                return;
+            }
+            
+            setStatus('Processing... Please wait.');
+            processBtn.disabled = true;
+            exportBtn.style.display = 'none';
+            
+            try {
+                // 1. Process all files individually to get long-form aggregated data
+                const cycleMinutes = parseInt(timeCycleSelect.value, 10);
+                const allFilesPromises = Array.from(files).map(file => parseAndAggregateFile(file, cycleMinutes));
+                const longFormatData = (await Promise.all(allFilesPromises)).flat();
+                
+                if (longFormatData.length === 0) {
+                    setStatus('No valid data points found in the selected files.');
+                    return;
+                }
+
+                // 2. Pivot the long-form data into a wide format
+                const { pivotedData, columns } = pivotData(longFormatData);
+                columnHeaders = columns; // Store for export
+
+                // 3. Filter the pivoted data by the selected date range
+                const startDate = startDateInput.value ? new Date(startDateInput.value) : null;
+                const endDate = endDateInput.value ? new Date(endDateInput.value) : null;
+                filteredPivotedData = filterPivotedData(pivotedData, startDate, endDate);
+
+                // 4. Display the final table
+                if (filteredPivotedData.length > 0) {
+                    displayPivotedTable(filteredPivotedData, columnHeaders);
+                    exportBtn.style.display = 'inline-block';
+                } else {
+                    setStatus('No data available for the selected time cycle and date filter.');
+                }
+            } catch (error) {
+                console.error("Error processing files:", error);
+                setStatus(`An error occurred: ${error.message}`);
+            } finally {
+                processBtn.disabled = false;
+            }
+        }
+
+        function parseAndAggregateFile(file, cycleMinutes) {
+            // This function is similar to the previous version's parser
+            // It returns a "long" array of aggregated results for one file
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const text = event.target.result;
+                        const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
+                        const metadata = { fileName: file.name, sensorId: 'N/A', description: 'N/A', unit: 'N/A' };
+                        const dataStartIndex = lines.findIndex(line => line.toLowerCase().startsWith('time;value'));
+
+                        if (dataStartIndex === -1) {
+                             console.warn(`Skipping ${file.name}: 'Time;Value;' header not found.`);
+                             resolve([]); return;
+                        }
+                        
+                        const line2Parts = lines[1]?.split(';');
+                        if (line2Parts) {
+                            metadata.sensorId = line2Parts[0] || 'N/A';
+                            metadata.description = line2Parts[1] || 'N/A';
+                        }
+                        const line3Parts = lines[2]?.split(';');
+                        if (line3Parts) metadata.unit = line3Parts[2] || 'N/A';
+                        
+                        const dataLines = lines.slice(dataStartIndex + 1);
+                        const timeBuckets = {};
+                        const intervalMs = cycleMinutes * 60 * 1000;
+
+                        dataLines.forEach(line => {
+                            const [timestampStr, valueStr] = line.split(';');
+                            if (!timestampStr || !valueStr) return;
+                            
+                            const value = parseFloat(valueStr);
+                            const [datePart, timePart] = timestampStr.trim().split(' ');
+                            if (!datePart || !timePart) return;
+                            const [day, month, year] = datePart.split('.');
+                            const timestamp = new Date(`${year}-${month}-${day}T${timePart}`);
+
+                            if (isNaN(timestamp.getTime()) || isNaN(value)) return;
+
+                            const bucketStartMs = Math.floor(timestamp.getTime() / intervalMs) * intervalMs;
+                            const bucketKey = new Date(bucketStartMs).toISOString();
+                            if (!timeBuckets[bucketKey]) timeBuckets[bucketKey] = { sum: 0, count: 0 };
+                            timeBuckets[bucketKey].sum += value;
+                            timeBuckets[bucketKey].count++;
+                        });
+
+                        const colIdentifier = `${metadata.sensorId} (${file.name})`;
+                        const results = Object.entries(timeBuckets).map(([bucketKey, data]) => ({
+                            columnId: colIdentifier,
+                            timeBucket: new Date(bucketKey),
+                            averageValue: data.sum / data.count,
+                        }));
+                        resolve(results);
+                    } catch (e) { reject(new Error(`Parsing ${file.name} failed: ${e.message}`)); }
+                };
+                reader.onerror = () => reject(new Error(`Reading ${file.name} failed.`));
+                reader.readAsText(file);
+            });
+        }
+        
+        function pivotData(longFormatData) {
+            const columns = [...new Set(longFormatData.map(d => d.columnId))].sort();
+            const timeBucketMap = new Map();
+
+            longFormatData.forEach(item => {
+                const bucketISO = item.timeBucket.toISOString();
+                if (!timeBucketMap.has(bucketISO)) {
+                    timeBucketMap.set(bucketISO, { timeBucket: item.timeBucket });
+                }
+                const row = timeBucketMap.get(bucketISO);
+                row[item.columnId] = item.averageValue;
+            });
+
+            const pivotedData = Array.from(timeBucketMap.values())
+                                     .sort((a, b) => a.timeBucket - b.timeBucket);
+
+            return { pivotedData, columns };
+        }
+
+        function filterPivotedData(pivotedData, startDate, endDate) {
+            if (!startDate && !endDate) {
+                return pivotedData; // No filter applied
+            }
+            return pivotedData.filter(row => {
+                const rowTime = row.timeBucket.getTime();
+                const startMatch = startDate ? rowTime >= startDate.getTime() : true;
+                const endMatch = endDate ? rowTime <= endDate.getTime() : true;
+                return startMatch && endMatch;
+            });
+        }
+
+        function displayPivotedTable(data, columns) {
+            let tableHTML = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Time Bucket (Start)</th>
+                            ${columns.map(col => `<th>${col}</th>`).join('')}
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            data.forEach(row => {
+                tableHTML += '<tr>';
+                tableHTML += `<td>${row.timeBucket.toLocaleString()}</td>`;
+                columns.forEach(col => {
+                    const value = row[col];
+                    const displayValue = (typeof value === 'number') ? value.toFixed(3) : '';
+                    tableHTML += `<td>${displayValue}</td>`;
+                });
+                tableHTML += '</tr>';
+            });
+            tableHTML += '</tbody></table>';
+            resultsContainer.innerHTML = tableHTML;
+        }
+
+        function exportToCSV() {
+            if (filteredPivotedData.length === 0) {
+                alert("No data to export.");
+                return;
+            }
+
+            const headers = ["TimeBucket_ISO", ...columnHeaders];
+            const csvRows = [headers.join(',')]; // Header row
+
+            filteredPivotedData.forEach(row => {
+                const values = [row.timeBucket.toISOString()];
+                columnHeaders.forEach(col => {
+                    const value = row[col];
+                    values.push((typeof value === 'number') ? value.toFixed(3) : '');
+                });
+                csvRows.push(values.join(','));
+            });
+            
+            const csvContent = csvRows.join('\n');
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            
+            link.setAttribute("href", url);
+            link.setAttribute("download", "pivoted_aggregated_data.csv");
+            link.style.visibility = 'hidden';
+            
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function setStatus(message) {
+            resultsContainer.innerHTML = `<p class="status">${message}</p>`;
+        }
+
+    </script>
+</body>
+</html>
