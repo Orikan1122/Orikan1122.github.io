@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Background Remover</title>
+    <style>
+        :root {
+            --primary-color: #007bff;
+            --primary-hover-color: #0056b3;
+            --secondary-color: #6c757d;
+            --secondary-hover-color: #5a6268;
+            --light-gray: #f8f9fa;
+            --border-color: #dee2e6;
+            --text-color: #343a40;
+            --bg-color: #e9ecef;
+            --panel-bg: #ffffff;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .main-container {
+            display: flex;
+            gap: 1.5rem;
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        .workspace {
+            flex: 3;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .tools-panel {
+            flex: 1;
+            background-color: var(--panel-bg);
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            align-self: flex-start;
+        }
+
+        h1 {
+            color: var(--text-color);
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        #image-container {
+            position: relative;
+            margin-bottom: 1rem;
+            max-width: 100%;
+            display: inline-block;
+            border: 3px dashed var(--border-color);
+            border-radius: 8px;
+            background-color: var(--light-gray);
+            min-height: 300px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            line-height: 0;
+        }
+        
+        #image-canvas {
+            max-width: 100%;
+            vertical-align: middle;
+        }
+        
+        /* The cursor style will be set via JavaScript */
+        #selection-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .tool-group {
+            margin-bottom: 2rem;
+        }
+        
+        .tool-group h3 {
+            margin-top: 0;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.5rem;
+            font-size: 1.1rem;
+        }
+        
+        .control-group {
+            margin: 1rem 0;
+        }
+        
+        .control-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        .radio-group label {
+            display: inline-block;
+            margin-right: 15px;
+            font-weight: normal;
+        }
+
+        #tolerance-slider {
+            width: 100%;
+        }
+        
+        .button-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .btn {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s, box-shadow 0.2s;
+            width: 100%;
+        }
+
+        .btn:hover {
+            background-color: var(--primary-hover-color);
+            box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);
+        }
+
+        .btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+        
+        .btn.secondary {
+            background-color: var(--secondary-color);
+        }
+        
+        .btn.secondary:hover {
+            background-color: var(--secondary-hover-color);
+            box-shadow: 0 2px 8px rgba(0,0,0, 0.2);
+        }
+
+        #image-uploader {
+            width: 100%;
+        }
+
+        #loader {
+            display: none;
+            margin: 1rem 0;
+            font-size: 1.2rem;
+            color: var(--primary-color);
+            text-align: center;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 992px) {
+            .main-container {
+                flex-direction: column;
+            }
+            .tools-panel {
+                align-self: stretch;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Image Background Remover</h1>
+
+    <div class="main-container">
+        <div class="workspace">
+            <div id="image-container">
+                <canvas id="image-canvas"></canvas>
+                <canvas id="selection-canvas"></canvas>
+            </div>
+             <div id="loader">Processing...</div>
+        </div>
+
+        <div class="tools-panel">
+            <div class="tool-group">
+                <h3>1. Load Image</h3>
+                <input type="file" id="image-uploader" accept="image/*">
+            </div>
+
+            <div class="tool-group">
+                <h3>2. Choose Tool</h3>
+                <div class="control-group">
+                    <div class="radio-group">
+                        <label><input type="radio" name="active-tool" value="magicWand" checked> Magic Wand</label>
+                        <label><input type="radio" name="active-tool" value="rectangle"> Rectangle</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tool-group">
+                <h3>3. Tool Options</h3>
+                <div class="control-group">
+                    <label>Selection Mode</label>
+                    <div class="radio-group">
+                        <label><input type="radio" name="selection-mode" value="replace" checked> Replace</label>
+                        <label><input type="radio" name="selection-mode" value="add"> Add</label>
+                        <label><input type="radio" name="selection-mode" value="subtract"> Subtract</label>
+                    </div>
+                </div>
+                <div id="magic-wand-options">
+                    <div class="control-group">
+                        <label>Flood Mode</label>
+                        <div class="radio-group">
+                            <label><input type="radio" name="flood-mode" value="contiguous" checked> Contiguous</label>
+                            <label><input type="radio" name="flood-mode" value="global"> Global</label>
+                        </div>
+                    </div>
+                    <div class="control-group">
+                        <label for="tolerance-slider">Tolerance: <span id="tolerance-value">20</span></label>
+                        <input type="range" id="tolerance-slider" min="0" max="150" value="20">
+                    </div>
+                </div>
+            </div>
+
+            <div class="tool-group">
+                <h3>4. Finalize</h3>
+                <div class="button-group">
+                    <button id="isolate-btn" class="btn" disabled>Isolate Selection</button>
+                    <button id="save-btn" class="btn" disabled>Save Image</button>
+                    <button id="reset-btn" class="btn secondary" disabled>Reset Selection</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- DOM Elements ---
+        const imageUploader = document.getElementById('image-uploader');
+        const canvas = document.getElementById('image-canvas');
+        const selectionCanvas = document.getElementById('selection-canvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        const selectionCtx = selectionCanvas.getContext('2d');
+        const isolateBtn = document.getElementById('isolate-btn');
+        const saveBtn = document.getElementById('save-btn');
+        const resetBtn = document.getElementById('reset-btn');
+        const loader = document.getElementById('loader');
+        const toleranceSlider = document.getElementById('tolerance-slider');
+        const toleranceValue = document.getElementById('tolerance-value');
+        const magicWandOptions = document.getElementById('magic-wand-options');
+        const toolRadios = document.querySelectorAll('input[name="active-tool"]');
+
+        // --- State Variables ---
+        let originalImage = new Image();
+        let originalImageData = null;
+        let selectionMask = null;
+        let lastSelectionParams = null; // For Magic Wand live update
+        let currentTool = 'magicWand';
+        let isDrawing = false;
+        let startX, startY;
+
+        // --- Event Listeners ---
+        imageUploader.addEventListener('change', handleImageUpload);
+        toleranceSlider.addEventListener('input', handleToleranceChange);
+        isolateBtn.addEventListener('click', handleIsolate);
+        saveBtn.addEventListener('click', handleSave);
+        resetBtn.addEventListener('click', handleReset);
+        toolRadios.forEach(radio => radio.addEventListener('change', handleToolChange));
+
+        // Canvas listeners for drawing/selecting
+        selectionCanvas.addEventListener('mousedown', handleMouseDown);
+        selectionCanvas.addEventListener('mousemove', handleMouseMove);
+        selectionCanvas.addEventListener('mouseup', handleMouseUp);
+        selectionCanvas.addEventListener('mouseleave', handleMouseUp); // Stop drawing if mouse leaves canvas
+
+        // --- Handlers ---
+        function handleToolChange(e) {
+            currentTool = e.target.value;
+            magicWandOptions.style.display = (currentTool === 'magicWand') ? 'block' : 'none';
+            selectionCanvas.style.cursor = (currentTool === 'magicWand') ? 'crosshair' : 'default';
+        }
+
+        function handleImageUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                originalImage.onload = () => {
+                    canvas.width = selectionCanvas.width = originalImage.width;
+                    canvas.height = selectionCanvas.height = originalImage.height;
+                    ctx.drawImage(originalImage, 0, 0);
+                    originalImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    handleReset();
+                    saveBtn.disabled = false;
+                    selectionCanvas.style.cursor = 'crosshair'; // Default to magic wand cursor
+                };
+                originalImage.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+        
+        function handleReset() {
+            if (!originalImageData) return;
+            ctx.putImageData(originalImageData, 0, 0);
+            selectionMask = new Uint8Array(originalImageData.data.length / 4);
+            lastSelectionParams = null;
+            clearSelectionCanvas();
+            isolateBtn.disabled = true;
+            resetBtn.disabled = true;
+            saveBtn.disabled = false;
+        }
+
+        function handleToleranceChange(e) {
+            toleranceValue.textContent = e.target.value;
+            if (lastSelectionParams && currentTool === 'magicWand') {
+                clearTimeout(lastSelectionParams.timeoutId);
+                lastSelectionParams.timeoutId = setTimeout(() => {
+                    performMagicWand(lastSelectionParams.x, lastSelectionParams.y, 'replace_last');
+                }, 50);
+            }
+        }
+
+        function getMousePos(e) {
+            const rect = selectionCanvas.getBoundingClientRect();
+            return {
+                x: Math.floor((e.clientX - rect.left) * (canvas.width / rect.width)),
+                y: Math.floor((e.clientY - rect.top) * (canvas.height / rect.height))
+            };
+        }
+
+        function handleMouseDown(e) {
+            if (!originalImageData || saveBtn.disabled) return;
+            isDrawing = true;
+            const pos = getMousePos(e);
+            startX = pos.x;
+            startY = pos.y;
+            
+            // For Magic Wand, a click is a complete action
+            if (currentTool === 'magicWand') {
+                isDrawing = false; // It's a single click, not a drag
+                const selectionMode = document.querySelector('input[name="selection-mode"]:checked').value;
+                performMagicWand(startX, startY, selectionMode);
+            }
+        }
+
+        function handleMouseMove(e) {
+            if (!isDrawing || currentTool !== 'rectangle') return;
+            const pos = getMousePos(e);
+            
+            // Draw the existing selection overlay, then the new rectangle on top
+            drawSelectionOverlay(); 
+            selectionCtx.fillStyle = 'rgba(0, 123, 255, 0.3)';
+            selectionCtx.strokeStyle = 'rgba(0, 123, 255, 0.8)';
+            selectionCtx.lineWidth = 1;
+            selectionCtx.beginPath();
+            selectionCtx.rect(startX, startY, pos.x - startX, pos.y - startY);
+            selectionCtx.fill();
+            selectionCtx.stroke();
+        }
+
+        function handleMouseUp(e) {
+            if (!isDrawing || currentTool !== 'rectangle') return;
+            isDrawing = false;
+            const pos = getMousePos(e);
+            const selectionMode = document.querySelector('input[name="selection-mode"]:checked').value;
+            performRectangleSelection(startX, startY, pos.x, pos.y, selectionMode);
+        }
+        
+        // --- Selection Logic ---
+        
+        function performRectangleSelection(x1, y1, x2, y2, selectionMode) {
+            const rectMask = new Uint8Array(selectionMask.length);
+            const minX = Math.min(x1, x2);
+            const minY = Math.min(y1, y2);
+            const maxX = Math.max(x1, x2);
+            const maxY = Math.max(y1, y2);
+
+            for (let y = minY; y < maxY; y++) {
+                for (let x = minX; x < maxX; x++) {
+                    rectMask[y * canvas.width + x] = 1;
+                }
+            }
+            
+            let baseMask;
+            if (selectionMode === 'replace') {
+                baseMask = new Uint8Array(selectionMask.length);
+            } else {
+                baseMask = selectionMask.slice();
+            }
+
+            updateSelectionMask(baseMask, rectMask, selectionMode);
+            drawSelectionOverlay();
+            isolateBtn.disabled = false;
+            resetBtn.disabled = false;
+        }
+
+        function performMagicWand(x, y, selectionMode) {
+            loader.style.display = 'block';
+            setTimeout(() => {
+                const tolerance = parseInt(toleranceSlider.value, 10);
+                const floodMode = document.querySelector('input[name="flood-mode"]:checked').value;
+                
+                let baseMask;
+                if(selectionMode === 'replace_last') {
+                    baseMask = lastSelectionParams.baseMask.slice();
+                } else {
+                    lastSelectionParams = { x, y, baseMask: selectionMask.slice() };
+                    if (selectionMode === 'replace') {
+                        baseMask = new Uint8Array(selectionMask.length);
+                    } else {
+                        baseMask = selectionMask.slice();
+                    }
+                }
+
+                const newSelection = (floodMode === 'contiguous')
+                    ? floodFill(x, y, tolerance)
+                    : globalSelect(x, y, tolerance);
+
+                updateSelectionMask(baseMask, newSelection, selectionMode);
+                drawSelectionOverlay();
+                isolateBtn.disabled = false;
+                resetBtn.disabled = false;
+                loader.style.display = 'none';
+            }, 10);
+        }
+        
+        function updateSelectionMask(baseMask, newSelection, mode) {
+            selectionMask = baseMask;
+            const finalMode = (mode === 'replace_last') ? 'add' : mode;
+
+            for (let i = 0; i < selectionMask.length; i++) {
+                if (newSelection[i]) {
+                    if (finalMode === 'add' || finalMode === 'replace') {
+                        selectionMask[i] = 1;
+                    } else if (finalMode === 'subtract') {
+                        selectionMask[i] = 0;
+                    }
+                }
+            }
+        }
+
+        function drawSelectionOverlay() {
+            clearSelectionCanvas();
+            const overlayData = selectionCtx.createImageData(canvas.width, canvas.height);
+            for (let i = 0; i < selectionMask.length; i++) {
+                if (selectionMask[i]) {
+                    const index = i * 4;
+                    overlayData.data[index] = 20;
+                    overlayData.data[index + 1] = 100;
+                    overlayData.data[index + 2] = 255;
+                    overlayData.data[index + 3] = 128; // semi-transparent
+                }
+            }
+            selectionCtx.putImageData(overlayData, 0, 0);
+        }
+
+        function clearSelectionCanvas() {
+            selectionCtx.clearRect(0, 0, selectionCanvas.width, selectionCanvas.height);
+        }
+
+        // --- Utility Functions (Color, Flood Fill) ---
+        function getColorAt(imageData, x, y) {
+            const i = (y * imageData.width + x) * 4;
+            return [imageData.data[i], imageData.data[i + 1], imageData.data[i + 2]];
+        }
+        function colorDistance(c1, c2) {
+            return Math.sqrt(Math.pow(c1[0] - c2[0], 2) + Math.pow(c1[1] - c2[1], 2) + Math.pow(c1[2] - c2[2], 2));
+        }
+        function floodFill(startX, startY, tolerance) {
+            const { width, height } = originalImageData;
+            const targetColor = getColorAt(originalImageData, startX, startY);
+            const resultMask = new Uint8Array(width * height);
+            const queue = [[startX, startY]];
+            const visited = new Uint8Array(width * height);
+            if (startX < 0 || startX >= width || startY < 0 || startY >= height) return resultMask;
+            visited[startY * width + startX] = 1;
+            while (queue.length > 0) {
+                const [x, y] = queue.shift();
+                resultMask[y * width + x] = 1;
+                [[x-1, y], [x+1, y], [x, y-1], [x, y+1]].forEach(([nx, ny]) => {
+                    if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+                        const neighborIndex = ny * width + nx;
+                        if (!visited[neighborIndex]) {
+                            visited[neighborIndex] = 1;
+                            if (colorDistance(targetColor, getColorAt(originalImageData, nx, ny)) <= tolerance) {
+                                queue.push([nx, ny]);
+                            }
+                        }
+                    }
+                });
+            }
+            return resultMask;
+        }
+        function globalSelect(startX, startY, tolerance) {
+            const { width, height, data } = originalImageData;
+            const targetColor = getColorAt(originalImageData, startX, startY);
+            const resultMask = new Uint8Array(width * height);
+            for(let i = 0; i < data.length; i += 4) {
+                const currentColor = [data[i], data[i+1], data[i+2]];
+                if (colorDistance(targetColor, currentColor) <= tolerance) {
+                    resultMask[i/4] = 1;
+                }
+            }
+            return resultMask;
+        }
+
+        // --- Final Actions ---
+        function handleIsolate() {
+            if (!selectionMask) return;
+            const currentImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            for (let i = 0; i < selectionMask.length; i++) {
+                if (!selectionMask[i]) {
+                    currentImageData.data[i * 4 + 3] = 0;
+                }
+            }
+            ctx.putImageData(currentImageData, 0, 0);
+            clearSelectionCanvas();
+            isolateBtn.disabled = true;
+            resetBtn.disabled = false;
+            saveBtn.disabled = false;
+        }
+        function handleSave() {
+            const dataUrl = canvas.toDataURL('image/png');
+            const link = document.createElement('a');
+            link.href = dataUrl;
+            link.download = 'removed_background_image.png';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>
