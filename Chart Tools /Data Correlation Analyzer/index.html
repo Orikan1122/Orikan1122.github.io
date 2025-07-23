@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Correlation Analyzer</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Library for charting -->
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <!-- Library for regression analysis -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/regression/2.0.1/regression.min.js"></script>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1>Data Correlation Analyzer</h1>
+            <p>Paste your two datasets, apply filters, and visualize the correlation with various trendlines.</p>
+        </header>
+
+        <main class="main-grid">
+            <!-- ========== CONTROL PANEL ========== -->
+            <div class="controls-panel">
+                <section class="card data-input-section">
+                    <h2>1. Input Data</h2>
+                    <div class="textarea-group">
+                        <label for="data-set-1">Dataset 1 (Date, Value Y)</label>
+                        <textarea id="data-set-1" rows="10" placeholder="e.g., 16/03/2025 00:00	257.00"></textarea>
+                    </div>
+                    <div class="textarea-group">
+                        <label for="data-set-2">Dataset 2 (Date, Value X)</label>
+                        <textarea id="data-set-2" rows="10" placeholder="e.g., 16/03/2025	0.4041"></textarea>
+                    </div>
+                    <button id="process-button">Analyze & Visualize</button>
+                </section>
+
+                <section class="card filter-section">
+                    <h2>2. Filter Data</h2>
+
+                    <!-- UPDATED/ADDED SECTION FOR VALUE FILTERS -->
+                    <div class="filter-item">
+                        <label>Y-Axis Value Range</label>
+                        <div class="range-filter-inputs">
+                            <input type="number" id="min-y-value" placeholder="Min Y">
+                            <input type="number" id="max-y-value" placeholder="Max Y">
+                        </div>
+                    </div>
+                     <div class="filter-item">
+                        <label>X-Axis Value Range</label>
+                        <div class="range-filter-inputs">
+                            <input type="number" id="min-x-value" placeholder="Min X">
+                            <input type="number" id="max-x-value" placeholder="Max X">
+                        </div>
+                    </div>
+                    <!-- END UPDATED/ADDED SECTION -->
+
+                    <div class="filter-item">
+                        <label>Include Weekdays</label>
+                        <div class="weekday-selector">
+                            <input type="checkbox" id="day-1" value="1" checked><label for="day-1">Mon</label>
+                            <input type="checkbox" id="day-2" value="2" checked><label for="day-2">Tue</label>
+                            <input type="checkbox" id="day-3" value="3" checked><label for="day-3">Wed</label>
+                            <input type="checkbox" id="day-4" value="4" checked><label for="day-4">Thu</label>
+                            <input type="checkbox" id="day-5" value="5" checked><label for="day-5">Fri</label>
+                            <input type="checkbox" id="day-6" value="6" checked><label for="day-6">Sat</label>
+                            <input type="checkbox" id="day-0" value="0" checked><label for="day-0">Sun</label>
+                        </div>
+                    </div>
+                    <p class="hint">Click on a point in the chart to exclude it individually.</p>
+                </section>
+
+                <section class="card results-section">
+                    <h2>3. Analysis Results</h2>
+                    <div id="results-container">
+                        <p class="placeholder">Results will be shown here after analysis...</p>
+                    </div>
+                </section>
+                
+                 <section class="card manual-adjust-section">
+                    <h2>4. Adjust Linear Formula (y = ax + b)</h2>
+                    <div class="manual-inputs">
+                        <div class="input-group">
+                            <label for="manual-a">a (slope)</label>
+                            <input type="number" id="manual-a" step="0.1">
+                        </div>
+                        <div class="input-group">
+                            <label for="manual-b">b (intercept)</label>
+                            <input type="number" id="manual-b" step="1">
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- ========== CHART DISPLAY ========== -->
+            <div class="chart-container card">
+                <div id="chart"></div>
+                <div id="chart-placeholder">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+                    <p>Your chart will appear here</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
