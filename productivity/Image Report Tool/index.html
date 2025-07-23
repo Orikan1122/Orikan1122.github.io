@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Image Report Generator</title>
+
+    <!-- jsPDF Library from a CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <style>
+        /* --- General Styling --- */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f4f7f9;
+            color: #333;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 20px auto;
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        h1, h2 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+
+        /* --- Form & Input Styling --- */
+        .form-section {
+            margin-bottom: 30px;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #555;
+        }
+
+        input[type="text"],
+        input[type="date"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 1rem;
+        }
+
+        /* --- Image Upload & Preview --- */
+        #image-upload-label {
+            display: inline-block;
+            padding: 10px 15px;
+            background-color: #3498db;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-bottom: 10px;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+        
+        #image-preview-area {
+            margin-top: 20px;
+            border: 2px dashed #ccc;
+            padding: 15px;
+            min-height: 100px;
+            background-color: #fafafa;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+
+        #image-preview-area.drag-over {
+            background-color: #eaf5ff;
+            border-color: #3498db;
+        }
+
+        .image-preview-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 20px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border: 1px solid #e0e0e0;
+            background-color: #fff;
+            border-radius: 5px;
+            cursor: grab;
+            transition: background-color 0.2s, opacity 0.2s;
+        }
+
+        .image-preview-item:active {
+            cursor: grabbing;
+        }
+        
+        .image-preview-item.dragging {
+            opacity: 0.5;
+            background-color: #f0f0f0;
+        }
+
+        .preview-image-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            width: 200px;
+            height: 225px; 
+        }
+
+        .image-wrapper {
+            width: 200px;
+            height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 5px;
+        }
+
+        .preview-img {
+            max-width: 100%;
+            max-height: 100%;
+            height: auto;
+            border-radius: 4px;
+            object-fit: contain;
+            transition: transform 0.3s ease;
+        }
+
+        .comment-box {
+            flex-grow: 1;
+        }
+
+        .comment-box textarea {
+            width: 100%;
+            min-height: 150px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            resize: vertical;
+            font-family: inherit;
+            font-size: 0.95rem;
+        }
+        
+        .rotate-btn {
+            padding: 5px 10px;
+            font-size: 0.8rem;
+            background-color: #7f8c8d;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .rotate-btn:hover {
+            background-color: #95a5a6;
+        }
+
+        /* --- Button & Controls Styling --- */
+        .action-button {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #fff;
+            background: linear-gradient(45deg, #3498db, #2980b9);
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s, transform 0.2s;
+            margin-top: 20px;
+        }
+        
+        .action-button:hover {
+            background: linear-gradient(45deg, #2980b9, #3498db);
+            transform: translateY(-2px);
+        }
+
+        .action-button:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+        }
+
+        .report-controls {
+            padding: 15px;
+            background-color: #ecf0f1;
+            border-radius: 5px;
+        }
+        #image-size-slider {
+            width: 100%;
+            cursor: pointer;
+        }
+
+        /* --- PDF Preview Modal --- */
+        #pdf-preview-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            overflow: auto;
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 2% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 85%;
+            max-width: 1200px;
+            border-radius: 8px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #eee;
+        }
+
+        #pdf-frame {
+            width: 100%;
+            height: 75vh;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        #download-pdf-btn {
+            background: #27ae60;
+            margin-top: 15px;
+        }
+        #download-pdf-btn:hover {
+            background: #2ecc71;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Advanced Image Report Generator</h1>
+        <p>Create a professional landscape PDF report with headers, multiple images per page, and drag-and-drop reordering.</p>
+
+        <!-- Report Details -->
+        <div class="form-section">
+            <h2>Step 1: Fill Report Details</h2>
+            <div class="input-group">
+                <label for="report-title">Report Title</label>
+                <input type="text" id="report-title" placeholder="e.g., Quarterly Site Inspection" value="Quarterly Site Inspection">
+            </div>
+            <div class="input-group">
+                <label for="report-creator">Creator / Author</label>
+                <input type="text" id="report-creator" placeholder="e.g., John Doe" value="John Doe">
+            </div>
+            <div class="input-group">
+                <label for="report-date">Date</label>
+                <input type="date" id="report-date">
+            </div>
+        </div>
+
+        <!-- Image Upload -->
+        <div class="form-section">
+            <h2>Step 2: Upload Images & Add Comments</h2>
+            <p><strong>Tip:</strong> Drag and drop the image blocks below to reorder them for the report.</p>
+            <label for="image-upload" id="image-upload-label">Click to Upload Images</label>
+            <input type="file" id="image-upload" multiple accept="image/*">
+            <div id="image-preview-area">
+                <p>Drag and drop images here or use the upload button.</p>
+            </div>
+        </div>
+
+        <!-- PDF Generation -->
+        <div class="form-section">
+            <h2>Step 3: Create Your Report</h2>
+            <div class="report-controls">
+                <label for="image-size-slider">Image Size in Report: <span id="image-size-value">100</span>%</label>
+                <input type="range" id="image-size-slider" min="50" max="100" value="100">
+            </div>
+            <button id="generate-pdf" class="action-button" disabled>Preview PDF Report</button>
+        </div>
+    </div>
+
+    <!-- PDF Preview Modal -->
+    <div id="pdf-preview-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>PDF Preview</h2>
+                <span class="close-button">×</span>
+            </div>
+            <iframe id="pdf-frame" title="PDF Preview"></iframe>
+            <button id="download-pdf-btn" class="action-button">Download PDF</button>
+        </div>
+    </div>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const imageUpload = document.getElementById('image-upload');
+            const previewArea = document.getElementById('image-preview-area');
+            const generatePdfBtn = document.getElementById('generate-pdf');
+            const reportTitleInput = document.getElementById('report-title');
+            const reportCreatorInput = document.getElementById('report-creator');
+            const reportDateInput = document.getElementById('report-date');
+            const imageSizeSlider = document.getElementById('image-size-slider');
+            const imageSizeValue = document.getElementById('image-size-value');
+            const pdfModal = document.getElementById('pdf-preview-modal');
+            const closeModalBtn = document.querySelector('.close-button');
+            const pdfFrame = document.getElementById('pdf-frame');
+            const downloadPdfBtn = document.getElementById('download-pdf-btn');
+            
+            reportDateInput.valueAsDate = new Date();
+            let uploadedFiles = [];
+            let generatedPdfDoc = null;
+            let pdfBlobUrl = null;
+
+            // --- Event Listeners ---
+            imageUpload.addEventListener('change', handleImageUpload);
+            generatePdfBtn.addEventListener('click', previewPDF);
+            imageSizeSlider.addEventListener('input', () => imageSizeValue.textContent = imageSizeSlider.value);
+            closeModalBtn.addEventListener('click', closeModal);
+            window.addEventListener('click', (event) => {
+                if (event.target == pdfModal) closeModal();
+            });
+            downloadPdfBtn.addEventListener('click', downloadPDF);
+            previewArea.addEventListener('dragover', handleDragOver);
+            previewArea.addEventListener('dragleave', handleDragLeave);
+            previewArea.addEventListener('drop', handleDrop);
+
+            function closeModal() {
+                pdfModal.style.display = 'none';
+                if (pdfBlobUrl) {
+                    URL.revokeObjectURL(pdfBlobUrl);
+                    pdfBlobUrl = null;
+                    pdfFrame.src = 'about:blank';
+                }
+            }
+
+            function handleImageUpload(event) {
+                processFiles(event.target.files);
+            }
+
+            function processFiles(files) {
+                if (files.length === 0) return;
+                if (uploadedFiles.length === 0) previewArea.innerHTML = '';
+                generatePdfBtn.disabled = false;
+
+                for (const file of files) {
+                    if (!file.type.startsWith('image/')) continue;
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const fileData = {
+                            id: `file-${Date.now()}-${Math.floor(Math.random() * 100000)}`,
+                            name: file.name,
+                            dataUrl: e.target.result,
+                            rotation: 0
+                        };
+                        uploadedFiles.push(fileData);
+                        previewArea.appendChild(createPreviewElement(fileData));
+                    };
+                    reader.readAsDataURL(file);
+                }
+            }
+
+            function createPreviewElement(fileData) {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'image-preview-item';
+                itemDiv.id = fileData.id;
+                itemDiv.draggable = true;
+                itemDiv.addEventListener('dragstart', handleDragStart);
+                itemDiv.addEventListener('dragend', handleDragEnd);
+
+                const imgContainer = document.createElement('div');
+                imgContainer.className = 'preview-image-container';
+
+                const imgWrapper = document.createElement('div');
+                imgWrapper.className = 'image-wrapper';
+                
+                const img = document.createElement('img');
+                img.src = fileData.dataUrl;
+                img.className = 'preview-img';
+                img.alt = fileData.name;
+                imgWrapper.appendChild(img);
+
+                const rotateBtn = document.createElement('button');
+                rotateBtn.className = 'rotate-btn';
+                rotateBtn.textContent = 'Rotate ↻';
+                rotateBtn.addEventListener('click', () => {
+                    const file = uploadedFiles.find(f => f.id === fileData.id);
+                    file.rotation = (file.rotation + 90) % 360;
+                    img.style.transform = `rotate(${file.rotation}deg)`;
+                });
+
+                imgContainer.appendChild(imgWrapper);
+                imgContainer.appendChild(rotateBtn);
+
+                const commentDiv = document.createElement('div');
+                commentDiv.className = 'comment-box';
+                const textarea = document.createElement('textarea');
+                textarea.placeholder = `Add a comment for ${fileData.name}...`;
+                commentDiv.appendChild(textarea);
+
+                itemDiv.appendChild(imgContainer);
+                itemDiv.appendChild(commentDiv);
+
+                return itemDiv;
+            }
+
+            function updateUploadedFilesOrder() {
+                const newOrder = [];
+                previewArea.querySelectorAll('.image-preview-item').forEach(item => {
+                    const foundFile = uploadedFiles.find(file => file.id === item.id);
+                    if (foundFile) newOrder.push(foundFile);
+                });
+                uploadedFiles = newOrder;
+            }
+            function handleDragStart(e) { e.target.classList.add('dragging'); }
+            function handleDragEnd(e) { e.target.classList.remove('dragging'); }
+            function handleDragOver(e) {
+                e.preventDefault();
+                previewArea.classList.add('drag-over');
+                const afterElement = getDragAfterElement(previewArea, e.clientY);
+                const draggable = document.querySelector('.dragging');
+                if (draggable) previewArea.insertBefore(draggable, afterElement);
+            }
+            function handleDragLeave() { previewArea.classList.remove('drag-over'); }
+            function handleDrop(e) {
+                e.preventDefault();
+                if (e.dataTransfer.files.length > 0) processFiles(e.dataTransfer.files);
+                previewArea.classList.remove('drag-over');
+                updateUploadedFilesOrder();
+            }
+            function getDragAfterElement(container, y) {
+                const draggableElements = [...container.querySelectorAll('.image-preview-item:not(.dragging)')];
+                return draggableElements.reduce((closest, child) => {
+                    const box = child.getBoundingClientRect();
+                    const offset = y - box.top - box.height / 2;
+                    return (offset < 0 && offset > closest.offset) ? { offset: offset, element: child } : closest;
+                }, { offset: Number.NEGATIVE_INFINITY }).element;
+            }
+
+            // =================================================================
+            // START OF CORRECTED PDF GENERATION FUNCTION
+            // =================================================================
+            async function generatePDFObject() {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF({ orientation: 'l', unit: 'mm', format: 'a4' });
+
+                const A4_WIDTH = 297, A4_HEIGHT = 210, MARGIN = 12, HEADER_HEIGHT = 20, FOOTER_HEIGHT = 15,
+                      ROW_GAP = 10, COLUMN_GAP = 10;
+                
+                const PAGE_EFFECTIVE_HEIGHT = A4_HEIGHT - HEADER_HEIGHT - FOOTER_HEIGHT;
+                const CONTENT_WIDTH = A4_WIDTH - MARGIN * 2;
+                const COLUMN_WIDTH = (CONTENT_WIDTH - COLUMN_GAP) / 2;
+
+                const title = reportTitleInput.value || 'Untitled Report',
+                      creator = reportCreatorInput.value || 'Unknown Author',
+                      date = new Date(reportDateInput.value).toLocaleDateString(),
+                      imageScale = parseInt(imageSizeSlider.value) / 100;
+
+                const addHeaderAndFooter = (pageNum, totalPages) => {
+                    doc.setFontSize(9);
+                    doc.setTextColor(100);
+                    doc.text(title, MARGIN, MARGIN);
+                    doc.text(`By: ${creator} | ${date}`, A4_WIDTH / 2, MARGIN, { align: 'center' });
+                    doc.text(`Page ${pageNum} of ${totalPages}`, A4_WIDTH - MARGIN, MARGIN, { align: 'right' });
+                    doc.line(MARGIN, MARGIN + 3, A4_WIDTH - MARGIN, MARGIN + 3);
+                };
+
+                const calculateItemDimensions = (fileData) => {
+                    const { rotation, id } = fileData;
+                    const imgProps = doc.getImageProperties(fileData.dataUrl);
+                    const comment = document.querySelector(`#${id} textarea`).value;
+
+                    const colWidth = COLUMN_WIDTH * imageScale;
+                    const naturalRatio = imgProps.width / imgProps.height;
+                    
+                    let preRotationWidth = colWidth;
+                    let preRotationHeight = preRotationWidth / naturalRatio;
+
+                    let finalLayoutWidth, finalLayoutHeight;
+                    if (rotation === 0 || rotation === 180) {
+                        finalLayoutWidth = preRotationWidth;
+                        finalLayoutHeight = preRotationHeight;
+                    } else { // 90 or 270 degrees
+                        finalLayoutWidth = preRotationHeight;
+                        finalLayoutHeight = preRotationWidth;
+                    }
+
+                    const MAX_IMAGE_HEIGHT = PAGE_EFFECTIVE_HEIGHT - 20; // Added a bit more buffer
+                    if (finalLayoutHeight > MAX_IMAGE_HEIGHT) {
+                        const scaleFactor = MAX_IMAGE_HEIGHT / finalLayoutHeight;
+                        finalLayoutWidth *= scaleFactor;
+                        finalLayoutHeight *= scaleFactor;
+                        preRotationWidth *= scaleFactor;
+                        preRotationHeight *= scaleFactor;
+                    }
+
+                    doc.setFontSize(10);
+                    const splitComment = comment ? doc.splitTextToSize(comment, COLUMN_WIDTH) : [];
+                    const commentHeight = comment ? (splitComment.length * 4.5) + 8 : 0;
+                    
+                    const totalHeight = finalLayoutHeight + commentHeight;
+
+                    // *** THE CRITICAL FIX IS HERE: Both finalLayoutWidth and finalLayoutHeight are now returned. ***
+                    return { 
+                        preRotationWidth, 
+                        preRotationHeight,
+                        finalLayoutWidth, 
+                        finalLayoutHeight, 
+                        comment, 
+                        splitComment, 
+                        commentHeight, 
+                        totalHeight 
+                    };
+                };
+                
+                let y = HEADER_HEIGHT;
+                for (let i = 0; i < uploadedFiles.length; i++) {
+                    const leftItemDims = calculateItemDimensions(uploadedFiles[i]);
+                    let rightItemDims = null;
+                    if (i + 1 < uploadedFiles.length) {
+                        rightItemDims = calculateItemDimensions(uploadedFiles[i+1]);
+                    }
+
+                    const rowHeight = rightItemDims 
+                        ? Math.max(leftItemDims.totalHeight, rightItemDims.totalHeight)
+                        : leftItemDims.totalHeight;
+
+                    if (y + rowHeight > A4_HEIGHT - FOOTER_HEIGHT && y > HEADER_HEIGHT) {
+                        doc.addPage();
+                        y = HEADER_HEIGHT;
+                    }
+                    
+                    const placeImageInSlot = (fileData, itemDims, columnX, currentY, currentRowHeight) => {
+                        // Define the 'slot' for the image portion of the item.
+                        const imageSlotY = currentY;
+                        const imageSlotHeight = currentRowHeight - itemDims.commentHeight;
+
+                        // Calculate final top-left coordinates to center the image box inside the slot box.
+                        // This math will now work because itemDims.finalLayoutWidth is defined.
+                        const finalX = columnX + (COLUMN_WIDTH - itemDims.finalLayoutWidth) / 2;
+                        const finalY = imageSlotY + (imageSlotHeight - itemDims.finalLayoutHeight) / 2;
+                        
+                        doc.addImage(
+                            fileData.dataUrl, 
+                            'JPEG', 
+                            finalX, 
+                            finalY, 
+                            itemDims.preRotationWidth, 
+                            itemDims.preRotationHeight, 
+                            null, 
+                            'NONE', 
+                            fileData.rotation
+                        );
+
+                        if (itemDims.comment) {
+                            const commentY = currentY + itemDims.finalLayoutHeight + 6;
+                            doc.text(itemDims.splitComment, columnX, commentY);
+                        }
+                    };
+                    
+                    placeImageInSlot(uploadedFiles[i], leftItemDims, MARGIN, y, rowHeight);
+
+                    if (rightItemDims) {
+                        const x_right = MARGIN + COLUMN_WIDTH + COLUMN_GAP;
+                        placeImageInSlot(uploadedFiles[i+1], rightItemDims, x_right, y, rowHeight);
+                        i++;
+                    }
+
+                    y += rowHeight + ROW_GAP;
+                }
+
+                const totalPages = doc.internal.getNumberOfPages();
+                for (let j = 1; j <= totalPages; j++) {
+                    doc.setPage(j);
+                    addHeaderAndFooter(j, totalPages);
+                }
+                return doc;
+            }
+            // =================================================================
+            // END OF CORRECTED PDF GENERATION FUNCTION
+            // =================================================================
+
+
+            async function previewPDF() {
+                if(uploadedFiles.length === 0) return;
+                generatePdfBtn.disabled = true;
+                generatePdfBtn.textContent = 'Generating...';
+                try {
+                    generatedPdfDoc = await generatePDFObject();
+                    const pdfBlob = generatedPdfDoc.output('blob');
+                    if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl);
+                    pdfBlobUrl = URL.createObjectURL(pdfBlob);
+                    pdfFrame.src = pdfBlobUrl;
+                    pdfModal.style.display = 'block';
+                } catch (error) {
+                    console.error("Error generating PDF:", error);
+                    alert("An error occurred while generating the PDF. Please check the console for details.");
+                } finally {
+                    generatePdfBtn.disabled = false;
+                    generatePdfBtn.textContent = 'Preview PDF Report';
+                }
+            }
+
+            function downloadPDF() {
+                if (generatedPdfDoc) {
+                    const safeTitle = (reportTitleInput.value || 'report').replace(/[^a-z0-9-_]/gi, '_');
+                    generatedPdfDoc.save(`${safeTitle}.pdf`);
+                } else {
+                    alert("Please preview the report first.");
+                }
+            }
+        });
+    </script>
+</body>
+</html>
