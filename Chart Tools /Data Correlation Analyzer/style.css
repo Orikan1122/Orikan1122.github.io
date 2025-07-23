@@ -1,0 +1,240 @@
+:root {
+    --bg-color: #1a1a1b;
+    --card-bg-color: #272729;
+    --border-color: #434345;
+    --text-color: #d7dadc;
+    --text-muted-color: #818384;
+    --accent-color: #4f80e2;
+    --accent-hover-color: #6c99f0;
+    --danger-color: #e24f4f;
+    --font-family: 'Inter', sans-serif;
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    font-family: var(--font-family);
+    margin: 0;
+    padding: 2rem;
+    font-size: 16px;
+}
+
+.container {
+    max-width: 1600px;
+    margin: 0 auto;
+}
+
+header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+header h1 {
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+}
+
+header p {
+    font-size: 1.1rem;
+    color: var(--text-muted-color);
+}
+
+.main-grid {
+    display: grid;
+    grid-template-columns: 400px 1fr;
+    gap: 2rem;
+}
+
+.card {
+    background-color: var(--card-bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.controls-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+section h2 {
+    margin-top: 0;
+    font-size: 1.25rem;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.textarea-group, .filter-item, .input-group {
+    margin-bottom: 1rem;
+}
+
+label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: var(--text-muted-color);
+}
+
+textarea, input[type="number"] {
+    width: 100%;
+    background-color: var(--bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 0.75rem;
+    color: var(--text-color);
+    font-family: inherit;
+    font-size: 0.95rem;
+    box-sizing: border-box;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+textarea:focus, input[type="number"]:focus {
+    outline: none;
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(79, 128, 226, 0.3);
+}
+
+button#process-button {
+    width: 100%;
+    padding: 0.8rem 1rem;
+    background-color: var(--accent-color);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+button#process-button:hover {
+    background-color: var(--accent-hover-color);
+}
+
+/* ADDED STYLE for side-by-side min/max inputs */
+.range-filter-inputs {
+    display: flex;
+    gap: 1rem;
+}
+
+.weekday-selector {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.weekday-selector input[type="checkbox"] {
+    display: none;
+}
+
+.weekday-selector label {
+    flex-grow: 1;
+    text-align: center;
+    padding: 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s;
+    user-select: none;
+    font-weight: 400;
+    color: var(--text-muted-color);
+}
+
+.weekday-selector input[type="checkbox"]:checked + label {
+    background-color: var(--accent-color);
+    color: white;
+    border-color: var(--accent-color);
+}
+
+.hint {
+    font-size: 0.85rem;
+    color: var(--text-muted-color);
+    text-align: center;
+    margin-top: 1rem;
+}
+
+.results-section .placeholder {
+    color: var(--text-muted-color);
+    text-align: center;
+    padding: 2rem 0;
+}
+
+.result-item {
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+.result-item:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.result-item h3 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.1rem;
+    color: var(--accent-color);
+}
+
+.result-item p {
+    margin: 0.25rem 0;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 1rem;
+}
+.result-item p span {
+    color: var(--text-muted-color);
+}
+
+.manual-adjust-section .manual-inputs {
+    display: flex;
+    gap: 1rem;
+}
+.manual-adjust-section .input-group {
+    flex-grow: 1;
+}
+
+.chart-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 600px;
+}
+
+#chart-placeholder {
+    color: var(--text-muted-color);
+    text-align: center;
+}
+#chart-placeholder svg {
+    stroke: var(--text-muted-color);
+}
+
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+    .main-grid {
+        grid-template-columns: 1fr;
+    }
+    .controls-panel {
+        order: 2;
+    }
+    .chart-container {
+        order: 1;
+    }
+}
+
+@media (max-width: 768px) {
+    body {
+        padding: 1rem;
+    }
+    header h1 {
+        font-size: 2rem;
+    }
+    .main-grid {
+        gap: 1rem;
+    }
+    .card {
+        padding: 1rem;
+    }
+}
