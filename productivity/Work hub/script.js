@@ -125,12 +125,12 @@ document.addEventListener('DOMContentLoaded', () => {
       Promise.race([savePromise, timeoutPromise])
         .then(() => {
           alert("Data saved successfully!");
-          document.getElementById('loading-message').textContent = ''; // Clear loading
+          document.getElementById('cloud-status').textContent = ''; // Clear loading
         })
         .catch(error => {
           console.error("Save error:", error);
           alert("Save failed: " + error.message);
-          document.getElementById('loading-message').textContent = ''; // Clear loading
+          document.getElementById('cloud-status').textContent = ''; // Clear loading
         });
     }
 
