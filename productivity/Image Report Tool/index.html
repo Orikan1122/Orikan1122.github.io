@@ -77,6 +77,7 @@
         }
         
         #image-preview-area {
+            position: relative;
             margin-top: 20px;
             border: 2px dashed #ccc;
             padding: 15px;
@@ -85,13 +86,13 @@
             border-radius: 5px;
             transition: background-color 0.3s;
         }
-
-        #image-preview-area.drag-over {
-            background-color: #eaf5ff;
-            border-color: #3498db;
+        
+        #preview-placeholder {
+            color: #888;
         }
 
         .image-preview-item {
+            position: relative; 
             display: flex;
             align-items: flex-start;
             gap: 20px;
@@ -100,26 +101,14 @@
             border: 1px solid #e0e0e0;
             background-color: #fff;
             border-radius: 5px;
-            cursor: grab;
-            transition: background-color 0.2s, opacity 0.2s;
-        }
-
-        .image-preview-item:active {
-            cursor: grabbing;
         }
         
-        .image-preview-item.dragging {
-            opacity: 0.5;
-            background-color: #f0f0f0;
-        }
-
         .preview-image-container {
             display: flex;
             flex-direction: column;
             align-items: center;
             gap: 10px;
             width: 200px;
-            height: 225px; 
         }
 
         .image-wrapper {
@@ -146,7 +135,7 @@
 
         .comment-box textarea {
             width: 100%;
-            min-height: 150px;
+            min-height: 180px;
             padding: 10px;
             border: 1px solid #ccc;
             border-radius: 4px;
@@ -155,18 +144,33 @@
             font-size: 0.95rem;
         }
         
-        .rotate-btn {
-            padding: 5px 10px;
-            font-size: 0.8rem;
-            background-color: #7f8c8d;
+        /* --- NEW BUTTON STYLES --- */
+        .image-controls {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            width: 100%;
+        }
+        .move-btn, .rotate-btn, .remove-btn {
+            padding: 8px 10px;
+            font-size: 1rem;
             color: white;
             border: none;
             border-radius: 4px;
             cursor: pointer;
+            transition: background-color 0.2s;
         }
-        .rotate-btn:hover {
-            background-color: #95a5a6;
-        }
+
+        .move-btn { background-color: #3498db; }
+        .move-btn:hover { background-color: #2980b9; }
+        .move-btn:disabled { background-color: #bdc3c7; cursor: not-allowed;}
+
+        .rotate-btn { background-color: #7f8c8d; }
+        .rotate-btn:hover { background-color: #95a5a6; }
+
+        .remove-btn { background-color: #e74c3c; }
+        .remove-btn:hover { background-color: #c0392b; }
+
 
         /* --- Button & Controls Styling --- */
         .action-button {
@@ -257,7 +261,7 @@
 
     <div class="container">
         <h1>Advanced Image Report Generator</h1>
-        <p>Create a professional landscape PDF report with headers, multiple images per page, and drag-and-drop reordering.</p>
+        <p>Create a professional landscape PDF report with headers, multiple images per page, and reordering.</p>
 
         <!-- Report Details -->
         <div class="form-section">
@@ -279,11 +283,11 @@
         <!-- Image Upload -->
         <div class="form-section">
             <h2>Step 2: Upload Images & Add Comments</h2>
-            <p><strong>Tip:</strong> Drag and drop the image blocks below to reorder them for the report.</p>
+            <p><strong>Tip:</strong> Use the "↑" and "↓" buttons to reorder the images for the report.</p>
             <label for="image-upload" id="image-upload-label">Click to Upload Images</label>
             <input type="file" id="image-upload" multiple accept="image/*">
             <div id="image-preview-area">
-                <p>Drag and drop images here or use the upload button.</p>
+                <p id="preview-placeholder">Use the upload button to add images.</p>
             </div>
         </div>
 
@@ -325,6 +329,7 @@
             const closeModalBtn = document.querySelector('.close-button');
             const pdfFrame = document.getElementById('pdf-frame');
             const downloadPdfBtn = document.getElementById('download-pdf-btn');
+            const previewPlaceholder = document.getElementById('preview-placeholder');
             
             reportDateInput.valueAsDate = new Date();
             let uploadedFiles = [];
@@ -340,9 +345,11 @@
                 if (event.target == pdfModal) closeModal();
             });
             downloadPdfBtn.addEventListener('click', downloadPDF);
-            previewArea.addEventListener('dragover', handleDragOver);
-            previewArea.addEventListener('dragleave', handleDragLeave);
-            previewArea.addEventListener('drop', handleDrop);
+
+            // Drag-and-drop is disabled for preview items, but we can still drop files onto the area
+            previewArea.addEventListener('dragover', (e) => { e.preventDefault(); previewArea.classList.add('drag-over'); });
+            previewArea.addEventListener('dragleave', () => previewArea.classList.remove('drag-over'));
+            previewArea.addEventListener('drop', handleFileDrop);
 
             function closeModal() {
                 pdfModal.style.display = 'none';
@@ -353,13 +360,23 @@
                 }
             }
 
+            function handleFileDrop(e) {
+                e.preventDefault();
+                previewArea.classList.remove('drag-over');
+                if (e.dataTransfer.files.length > 0) {
+                    processFiles(e.dataTransfer.files);
+                }
+            }
+
             function handleImageUpload(event) {
                 processFiles(event.target.files);
             }
 
             function processFiles(files) {
                 if (files.length === 0) return;
-                if (uploadedFiles.length === 0) previewArea.innerHTML = '';
+                
+                if (uploadedFiles.length === 0) previewPlaceholder.style.display = 'none';
+
                 generatePdfBtn.disabled = false;
 
                 for (const file of files) {
@@ -374,6 +391,7 @@
                         };
                         uploadedFiles.push(fileData);
                         previewArea.appendChild(createPreviewElement(fileData));
+                        updateButtonStates();
                     };
                     reader.readAsDataURL(file);
                 }
@@ -383,9 +401,6 @@
                 const itemDiv = document.createElement('div');
                 itemDiv.className = 'image-preview-item';
                 itemDiv.id = fileData.id;
-                itemDiv.draggable = true;
-                itemDiv.addEventListener('dragstart', handleDragStart);
-                itemDiv.addEventListener('dragend', handleDragEnd);
 
                 const imgContainer = document.createElement('div');
                 imgContainer.className = 'preview-image-container';
@@ -398,6 +413,31 @@
                 img.className = 'preview-img';
                 img.alt = fileData.name;
                 imgWrapper.appendChild(img);
+                
+                const controlsDiv = document.createElement('div');
+                controlsDiv.className = 'image-controls';
+
+                const moveUpBtn = document.createElement('button');
+                moveUpBtn.className = 'move-btn move-up-btn';
+                moveUpBtn.textContent = 'Move Up ↑';
+                moveUpBtn.addEventListener('click', () => {
+                    if (itemDiv.previousElementSibling) {
+                        previewArea.insertBefore(itemDiv, itemDiv.previousElementSibling);
+                        updateUploadedFilesOrder();
+                        updateButtonStates();
+                    }
+                });
+                
+                const moveDownBtn = document.createElement('button');
+                moveDownBtn.className = 'move-btn move-down-btn';
+                moveDownBtn.textContent = 'Move Down ↓';
+                moveDownBtn.addEventListener('click', () => {
+                    if (itemDiv.nextElementSibling) {
+                        previewArea.insertBefore(itemDiv.nextElementSibling, itemDiv);
+                        updateUploadedFilesOrder();
+                        updateButtonStates();
+                    }
+                });
 
                 const rotateBtn = document.createElement('button');
                 rotateBtn.className = 'rotate-btn';
@@ -408,8 +448,26 @@
                     img.style.transform = `rotate(${file.rotation}deg)`;
                 });
 
+                const removeBtn = document.createElement('button');
+                removeBtn.className = 'remove-btn';
+                removeBtn.textContent = 'Remove X';
+                removeBtn.addEventListener('click', () => {
+                    uploadedFiles = uploadedFiles.filter(f => f.id !== fileData.id);
+                    itemDiv.remove();
+                    if (uploadedFiles.length === 0) {
+                        generatePdfBtn.disabled = true;
+                        previewPlaceholder.style.display = 'block';
+                    }
+                    updateButtonStates();
+                });
+
+                controlsDiv.appendChild(moveUpBtn);
+                controlsDiv.appendChild(moveDownBtn);
+                controlsDiv.appendChild(rotateBtn);
+                controlsDiv.appendChild(removeBtn);
+
                 imgContainer.appendChild(imgWrapper);
-                imgContainer.appendChild(rotateBtn);
+                imgContainer.appendChild(controlsDiv);
 
                 const commentDiv = document.createElement('div');
                 commentDiv.className = 'comment-box';
@@ -422,6 +480,24 @@
 
                 return itemDiv;
             }
+            
+            function updateButtonStates() {
+                const items = previewArea.querySelectorAll('.image-preview-item');
+                if (items.length <= 1) { // If 0 or 1 items, disable all move buttons
+                    items.forEach(item => {
+                        item.querySelector('.move-up-btn').disabled = true;
+                        item.querySelector('.move-down-btn').disabled = true;
+                    });
+                    return;
+                }
+
+                items.forEach((item, index) => {
+                    const upBtn = item.querySelector('.move-up-btn');
+                    const downBtn = item.querySelector('.move-down-btn');
+                    upBtn.disabled = (index === 0);
+                    downBtn.disabled = (index === items.length - 1);
+                });
+            }
 
             function updateUploadedFilesOrder() {
                 const newOrder = [];
@@ -431,34 +507,7 @@
                 });
                 uploadedFiles = newOrder;
             }
-            function handleDragStart(e) { e.target.classList.add('dragging'); }
-            function handleDragEnd(e) { e.target.classList.remove('dragging'); }
-            function handleDragOver(e) {
-                e.preventDefault();
-                previewArea.classList.add('drag-over');
-                const afterElement = getDragAfterElement(previewArea, e.clientY);
-                const draggable = document.querySelector('.dragging');
-                if (draggable) previewArea.insertBefore(draggable, afterElement);
-            }
-            function handleDragLeave() { previewArea.classList.remove('drag-over'); }
-            function handleDrop(e) {
-                e.preventDefault();
-                if (e.dataTransfer.files.length > 0) processFiles(e.dataTransfer.files);
-                previewArea.classList.remove('drag-over');
-                updateUploadedFilesOrder();
-            }
-            function getDragAfterElement(container, y) {
-                const draggableElements = [...container.querySelectorAll('.image-preview-item:not(.dragging)')];
-                return draggableElements.reduce((closest, child) => {
-                    const box = child.getBoundingClientRect();
-                    const offset = y - box.top - box.height / 2;
-                    return (offset < 0 && offset > closest.offset) ? { offset: offset, element: child } : closest;
-                }, { offset: Number.NEGATIVE_INFINITY }).element;
-            }
 
-            // =================================================================
-            // START OF CORRECTED PDF GENERATION FUNCTION
-            // =================================================================
             async function generatePDFObject() {
                 const { jsPDF } = window.jspdf;
                 const doc = new jsPDF({ orientation: 'l', unit: 'mm', format: 'a4' });
@@ -504,7 +553,7 @@
                         finalLayoutHeight = preRotationWidth;
                     }
 
-                    const MAX_IMAGE_HEIGHT = PAGE_EFFECTIVE_HEIGHT - 20; // Added a bit more buffer
+                    const MAX_IMAGE_HEIGHT = PAGE_EFFECTIVE_HEIGHT - 20;
                     if (finalLayoutHeight > MAX_IMAGE_HEIGHT) {
                         const scaleFactor = MAX_IMAGE_HEIGHT / finalLayoutHeight;
                         finalLayoutWidth *= scaleFactor;
@@ -519,7 +568,6 @@
                     
                     const totalHeight = finalLayoutHeight + commentHeight;
 
-                    // *** THE CRITICAL FIX IS HERE: Both finalLayoutWidth and finalLayoutHeight are now returned. ***
                     return { 
                         preRotationWidth, 
                         preRotationHeight,
@@ -544,18 +592,22 @@
                         ? Math.max(leftItemDims.totalHeight, rightItemDims.totalHeight)
                         : leftItemDims.totalHeight;
 
+                    // *** NEW: Determine the maximum image height in this specific row ***
+                    const maxImageHeightInRow = rightItemDims
+                        ? Math.max(leftItemDims.finalLayoutHeight, rightItemDims.finalLayoutHeight)
+                        : leftItemDims.finalLayoutHeight;
+
                     if (y + rowHeight > A4_HEIGHT - FOOTER_HEIGHT && y > HEADER_HEIGHT) {
                         doc.addPage();
                         y = HEADER_HEIGHT;
                     }
                     
-                    const placeImageInSlot = (fileData, itemDims, columnX, currentY, currentRowHeight) => {
-                        // Define the 'slot' for the image portion of the item.
+                    // *** CHANGED: This function now accepts the max image height for the row ***
+                    const placeImageInSlot = (fileData, itemDims, columnX, currentY, maxImageHeight) => {
                         const imageSlotY = currentY;
-                        const imageSlotHeight = currentRowHeight - itemDims.commentHeight;
+                        // The height of the space for this image is based on the tallest image in the row.
+                        const imageSlotHeight = maxImageHeight;
 
-                        // Calculate final top-left coordinates to center the image box inside the slot box.
-                        // This math will now work because itemDims.finalLayoutWidth is defined.
                         const finalX = columnX + (COLUMN_WIDTH - itemDims.finalLayoutWidth) / 2;
                         const finalY = imageSlotY + (imageSlotHeight - itemDims.finalLayoutHeight) / 2;
                         
@@ -572,16 +624,18 @@
                         );
 
                         if (itemDims.comment) {
-                            const commentY = currentY + itemDims.finalLayoutHeight + 6;
+                            // *** THE FIX: Use the consistent baseline for all text in the row ***
+                            const commentY = currentY + maxImageHeight + 6;
                             doc.text(itemDims.splitComment, columnX, commentY);
                         }
                     };
                     
-                    placeImageInSlot(uploadedFiles[i], leftItemDims, MARGIN, y, rowHeight);
+                    // *** CHANGED: Pass the new maxImageHeightInRow value ***
+                    placeImageInSlot(uploadedFiles[i], leftItemDims, MARGIN, y, maxImageHeightInRow);
 
                     if (rightItemDims) {
                         const x_right = MARGIN + COLUMN_WIDTH + COLUMN_GAP;
-                        placeImageInSlot(uploadedFiles[i+1], rightItemDims, x_right, y, rowHeight);
+                        placeImageInSlot(uploadedFiles[i+1], rightItemDims, x_right, y, maxImageHeightInRow);
                         i++;
                     }
 
@@ -595,9 +649,6 @@
                 }
                 return doc;
             }
-            // =================================================================
-            // END OF CORRECTED PDF GENERATION FUNCTION
-            // =================================================================
 
 
             async function previewPDF() {
