@@ -79,7 +79,6 @@
             </div>
         </div>
 
-        <!-- The rest of your HTML content remains the same -->
         <div class="section">
             <h2>ElevenLabs Generator</h2>
             <div class="tab-buttons">
@@ -151,7 +150,6 @@
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
     
     <script>
-        // --- GLOBAL STATE & CONSTANTS ---
         const LOCAL_STORAGE_KEY = 'elevenLabsKeys';
         let apiKeys = [];
         let currentTTSBlob = null, currentSoundBlob = null;
@@ -159,9 +157,10 @@
         let mediaRecorder, audioChunks = [], recordedAudioBlob = null;
 
         const defaultKeys = [
+            '866f355f0c138130ff9afa77e40041bf',
+            'sk_030849f5720ff120d1e51afd8360dee0aca8622617e8c6a2'
         ];
 
-        // --- FIREBASE SETUP ---
         const firebaseConfig = {
             apiKey: "AIzaSyBoZtDWEJwPFYvvR6LJgPM8fIqQWrQgDFs",
             authDomain: "json-database-1122.firebaseapp.com",
@@ -175,10 +174,6 @@
         const auth = firebase.auth();
         let currentUserId = null;
 
-
-        // --- INITIALIZATION & AUTH ---
-
-        // This runs when the page first loads
         document.addEventListener('DOMContentLoaded', () => {
             initializeLocalKeys();
             auth.onAuthStateChanged(handleAuthStateChange);
@@ -192,24 +187,18 @@
             if (user) {
                 currentUserId = user.uid;
                 statusEl.textContent = "Cloud connected. You can now save or load your keys.";
-                statusEl.style.backgroundColor = '#d4edda'; // green
-                statusEl.style.color = '#155724';
-                loadBtn.disabled = false;
-                saveBtn.disabled = false;
+                statusEl.style.backgroundColor = '#d4edda'; statusEl.style.color = '#155724';
+                loadBtn.disabled = false; saveBtn.disabled = false;
             } else {
                 statusEl.textContent = "Connecting...";
                 auth.signInAnonymously().catch(error => {
                     console.error("Anonymous sign-in failed:", error);
                     statusEl.textContent = "Cloud connection failed. Manual sync is disabled.";
-                    statusEl.style.backgroundColor = '#f8d7da'; // red
-                    statusEl.style.color = '#721c24';
-                    loadBtn.disabled = true;
-                    saveBtn.disabled = true;
+                    statusEl.style.backgroundColor = '#f8d7da'; statusEl.style.color = '#721c24';
+                    loadBtn.disabled = true; saveBtn.disabled = true;
                 });
             }
         }
-        
-        // --- MANUAL FIREBASE SYNC FUNCTIONS ---
         
         async function saveKeysToCloud() {
             if (!currentUserId) {
@@ -218,16 +207,24 @@
             }
             const statusEl = document.getElementById('firebase-status');
             statusEl.textContent = "Saving keys to cloud...";
+            statusEl.style.backgroundColor = '#e2e3e5'; statusEl.style.color = '#383d41';
+
+            const savePromise = db.collection("userData").doc(currentUserId).set({
+                elevenLabsKeys: apiKeys
+            }, { merge: true });
+
+            const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => reject(new Error("Operation timed out. Could not connect to the cloud.")), 10000);
+            });
 
             try {
-                await db.collection("userData").doc(currentUserId).set({
-                    elevenLabsKeys: apiKeys
-                }, { merge: true });
+                await Promise.race([savePromise, timeoutPromise]);
                 statusEl.textContent = "Keys saved to cloud successfully!";
+                statusEl.style.backgroundColor = '#d4edda'; statusEl.style.color = '#155724';
             } catch (error) {
                 console.error("Error saving keys to Firebase:", error);
                 statusEl.textContent = `Error: ${error.message}`;
-                statusEl.style.backgroundColor = '#f8d7da';
+                statusEl.style.backgroundColor = '#f8d7da'; statusEl.style.color = '#721c24';
             }
         }
 
@@ -241,28 +238,33 @@
             }
             const statusEl = document.getElementById('firebase-status');
             statusEl.textContent = "Loading keys from cloud...";
+            statusEl.style.backgroundColor = '#e2e3e5'; statusEl.style.color = '#383d41';
+
+            const loadPromise = db.collection("userData").doc(currentUserId).get();
+
+            const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => reject(new Error("Operation timed out. Could not connect to the cloud.")), 10000);
+            });
 
             try {
-                const docRef = db.collection("userData").doc(currentUserId);
-                const doc = await docRef.get();
-
+                const doc = await Promise.race([loadPromise, timeoutPromise]);
                 if (doc.exists && doc.data().elevenLabsKeys) {
                     apiKeys = doc.data().elevenLabsKeys;
-                    saveLocalKeys(); // Update local storage with the new keys
+                    saveLocalKeys();
                     updateKeyList();
                     updateAllKeySelects();
                     statusEl.textContent = "Keys loaded from cloud successfully!";
+                    statusEl.style.backgroundColor = '#d4edda'; statusEl.style.color = '#155724';
                 } else {
                     statusEl.textContent = "No keys found in the cloud for this user.";
+                    statusEl.style.backgroundColor = '#e2e3e5';
                 }
             } catch (error) {
                 console.error("Error loading keys from Firebase:", error);
                 statusEl.textContent = `Error: ${error.message}`;
-                statusEl.style.backgroundColor = '#f8d7da';
+                statusEl.style.backgroundColor = '#f8d7da'; statusEl.style.color = '#721c24';
             }
         }
-
-        // --- LOCAL KEY MANAGEMENT ---
 
         function initializeLocalKeys() {
             const storedKeys = localStorage.getItem(LOCAL_STORAGE_KEY);
@@ -297,8 +299,6 @@
             updateKeyList();
             updateAllKeySelects();
         }
-
-        // --- UI & API FUNCTIONS (Unchanged) ---
 
         function updateKeyList() {
             const keyList = document.getElementById('keyList');
@@ -341,7 +341,6 @@
                 loadVoices(apiKeys[0]);
                 loadModels(apiKeys[0]);
             } else {
-                 // Clear voice/model lists if no keys exist
                  document.getElementById('voiceSelect').innerHTML = '<option value="">No API Key</option>';
                  document.getElementById('modelSelect').innerHTML = '<option value="">No API Key</option>';
             }
@@ -361,10 +360,7 @@
                 });
                 if (!response.ok) throw new Error(`API error: ${response.statusText}`);
                 const data = await response.json();
-                usageDiv.innerHTML = `
-                    Characters: ${data.character_count} / ${data.character_limit}<br>
-                    Tier: ${data.tier}
-                `;
+                usageDiv.innerHTML = `Characters: ${data.character_count} / ${data.character_limit}<br>Tier: ${data.tier}`;
             } catch (error) {
                 console.error('Error checking usage:', error);
                 usageDiv.innerHTML = `<span class="error">Error checking usage.</span>`;
@@ -376,14 +372,10 @@
             const voiceSelect = document.getElementById('voiceSelect');
             voiceSelect.innerHTML = '<option value="">Loading voices...</option>';
             try {
-                const response = await fetch('https://api.elevenlabs.io/v1/voices', {
-                    headers: { 'xi-api-key': apiKey }
-                });
+                const response = await fetch('https://api.elevenlabs.io/v1/voices', { headers: { 'xi-api-key': apiKey } });
                 if (!response.ok) throw new Error('Failed to load voices');
                 const data = await response.json();
-                voiceSelect.innerHTML = data.voices.map(voice => 
-                    `<option value="${voice.voice_id}">${voice.name}</option>`
-                ).join('');
+                voiceSelect.innerHTML = data.voices.map(voice => `<option value="${voice.voice_id}">${voice.name}</option>`).join('');
             } catch (error) {
                 console.error('Error loading voices:', error);
                 voiceSelect.innerHTML = '<option value="">Error loading voices</option>';
@@ -395,14 +387,10 @@
             const modelSelect = document.getElementById('modelSelect');
             modelSelect.innerHTML = '<option value="">Loading models...</option>';
             try {
-                const response = await fetch('https://api.elevenlabs.io/v1/models', {
-                    headers: { 'xi-api-key': apiKey }
-                });
+                const response = await fetch('https://api.elevenlabs.io/v1/models', { headers: { 'xi-api-key': apiKey } });
                 if (!response.ok) throw new Error('Failed to load models');
                 const data = await response.json();
-                modelSelect.innerHTML = data.map(model => 
-                    `<option value="${model.model_id}">${model.name}</option>`
-                ).join('');
+                modelSelect.innerHTML = data.map(model => `<option value="${model.model_id}">${model.name}</option>`).join('');
             } catch (error) {
                 console.error('Error loading models:', error);
                 modelSelect.innerHTML = '<option value="">Error loading models</option>';
@@ -416,33 +404,19 @@
             const modelId = document.getElementById('modelSelect').value;
             const text = document.getElementById('textInput').value;
             const status = document.getElementById('ttsStatus');
-
-            if (!text) {
-                status.innerHTML = '<div class="error">Please enter text to convert.</div>';
-                return;
-            }
-
+            if (!text) { status.innerHTML = '<div class="error">Please enter text to convert.</div>'; return; }
             status.innerHTML = '<div>Generating speech...</div>';
             try {
                 const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
-                    method: 'POST',
-                    headers: { 'xi-api-key': apiKey, 'Content-Type': 'application/json' },
+                    method: 'POST', headers: { 'xi-api-key': apiKey, 'Content-Type': 'application/json' },
                     body: JSON.stringify({ text: text, model_id: modelId })
                 });
-
-                if (!response.ok) {
-                    const err = await response.json();
-                    throw new Error(err.detail.message || 'Speech generation failed');
-                }
-
+                if (!response.ok) { const err = await response.json(); throw new Error(err.detail.message || 'Speech generation failed'); }
                 currentTTSBlob = await response.blob();
                 document.getElementById('audioPlayer').src = URL.createObjectURL(currentTTSBlob);
                 currentTTSFileName = `speech_${new Date().toISOString().replace(/[:.]/g, '-')}.mp3`;
                 status.innerHTML = '<div class="success">Speech generated successfully!</div>';
-            } catch (error) {
-                console.error('Error generating speech:', error);
-                status.innerHTML = `<div class="error">Error: ${error.message}</div>`;
-            }
+            } catch (error) { console.error('Error generating speech:', error); status.innerHTML = `<div class="error">Error: ${error.message}</div>`; }
         }
 
         async function generateSound() {
@@ -450,33 +424,19 @@
             if (!apiKey) { alert('Please add and select an API key first.'); return; }
             const description = document.getElementById('soundDescription').value;
             const status = document.getElementById('soundStatus');
-
-            if (!description) {
-                status.innerHTML = '<div class="error">Please enter a sound description.</div>';
-                return;
-            }
-
+            if (!description) { status.innerHTML = '<div class="error">Please enter a sound description.</div>'; return; }
             status.innerHTML = '<div>Generating sound...</div>';
             try {
                 const response = await fetch('https://api.elevenlabs.io/v1/sound-generation', {
-                    method: 'POST',
-                    headers: { 'xi-api-key': apiKey, 'Content-Type': 'application/json' },
+                    method: 'POST', headers: { 'xi-api-key': apiKey, 'Content-Type': 'application/json' },
                     body: JSON.stringify({ text: description, duration_seconds: 5 })
                 });
-
-                if (!response.ok) {
-                    const err = await response.json();
-                    throw new Error(err.detail.message || 'Sound generation failed');
-                }
-
+                if (!response.ok) { const err = await response.json(); throw new Error(err.detail.message || 'Sound generation failed'); }
                 currentSoundBlob = await response.blob();
                 document.getElementById('soundPlayer').src = URL.createObjectURL(currentSoundBlob);
                 currentSoundFileName = `sound_${new Date().toISOString().replace(/[:.]/g, '-')}.mp3`;
                 status.innerHTML = '<div class="success">Sound generated successfully!</div>';
-            } catch (error) {
-                console.error('Error generating sound:', error);
-                status.innerHTML = `<div class="error">Error: ${error.message}</div>`;
-            }
+            } catch (error) { console.error('Error generating sound:', error); status.innerHTML = `<div class="error">Error: ${error.message}</div>`; }
         }
 
         async function startRecording() {
@@ -485,27 +445,17 @@
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
                 audioChunks = [];
-
-                mediaRecorder.ondataavailable = event => {
-                    audioChunks.push(event.data);
-                };
-
+                mediaRecorder.ondataavailable = event => { audioChunks.push(event.data); };
                 mediaRecorder.onstop = () => {
                     recordedAudioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                    const audioUrl = URL.createObjectURL(recordedAudioBlob);
-                    document.getElementById('recordedAudioPlayer').src = audioUrl;
+                    document.getElementById('recordedAudioPlayer').src = URL.createObjectURL(recordedAudioBlob);
                     document.getElementById('audioFileInput').value = '';
                 };
-
                 mediaRecorder.start();
                 status.innerHTML = '<div class="success">Recording...</div>';
                 document.getElementById('startRecordingBtn').disabled = true;
                 document.getElementById('stopRecordingBtn').disabled = false;
-
-            } catch (err) {
-                console.error("Error starting recording:", err);
-                status.innerHTML = '<div class="error">Could not start recording. Please grant microphone permission.</div>';
-            }
+            } catch (err) { console.error("Error starting recording:", err); status.innerHTML = '<div class="error">Could not start recording. Please grant microphone permission.</div>'; }
         }
 
         function stopRecording() {
@@ -524,74 +474,31 @@
             const status = document.getElementById('s2tStatus');
             const resultArea = document.getElementById('transcriptionResult');
             const fileInput = document.getElementById('audioFileInput');
-            
-            let audioSource = null;
-            let fileName = '';
-
-            if (fileInput.files.length > 0) {
-                audioSource = fileInput.files[0];
-                fileName = audioSource.name;
-            } else if (recordedAudioBlob) {
-                audioSource = recordedAudioBlob;
-                fileName = `recording-${Date.now()}.webm`;
-            }
-
-            if (!audioSource) {
-                status.innerHTML = '<div class="error">Please record or upload an audio file first.</div>';
-                return;
-            }
-
+            let audioSource = null, fileName = '';
+            if (fileInput.files.length > 0) { audioSource = fileInput.files[0]; fileName = audioSource.name; }
+            else if (recordedAudioBlob) { audioSource = recordedAudioBlob; fileName = `recording-${Date.now()}.webm`; }
+            if (!audioSource) { status.innerHTML = '<div class="error">Please record or upload an audio file first.</div>'; return; }
             status.innerHTML = '<div>Transcribing, please wait...</div>';
-            resultArea.value = '';
-            transcribeButton.disabled = true;
-
+            resultArea.value = ''; transcribeButton.disabled = true;
             const formData = new FormData();
-            formData.append('file', audioSource, fileName);
-            formData.append('model_id', 'scribe_v1');
-
+            formData.append('file', audioSource, fileName); formData.append('model_id', 'scribe_v1');
             try {
-                const url = 'https://api.elevenlabs.io/v1/speech-to-text';
-
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers: { 'xi-api-key': apiKey },
-                    body: formData
-                });
-
-                if (!response.ok) {
-                    const err = await response.json();
-                    throw new Error(JSON.stringify(err.detail) || 'Transcription failed');
-                }
-
+                const response = await fetch('https://api.elevenlabs.io/v1/speech-to-text', { method: 'POST', headers: { 'xi-api-key': apiKey }, body: formData });
+                if (!response.ok) { const err = await response.json(); throw new Error(JSON.stringify(err.detail) || 'Transcription failed'); }
                 const data = await response.json();
-                resultArea.value = data.text;
-                status.innerHTML = '<div class="success">Transcription successful!</div>';
-
-            } catch (error) {
-                console.error('Error transcribing audio:', error);
-                status.innerHTML = `<div class="error">Error: ${error.message}</div>`;
-            } finally {
-                transcribeButton.disabled = false;
-            }
+                resultArea.value = data.text; status.innerHTML = '<div class="success">Transcription successful!</div>';
+            } catch (error) { console.error('Error transcribing audio:', error); status.innerHTML = `<div class="error">Error: ${error.message}</div>`; }
+            finally { transcribeButton.disabled = false; }
         }
         
         function downloadAudio(type) {
             let blob, filename;
-            if (type === 'tts' && currentTTSBlob) {
-                blob = currentTTSBlob;
-                filename = currentTTSFileName;
-            } else if (type === 'sound' && currentSoundBlob) {
-                blob = currentSoundBlob;
-                filename = currentSoundFileName;
-            }
-
+            if (type === 'tts' && currentTTSBlob) { blob = currentTTSBlob; filename = currentTTSFileName; }
+            else if (type === 'sound' && currentSoundBlob) { blob = currentSoundBlob; filename = currentSoundFileName; }
             if (blob) {
                 const a = document.createElement('a');
-                a.href = URL.createObjectURL(blob);
-                a.download = filename;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
+                a.href = URL.createObjectURL(blob); a.download = filename;
+                document.body.appendChild(a); a.click(); document.body.removeChild(a);
             }
         }
 
@@ -601,7 +508,6 @@
             document.getElementById(`${tabName}-tab`).classList.add('active');
             document.querySelector(`[onclick="switchTab('${tabName}')"]`).classList.add('active');
         }
-
     </script>
 </body>
 </html>
