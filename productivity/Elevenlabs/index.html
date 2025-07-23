@@ -12,133 +12,51 @@
             padding: 20px;
             background-color: #f0f2f5;
         }
-        .container {
-            display: grid;
-            gap: 20px;
-        }
+        .container { display: grid; gap: 20px; }
         .section {
-            border: 1px solid #ccc;
-            padding: 20px;
-            border-radius: 8px;
-            background-color: white;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border: 1px solid #ccc; padding: 20px; border-radius: 8px;
+            background-color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
-        .key-list {
-            display: grid;
-            gap: 10px;
-        }
+        .key-list { display: grid; gap: 10px; }
         .key-item {
-            display: grid;
-            grid-template-columns: 1fr auto auto;
-            gap: 10px;
-            align-items: center;
-            padding: 10px;
-            background-color: #f5f5f5;
-            border-radius: 4px;
+            display: grid; grid-template-columns: 1fr auto auto; gap: 10px;
+            align-items: center; padding: 10px; background-color: #f5f5f5; border-radius: 4px;
         }
-        .voice-selector, .model-selector, .language-selector, .s2t-options {
-            margin: 10px 0;
-        }
+        .voice-selector, .model-selector, .language-selector, .s2t-options { margin: 10px 0; }
         button {
-            padding: 8px 16px;
-            cursor: pointer;
-            background-color: #007bff;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            transition: background-color 0.3s;
+            padding: 8px 16px; cursor: pointer; background-color: #007bff;
+            color: white; border: none; border-radius: 4px; transition: background-color 0.3s;
         }
-        button:hover {
-            background-color: #0056b3;
-        }
-        button:disabled {
-            background-color: #cccccc;
-            cursor: not-allowed;
-        }
-        .error {
-            color: red;
-            margin-top: 10px;
-        }
-        .success {
-            color: green;
-            margin-top: 10px;
-        }
+        button:hover { background-color: #0056b3; }
+        button:disabled { background-color: #cccccc; cursor: not-allowed; }
+        .error { color: red; }
+        .success { color: green; }
         textarea {
-            width: 100%;
-            box-sizing: border-box;
-            height: 100px;
-            margin: 10px 0;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            resize: vertical;
+            width: 100%; box-sizing: border-box; height: 100px; margin: 10px 0;
+            padding: 10px; border: 1px solid #ccc; border-radius: 4px; resize: vertical;
         }
-        .usage-info {
-            margin-top: 10px;
-            padding: 10px;
-            background-color: #e9ecef;
-            border-radius: 4px;
+        .usage-info { margin-top: 10px; padding: 10px; background-color: #e9ecef; border-radius: 4px; }
+        audio { width: 100%; margin-top: 10px; }
+        select, input[type="file"], input[type="text"] {
+            padding: 8px; border-radius: 4px; border: 1px solid #ccc;
         }
-        audio {
-            width: 100%;
-            margin-top: 10px;
-        }
-        select, input[type="file"] {
-            padding: 8px;
-            border-radius: 4px;
-            border: 1px solid #ccc;
-            width: 100%;
-            max-width: 300px;
-        }
-        .audio-controls {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            margin-top: 10px;
-        }
-        .tab-buttons {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-        .tab-button {
-            background-color: #e9ecef;
-            color: #333;
-        }
-        .tab-button.active {
-            background-color: #007bff;
-            color: white;
-        }
-        .tab-content {
-            display: none;
-        }
-        .tab-content.active {
-            display: block;
-        }
-        .download-button {
-            background-color: #28a745;
-        }
-        .download-button:hover {
-            background-color: #218838;
-        }
-        .record-button {
-            background-color: #dc3545;
-        }
-        .record-button:hover {
-            background-color: #c82333;
-        }
-        input[type="text"] {
-            padding: 8px;
-            border-radius: 4px;
-            border: 1px solid #ccc;
-            width: 300px;
-            margin-right: 10px;
-        }
-        .s2t-input-group {
-            border: 1px solid #ddd;
-            padding: 15px;
-            margin-top: 15px;
-            border-radius: 5px;
+        .audio-controls { display: flex; gap: 10px; align-items: center; margin-top: 10px; }
+        .tab-buttons { display: flex; gap: 10px; margin-bottom: 20px; }
+        .tab-button { background-color: #e9ecef; color: #333; }
+        .tab-button.active { background-color: #007bff; color: white; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .download-button { background-color: #28a745; }
+        .download-button:hover { background-color: #218838; }
+        .record-button { background-color: #dc3545; }
+        .record-button:hover { background-color: #c82333; }
+        input[type="text"] { width: 300px; margin-right: 10px; }
+        .s2t-input-group { border: 1px solid #ddd; padding: 15px; margin-top: 15px; border-radius: 5px; }
+        .cloud-controls { margin-top: 15px; display: flex; flex-direction: column; gap: 10px; }
+        .cloud-controls-buttons { display: flex; gap: 10px; }
+        #firebase-status {
+            padding: 10px; border-radius: 4px; font-weight: 500; text-align: center;
+            background-color: #e2e3e5; color: #383d41; transition: all 0.3s ease;
         }
     </style>
 </head>
@@ -146,16 +64,22 @@
     <div class="container">
         <div class="section">
             <h2>API Keys Management</h2>
-            <p>Your keys are now securely stored in your Firebase account.</p>
-            <div class="key-list" id="keyList">
-                <!-- Keys will be inserted here -->
-            </div>
+            <p>Your keys are saved locally in your browser. Use the buttons below to sync with the cloud.</p>
+            <div class="key-list" id="keyList"></div>
             <div style="margin-top: 20px;">
                 <input type="text" id="newKeyInput" placeholder="Enter new API key">
-                <button onclick="addNewKey()">Add Key</button>
+                <button onclick="addNewKey()">Add Key Locally</button>
+            </div>
+            <div class="cloud-controls">
+                <div id="firebase-status">Connecting to cloud...</div>
+                <div class="cloud-controls-buttons">
+                    <button id="loadKeysBtn" onclick="loadKeysFromCloud()" disabled>Load from Cloud</button>
+                    <button id="saveKeysBtn" onclick="saveKeysToCloud()" disabled>Save to Cloud</button>
+                </div>
             </div>
         </div>
 
+        <!-- The rest of your HTML content remains the same -->
         <div class="section">
             <h2>ElevenLabs Generator</h2>
             <div class="tab-buttons">
@@ -222,29 +146,24 @@
         </div>
     </div>
     
-    <!-- ADDED: Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
     
     <script>
-        // Global variables
+        // --- GLOBAL STATE & CONSTANTS ---
+        const LOCAL_STORAGE_KEY = 'elevenLabsKeys';
         let apiKeys = [];
-        let currentTTSBlob = null;
-        let currentSoundBlob = null;
-        let currentTTSFileName = '';
-        let currentSoundFileName = '';
-
-        let mediaRecorder;
-        let audioChunks = [];
-        let recordedAudioBlob = null;
+        let currentTTSBlob = null, currentSoundBlob = null;
+        let currentTTSFileName = '', currentSoundFileName = '';
+        let mediaRecorder, audioChunks = [], recordedAudioBlob = null;
 
         const defaultKeys = [
             '866f355f0c138130ff9afa77e40041bf',
             'sk_030849f5720ff120d1e51afd8360dee0aca8622617e8c6a2'
         ];
 
-        // --- ADDED: FIREBASE SETUP ---
+        // --- FIREBASE SETUP ---
         const firebaseConfig = {
             apiKey: "AIzaSyBoZtDWEJwPFYvvR6LJgPM8fIqQWrQgDFs",
             authDomain: "json-database-1122.firebaseapp.com",
@@ -253,123 +172,135 @@
             messagingSenderId: "332768532067",
             appId: "1:332768532067:web:3bc80fee92d17c046c8a56"
         };
-
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
         const auth = firebase.auth();
         let currentUserId = null;
 
-        // --- ADDED: ANONYMOUS AUTHENTICATION ---
-        auth.onAuthStateChanged(user => {
-            if (user) {
-                currentUserId = user.uid;
-                console.log("Firebase User signed in with ID:", currentUserId);
-                // Now that we have a user, load their keys from Firebase
-                loadKeysFromFirebase();
-            } else {
-                // No user signed in, so sign them in anonymously
-                auth.signInAnonymously().catch(error => {
-                    console.error("Anonymous sign-in failed:", error);
-                    alert("Could not connect to the cloud. Please refresh the page.");
-                });
-            }
+
+        // --- INITIALIZATION & AUTH ---
+
+        // This runs when the page first loads
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeLocalKeys();
+            auth.onAuthStateChanged(handleAuthStateChange);
         });
 
+        function handleAuthStateChange(user) {
+            const statusEl = document.getElementById('firebase-status');
+            const loadBtn = document.getElementById('loadKeysBtn');
+            const saveBtn = document.getElementById('saveKeysBtn');
 
-        // --- MODIFIED: FIREBASE KEY MANAGEMENT ---
-
-        /**
-         * Loads API keys from the user's document in Firestore.
-         * If no keys exist, it initializes with default keys and saves them.
-         */
-        async function loadKeysFromFirebase() {
+            if (user) {
+                currentUserId = user.uid;
+                statusEl.textContent = "Cloud connected. You can now save or load your keys.";
+                statusEl.style.backgroundColor = '#d4edda'; // green
+                statusEl.style.color = '#155724';
+                loadBtn.disabled = false;
+                saveBtn.disabled = false;
+            } else {
+                statusEl.textContent = "Connecting...";
+                auth.signInAnonymously().catch(error => {
+                    console.error("Anonymous sign-in failed:", error);
+                    statusEl.textContent = "Cloud connection failed. Manual sync is disabled.";
+                    statusEl.style.backgroundColor = '#f8d7da'; // red
+                    statusEl.style.color = '#721c24';
+                    loadBtn.disabled = true;
+                    saveBtn.disabled = true;
+                });
+            }
+        }
+        
+        // --- MANUAL FIREBASE SYNC FUNCTIONS ---
+        
+        async function saveKeysToCloud() {
             if (!currentUserId) {
-                console.error("Cannot load keys, user not authenticated.");
+                alert("Cannot save: User not connected to the cloud.");
                 return;
             }
+            const statusEl = document.getElementById('firebase-status');
+            statusEl.textContent = "Saving keys to cloud...";
+
+            try {
+                await db.collection("userData").doc(currentUserId).set({
+                    elevenLabsKeys: apiKeys
+                }, { merge: true });
+                statusEl.textContent = "Keys saved to cloud successfully!";
+            } catch (error) {
+                console.error("Error saving keys to Firebase:", error);
+                statusEl.textContent = `Error: ${error.message}`;
+                statusEl.style.backgroundColor = '#f8d7da';
+            }
+        }
+
+        async function loadKeysFromCloud() {
+            if (!currentUserId) {
+                alert("Cannot load: User not connected to the cloud.");
+                return;
+            }
+            if (!confirm("This will overwrite your locally saved keys with the version from the cloud. Continue?")) {
+                return;
+            }
+            const statusEl = document.getElementById('firebase-status');
+            statusEl.textContent = "Loading keys from cloud...";
 
             try {
                 const docRef = db.collection("userData").doc(currentUserId);
                 const doc = await docRef.get();
 
                 if (doc.exists && doc.data().elevenLabsKeys) {
-                    // Keys found in Firestore
                     apiKeys = doc.data().elevenLabsKeys;
-                    console.log("Keys loaded from Firebase.");
-                } else {
-                    // No keys found, use default keys and save them to Firestore for the first time
-                    console.log("No keys found in Firebase. Initializing with defaults.");
-                    apiKeys = defaultKeys;
-                    await saveKeysToFirebase(apiKeys); 
-                }
-
-                updateKeyList();
-                updateAllKeySelects();
-            } catch (error)
-            {
-                console.error("Error loading keys from Firebase:", error);
-                alert("Failed to load API keys from the cloud. Please check the console for errors.");
-            }
-        }
-
-        /**
-         * Saves the provided array of keys to the user's document in Firestore.
-         * @param {string[]} keysToSave The array of keys to save.
-         * @returns A Promise that resolves when the save is complete.
-         */
-        function saveKeysToFirebase(keysToSave) {
-            if (!currentUserId) {
-                console.error("Cannot save keys, user not authenticated.");
-                return Promise.reject(new Error("User not authenticated."));
-            }
-            // Use set with merge:true to create the document if it doesn't exist
-            // or just update the elevenLabsKeys field if it does.
-            return db.collection("userData").doc(currentUserId).set({
-                elevenLabsKeys: keysToSave
-            }, { merge: true });
-        }
-        
-        /**
-         * Adds a new key to the local state and saves the updated list to Firebase.
-         */
-        async function addNewKey() {
-            const newKey = document.getElementById('newKeyInput').value.trim();
-            if (newKey && !apiKeys.includes(newKey)) {
-                const updatedKeys = [...apiKeys, newKey];
-                try {
-                    await saveKeysToFirebase(updatedKeys);
-                    apiKeys = updatedKeys; // Update local state only after successful save
+                    saveLocalKeys(); // Update local storage with the new keys
                     updateKeyList();
                     updateAllKeySelects();
-                    document.getElementById('newKeyInput').value = '';
-                    console.log("Key added and saved to Firebase.");
-                } catch (error) {
-                    console.error("Failed to add new key to Firebase:", error);
-                    alert("Error saving the new key. Please try again.");
+                    statusEl.textContent = "Keys loaded from cloud successfully!";
+                } else {
+                    statusEl.textContent = "No keys found in the cloud for this user.";
                 }
-            }
-        }
-        
-        /**
-         * Removes a key from the local state and saves the updated list to Firebase.
-         * @param {number} index The index of the key to remove.
-         */
-        async function removeKey(index) {
-            // Create a new array without the key at the specified index.
-            const updatedKeys = apiKeys.filter((_, i) => i !== index);
-            try {
-                await saveKeysToFirebase(updatedKeys);
-                apiKeys = updatedKeys; // Update local state only after successful save
-                updateKeyList();
-                updateAllKeySelects();
-                console.log("Key removed and saved to Firebase.");
             } catch (error) {
-                console.error("Failed to remove key from Firebase:", error);
-                alert("Error removing the key. Please try again.");
+                console.error("Error loading keys from Firebase:", error);
+                statusEl.textContent = `Error: ${error.message}`;
+                statusEl.style.backgroundColor = '#f8d7da';
             }
         }
 
-        // --- UNCHANGED ORIGINAL FUNCTIONS ---
+        // --- LOCAL KEY MANAGEMENT ---
+
+        function initializeLocalKeys() {
+            const storedKeys = localStorage.getItem(LOCAL_STORAGE_KEY);
+            if (storedKeys) {
+                apiKeys = JSON.parse(storedKeys);
+            } else {
+                apiKeys = defaultKeys;
+                saveLocalKeys();
+            }
+            updateKeyList();
+            updateAllKeySelects();
+        }
+
+        function saveLocalKeys() {
+            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(apiKeys));
+        }
+        
+        function addNewKey() {
+            const newKey = document.getElementById('newKeyInput').value.trim();
+            if (newKey && !apiKeys.includes(newKey)) {
+                apiKeys.push(newKey);
+                saveLocalKeys();
+                updateKeyList();
+                updateAllKeySelects();
+                document.getElementById('newKeyInput').value = '';
+            }
+        }
+
+        function removeKey(index) {
+            apiKeys.splice(index, 1);
+            saveLocalKeys();
+            updateKeyList();
+            updateAllKeySelects();
+        }
+
+        // --- UI & API FUNCTIONS (Unchanged) ---
 
         function updateKeyList() {
             const keyList = document.getElementById('keyList');
@@ -411,6 +342,10 @@
             if (apiKeys.length > 0) {
                 loadVoices(apiKeys[0]);
                 loadModels(apiKeys[0]);
+            } else {
+                 // Clear voice/model lists if no keys exist
+                 document.getElementById('voiceSelect').innerHTML = '<option value="">No API Key</option>';
+                 document.getElementById('modelSelect').innerHTML = '<option value="">No API Key</option>';
             }
         }
         
@@ -478,6 +413,7 @@
 
         async function generateSpeech() {
             const apiKey = document.getElementById('apiKeySelect').value;
+            if (!apiKey) { alert('Please add and select an API key first.'); return; }
             const voiceId = document.getElementById('voiceSelect').value;
             const modelId = document.getElementById('modelSelect').value;
             const text = document.getElementById('textInput').value;
@@ -513,6 +449,7 @@
 
         async function generateSound() {
             const apiKey = document.getElementById('soundApiKeySelect').value;
+            if (!apiKey) { alert('Please add and select an API key first.'); return; }
             const description = document.getElementById('soundDescription').value;
             const status = document.getElementById('soundStatus');
 
@@ -585,6 +522,7 @@
         async function transcribeAudio() {
             const transcribeButton = document.getElementById('transcribeBtn');
             const apiKey = document.getElementById('s2tApiKeySelect').value;
+            if (!apiKey) { alert('Please add and select an API key first.'); return; }
             const status = document.getElementById('s2tStatus');
             const resultArea = document.getElementById('transcriptionResult');
             const fileInput = document.getElementById('audioFileInput');
@@ -602,10 +540,6 @@
 
             if (!audioSource) {
                 status.innerHTML = '<div class="error">Please record or upload an audio file first.</div>';
-                return;
-            }
-            if (!apiKey) {
-                status.innerHTML = '<div class="error">Please select an API key.</div>';
                 return;
             }
 
@@ -669,6 +603,7 @@
             document.getElementById(`${tabName}-tab`).classList.add('active');
             document.querySelector(`[onclick="switchTab('${tabName}')"]`).classList.add('active');
         }
+
     </script>
 </body>
 </html>
