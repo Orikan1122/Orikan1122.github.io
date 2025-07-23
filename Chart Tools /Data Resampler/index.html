@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Time-Series Data Resampler</title>
+    <style>
+        :root {
+            --primary-color: #007bff;
+            --secondary-color: #6c757d;
+            --background-color: #f8f9fa;
+            --text-color: #212529;
+            --border-color: #dee2e6;
+            --header-bg: #e9ecef;
+            --row-hover-bg: #f1f1f1;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        h1, h2 {
+            color: var(--primary-color);
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .controls label {
+            font-weight: bold;
+        }
+
+        .controls select {
+             padding: 8px;
+             border: 1px solid var(--border-color);
+             border-radius: 5px;
+             background-color: white;
+        }
+
+        .export-options {
+            display: none; /* Hidden until data is processed */
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 20px;
+            background-color: #fdfdfd;
+        }
+        
+        .export-options h2 {
+            margin-top: 0;
+            font-size: 1.2em;
+            border: none;
+        }
+
+        .option-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .option-group label {
+            font-weight: bold;
+        }
+
+        .option-group input {
+             padding: 8px;
+             border: 1px solid var(--border-color);
+             border-radius: 5px;
+        }
+        
+        input[type="number"] {
+            width: 80px;
+        }
+
+        button {
+            padding: 10px 15px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            color: white;
+            background-color: var(--primary-color);
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+        
+        button:disabled {
+            background-color: var(--secondary-color);
+            cursor: not-allowed;
+        }
+
+        input[type="file"] {
+            border: 1px solid var(--border-color);
+            padding: 8px;
+            border-radius: 5px;
+        }
+
+        #status {
+            margin-top: 15px;
+            font-style: italic;
+            color: var(--secondary-color);
+        }
+
+        .table-container {
+            max-height: 60vh;
+            overflow: auto;
+            border: 1px solid var(--border-color);
+            margin-top: 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+            white-space: nowrap;
+        }
+
+        th {
+            background-color: var(--header-bg);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        
+        tbody tr:nth-child(even) {
+            background-color: #f8f8f8;
+        }
+
+        tbody tr:hover {
+            background-color: var(--row-hover-bg);
+        }
+
+        #downloadBtn {
+            display: none;
+            background-color: #28a745;
+        }
+        #downloadBtn:hover {
+            background-color: #218838;
+        }
+
+        #loadingSpinner {
+            display: none; /* Hidden by default */
+            border: 4px solid #f3f3f3; /* Light grey */
+            border-top: 4px solid var(--primary-color); /* Blue */
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Advanced CIP Data Resampler</h1>
+        <p>This tool transforms sparse, event-based data into a clean dataset with one entry per selected interval (e.g., every minute or every 10 seconds).
+        <br>It assumes a <strong>linear trend</strong> between data points and <strong>extrapolates</strong> this trend if no new data is available.
+        <br>For all sensors (Temperature, Level, Flow Rate, etc.), the tool now calculates the <strong>average value</strong> over the resampled interval.
+        </p>
+
+        <div class="controls">
+            <input type="file" id="csvFile" accept=".csv">
+            <label for="intervalSelect">Resample Interval:</label>
+            <select id="intervalSelect">
+                <option value="60" selected>1 Minute</option>
+                <option value="10">10 Seconds</option>
+            </select>
+            <button id="processBtn" disabled>Process Data</button>
+            <span id="loadingSpinner"></span>
+            <button id="downloadBtn">Download Results as CSV</button>
+        </div>
+        <div id="status">Please select your CSV file (e.g., Detail_v1.csv or ANALOG_INPUT_log.csv).</div>
+
+        <div class="export-options" id="exportOptions">
+             <h2>Export Options</h2>
+             <div class="option-group">
+                <label for="timeShiftInput">Time Shift (minutes):</label>
+                <input type="number" id="timeShiftInput" value="0" step="1">
+
+                <label for="filterStart">Filter Start:</label>
+                <input type="datetime-local" id="filterStart">
+
+                <label for="filterEnd">Filter End:</label>
+                <input type="datetime-local" id="filterEnd">
+             </div>
+        </div>
+
+        <div class="table-container">
+            <table id="resultTable">
+                <thead>
+                    <tr id="tableHeader"></tr>
+                </thead>
+                <tbody id="tableBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const columnNameMap = {
+            "CIP_90_T01_LT_02_IST.PV": "Heisswassertank Niveau",
+            "CIP_90_T01_TT_03_IST.PV": "Heisswassertank Temperatur",
+            "CIP_90_T02_LT_02_IST.PV": "Säuretank Niveau",
+            "CIP_90_T02_TT_03_IST.PV": "Säuretank Temperatur",
+            "CIP_90_T03_LT_02_IST.PV": "Laugentank Niveau",
+            "CIP_90_T03_TT_03_IST.PV": "Laugentank Temperatur",
+            "CIP_91_FT_04.PV": "Kreis1 Durchfluss",
+            "CIP_91_QT_06.PV": "Kreis1 Leitwert",
+            "CIP_91_TT_06.PV": "Kreis1 Temperatur RL",
+            "CIP_91_W01_TT_01.PV": "Kreis1 Temperatur VL",
+            "CIP_92_FT_04.PV": "Kreis2 Durchfluss",
+            "CIP_92_QT_06.PV": "Kreis2 Leitwert",
+            "CIP_92_TT_06.PV": "Kreis2 Temperatur RL",
+            "CIP_92_W01_TT_01.PV": "Kreis2 Temperatur VL",
+            "CIP_93_FT_04.PV": "Kreis3 Durchfluss",
+            "CIP_93_QT_06.PV": "Kreis3 Leitwert",
+            "CIP_93_TT_06.PV": "Kreis3 Temperatur RL",
+            "CIP_93_W01_TT_01.PV": "Kreis3 Temperatur VL"
+        };
+
+        const fileInput = document.getElementById('csvFile');
+        const intervalSelect = document.getElementById('intervalSelect');
+        const processBtn = document.getElementById('processBtn');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const statusDiv = document.getElementById('status');
+        const tableHeader = document.getElementById('tableHeader');
+        const tableBody = document.getElementById('tableBody');
+        const exportOptionsDiv = document.getElementById('exportOptions');
+        const timeShiftInput = document.getElementById('timeShiftInput');
+        const filterStartInput = document.getElementById('filterStart');
+        const filterEndInput = document.getElementById('filterEnd');
+
+        let rawCsvText = '';
+        let originalProcessedData = [];
+        let originalHeaders = [];
+        let displayHeaders = [];
+
+        fileInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    rawCsvText = e.target.result.startsWith('\ufeff') ? e.target.result.substring(1) : e.target.result;
+                    processBtn.disabled = false;
+                    statusDiv.textContent = `File "${file.name}" loaded. Ready to process.`;
+                };
+                reader.readAsText(file);
+            }
+        });
+
+        processBtn.addEventListener('click', () => {
+            if (!rawCsvText) {
+                statusDiv.textContent = 'No file loaded.';
+                return;
+            }
+            statusDiv.textContent = 'Processing...';
+            setTimeout(() => {
+                try {
+                    const intervalSeconds = parseInt(intervalSelect.value, 10);
+                    const result = processData(rawCsvText, intervalSeconds);
+
+                    originalProcessedData = result.data;
+                    originalHeaders = result.originalHeaders;
+                    displayHeaders = result.displayHeaders;
+                    
+                    initializeFilters();
+                    applyFiltersAndDisplay();
+
+                    downloadBtn.style.display = 'inline-block';
+                    exportOptionsDiv.style.display = 'block';
+                } catch (error) {
+                    statusDiv.textContent = `An error occurred: ${error.message}`;
+                    console.error(error);
+                }
+            }, 10);
+        });
+
+        downloadBtn.addEventListener('click', () => {
+            const dataToDownload = getFilteredAndShiftedData();
+            if (dataToDownload.length === 0) {
+                alert("No data to download based on the current filters.");
+                return;
+            }
+            
+            let csvContent = displayHeaders.join(';') + '\n';
+            dataToDownload.forEach(row => {
+                const values = originalHeaders.map(origHeader => {
+                    let value = row[origHeader];
+                    if (origHeader === originalHeaders[0]) { 
+                        return formatTimestamp(value, true); 
+                    }
+                    return typeof value === 'number' ? value.toFixed(4).replace('.', ',') : (value || '');
+                });
+                csvContent += values.join(';') + '\n';
+            });
+
+            const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.setAttribute('href', URL.createObjectURL(blob));
+            link.setAttribute('download', 'data_resampled_filtered.csv');
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+        
+        timeShiftInput.addEventListener('input', applyFiltersAndDisplay);
+        filterStartInput.addEventListener('change', applyFiltersAndDisplay);
+        filterEndInput.addEventListener('change', applyFiltersAndDisplay);
+
+        function getFilteredAndShiftedData() {
+            if (originalProcessedData.length === 0) return [];
+
+            const timeShiftMinutes = parseInt(timeShiftInput.value, 10) || 0;
+            const timestampColumnName = originalHeaders[0];
+
+            let shiftedData = originalProcessedData.map(row => {
+                const newRow = { ...row };
+                const originalDate = new Date(row[timestampColumnName]);
+                originalDate.setMinutes(originalDate.getMinutes() + timeShiftMinutes);
+                newRow[timestampColumnName] = originalDate;
+                return newRow;
+            });
+
+            const startDate = filterStartInput.value ? new Date(filterStartInput.value) : null;
+            const endDate = filterEndInput.value ? new Date(filterEndInput.value) : null;
+
+            if (!startDate && !endDate) {
+                return shiftedData;
+            }
+
+            return shiftedData.filter(row => {
+                const rowTime = row[timestampColumnName].getTime();
+                const isAfterStart = startDate ? rowTime >= startDate.getTime() : true;
+                const isBeforeEnd = endDate ? rowTime <= endDate.getTime() : true;
+                return isAfterStart && isBeforeEnd;
+            });
+        }
+
+        function applyFiltersAndDisplay() {
+            const filteredData = getFilteredAndShiftedData();
+            displayResults(filteredData, displayHeaders, originalHeaders);
+            
+            const total = originalProcessedData.length;
+            statusDiv.textContent = `Processing complete. Showing ${filteredData.length} of ${total} data rows.`;
+        }
+        
+        function initializeFilters() {
+            if (originalProcessedData.length === 0) return;
+
+            const timestampColumnName = originalHeaders[0];
+            const firstDate = originalProcessedData[0][timestampColumnName];
+            const lastDate = originalProcessedData[originalProcessedData.length - 1][timestampColumnName];
+
+            filterStartInput.value = formatForDateTimeLocal(firstDate);
+            filterEndInput.value = formatForDateTimeLocal(lastDate);
+            timeShiftInput.value = 0;
+        }
+
+        function parseDateString(str) {
+            const parts = str.split(' ');
+            const dateParts = parts[0].split('.');
+            const timeParts = parts[1] ? parts[1].split(':') : ['0', '0', '0'];
+            const [day, month, year] = dateParts.map(p => parseInt(p, 10));
+            const [hours, minutes] = timeParts.map(p => parseInt(p, 10));
+            const [seconds, milliseconds] = timeParts[2] ? timeParts[2].split('.').map(p => parseInt(p, 10)) : [0, 0];
+            return new Date(year, month - 1, day, hours, minutes, seconds || 0, milliseconds || 0);
+        }
+        
+        function processData(csvText, intervalSeconds = 60) {
+            const lines = csvText.trim().split('\n');
+            const originalHeaders = lines.shift().trim().split(';');
+            
+            // Fix potential trailing colon on first header
+            if (originalHeaders[0].endsWith(':')) {
+                 originalHeaders[0] = originalHeaders[0].slice(0, -1);
+            }
+            
+            const originalTimestampHeaderName = originalHeaders[0];
+            const sensorHeaders = originalHeaders.slice(1);
+            
+            const displayHeaders = originalHeaders.map(header => columnNameMap[header] || header);
+
+            const allPoints = [];
+            lines.forEach(line => {
+                const values = line.trim().split(';');
+                if (!values[0]) return;
+                const timestamp = parseDateString(values[0]);
+
+                values.slice(1).forEach((val, i) => {
+                    if (val && val.trim() !== '') {
+                        allPoints.push({
+                            timestamp: timestamp,
+                            sensor: sensorHeaders[i],
+                            value: parseFloat(val.replace(',', '.'))
+                        });
+                    }
+                });
+            });
+
+            if (allPoints.length === 0) throw new Error("No data points found.");
+
+            allPoints.sort((a, b) => a.timestamp - b.timestamp);
+
+            const sensorGroups = {};
+            sensorHeaders.forEach(sensor => {
+                sensorGroups[sensor] = allPoints.filter(p => p.sensor === sensor);
+            });
+            
+            let minTime = new Date(allPoints[0].timestamp);
+            let maxTime = new Date(allPoints[allPoints.length - 1].timestamp);
+
+            const intervalMilliseconds = intervalSeconds * 1000;
+            minTime = new Date(Math.floor(minTime.getTime() / intervalMilliseconds) * intervalMilliseconds);
+            maxTime.setSeconds(0, 0);
+
+            const resampledData = [];
+
+            for (let t = new Date(minTime); t <= maxTime; t.setSeconds(t.getSeconds() + intervalSeconds)) {
+                const intervalStart = new Date(t);
+                const intervalEnd = new Date(t.getTime() + intervalMilliseconds);
+                
+                const intervalRow = { [originalTimestampHeaderName]: intervalStart };
+
+                for (const sensor of sensorHeaders) {
+                    const sensorPoints = sensorGroups[sensor];
+                    const startVal = getValueAtTime(sensorPoints, intervalStart);
+                    const endVal = getValueAtTime(sensorPoints, intervalEnd);
+
+                    if (isNaN(startVal) || isNaN(endVal)) {
+                        intervalRow[sensor] = 'N/A';
+                        continue;
+                    }
+                    
+                    // --- FIX: This is the corrected logic ---
+                    // For both stateful sensors (Temp, Level) and instantaneous rate sensors (like your Flow data),
+                    // the average value over the interval is the correct representation. The old logic
+                    // incorrectly treated flow as a cumulative total.
+                    intervalRow[sensor] = (startVal + endVal) / 2;
+                }
+                resampledData.push(intervalRow);
+            }
+            
+            return { data: resampledData, originalHeaders, displayHeaders };
+        }
+
+        function getValueAtTime(points, time) {
+            if (!points || points.length === 0) return NaN;
+            if (points.length === 1) return points[0].value;
+
+            const timeMs = time.getTime();
+            let p_before = null;
+            let p_after = null;
+
+            for (let i = 0; i < points.length; i++) {
+                if (points[i].timestamp.getTime() <= timeMs) {
+                    p_before = points[i];
+                } else {
+                    p_after = points[i];
+                    break;
+                }
+            }
+
+            if (p_before && p_after) {
+                const t1 = p_before.timestamp.getTime();
+                const t2 = p_after.timestamp.getTime();
+                if (t1 === t2) return p_before.value;
+                const v1 = p_before.value;
+                const v2 = p_after.value;
+                const fraction = (timeMs - t1) / (t2 - t1);
+                return v1 + (v2 - v1) * fraction;
+            }
+            
+            if (p_before && !p_after) {
+                const p_last = points[points.length - 1];
+                const p_second_last = points[points.length - 2];
+                const t1 = p_second_last.timestamp.getTime();
+                const t2 = p_last.timestamp.getTime();
+                const v1 = p_second_last.value;
+                const v2 = p_last.value;
+                if (t2 === t1) return v2;
+                const slope = (v2 - v1) / (t2 - t1);
+                return v2 + slope * (timeMs - t2);
+            }
+
+            if (!p_before && p_after) {
+                 const p_first = points[0];
+                 const p_second = points[1];
+                 const t1 = p_first.timestamp.getTime();
+                 const t2 = p_second.timestamp.getTime();
+                 const v1 = p_first.value;
+                 const v2 = p_second.value;
+                 if (t2 === t1) return v1;
+                 const slope = (v2 - v1) / (t2 - t1);
+                 return v1 - slope * (t1 - timeMs);
+            }
+            return NaN;
+        }
+
+        function displayResults(data, dHeaders, oHeaders) {
+            tableHeader.innerHTML = '';
+            tableBody.innerHTML = '';
+            dHeaders.forEach(h => tableHeader.insertAdjacentHTML('beforeend', `<th>${h}</th>`));
+
+            const timestampColumnName = oHeaders[0];
+            const rowsHtml = data.map(row => {
+                const cellsHtml = oHeaders.map(header => {
+                    let value = row[header];
+                    let text = 'N/A';
+                    if (header === timestampColumnName) {
+                        text = formatTimestamp(value, true);
+                    } else if (typeof value === 'number') {
+                        text = value.toFixed(2);
+                    }
+                    return `<td>${text}</td>`;
+                }).join('');
+                return `<tr>${cellsHtml}</tr>`;
+            }).join('');
+            tableBody.innerHTML = rowsHtml;
+        }
+        
+        function formatTimestamp(date, includeSeconds = true) {
+            if (!(date instanceof Date)) return '';
+            const pad = num => num.toString().padStart(2, '0');
+            const [day, month, year] = [pad(date.getDate()), pad(date.getMonth() + 1), date.getFullYear()];
+            const [hours, minutes, seconds] = [pad(date.getHours()), pad(date.getMinutes()), pad(date.getSeconds())];
+            if (includeSeconds) return `${day}.${month}.${year} ${hours}:${minutes}:${seconds}`;
+            return `${day}.${month}.${year} ${hours}:${minutes}`;
+        }
+        
+        function formatForDateTimeLocal(date) {
+            if (!(date instanceof Date)) return '';
+            const pad = num => num.toString().padStart(2, '0');
+            const year = date.getFullYear();
+            const month = pad(date.getMonth() + 1);
+            const day = pad(date.getDate());
+            const hours = pad(date.getHours());
+            const minutes = pad(date.getMinutes());
+            return `${year}-${month}-${day}T${hours}:${minutes}`;
+        }
+
+    </script>
+
+</body>
+</html>
