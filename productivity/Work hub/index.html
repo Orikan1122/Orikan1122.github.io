@@ -18,7 +18,55 @@
     <div class="hub-container">
         <aside class="sidebar" id="sidebar">
             <h2>Actions</h2>
+
+            <!-- DATA ACTIONS & AUTHENTICATION -->
+            <div class="data-actions">
+                <!-- NEW Authentication UI -->
+                <div id="auth-container">
+                    <div id="user-info" style="display: none;">
+                        <p style="margin-top:0; margin-bottom: 10px; font-size: 0.9rem;">Signed in as:</p>
+                        <p style="margin-top:0; margin-bottom: 10px;"><strong id="user-email"></strong></p>
+                        <button id="logout-btn" class="btn btn-secondary">Log Out</button>
+                    </div>
+
+                    <div id="login-forms">
+                        <h3>Account</h3>
+                        <div class="form-group">
+                            <label for="auth-email">Email</label>
+                            <input type="email" id="auth-email" required autocomplete="email">
+                        </div>
+                        <div class="form-group">
+                            <label for="auth-password">Password</label>
+                            <input type="password" id="auth-password" required autocomplete="current-password">
+                        </div>
+                        <div class="data-actions-row">
+                            <button id="login-btn" class="btn">Log In</button>
+                            <button id="signup-btn" class="btn btn-secondary">Sign Up</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="cloud-status" class="cloud-status-indicator"></div>
+                
+                <h3>Cloud Storage</h3>
+                <div class="data-actions-row">
+                    <button id="save-to-cloud-btn" class="btn" disabled>Save to Cloud</button>
+                    <button id="load-from-cloud-btn" class="btn" disabled>Load from Cloud</button>
+                </div>
+                
+                <h3>Local Data</h3>
+                 <button id="weekly-summary-btn" class="btn">Weekly Summary</button>
+                <div class="data-actions-row">
+                    <button id="export-btn" class="btn">Export Data</button>
+                    <div class="btn-import-wrapper">
+                        <button class="btn">Import Data</button>
+                        <input type="file" id="import-file" accept=".json">
+                    </div>
+                </div>
+            </div>
             
+            <hr style="margin: 25px 0; border: 1px solid var(--border-color);">
+
             <!-- TOOL FORM -->
             <h3>Add/Edit Tool</h3>
             <form id="add-tool-form">
@@ -84,25 +132,6 @@
                 </div>
                 <button type="submit">Add To-Do</button>
             </form>
-
-            <!-- DATA ACTIONS -->
-            <div class="data-actions">
-                <button id="weekly-summary-btn" class="btn">Weekly Summary</button>
-                <div class="data-actions-row">
-                    <!-- ADD 'disabled' TO THESE TWO BUTTONS -->
-                    <button id="save-to-cloud-btn" class="btn" disabled>Save to Cloud</button>
-                    <button id="load-from-cloud-btn" class="btn" disabled>Load from Cloud</button>
-                </div>
-                <!-- Add a default status message -->
-                <div id="cloud-status" class="cloud-status-indicator loading">Connecting to cloud...</div>
-                <div class="data-actions-row">
-                    <button id="export-btn" class="btn">Export Data</button>
-                    <div class="btn-import-wrapper">
-                        <button class="btn">Import Data</button>
-                        <input type="file" id="import-file" accept=".json">
-                    </div>
-                </div>
-            </div>
         </aside>
 
         <main class="main-content">
