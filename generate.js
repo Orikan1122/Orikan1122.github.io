@@ -5,39 +5,33 @@ const path = require('path');
 const projectRoot = __dirname;
 const subDirPath = path.join('productivity', 'Guideline Tool');
 
+// --- Define the source and output paths ---
 const srcDir = path.join(projectRoot, subDirPath); 
-const distDir = path.join(projectRoot, 'dist');
-const distSubDir = path.join(distDir, subDirPath);
+const outputDir = path.join(projectRoot, '_site'); // CHANGED FROM 'dist' TO '_site'
+const outputSubDir = path.join(outputDir, subDirPath);
 
 const assetsSrcDir = path.join(srcDir, 'assets');
-const assetsDistDir = path.join(distSubDir, 'assets');
+const assetsOutputDir = path.join(outputSubDir, 'assets');
 
-// 1. Create distribution directories
+// 1. Create output directories
 console.log('--- Build Setup ---');
 console.log(`Source Directory: ${srcDir}`);
-console.log(`Assets Source Directory: ${assetsSrcDir}`);
-fs.mkdirSync(distSubDir, { recursive: true });
-fs.mkdirSync(assetsDistDir, { recursive: true });
-console.log('Distribution directories created.');
+console.log(`Output Directory: ${outputDir}`);
+fs.mkdirSync(outputSubDir, { recursive: true });
+fs.mkdirSync(assetsOutputDir, { recursive: true });
+console.log('Output directories created.');
 
 // 2. Read and process asset files
 const assetFiles = fs.readdirSync(assetsSrcDir);
-console.log(`Found ${assetFiles.length} total files in assets directory: [${assetFiles.join(', ')}]`);
+console.log(`Found ${assetFiles.length} files in assets directory.`);
 
 const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.svg'];
-let assetsHtml = '';
-let processedImageCount = 0;
-
-assetFiles.forEach(file => {
-    if (imageExtensions.includes(path.extname(file).toLowerCase())) {
-        processedImageCount++;
+const assetsHtml = assetFiles
+    .filter(file => imageExtensions.includes(path.extname(file).toLowerCase()))
+    .map(file => {
         const fileName = path.basename(file, path.extname(file));
         const friendlyName = fileName.replace(/-/g, ' ');
-        
-        // THIS IS THE MOST CRUCIAL LOG
-        console.log(`Processing image #${processedImageCount}: ${file}`);
-
-        assetsHtml += `
+        return `
             <div class="asset-item">
                 <img src="assets/${file}" alt="${friendlyName}">
                 <p>${file}</p>
@@ -47,30 +41,21 @@ assetFiles.forEach(file => {
                 </div>
             </div>
         `;
-    }
-});
-
-console.log(`Generated HTML for ${processedImageCount} images.`);
+    })
+    .join('');
 
 // 3. Inject assets into HTML template
 const templatePath = path.join(srcDir, 'index.html');
 const templateContent = fs.readFileSync(templatePath, 'utf8');
-
-// Another crucial log
-if (!templateContent.includes('<!-- ASSETS_PLACEHOLDER -->')) {
-    console.error("CRITICAL ERROR: The placeholder '<!-- ASSETS_PLACEHOLDER -->' was NOT FOUND in index.html!");
-    process.exit(1); // Exit with an error code
-}
-
 const finalHtml = templateContent.replace('<!-- ASSETS_PLACEHOLDER -->', assetsHtml);
-fs.writeFileSync(path.join(distSubDir, 'index.html'), finalHtml);
+fs.writeFileSync(path.join(outputSubDir, 'index.html'), finalHtml);
 console.log('Generated final index.html.');
 
 // 4. Copy all necessary files
-fs.copyFileSync(path.join(srcDir, 'style.css'), path.join(distSubDir, 'style.css'));
-fs.copyFileSync(path.join(srcDir, 'script.js'), path.join(distSubDir, 'script.js'));
+fs.copyFileSync(path.join(srcDir, 'style.css'), path.join(outputSubDir, 'style.css'));
+fs.copyFileSync(path.join(srcDir, 'script.js'), path.join(outputSubDir, 'script.js'));
 assetFiles.forEach(file => {
-    fs.copyFileSync(path.join(assetsSrcDir, file), path.join(assetsDistDir, file));
+    fs.copyFileSync(path.join(assetsSrcDir, file), path.join(assetsOutputDir, file));
 });
 console.log('Copied all necessary files.');
 console.log('✅ Build complete!');
