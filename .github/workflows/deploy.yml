@@ -5,7 +5,6 @@ on:
     branches: ["main"]
   workflow_dispatch:
 
-# THIS IS THE NEW CONCURRENCY BLOCK
 concurrency:
   group: "pages"
   cancel-in-progress: true
@@ -31,10 +30,6 @@ jobs:
         with:
           node-version: '18'
 
-      # We can now remove the debugging list command
-      # - name: List all files in the repository
-      #   run: ls -R
-
       - name: Run the build script
         run: node generate.js
 
@@ -44,7 +39,8 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: './dist'
+          # CHANGED FROM './dist' TO './_site'
+          path: './_site'
 
       - name: Deploy to GitHub Pages
         id: deployment
