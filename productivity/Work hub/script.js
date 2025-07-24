@@ -53,7 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const cloudStatusEl = document.getElementById('cloud-status');
     const authContainer = document.getElementById('auth-container');
     const userInfo = document.getElementById('user-info');
-    const userPhoto = document.getElementById('user-photo');
+    // Die 'userPhoto' Referenz wurde entfernt
     const userDisplayName = document.getElementById('user-display-name');
     const loginSection = document.getElementById('login-section');
     const googleLoginBtn = document.getElementById('google-login-btn');
@@ -66,7 +66,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (user && !user.isAnonymous) {
             currentUserId = user.uid;
             console.log("Permanent user signed in:", currentUserId, user.displayName);
-            if (userPhoto) userPhoto.src = user.photoURL;
+            
+            // Die Zeile, die das Foto setzt, wurde entfernt
             if (userDisplayName) userDisplayName.textContent = user.displayName;
             if (userInfo) userInfo.style.display = 'block';
             if (loginSection) loginSection.style.display = 'none';
@@ -117,37 +118,27 @@ document.addEventListener('DOMContentLoaded', () => {
         showCloudStatus("Waiting for Google sign-in...", 'loading', 0);
 
         if (auth.currentUser && auth.currentUser.isAnonymous) {
-            // Case 1: User is anonymous. Try to upgrade their account.
             auth.currentUser.linkWithPopup(googleProvider)
                 .then(result => {
                     console.log("Anonymous account successfully upgraded:", result.user.uid);
                     showCloudStatus("Account linked successfully!", 'success');
                 }).catch(error => {
-                    // --- THIS IS THE CRITICAL FIX ---
-                    // Case 2: Linking failed. Check for the specific error.
                     if (error.code === 'auth/credential-already-in-use') {
-                        // This means the user's Google account already exists.
-                        // The current anonymous user is temporary and can be discarded.
-                        // So, we just sign in normally.
                         console.log("User already exists, signing in directly...");
                         auth.signInWithPopup(googleProvider)
                             .then(result => {
                                 console.log("Successfully signed in with Google:", result.user.uid);
                                 showCloudStatus("Sign-in successful!", 'success');
                             }).catch(signInError => {
-                                // Handle potential errors during the normal sign-in
                                 console.error("Error during direct sign in:", signInError);
                                 showCloudStatus(`Error: ${signInError.message}`, 'error', 0);
                             });
                     } else {
-                        // Case 3: A different, unexpected error occurred during linking.
                         console.error("Error linking account with Google:", error);
                         showCloudStatus(`Error: ${error.message}`, 'error', 0);
                     }
                 });
         } else {
-            // Case 4: User is not anonymous (e.g., already logged in, or logged out).
-            // A simple sign-in is the correct action.
             auth.signInWithPopup(googleProvider)
                 .then(result => {
                     console.log("Successfully signed in with Google:", result.user.uid);
