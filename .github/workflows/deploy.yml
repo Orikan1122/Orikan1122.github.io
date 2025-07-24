@@ -1,10 +1,14 @@
 name: Build and Deploy to GitHub Pages
 
 on:
+  # Runs on pushes to the main branch
   push:
     branches: ["main"]
+
+  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
+# Sets permissions for the GITHUB_TOKEN to allow deployment
 permissions:
   contents: read
   pages: write
@@ -12,12 +16,16 @@ permissions:
 
 jobs:
   build-and-deploy:
+    # THIS IS THE BLOCK WE ARE ADDING
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # This step is now corrected
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -32,6 +40,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
+          # Upload the entire 'dist' directory
           path: './dist'
 
       - name: Deploy to GitHub Pages
