@@ -175,21 +175,45 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
+    // Ersetze deine alte saveToCloud Funktion mit dieser:
     function saveToCloud() {
-      if (!currentUserId) {
-        showCloudStatus("Cannot save: User not authenticated.", 'error');
-        return;
-      }
-      showCloudStatus("Saving to cloud...", 'loading', 0);
-      const dataToSave = { tools, categories, todos };
-      db.collection("userData").doc(currentUserId).set({ data: dataToSave })
-        .then(() => {
-            showCloudStatus("Data saved successfully!", 'success');
-        })
-        .catch(error => {
-            console.error("Error saving data to Firestore:", error);
-            showCloudStatus("Error: Failed to save data. " + error.message, 'error', 0);
-        });
+        if (!currentUserId) {
+            showCloudStatus("Cannot save: User not authenticated.", 'error');
+            console.error("Save blocked: No currentUserId.");
+            return;
+        }
+    
+        // Log 1: Wir sehen, dass die Funktion startet.
+        console.log("Attempting to save to cloud for user:", currentUserId);
+    
+        showCloudStatus("Saving to cloud...", 'loading', 0);
+    
+        const dataToSave = {
+            tools: tools,
+            categories: categories,
+            todos: todos
+        };
+    
+        // Log 2: Das ist der WICHTIGSTE Log. Wir sehen genau, was gesendet wird.
+        // Manchmal können ungültige Daten (wie 'undefined') das Speichern blockieren.
+        console.log("Data object being sent to Firestore:", JSON.stringify(dataToSave, null, 2));
+    
+        // Log 3: Direkt bevor der Befehl abgesetzt wird.
+        console.log("Executing Firestore set() command...");
+    
+        db.collection("userData").doc(currentUserId).set({
+                data: dataToSave
+            })
+            .then(() => {
+                // Log 4: Wenn dies erscheint, war es erfolgreich.
+                console.log("Firestore set() command successful!");
+                showCloudStatus("Data saved successfully!", 'success');
+            })
+            .catch(error => {
+                // Log 5: Wenn dies erscheint, gab es einen Fehler.
+                console.error("Firestore set() command failed:", error);
+                showCloudStatus("Error: Failed to save data. " + error.message, 'error', 0);
+            });
     }
 
     function loadFromCloud() {
