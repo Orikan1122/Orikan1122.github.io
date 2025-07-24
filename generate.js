@@ -3,38 +3,52 @@ const path = require('path');
 
 // --- Define the base paths ---
 const projectRoot = __dirname;
-// NEW: Define the subdirectory path
 const subDirPath = path.join('productivity', 'Guideline Tool');
 
-// --- Define the source and distribution paths using the subdirectory ---
+// --- Define the source and distribution paths ---
 const srcDir = path.join(projectRoot, 'src', subDirPath);
-const distDir = path.join(projectRoot, 'dist'); // The dist folder itself is still at the root
-const distSubDir = path.join(distDir, subDirPath); // The path where files will be placed INSIDE dist
-
+const distDir = path.join(projectRoot, 'dist');
+const distSubDir = path.join(distDir, subDirPath);
 const assetsSrcDir = path.join(srcDir, 'assets');
 const assetsDistDir = path.join(distSubDir, 'assets');
 
-// 1. Ensure the distribution directories exist and are clean
+// --- ADDED FOR DEBUGGING: Log all constructed paths ---
+console.log('--- Debugging Paths ---');
+console.log(`Project Root: ${projectRoot}`);
+console.log(`Source Directory for Assets: ${assetsSrcDir}`);
+console.log(`Distribution Directory: ${distSubDir}`);
+console.log('-------------------------');
+
+// 1. Create distribution directories
 if (!fs.existsSync(distDir)) fs.mkdirSync(distDir);
-if (fs.existsSync(distSubDir)) {
-    fs.rmSync(distSubDir, { recursive: true, force: true });
-}
-// Create the full nested path: dist/productivity/Guideline Tool
 fs.mkdirSync(distSubDir, { recursive: true });
 fs.mkdirSync(assetsDistDir, { recursive: true });
 
-console.log(`Starting build for subdirectory: ${subDirPath}`);
+console.log('Starting build process...');
 
-// 2. Generate the HTML for each asset
+// --- ADDED FOR DEBUGGING: Check if the assets source directory exists ---
+if (!fs.existsSync(assetsSrcDir)) {
+    console.error(`❌ CRITICAL ERROR: The source assets directory does not exist at path: ${assetsSrcDir}`);
+    // Exit the script early if the folder isn't found
+    process.exit(1);
+}
+
+// 2. Read the asset files from the source directory
 const assetFiles = fs.readdirSync(assetsSrcDir);
+// --- ADDED FOR DEBUGGING: Log the files that were found ---
+console.log(`Files found in assets directory: [${assetFiles.join(', ')}]`);
+if (assetFiles.length === 0) {
+    console.warn('⚠️ WARNING: No image files were found in the assets directory. The brand assets section will be empty.');
+}
+
+// 3. Generate HTML for each asset
 const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.svg'];
 const assetsHtml = assetFiles
     .filter(file => imageExtensions.includes(path.extname(file).toLowerCase()))
     .map(file => {
+        // ... (rest of the mapping function is the same)
         const fileName = path.basename(file, path.extname(file));
         const friendlyName = fileName.replace(/-/g, ' ');
-        // The paths inside the HTML are relative, so they don't need to change!
-        // "assets/file.jpg" will correctly point to a sibling "assets" folder.
         return `
             <div class="asset-item">
                 <img src="assets/${file}" alt="${friendlyName}">
@@ -47,16 +61,16 @@ const assetsHtml = assetFiles
         `;
     })
     .join('');
-console.log(`Found and processed ${assetFiles.length} assets.`);
+console.log(`Generated HTML for ${assetFiles.filter(f => imageExtensions.includes(path.extname(f).toLowerCase())).length} images.`);
 
-// 3. Read the HTML template and inject the generated assets
+// 4. Read the template and inject the HTML
 const templatePath = path.join(srcDir, 'index.html');
 const templateContent = fs.readFileSync(templatePath, 'utf8');
 const finalHtml = templateContent.replace('<!-- ASSETS_PLACEHOLDER -->', assetsHtml);
 fs.writeFileSync(path.join(distSubDir, 'index.html'), finalHtml);
 console.log(`Generated final index.html in ${distSubDir}`);
 
-// 4. Copy other necessary files (CSS, JS, and all assets)
+// 5. Copy other necessary files
 fs.copyFileSync(path.join(srcDir, 'style.css'), path.join(distSubDir, 'style.css'));
 fs.copyFileSync(path.join(srcDir, 'script.js'), path.join(distSubDir, 'script.js'));
 assetFiles.forEach(file => {
