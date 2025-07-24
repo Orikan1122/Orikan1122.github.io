@@ -12,8 +12,9 @@ document.addEventListener('DOMContentLoaded', () => {
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
     const auth = firebase.auth();
-    const googleProvider = new firebase.auth.GoogleAuthProvider(); // Google Provider erstellen
+    const googleProvider = new firebase.auth.GoogleAuthProvider();
     let currentUserId = null;
+    let isLoggingOut = false;
 
 
     // --- STATE & REFS ---
@@ -50,8 +51,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const saveToCloudBtn = document.getElementById('save-to-cloud-btn');
     const loadFromCloudBtn = document.getElementById('load-from-cloud-btn');
     const cloudStatusEl = document.getElementById('cloud-status');
-
-    // --- Authentication UI Element References ---
     const authContainer = document.getElementById('auth-container');
     const userInfo = document.getElementById('user-info');
     const userPhoto = document.getElementById('user-photo');
@@ -63,77 +62,56 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- FIREBASE AUTH & DATA ---
 
-    /**
-     * Handles all user authentication state changes.
-     */
     auth.onAuthStateChanged(user => {
         if (user && !user.isAnonymous) {
-            // --- USER IS LOGGED IN WITH A PERMANENT GOOGLE ACCOUNT ---
             currentUserId = user.uid;
             console.log("Permanent user signed in:", currentUserId, user.displayName);
-
-            // Update UI
             if (userPhoto) userPhoto.src = user.photoURL;
             if (userDisplayName) userDisplayName.textContent = user.displayName;
             if (userInfo) userInfo.style.display = 'block';
             if (loginSection) loginSection.style.display = 'none';
-
-            // Enable cloud features
             showCloudStatus("Cloud connected.", 'success');
             if (saveToCloudBtn) saveToCloudBtn.disabled = false;
             if (loadFromCloudBtn) loadFromCloudBtn.disabled = false;
-            
             loadData();
             render();
 
         } else if (user && user.isAnonymous) {
-            // --- USER IS USING AN ANONYMOUS ACCOUNT ---
             currentUserId = user.uid;
             console.log("Anonymous user session active:", currentUserId);
-
-            // Update UI to show login button
             if (userInfo) userInfo.style.display = 'none';
             if (loginSection) loginSection.style.display = 'block';
             if (googleLoginBtn) googleLoginBtn.textContent = 'Sign In & Keep Data';
-
-            // Cloud features can still be used for the anonymous account
             showCloudStatus("Sign in with Google to sync your data.", 'loading', 0);
             if (saveToCloudBtn) saveToCloudBtn.disabled = false;
             if (loadFromCloudBtn) loadFromCloudBtn.disabled = false;
-            
             loadData();
             render();
 
         } else {
-            // --- USER IS COMPLETELY LOGGED OUT ---
             currentUserId = null;
             console.log("No user signed in.");
-
-            // Update UI
             if (userInfo) userInfo.style.display = 'none';
             if (loginSection) loginSection.style.display = 'block';
             if (googleLoginBtn) googleLoginBtn.textContent = 'Sign In with Google';
-
-            // Disable cloud features
             showCloudStatus("Please sign in to use the cloud.", 'error', 0);
             if (saveToCloudBtn) saveToCloudBtn.disabled = true;
             if (loadFromCloudBtn) loadFromCloudBtn.disabled = true;
+
+            if (!isLoggingOut) {
+                auth.signInAnonymously().catch(e => console.error("Initial anonymous sign-in failed", e));
+            }
+            isLoggingOut = false;
 
             loadData();
             render();
         }
     });
 
-    /**
-     * Handles Google Sign-In via popup.
-     * If the user is currently anonymous, it links the Google account to the
-     * existing anonymous one, preserving their data.
-     */
     function handleGoogleLogin() {
         showCloudStatus("Waiting for Google sign-in...", 'loading', 0);
         
         if (auth.currentUser && auth.currentUser.isAnonymous) {
-            // --- LINK/UPGRADE the existing anonymous account ---
             auth.currentUser.linkWithPopup(googleProvider)
                 .then(result => {
                     console.log("Anonymous account successfully upgraded:", result.user.uid);
@@ -143,7 +121,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     showCloudStatus(`Error: ${error.message}`, 'error', 0);
                 });
         } else {
-            // --- SIGN IN a new or existing user from scratch ---
             auth.signInWithPopup(googleProvider)
                 .then(result => {
                     console.log("Successfully signed in with Google:", result.user.uid);
@@ -154,14 +131,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
         }
     }
-
-    /**
-     * Handles user logout.
-     */
+    
     function handleLogout() {
+        isLoggingOut = true; 
         auth.signOut().then(() => {
             console.log("User logged out.");
-            // onAuthStateChanged will reset the UI.
+        }).catch(error => {
+            console.error("Logout failed:", error);
+            isLoggingOut = false;
         });
     }
 
@@ -169,9 +146,6 @@ document.addEventListener('DOMContentLoaded', () => {
     googleLoginBtn?.addEventListener('click', handleGoogleLogin);
     logoutBtn?.addEventListener('click', handleLogout);
     
-    /**
-     * Displays a status message for cloud operations (saving, loading).
-     */
     function showCloudStatus(message, type = 'loading', duration = 3000) {
         if (!cloudStatusEl) return;
         cloudStatusEl.textContent = message;
@@ -183,9 +157,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
-    /**
-     * Saves the current application data to Firestore.
-     */
     function saveToCloud() {
       if (!currentUserId) {
         showCloudStatus("Cannot save: User not authenticated.", 'error');
@@ -203,9 +174,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    /**
-     * Loads application data from Firestore, overwriting local data.
-     */
     function loadFromCloud() {
         if (!currentUserId) {
             showCloudStatus("Cannot load: User not authenticated.", 'error');
@@ -450,16 +418,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- EVENT HANDLERS ---
-    // Cloud Actions
     saveToCloudBtn?.addEventListener('click', saveToCloud);
     loadFromCloudBtn?.addEventListener('click', loadFromCloud);
-
-    // UI Toggles
     document.getElementById('toggle-sidebar')?.addEventListener('click', () => sidebar.classList.toggle('hidden'));
     document.getElementById('toggle-tools')?.addEventListener('click', () => toolsPane.classList.toggle('hidden'));
     document.getElementById('toggle-todos')?.addEventListener('click', () => todosPane.classList.toggle('hidden'));
-    
-    // Search and Filters
     toolSearchInput?.addEventListener('input', e => { toolSearchTerm = e.target.value; renderTools(); });
     todoSearchInput?.addEventListener('input', e => { todoSearchTerm = e.target.value; renderTodos(); });
     showDoneTodosCheckbox?.addEventListener('change', () => {
@@ -475,7 +438,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Forms and Inputs
     [toolCategoryInput, todoCategoryInput].forEach(input => {
         if(input) input.addEventListener('input', e => {
             const categoryKey = e.target.value.toLowerCase();
@@ -643,7 +605,7 @@ document.addEventListener('DOMContentLoaded', () => {
         tool.description = card.querySelector('.edit-tool-description').value.trim();
         
         if (newCategoryName && !categories[newCategoryKey]) {
-            categories[newCategoryKey] = { color: '#3498db' }; // Assign default color
+            categories[newCategoryKey] = { color: '#3498db' };
         }
         
         pruneOrphanedCategories();
@@ -757,15 +719,5 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
         reader.readAsText(file);
-    });
-
-    // --- INITIAL LOAD & AUTH ---
-    // This listener ensures that any new visitor is immediately signed in
-    // anonymously. This allows them to start creating data which can then
-    // be linked to a permanent account when they sign in.
-    auth.onAuthStateChanged(user => {
-        if (!user) {
-            auth.signInAnonymously().catch(e => console.error("Initial anonymous sign-in failed", e));
-        }
     });
 });
