@@ -15,24 +15,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const googleProvider = new firebase.auth.GoogleAuthProvider();
     let currentUserId = null;
     let isLoggingOut = false;
-
-    // --- NEU: Ergebnis der Weiterleitung abfangen ---
-    // Dieser Code läuft bei JEDEM Laden der Seite und prüft, ob wir
-    // gerade von einer Google-Anmeldung zurückkehren.
-    auth.getRedirectResult()
-        .then(result => {
-            if (result.user) {
-                // Erfolgreich per Redirect angemeldet oder verknüpft.
-                console.log("Redirect result successful for user:", result.user.uid);
-                showCloudStatus("Sign-in successful!", 'success');
-                // onAuthStateChanged wird den Rest erledigen.
-            }
-        })
-        .catch(error => {
-            // Fehler bei der Weiterleitung behandeln.
-            console.error("Error processing redirect result:", error);
-            showCloudStatus(`Error during sign-in: ${error.message}`, 'error', 0);
-        });
+    
+    // NEUE WACHVARIABLE: Stellt sicher, dass die App nur einmal initialisiert wird.
+    let appInitialized = false;
 
 
     // --- STATE & REFS ---
@@ -79,7 +64,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- FIREBASE AUTH & DATA ---
 
+    // Ergebnis der Weiterleitung zuerst abfangen
+    auth.getRedirectResult()
+        .then(result => {
+            if (result.user) {
+                console.log("Redirect result successful for user:", result.user.uid);
+                showCloudStatus("Sign-in successful!", 'success');
+            }
+        })
+        .catch(error => {
+            console.error("Error processing redirect result:", error);
+            showCloudStatus(`Error during sign-in: ${error.message}`, 'error', 0);
+        });
+
     auth.onAuthStateChanged(user => {
+        // Dieser Teil aktualisiert nur die UI basierend auf dem Login-Status
         if (user && !user.isAnonymous) {
             currentUserId = user.uid;
             console.log("Permanent user signed in:", currentUserId, user.displayName);
@@ -89,9 +88,6 @@ document.addEventListener('DOMContentLoaded', () => {
             showCloudStatus("Cloud connected.", 'success');
             if (saveToCloudBtn) saveToCloudBtn.disabled = false;
             if (loadFromCloudBtn) loadFromCloudBtn.disabled = false;
-            loadData();
-            render();
-
         } else if (user && user.isAnonymous) {
             currentUserId = user.uid;
             console.log("Anonymous user session active:", currentUserId);
@@ -101,9 +97,6 @@ document.addEventListener('DOMContentLoaded', () => {
             showCloudStatus("Sign in with Google to sync your data.", 'loading', 0);
             if (saveToCloudBtn) saveToCloudBtn.disabled = false;
             if (loadFromCloudBtn) loadFromCloudBtn.disabled = false;
-            loadData();
-            render();
-
         } else {
             currentUserId = null;
             console.log("No user signed in.");
@@ -118,21 +111,35 @@ document.addEventListener('DOMContentLoaded', () => {
                 auth.signInAnonymously().catch(e => console.error("Initial anonymous sign-in failed", e));
             }
             isLoggingOut = false;
+        }
 
-            loadData();
-            render();
+        // --- ENTSCHEIDENDE ÄNDERUNG ---
+        // Initialisiere die App, nachdem der erste Auth-Status bekannt ist.
+        if (!appInitialized) {
+            initializeApp();
         }
     });
 
     /**
-     * Handles Google Sign-In using the redirect method, which is robust
-     * for all browsers, including mobile and restricted desktop environments.
+     * Diese Funktion wird nur EINMAL aufgerufen. Sie hängt alle permanenten
+     * Event-Listener an und führt das erste Laden der Daten durch.
      */
+    function initializeApp() {
+        if (appInitialized) return; // Sicherheits-Check
+        console.log("Initializing application event listeners...");
+
+        // Alle Event-Listener hier bündeln
+        attachEventListeners();
+
+        // Lokale Daten laden und die Seite zum ersten Mal rendern
+        loadData();
+        render();
+
+        appInitialized = true;
+    }
+
     function handleGoogleLogin() {
         showCloudStatus("Redirecting to Google...", 'loading', 0);
-        // Diese eine Zeile ersetzt die gesamte alte Popup-Logik.
-        // Firebase kümmert sich automatisch um die Verknüpfung, wenn der
-        // Benutzer anonym ist und von der Anmeldung zurückkehrt.
         auth.signInWithRedirect(googleProvider);
     }
     
@@ -146,11 +153,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- Add Event Listeners for auth buttons ---
-    googleLoginBtn?.addEventListener('click', handleGoogleLogin);
-    logoutBtn?.addEventListener('click', handleLogout);
-    
-    // --- Der Rest des Codes bleibt identisch ---
+    // --- Alle Funktionen bleiben gleich, werden aber jetzt korrekt aufgerufen ---
     
     function showCloudStatus(message, type = 'loading', duration = 3000) {
         if (!cloudStatusEl) return;
@@ -499,70 +502,240 @@ document.addEventListener('DOMContentLoaded', () => {
         render();
     }
     
-    document.getElementById('weekly-summary-btn')?.addEventListener('click', () => {
-        const now = new Date();
-        const thisWeek = getWeekRange(now);
-        const nextWeekDate = new Date(new Date().setDate(now.getDate() + 7));
-        const nextWeek = getWeekRange(nextWeekDate);
+    /**
+     * NEUE FUNKTION: Bündelt alle Event-Listener, die nicht direkt mit der Auth zu tun haben.
+     */
+    function attachEventListeners() {
+        // Auth-Buttons
+        googleLoginBtn?.addEventListener('click', handleGoogleLogin);
+        logoutBtn?.addEventListener('click', handleLogout);
+        
+        // Cloud Actions
+        saveToCloudBtn?.addEventListener('click', saveToCloud);
+        loadFromCloudBtn?.addEventListener('click', loadFromCloud);
 
-        const completedThisWeek = todos.filter(t => t.done && t.completionDate && new Date(t.completionDate) >= thisWeek.start && new Date(t.completionDate) <= thisWeek.end);
-        const plannedForNextWeek = todos.filter(t => !t.done && t.dueDate && new Date(t.dueDate) >= nextWeek.start && new Date(t.dueDate) <= nextWeek.end);
-
-        summaryModalBody.innerHTML = `
-            <div class="summary-section" data-section="completed"><h4><span>Completed This Week (${completedThisWeek.length})</span><button class="btn btn-secondary btn-small" data-action="copy-summary">Copy</button></h4><ul>${completedThisWeek.length > 0 ? completedThisWeek.map(t => `<li>${t.text}</li>`).join('') : '<li>No tasks completed this week.</li>'}</ul></div>
-            <div class="summary-section" data-section="planned"><h4><span>Planned for Next Week (${plannedForNextWeek.length})</span><button class="btn btn-secondary btn-small" data-action="copy-summary">Copy</button></h4><ul>${plannedForNextWeek.length > 0 ? plannedForNextWeek.map(t => `<li>${t.text} (Due: ${t.dueDate})</li>`).join('') : '<li>No tasks planned for next week.</li>'}</ul></div>`;
-        if (summaryModalOverlay) summaryModalOverlay.style.display = 'flex';
-    });
-
-    document.getElementById('summary-modal-close-btn')?.addEventListener('click', () => { if(summaryModalOverlay) summaryModalOverlay.style.display = 'none' });
-    summaryModalOverlay?.addEventListener('click', e => { if (e.target === summaryModalOverlay) summaryModalOverlay.style.display = 'none'; });
-    
-    summaryModalBody?.addEventListener('click', e => {
-        const button = e.target.closest('button[data-action="copy-summary"]');
-        if (button) {
-            const section = button.closest('.summary-section');
-            const title = section.querySelector('h4 span').textContent;
-            const items = [...section.querySelectorAll('li')].map(li => `- ${li.textContent}`).join('\n');
-            navigator.clipboard.writeText(`${title}\n${items}`).then(() => {
-                button.textContent = 'Copied!'; button.classList.add('copied');
-                setTimeout(() => { button.textContent = 'Copy'; button.classList.remove('copied'); }, 2000);
-            });
-        }
-    });
-
-    exportBtn?.addEventListener('click', () => {
-        if (tools.length === 0 && todos.length === 0) { alert('No data to export.'); return; }
-        const dataStr = JSON.stringify({ tools, categories, todos }, null, 2);
-        const blob = new Blob([dataStr], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `work-hub-backup-${new Date().toISOString().split('T')[0]}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-    });
-
-    importFile?.addEventListener('change', e => {
-        const file = e.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = event => {
-            try {
-                const data = JSON.parse(event.target.result);
-                if (!data.tools || !data.categories || !data.todos) throw new Error("JSON missing required data.");
-                if (confirm('This will overwrite all current data. Proceed?')) {
-                    tools = data.tools; categories = data.categories; todos = data.todos;
-                    saveData();
-                    currentCategoryFilter = 'all';
-                    render();
-                    alert('Data imported successfully!');
-                }
-            } catch (error) {
-                alert('Failed to import file.\nError: ' + error.message);
-            } finally {
-                importFile.value = '';
+        // UI Toggles
+        document.getElementById('toggle-sidebar')?.addEventListener('click', () => sidebar.classList.toggle('hidden'));
+        document.getElementById('toggle-tools')?.addEventListener('click', () => toolsPane.classList.toggle('hidden'));
+        document.getElementById('toggle-todos')?.addEventListener('click', () => todosPane.classList.toggle('hidden'));
+        
+        // Search and Filters
+        toolSearchInput?.addEventListener('input', e => { toolSearchTerm = e.target.value; renderTools(); });
+        todoSearchInput?.addEventListener('input', e => { todoSearchTerm = e.target.value; renderTodos(); });
+        showDoneTodosCheckbox?.addEventListener('change', () => {
+            showDoneTodos = showDoneTodosCheckbox.checked;
+            saveData();
+            renderTodos();
+        });
+        categoryFiltersContainer?.addEventListener('click', (e) => {
+            const target = e.target.closest('.category-filter');
+            if (target) {
+                currentCategoryFilter = target.dataset.category;
+                render();
             }
-        };
-        reader.readAsText(file);
-    });
-});
+        });
+
+        // Forms and Inputs
+        [toolCategoryInput, todoCategoryInput].forEach(input => {
+            if(input) input.addEventListener('input', e => {
+                const categoryKey = e.target.value.toLowerCase();
+                if (categories[categoryKey]) {
+                    const color = categories[categoryKey].color;
+                    if(toolCategoryColorInput) toolCategoryColorInput.value = color;
+                    if(todoCategoryColorInput) todoCategoryColorInput.value = color;
+                }
+            });
+        });
+
+        addToolForm?.addEventListener('submit', e => {
+            e.preventDefault();
+            const categoryName = toolCategoryInput.value.trim();
+            const categoryKey = categoryName.toLowerCase();
+            
+            tools.push({
+                id: Date.now(),
+                name: document.getElementById('tool-name').value.trim(),
+                url: document.getElementById('tool-url').value.trim(),
+                category: categoryName || 'Uncategorized',
+                status: document.getElementById('tool-status').value,
+                description: document.getElementById('tool-description').value.trim(),
+            });
+            
+            if (categoryName && !categories[categoryKey]) {
+                categories[categoryKey] = { color: toolCategoryColorInput.value };
+            }
+            
+            saveData();
+            render();
+            addToolForm.reset();
+            toolCategoryColorInput.value = '#3498db';
+        });
+        
+        addTodoForm?.addEventListener('submit', e => {
+            e.preventDefault();
+            const categoryName = todoCategoryInput.value.trim();
+            const categoryKey = categoryName.toLowerCase();
+
+            todos.push({
+                id: Date.now(),
+                text: document.getElementById('todo-text').value.trim(),
+                dueDate: document.getElementById('todo-due-date').value,
+                done: false,
+                completionDate: null,
+                category: categoryName || 'Uncategorized',
+                linkedTools: [...toolSelector.selectedOptions].map(opt => Number(opt.value))
+            });
+            
+            if (categoryName && !categories[categoryKey]) {
+                categories[categoryKey] = { color: todoCategoryColorInput.value };
+            }
+
+            saveData();
+            render();
+            addTodoForm.reset();
+            todoCategoryColorInput.value = '#3498db';
+        });
+
+        // Card Actions (Todos)
+        todoListContainer?.addEventListener('click', e => {
+            const button = e.target.closest('button[data-action]');
+            const checkbox = e.target.closest('input[data-action="toggle-done"]');
+
+            if (button) {
+                const action = button.dataset.action;
+                const card = button.closest('.todo-card');
+                const todoId = Number(card.dataset.id);
+                const todo = todos.find(t => t.id === todoId);
+
+                if (action === 'delete-todo') { 
+                    if (confirm('Delete this task?')) { 
+                        todos = todos.filter(t => t.id !== todoId); 
+                        pruneOrphanedCategories();
+                        saveData(); 
+                        render(); 
+                    } 
+                }
+                else if (action === 'edit-todo') { toggleTodoEditMode(card, todo); }
+                else if (action === 'save-todo') { saveTodoEdit(card, todo); }
+                else if (action === 'cancel-edit-todo') { renderTodos(); }
+            } else if (checkbox) {
+                const todoId = Number(checkbox.closest('.todo-card').dataset.id);
+                const todo = todos.find(t => t.id === todoId);
+                if (todo) {
+                    todo.done = checkbox.checked;
+                    todo.completionDate = todo.done ? new Date().toISOString() : null;
+                    saveData();
+                    renderTodos();
+                }
+            }
+        });
+        
+        // Card Actions (Tools)
+        launchAllBtn?.addEventListener('click', () => {
+            getFilteredTools().forEach(tool => window.open(tool.url, '_blank'));
+        });
+        
+        toolListContainer?.addEventListener('click', e => {
+            const button = e.target.closest('button[data-action], a[data-action]');
+            if (!button) return;
+
+            const action = button.dataset.action;
+            if (!action || action === 'launch') return;
+
+            e.preventDefault();
+            const card = button.closest('.tool-card');
+            const toolId = Number(card.dataset.id);
+            const tool = tools.find(t => t.id === toolId);
+            
+            if (action === 'delete-tool') { 
+                if (confirm(`Delete "${tool.name}"?`)) { 
+                    tools = tools.filter(t => t.id !== toolId); 
+                    pruneOrphanedCategories();
+                    saveData(); 
+                    render(); 
+                } 
+            }
+            else if (action === 'edit-tool') { toggleToolEditMode(card, tool); }
+            else if (action === 'save-tool') { saveToolEdit(card, tool); }
+            else if (action === 'cancel-edit-tool') { renderTools(); }
+            else if (action === 'copy-path') {
+                if ((tool.url || '').startsWith('file:///')) {
+                    const osPath = decodeURIComponent(tool.url.substring(0, tool.url.lastIndexOf('/'))).replace('file:///', '');
+                    navigator.clipboard.writeText(osPath.replace(/\//g, '\\')).then(() => {
+                        button.textContent = 'Copied!'; button.classList.add('copied');
+                        setTimeout(() => { button.textContent = 'Copy Path'; button.classList.remove('copied'); }, 2000);
+                    });
+                }
+            }
+        });
+
+        // MODAL & DATA I/O HANDLERS
+        document.getElementById('weekly-summary-btn')?.addEventListener('click', () => {
+            const now = new Date();
+            const thisWeek = getWeekRange(now);
+            const nextWeekDate = new Date(new Date().setDate(now.getDate() + 7));
+            const nextWeek = getWeekRange(nextWeekDate);
+
+            const completedThisWeek = todos.filter(t => t.done && t.completionDate && new Date(t.completionDate) >= thisWeek.start && new Date(t.completionDate) <= thisWeek.end);
+            const plannedForNextWeek = todos.filter(t => !t.done && t.dueDate && new Date(t.dueDate) >= nextWeek.start && new Date(t.dueDate) <= nextWeek.end);
+
+            summaryModalBody.innerHTML = `
+                <div class="summary-section" data-section="completed"><h4><span>Completed This Week (${completedThisWeek.length})</span><button class="btn btn-secondary btn-small" data-action="copy-summary">Copy</button></h4><ul>${completedThisWeek.length > 0 ? completedThisWeek.map(t => `<li>${t.text}</li>`).join('') : '<li>No tasks completed this week.</li>'}</ul></div>
+                <div class="summary-section" data-section="planned"><h4><span>Planned for Next Week (${plannedForNextWeek.length})</span><button class="btn btn-secondary btn-small" data-action="copy-summary">Copy</button></h4><ul>${plannedForNextWeek.length > 0 ? plannedForNextWeek.map(t => `<li>${t.text} (Due: ${t.dueDate})</li>`).join('') : '<li>No tasks planned for next week.</li>'}</ul></div>`;
+            if (summaryModalOverlay) summaryModalOverlay.style.display = 'flex';
+        });
+
+        document.getElementById('summary-modal-close-btn')?.addEventListener('click', () => { if(summaryModalOverlay) summaryModalOverlay.style.display = 'none' });
+        summaryModalOverlay?.addEventListener('click', e => { if (e.target === summaryModalOverlay) summaryModalOverlay.style.display = 'none'; });
+        
+        summaryModalBody?.addEventListener('click', e => {
+            const button = e.target.closest('button[data-action="copy-summary"]');
+            if (button) {
+                const section = button.closest('.summary-section');
+                const title = section.querySelector('h4 span').textContent;
+                const items = [...section.querySelectorAll('li')].map(li => `- ${li.textContent}`).join('\n');
+                navigator.clipboard.writeText(`${title}\n${items}`).then(() => {
+                    button.textContent = 'Copied!'; button.classList.add('copied');
+                    setTimeout(() => { button.textContent = 'Copy'; button.classList.remove('copied'); }, 2000);
+                });
+            }
+        });
+
+        exportBtn?.addEventListener('click', () => {
+            if (tools.length === 0 && todos.length === 0) { alert('No data to export.'); return; }
+            const dataStr = JSON.stringify({ tools, categories, todos }, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `work-hub-backup-${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+
+        importFile?.addEventListener('change', e => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = event => {
+                try {
+                    const data = JSON.parse(event.target.result);
+                    if (!data.tools || !data.categories || !data.todos) throw new Error("JSON missing required data.");
+                    if (confirm('This will overwrite all current data. Proceed?')) {
+                        tools = data.tools; categories = data.categories; todos = data.todos;
+                        saveData();
+                        currentCategoryFilter = 'all';
+                        render();
+                        alert('Data imported successfully!');
+                    }
+                } catch (error) {
+                    alert('Failed to import file.\nError: ' + error.message);
+                } finally {
+                    importFile.value = '';
+                }
+            };
+            reader.readAsText(file);
+        });
+    }
+
+}); // Ende des DOMContentLoaded Listeners
