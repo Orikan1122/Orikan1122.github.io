@@ -60,3 +60,10 @@
 .copy-btn:hover {
     background-color: #0f171c;
 }
+/* In style.css */
+
+.logo {
+    width: 120px; /* Reduced from 150px */
+    max-height: 60px; /* Added to control height */
+    margin-bottom: 10px;
+}
