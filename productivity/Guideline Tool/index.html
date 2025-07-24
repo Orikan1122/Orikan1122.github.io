@@ -4,16 +4,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Coca-Cola HBC Brand Guideline Tool</title>
+    
+    <!-- CORRECTED PATH: No leading slash. This makes it relative. -->
     <link rel="stylesheet" href="style.css">
+
 </head>
 <body>
 
     <header>
-        <img src="New Logo V1.png" alt="Coca-Cola HBC Logo" class="logo">
+        <!-- CORRECTED PATH: No leading slash. -->
+        <img src="assets/New Logo V1.png" alt="Coca-Cola HBC Logo" class="logo">
         <h1>Brand Guideline Tool</h1>
     </header>
 
     <main>
+        <!-- The Text Editor, Color Palette, and AI Helper sections are fine -->
         <section id="text-editor">
             <h2>Text Editor</h2>
             <textarea id="text-input" placeholder="Enter your text here..."></textarea>
@@ -61,64 +66,17 @@
                 <li>Incorporate Coke Red subtly</li>
             </ul>
         </section>
-
+        
+        <!-- The placeholder for our script's output. This is correct. -->
         <section id="brand-assets">
             <h2>Brand Assets</h2>
             <div class="asset-grid">
-                <!-- Asset: New Logo -->
-                <div class="asset-item">
-                    <img src="New Logo V1.png" alt="New Logo V1">
-                    <p>New Logo V1.png</p>
-                    <div class="asset-buttons">
-                        <a href="New Logo V1.png" download="Coca-Cola-HBC-Logo.png" class="btn">Download</a>
-                        <button class="btn copy-btn" data-src="New Logo V1.png">Copy</button>
-                    </div>
-                </div>
-
-                <!-- Asset: Customer First -->
-                <div class="asset-item">
-                    <img src="Customer-First.jpg" alt="Customer First Icon">
-                    <p>Customer-First.jpg</p>
-                    <div class="asset-buttons">
-                        <a href="Customer-First.jpg" download="CCHBC-Value-Customer-First.jpg" class="btn">Download</a>
-                        <button class="btn copy-btn" data-src="Customer-First.jpg">Copy</button>
-                    </div>
-                </div>
-
-                <!-- Asset: Deliver Sustainably -->
-                <div class="asset-item">
-                    <img src="Deliver-Sustainably.jpg" alt="Deliver Sustainably Icon">
-                    <p>Deliver-Sustainably.jpg</p>
-                    <div class="asset-buttons">
-                        <a href="Deliver-Sustainably.jpg" download="CCHBC-Value-Deliver-Sustainably.jpg" class="btn">Download</a>
-                        <button class="btn copy-btn" data-src="Deliver-Sustainably.jpg">Copy</button>
-                    </div>
-                </div>
-
-                <!-- Asset: Make It Simple -->
-                <div class="asset-item">
-                    <img src="Make-It-Simple.jpg" alt="Make It Simple Icon">
-                    <p>Make-It-Simple.jpg</p>
-                    <div class="asset-buttons">
-                        <a href="Make-It-Simple.jpg" download="CCHBC-Value-Make-It-Simple.jpg" class="btn">Download</a>
-                        <button class="btn copy-btn" data-src="Make-It-Simple.jpg">Copy</button>
-                    </div>
-                </div>
-
-                <!-- Asset: We Over I -->
-                <div class="asset-item">
-                    <img src="We-Over-I.jpg" alt="We Over I Icon">
-                    <p>We-Over-I.jpg</p>
-                    <div class="asset-buttons">
-                        <a href="We-Over-I.jpg" download="CCHBC-Value-We-Over-I.jpg" class="btn">Download</a>
-                        <button class="btn copy-btn" data-src="We-Over-I.jpg">Copy</button>
-                    </div>
-                </div>
+                <!-- ASSETS_PLACEHOLDER -->
             </div>
         </section>
-
     </main>
 
+    <!-- CORRECTED PATH: No leading slash. -->
     <script src="script.js"></script>
 
 </body>
