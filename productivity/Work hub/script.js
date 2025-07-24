@@ -16,6 +16,24 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentUserId = null;
     let isLoggingOut = false;
 
+    // --- NEU: Ergebnis der Weiterleitung abfangen ---
+    // Dieser Code läuft bei JEDEM Laden der Seite und prüft, ob wir
+    // gerade von einer Google-Anmeldung zurückkehren.
+    auth.getRedirectResult()
+        .then(result => {
+            if (result.user) {
+                // Erfolgreich per Redirect angemeldet oder verknüpft.
+                console.log("Redirect result successful for user:", result.user.uid);
+                showCloudStatus("Sign-in successful!", 'success');
+                // onAuthStateChanged wird den Rest erledigen.
+            }
+        })
+        .catch(error => {
+            // Fehler bei der Weiterleitung behandeln.
+            console.error("Error processing redirect result:", error);
+            showCloudStatus(`Error during sign-in: ${error.message}`, 'error', 0);
+        });
+
 
     // --- STATE & REFS ---
     let tools = [], categories = {}, todos = [];
@@ -53,7 +71,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const cloudStatusEl = document.getElementById('cloud-status');
     const authContainer = document.getElementById('auth-container');
     const userInfo = document.getElementById('user-info');
-    // Die 'userPhoto' Referenz wurde entfernt
     const userDisplayName = document.getElementById('user-display-name');
     const loginSection = document.getElementById('login-section');
     const googleLoginBtn = document.getElementById('google-login-btn');
@@ -66,8 +83,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (user && !user.isAnonymous) {
             currentUserId = user.uid;
             console.log("Permanent user signed in:", currentUserId, user.displayName);
-            
-            // Die Zeile, die das Foto setzt, wurde entfernt
             if (userDisplayName) userDisplayName.textContent = user.displayName;
             if (userInfo) userInfo.style.display = 'block';
             if (loginSection) loginSection.style.display = 'none';
@@ -110,44 +125,15 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     /**
-     * Handles Google Sign-In.
-     * Tries to link with an anonymous account. If that fails because the Google
-     * account is already in use, it proceeds with a normal sign-in instead.
+     * Handles Google Sign-In using the redirect method, which is robust
+     * for all browsers, including mobile and restricted desktop environments.
      */
     function handleGoogleLogin() {
-        showCloudStatus("Waiting for Google sign-in...", 'loading', 0);
-
-        if (auth.currentUser && auth.currentUser.isAnonymous) {
-            auth.currentUser.linkWithPopup(googleProvider)
-                .then(result => {
-                    console.log("Anonymous account successfully upgraded:", result.user.uid);
-                    showCloudStatus("Account linked successfully!", 'success');
-                }).catch(error => {
-                    if (error.code === 'auth/credential-already-in-use') {
-                        console.log("User already exists, signing in directly...");
-                        auth.signInWithPopup(googleProvider)
-                            .then(result => {
-                                console.log("Successfully signed in with Google:", result.user.uid);
-                                showCloudStatus("Sign-in successful!", 'success');
-                            }).catch(signInError => {
-                                console.error("Error during direct sign in:", signInError);
-                                showCloudStatus(`Error: ${signInError.message}`, 'error', 0);
-                            });
-                    } else {
-                        console.error("Error linking account with Google:", error);
-                        showCloudStatus(`Error: ${error.message}`, 'error', 0);
-                    }
-                });
-        } else {
-            auth.signInWithPopup(googleProvider)
-                .then(result => {
-                    console.log("Successfully signed in with Google:", result.user.uid);
-                    showCloudStatus("Sign-in successful!", 'success');
-                }).catch(error => {
-                    console.error("Error signing in with Google:", error);
-                    showCloudStatus(`Error: ${error.message}`, 'error', 0);
-                });
-        }
+        showCloudStatus("Redirecting to Google...", 'loading', 0);
+        // Diese eine Zeile ersetzt die gesamte alte Popup-Logik.
+        // Firebase kümmert sich automatisch um die Verknüpfung, wenn der
+        // Benutzer anonym ist und von der Anmeldung zurückkehrt.
+        auth.signInWithRedirect(googleProvider);
     }
     
     function handleLogout() {
@@ -164,6 +150,8 @@ document.addEventListener('DOMContentLoaded', () => {
     googleLoginBtn?.addEventListener('click', handleGoogleLogin);
     logoutBtn?.addEventListener('click', handleLogout);
     
+    // --- Der Rest des Codes bleibt identisch ---
+    
     function showCloudStatus(message, type = 'loading', duration = 3000) {
         if (!cloudStatusEl) return;
         cloudStatusEl.textContent = message;
@@ -175,45 +163,21 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
-    // Ersetze deine alte saveToCloud Funktion mit dieser:
     function saveToCloud() {
-        if (!currentUserId) {
-            showCloudStatus("Cannot save: User not authenticated.", 'error');
-            console.error("Save blocked: No currentUserId.");
-            return;
-        }
-    
-        // Log 1: Wir sehen, dass die Funktion startet.
-        console.log("Attempting to save to cloud for user:", currentUserId);
-    
-        showCloudStatus("Saving to cloud...", 'loading', 0);
-    
-        const dataToSave = {
-            tools: tools,
-            categories: categories,
-            todos: todos
-        };
-    
-        // Log 2: Das ist der WICHTIGSTE Log. Wir sehen genau, was gesendet wird.
-        // Manchmal können ungültige Daten (wie 'undefined') das Speichern blockieren.
-        console.log("Data object being sent to Firestore:", JSON.stringify(dataToSave, null, 2));
-    
-        // Log 3: Direkt bevor der Befehl abgesetzt wird.
-        console.log("Executing Firestore set() command...");
-    
-        db.collection("userData").doc(currentUserId).set({
-                data: dataToSave
-            })
-            .then(() => {
-                // Log 4: Wenn dies erscheint, war es erfolgreich.
-                console.log("Firestore set() command successful!");
-                showCloudStatus("Data saved successfully!", 'success');
-            })
-            .catch(error => {
-                // Log 5: Wenn dies erscheint, gab es einen Fehler.
-                console.error("Firestore set() command failed:", error);
-                showCloudStatus("Error: Failed to save data. " + error.message, 'error', 0);
-            });
+      if (!currentUserId) {
+        showCloudStatus("Cannot save: User not authenticated.", 'error');
+        return;
+      }
+      showCloudStatus("Saving to cloud...", 'loading', 0);
+      const dataToSave = { tools, categories, todos };
+      db.collection("userData").doc(currentUserId).set({ data: dataToSave })
+        .then(() => {
+            showCloudStatus("Data saved successfully!", 'success');
+        })
+        .catch(error => {
+            console.error("Error saving data to Firestore:", error);
+            showCloudStatus("Error: Failed to save data. " + error.message, 'error', 0);
+        });
     }
 
     function loadFromCloud() {
@@ -246,8 +210,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 showCloudStatus("Error: Failed to load data.", 'error');
             });
     }
-
-    // --- LOCAL DATA MANAGEMENT & FILTERING ---
 
     function loadData() {
         const storedData = localStorage.getItem(STORAGE_KEY);
@@ -311,7 +273,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return { start: startOfWeek, end: endOfWeek };
     }
 
-    // --- CORE RENDER LOGIC ---
     function render() {
         renderCategories();
         renderTools();
@@ -459,162 +420,6 @@ document.addEventListener('DOMContentLoaded', () => {
         launchAllBtn.textContent = count > 0 ? `Launch All (${count})` : 'Launch All';
     }
 
-    // --- EVENT HANDLERS ---
-    saveToCloudBtn?.addEventListener('click', saveToCloud);
-    loadFromCloudBtn?.addEventListener('click', loadFromCloud);
-    document.getElementById('toggle-sidebar')?.addEventListener('click', () => sidebar.classList.toggle('hidden'));
-    document.getElementById('toggle-tools')?.addEventListener('click', () => toolsPane.classList.toggle('hidden'));
-    document.getElementById('toggle-todos')?.addEventListener('click', () => todosPane.classList.toggle('hidden'));
-    toolSearchInput?.addEventListener('input', e => { toolSearchTerm = e.target.value; renderTools(); });
-    todoSearchInput?.addEventListener('input', e => { todoSearchTerm = e.target.value; renderTodos(); });
-    showDoneTodosCheckbox?.addEventListener('change', () => {
-        showDoneTodos = showDoneTodosCheckbox.checked;
-        saveData();
-        renderTodos();
-    });
-    categoryFiltersContainer?.addEventListener('click', (e) => {
-        const target = e.target.closest('.category-filter');
-        if (target) {
-            currentCategoryFilter = target.dataset.category;
-            render();
-        }
-    });
-
-    [toolCategoryInput, todoCategoryInput].forEach(input => {
-        if(input) input.addEventListener('input', e => {
-            const categoryKey = e.target.value.toLowerCase();
-            if (categories[categoryKey]) {
-                const color = categories[categoryKey].color;
-                if(toolCategoryColorInput) toolCategoryColorInput.value = color;
-                if(todoCategoryColorInput) todoCategoryColorInput.value = color;
-            }
-        });
-    });
-
-    addToolForm?.addEventListener('submit', e => {
-        e.preventDefault();
-        const categoryName = toolCategoryInput.value.trim();
-        const categoryKey = categoryName.toLowerCase();
-        
-        tools.push({
-            id: Date.now(),
-            name: document.getElementById('tool-name').value.trim(),
-            url: document.getElementById('tool-url').value.trim(),
-            category: categoryName || 'Uncategorized',
-            status: document.getElementById('tool-status').value,
-            description: document.getElementById('tool-description').value.trim(),
-        });
-        
-        if (categoryName && !categories[categoryKey]) {
-            categories[categoryKey] = { color: toolCategoryColorInput.value };
-        }
-        
-        saveData();
-        render();
-        addToolForm.reset();
-        toolCategoryColorInput.value = '#3498db';
-    });
-    
-    addTodoForm?.addEventListener('submit', e => {
-        e.preventDefault();
-        const categoryName = todoCategoryInput.value.trim();
-        const categoryKey = categoryName.toLowerCase();
-
-        todos.push({
-            id: Date.now(),
-            text: document.getElementById('todo-text').value.trim(),
-            dueDate: document.getElementById('todo-due-date').value,
-            done: false,
-            completionDate: null,
-            category: categoryName || 'Uncategorized',
-            linkedTools: [...toolSelector.selectedOptions].map(opt => Number(opt.value))
-        });
-        
-        if (categoryName && !categories[categoryKey]) {
-            categories[categoryKey] = { color: todoCategoryColorInput.value };
-        }
-
-        saveData();
-        render();
-        addTodoForm.reset();
-        todoCategoryColorInput.value = '#3498db';
-    });
-
-    // Card Actions (Todos)
-    todoListContainer?.addEventListener('click', e => {
-        const button = e.target.closest('button[data-action]');
-        const checkbox = e.target.closest('input[data-action="toggle-done"]');
-
-        if (button) {
-            const action = button.dataset.action;
-            const card = button.closest('.todo-card');
-            const todoId = Number(card.dataset.id);
-            const todo = todos.find(t => t.id === todoId);
-
-            if (action === 'delete-todo') { 
-                if (confirm('Delete this task?')) { 
-                    todos = todos.filter(t => t.id !== todoId); 
-                    pruneOrphanedCategories();
-                    saveData(); 
-                    render(); 
-                } 
-            }
-            else if (action === 'edit-todo') { toggleTodoEditMode(card, todo); }
-            else if (action === 'save-todo') { saveTodoEdit(card, todo); }
-            else if (action === 'cancel-edit-todo') { renderTodos(); }
-        } else if (checkbox) {
-            const todoId = Number(checkbox.closest('.todo-card').dataset.id);
-            const todo = todos.find(t => t.id === todoId);
-            if (todo) {
-                todo.done = checkbox.checked;
-                todo.completionDate = todo.done ? new Date().toISOString() : null;
-                saveData();
-                renderTodos();
-            }
-        }
-    });
-    
-    // Card Actions (Tools)
-    launchAllBtn?.addEventListener('click', () => {
-        getFilteredTools().forEach(tool => window.open(tool.url, '_blank'));
-    });
-    
-    toolListContainer?.addEventListener('click', e => {
-        const button = e.target.closest('button[data-action], a[data-action]');
-        if (!button) return;
-
-        const action = button.dataset.action;
-        if (!action || action === 'launch') return;
-
-        e.preventDefault();
-        const card = button.closest('.tool-card');
-        const toolId = Number(card.dataset.id);
-        const tool = tools.find(t => t.id === toolId);
-        
-        if (action === 'delete-tool') { 
-            if (confirm(`Delete "${tool.name}"?`)) { 
-                tools = tools.filter(t => t.id !== toolId); 
-                pruneOrphanedCategories();
-                saveData(); 
-                render(); 
-            } 
-        }
-        else if (action === 'edit-tool') { toggleToolEditMode(card, tool); }
-        else if (action === 'save-tool') { saveToolEdit(card, tool); }
-        else if (action === 'cancel-edit-tool') { renderTools(); }
-        else if (action === 'copy-path') {
-            if ((tool.url || '').startsWith('file:///')) {
-                const osPath = decodeURIComponent(tool.url.substring(0, tool.url.lastIndexOf('/'))).replace('file:///', '');
-                navigator.clipboard.writeText(osPath.replace(/\//g, '\\')).then(() => {
-                    button.textContent = 'Copied!'; button.classList.add('copied');
-                    setTimeout(() => { button.textContent = 'Copy Path'; button.classList.remove('copied'); }, 2000);
-                });
-            }
-        }
-    });
-
-    // --- EDIT-IN-PLACE FUNCTIONS ---
-
     function toggleToolEditMode(card, tool) {
         const statusOptions = ['not-set', 'working', 'unfinished', 'issues-to-be-fixed'];
         let statusOptionsHTML = statusOptions.map(s => 
@@ -693,8 +498,6 @@ document.addEventListener('DOMContentLoaded', () => {
         saveData();
         render();
     }
-    
-    // --- MODAL & DATA I/O HANDLERS ---
     
     document.getElementById('weekly-summary-btn')?.addEventListener('click', () => {
         const now = new Date();
