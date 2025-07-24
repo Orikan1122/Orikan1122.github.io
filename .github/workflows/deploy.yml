@@ -31,6 +31,10 @@ jobs:
         with:
           node-version: '18'
 
+      # THIS IS THE NEW DEBUGGING STEP
+      - name: List all files in the repository
+        run: ls -R
+
       - name: Run the build script
         run: node generate.js
 
