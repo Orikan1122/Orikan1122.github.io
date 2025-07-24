@@ -1,6 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
     // --- FIREBASE SETUP ---
-    // Configuration object for your Firebase project.
     const firebaseConfig = {
         apiKey: "AIzaSyBoZtDWEJwPFYvvR6LJgPM8fIqQWrQgDFs",
         authDomain: "json-database-1122.firebaseapp.com",
@@ -10,23 +9,21 @@ document.addEventListener('DOMContentLoaded', () => {
         appId: "1:332768532067:web:3bc80fee92d17c046c8a56"
     };
 
-    // Initialize Firebase services using the compat libraries for broader compatibility.
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
     const auth = firebase.auth();
-    let currentUserId = null; // This will hold the user's unique ID after they sign in.
+    let currentUserId = null;
 
 
     // --- STATE & REFS ---
-    // Application's core data arrays and objects.
     let tools = [], categories = {}, todos = [];
     let currentCategoryFilter = 'all';
     let showDoneTodos = true;
     let toolSearchTerm = '';
     let todoSearchTerm = '';
-    const STORAGE_KEY = 'workHubDataV10'; // Local storage is used for offline access and speed.
+    const STORAGE_KEY = 'workHubDataV10';
 
-    // UI Element References
+    // --- UI Element References ---
     const sidebar = document.getElementById('sidebar');
     const toolsPane = document.getElementById('tools-pane');
     const todosPane = document.getElementById('todos-pane');
@@ -49,50 +46,169 @@ document.addEventListener('DOMContentLoaded', () => {
     const showDoneTodosCheckbox = document.getElementById('show-done-todos');
     const toolSearchInput = document.getElementById('tool-search-input');
     const todoSearchInput = document.getElementById('todo-search-input');
-    // Firebase-related UI elements
     const saveToCloudBtn = document.getElementById('save-to-cloud-btn');
     const loadFromCloudBtn = document.getElementById('load-from-cloud-btn');
     const cloudStatusEl = document.getElementById('cloud-status');
 
+    // --- NEW Authentication UI Element References ---
+    const authContainer = document.getElementById('auth-container');
+    const userInfo = document.getElementById('user-info');
+    const userEmail = document.getElementById('user-email');
+    const loginForms = document.getElementById('login-forms');
+    const authEmailInput = document.getElementById('auth-email');
+    const authPasswordInput = document.getElementById('auth-password');
+    const loginBtn = document.getElementById('login-btn');
+    const signupBtn = document.getElementById('signup-btn');
+    const logoutBtn = document.getElementById('logout-btn');
+
+
     // --- FIREBASE AUTH & DATA ---
 
     /**
-     * Handles user authentication state changes.
-     * When a user is detected, it sets their ID and loads their local data.
-     * If no user is logged in, it signs them in anonymously.
+     * Handles all user authentication state changes: login, logout, and session restoration.
      */
     auth.onAuthStateChanged(user => {
-        if (user) {
-            // User is signed in.
+        if (user && !user.isAnonymous) {
+            // --- USER IS LOGGED IN WITH A PERMANENT ACCOUNT ---
             currentUserId = user.uid;
-            console.log("User is signed in with ID:", currentUserId);
+            console.log("Permanent user signed in:", currentUserId, user.email);
 
-            // --- ENABLE CLOUD BUTTONS AND UPDATE STATUS ---
+            // Update UI to show user info and hide login forms
+            if (userEmail) userEmail.textContent = user.email;
+            if (userInfo) userInfo.style.display = 'block';
+            if (loginForms) loginForms.style.display = 'none';
+
+            // Enable cloud features
             showCloudStatus("Cloud connected.", 'success');
             if (saveToCloudBtn) saveToCloudBtn.disabled = false;
             if (loadFromCloudBtn) loadFromCloudBtn.disabled = false;
             
-            // Load local data first for a fast startup.
             loadData();
             render();
+
+        } else if (user && user.isAnonymous) {
+            // --- USER IS USING AN ANONYMOUS ACCOUNT ---
+            // This is the key state for allowing them to "upgrade" their account
+            currentUserId = user.uid;
+            console.log("Anonymous user session active:", currentUserId);
+
+            // Update UI to show login forms, prompting them to sign up
+            if (userInfo) userInfo.style.display = 'none';
+            if (loginForms) loginForms.style.display = 'block';
+            if (signupBtn) signupBtn.textContent = 'Sign Up & Keep Data'; // Important UX hint
+
+            // Cloud features can be enabled to save data to the anonymous account
+            showCloudStatus("Sign up to save data to a permanent account.", 'loading', 0);
+            if (saveToCloudBtn) saveToCloudBtn.disabled = false;
+            if (loadFromCloudBtn) loadFromCloudBtn.disabled = false;
+            
+            loadData();
+            render();
+
         } else {
-            // User is signed out, so sign them in anonymously.
-            showCloudStatus("Connecting to cloud...", 'loading', 0); // Keep showing "Connecting"
-            auth.signInAnonymously().catch(error => {
-                console.error("Anonymous sign-in failed:", error);
-                showCloudStatus("Cloud connection failed. Please refresh.", 'error', 0);
-                // Keep buttons disabled if sign-in fails
-                if (saveToCloudBtn) saveToCloudBtn.disabled = true;
-                if (loadFromCloudBtn) loadFromCloudBtn.disabled = true;
-            });
+            // --- USER IS COMPLETELY LOGGED OUT ---
+            currentUserId = null;
+            console.log("No user signed in.");
+
+            // Update UI to show login forms
+            if (userInfo) userInfo.style.display = 'none';
+            if (loginForms) loginForms.style.display = 'block';
+            if (signupBtn) signupBtn.textContent = 'Sign Up';
+
+            // Disable cloud features
+            showCloudStatus("Please log in or sign up to use the cloud.", 'error', 0);
+            if (saveToCloudBtn) saveToCloudBtn.disabled = true;
+            if (loadFromCloudBtn) loadFromCloudBtn.disabled = true;
+
+            // Load local data so app is usable offline, but without cloud sync
+            loadData();
+            render();
         }
     });
 
     /**
+     * Handles user sign-up. If the user is currently anonymous, it links the new
+     * credentials to the existing anonymous account, preserving their data.
+     */
+    function handleSignUp() {
+        const email = authEmailInput.value;
+        const password = authPasswordInput.value;
+        if (!email || password.length < 6) {
+            showCloudStatus("Please use a valid email and a password of at least 6 characters.", 'error');
+            return;
+        }
+
+        showCloudStatus("Signing up...", 'loading', 0);
+        const credential = firebase.auth.EmailAuthProvider.credential(email, password);
+
+        if (auth.currentUser && auth.currentUser.isAnonymous) {
+            // --- LINK/UPGRADE an existing anonymous account ---
+            auth.currentUser.linkWithCredential(credential)
+                .then(userCredential => {
+                    console.log("Anonymous account successfully upgraded:", userCredential.user.uid);
+                    showCloudStatus("Account created and data linked!", 'success');
+                    // onAuthStateChanged will handle the UI update automatically
+                })
+                .catch(error => {
+                    console.error("Error linking account:", error);
+                    showCloudStatus(`Error: ${error.message}`, 'error', 0);
+                });
+        } else {
+            // --- CREATE a new user from scratch ---
+            auth.createUserWithEmailAndPassword(email, password)
+                .then(userCredential => {
+                    console.log("New user created:", userCredential.user.uid);
+                    showCloudStatus("Account created successfully! You can now save data.", 'success');
+                    // onAuthStateChanged will handle the UI update
+                })
+                .catch(error => {
+                    console.error("Error signing up:", error);
+                    showCloudStatus(`Error: ${error.message}`, 'error', 0);
+                });
+        }
+    }
+
+    /**
+     * Handles user login with email and password.
+     */
+    function handleLogin() {
+        const email = authEmailInput.value;
+        const password = authPasswordInput.value;
+        if (!email || !password) {
+            showCloudStatus("Please provide email and password.", 'error');
+            return;
+        }
+        
+        showCloudStatus("Logging in...", 'loading', 0);
+        auth.signInWithEmailAndPassword(email, password)
+            .then(userCredential => {
+                console.log("Login successful for:", userCredential.user.email);
+                // onAuthStateChanged will handle the UI update.
+            })
+            .catch(error => {
+                console.error("Error logging in:", error);
+                showCloudStatus(`Login failed: ${error.message}`, 'error', 0);
+            });
+    }
+
+    /**
+     * Handles user logout.
+     */
+    function handleLogout() {
+        auth.signOut().then(() => {
+            console.log("User logged out.");
+            // onAuthStateChanged will reset the UI.
+        });
+    }
+
+    // --- Add Event Listeners for new auth buttons ---
+    signupBtn?.addEventListener('click', handleSignUp);
+    loginBtn?.addEventListener('click', handleLogin);
+    logoutBtn?.addEventListener('click', handleLogout);
+
+    
+    /**
      * Displays a status message for cloud operations (saving, loading).
-     * @param {string} message - The message to display.
-     * @param {string} type - 'loading', 'success', or 'error'.
-     * @param {number} duration - How long to show the message in ms. 0 means it stays forever.
      */
     function showCloudStatus(message, type = 'loading', duration = 3000) {
         if (!cloudStatusEl) return;
@@ -106,38 +222,20 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     /**
-     * Saves the current application data (tools, todos, categories) to Firestore.
+     * Saves the current application data to Firestore.
      */
     function saveToCloud() {
       if (!currentUserId) {
         showCloudStatus("Cannot save: User not authenticated.", 'error');
         return;
       }
-    
-      // Show a loading status to the user.
-      showCloudStatus("Saving to cloud...", 'loading', 0); // The '0' duration makes it persistent
-    
-      // Prepare the data object to be saved.
-      // This object bundles the application's state arrays into a single JSON structure.
-      const dataToSave = {
-          tools: tools,
-          categories: categories,
-          todos: todos
-      };
-    
-      // The core Firestore operation to save the data.
-      // It targets the 'userData' collection and uses the current user's ID as the document key.
-      // This ensures the data is saved to a location the user has permission to write to,
-      // according to your Firestore rules.
-      db.collection("userData").doc(currentUserId).set({
-          data: dataToSave // The 'data' field here matches what loadFromCloud expects.
-        })
+      showCloudStatus("Saving to cloud...", 'loading', 0);
+      const dataToSave = { tools, categories, todos };
+      db.collection("userData").doc(currentUserId).set({ data: dataToSave })
         .then(() => {
-            // On success, show a confirmation message.
             showCloudStatus("Data saved successfully!", 'success');
         })
         .catch(error => {
-            // If an error occurs, log it and show an error message to the user.
             console.error("Error saving data to Firestore:", error);
             showCloudStatus("Error: Failed to save data. " + error.message, 'error', 0);
         });
@@ -164,7 +262,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     categories = cloudData.categories || {};
                     todos = cloudData.todos || [];
                     
-                    saveData(); // Save the newly loaded data back to local storage
+                    saveData();
                     render();
                     showCloudStatus("Data loaded successfully!", 'success');
                 } else {
@@ -179,9 +277,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- LOCAL DATA MANAGEMENT & FILTERING ---
 
-    /**
-     * Loads data from the browser's local storage.
-     */
     function loadData() {
         const storedData = localStorage.getItem(STORAGE_KEY);
         if (storedData) {
@@ -194,9 +289,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if(showDoneTodosCheckbox) showDoneTodosCheckbox.checked = showDoneTodos;
     }
 
-    /**
-     * Saves the current data state to the browser's local storage.
-     */
     function saveData() {
         const data = { tools, categories, todos };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
@@ -589,7 +681,7 @@ document.addEventListener('DOMContentLoaded', () => {
         tool.description = card.querySelector('.edit-tool-description').value.trim();
         
         if (newCategoryName && !categories[newCategoryKey]) {
-            categories[newCategoryKey] = { color: '#3498db' }; // Assign default color
+            categories[newCategoryKey] = { color: '#3498db' };
         }
         
         pruneOrphanedCategories();
@@ -705,7 +797,13 @@ document.addEventListener('DOMContentLoaded', () => {
         reader.readAsText(file);
     });
 
-    // --- INITIAL LOAD ---
-    // The initial load (loadData() and render()) is now triggered by the
-    // onAuthStateChanged listener to ensure we have a user ID first.
+    // --- INITIAL LOAD & AUTH ---
+    // This listener ensures that any new visitor who doesn't have a session
+    // is immediately signed in anonymously. This allows them to start creating
+    // data which can then be linked to a permanent account when they sign up.
+    auth.onAuthStateChanged(user => {
+        if (!user) {
+            auth.signInAnonymously().catch(e => console.error("Initial anonymous sign-in failed", e));
+        }
+    });
 });
