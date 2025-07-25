@@ -1,0 +1,180 @@
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background-color: #f0f2f5;
+    color: #333;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 20px;
+    margin: 0;
+}
+
+.container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 30px;
+    background: #ffffff;
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+}
+
+.controls {
+    width: 280px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.canvas-container {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    overflow: hidden;
+    background-image: linear-gradient(45deg, #eee 25%, transparent 25%), linear-gradient(-45deg, #eee 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #eee 75%), linear-gradient(-45deg, transparent 75%, #eee 75%);
+    background-size: 20px 20px;
+    background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+    align-self: flex-start; /* Prevents stretching */
+}
+
+#imageCanvas {
+    max-width: 70vw;
+    max-height: 85vh;
+    display: block;
+    cursor: crosshair;
+}
+
+h1 {
+    font-size: 1.5em;
+    margin: 0 0 10px 0;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 15px;
+    color: #000;
+}
+
+.control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.help-text {
+    font-size: 0.8em;
+    margin: 0;
+    color: #666;
+}
+
+input[type="file"] {
+    display: none;
+}
+
+.file-label {
+    display: inline-block;
+    padding: 10px 15px;
+    background-color: #6c757d;
+    color: white;
+    border-radius: 5px;
+    cursor: pointer;
+    text-align: center;
+    transition: background-color 0.2s;
+}
+
+.file-label:hover {
+    background-color: #5a6268;
+}
+
+.color-display {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.color-box {
+    width: 30px;
+    height: 30px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    background-color: #fff;
+}
+
+input[type="text"] {
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-family: monospace;
+    flex-grow: 1;
+}
+
+input[type="color"] {
+    min-width: 40px;
+    height: 40px;
+    padding: 0;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    background-color: transparent;
+}
+
+button, .primary-btn, #downloadBtn {
+    padding: 12px 15px;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1em;
+    font-weight: 500;
+    transition: background-color 0.2s, opacity 0.2s;
+    text-align: center;
+    text-decoration: none;
+    display: block;
+}
+
+.primary-btn {
+    background-color: #007bff;
+}
+.primary-btn:hover {
+    background-color: #0056b3;
+}
+
+.history-controls {
+    display: flex;
+    gap: 10px;
+}
+
+.history-controls button {
+    background-color: #555;
+    flex-grow: 1; /* Make buttons take equal space */
+}
+.history-controls button:hover {
+    background-color: #444;
+}
+
+#downloadBtn {
+    background-color: #28a745;
+}
+#downloadBtn:hover {
+    background-color: #218838;
+}
+
+button:disabled, #downloadBtn.disabled {
+    background-color: #aaa;
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+#loadingMessage {
+    padding: 40px;
+    text-align: center;
+    color: #666;
+}
+
+.feature-toggle {
+    flex-direction: row;
+    align-items: center;
+    background-color: #f8f9fa;
+    padding: 10px;
+    border-radius: 5px;
+}
+
+.feature-toggle input {
+    margin-right: 10px;
+}
