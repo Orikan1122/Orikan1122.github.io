@@ -64,113 +64,122 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- FIREBASE AUTH & DATA ---
 
-    // Ergebnis der Weiterleitung zuerst abfangen
-    auth.getRedirectResult()
-        .then(result => {
-            if (result.user) {
-                console.log("Redirect result successful for user:", result.user.uid);
-                showCloudStatus("Sign-in successful!", 'success');
-            }
-        })
-        .catch(error => {
-            console.error("Error processing redirect result:", error);
-            showCloudStatus(`Error during sign-in: ${error.message}`, 'error', 0);
-        });
-
-    auth.onAuthStateChanged(user => {
-        if (user && !user.isAnonymous) {
-            // A permanent user is signed in
-            currentUserId = user.uid;
-            console.log("Permanent user signed in:", currentUserId, user.displayName);
-            if (userDisplayName) {
-                 userDisplayName.textContent = user.displayName;
-                 // Also update the user photo if it exists
-                 const userPhoto = document.getElementById('user-photo');
-                 if(userPhoto && user.photoURL) {
-                     userPhoto.src = user.photoURL;
-                 }
-            }
-            if (userInfo) userInfo.style.display = 'block';
-            if (loginSection) loginSection.style.display = 'none';
-            showCloudStatus("Cloud connected.", 'success');
-            if (saveToCloudBtn) saveToCloudBtn.disabled = false;
-            if (loadFromCloudBtn) loadFromCloudBtn.disabled = false;
-
-        } else if (user && user.isAnonymous) {
-            // An anonymous user is active
-            currentUserId = user.uid;
-            console.log("Anonymous user session active:", currentUserId);
-            if (userInfo) userInfo.style.display = 'none';
-            if (loginSection) loginSection.style.display = 'block';
-            if (googleLoginBtn) googleLoginBtn.textContent = 'Sign In & Sync Data';
-            showCloudStatus("Sign in with Google to sync your data.", 'loading', 0);
-            if (saveToCloudBtn) saveToCloudBtn.disabled = false; // Allow saving even in anonymous mode
-            if (loadFromCloudBtn) loadFromCloudBtn.disabled = false; // Allow loading even in anonymous mode
-
-        } else {
-            // No user is signed in
-            currentUserId = null;
-            console.log("No user signed in.");
-            if (userInfo) userInfo.style.display = 'none';
-            if (loginSection) loginSection.style.display = 'block';
-            if (googleLoginBtn) googleLoginBtn.textContent = 'Sign In with Google';
-            showCloudStatus("Please sign in to use the cloud.", 'error', 0);
-            if (saveToCloudBtn) saveToCloudBtn.disabled = true;
-            if (loadFromCloudBtn) loadFromCloudBtn.disabled = true;
-            // Only set isLoggingOut to false here, don't trigger another sign-in
-            isLoggingOut = false;
-        }
-
-        // This logic is still perfect. It initializes the app just once
-        // after the definitive, first auth state has been determined.
-        if (!appInitialized) {
-            initializeApp();
-        }
-    });
-    // First, try to get the result from a redirect. This is the key change.
-    auth.getRedirectResult()
-        .then(result => {
+    /**
+     * This is the main startup function for the application.
+     * By using an async function, we can force the code to wait until the
+     * authentication status is definitively known before initializing the app.
+     * This solves the race condition.
+     */
+    async function startup() {
+        console.log("App startup: Checking for authentication redirect...");
+        try {
+            // First, AWAIT the result of the redirect. This pauses the code here.
+            const result = await auth.getRedirectResult();
+            
             if (result && result.user) {
-                // User signed in via redirect.
-                // The onAuthStateChanged listener above will handle everything.
-                console.log("Redirect result processed successfully for user:", result.user.uid);
+                // This means the user has just successfully signed in with Google.
+                console.log("Redirect sign-in successful for user:", result.user.uid);
                 showCloudStatus("Sign-in successful!", 'success');
+                // auth.currentUser is now correctly set with the permanent user.
             } else {
-                // No user from redirect. If no one is logged in at all, sign-in anonymously.
-                // This prevents the race condition.
+                // This means the page loaded without a redirect (e.g., first visit, refresh).
+                console.log("No redirect result found.");
+                // We check if a user is ALREADY signed in (from a previous session).
                 if (!auth.currentUser) {
-                    console.log("No redirect user found, signing in anonymously.");
-                    auth.signInAnonymously().catch(e => console.error("Initial anonymous sign-in failed", e));
+                    // If no one is signed in at all, we create a new anonymous session.
+                    console.log("No active user session, signing in anonymously.");
+                    await auth.signInAnonymously();
+                } else {
+                    // An existing session was found.
+                    console.log("Existing session detected for user:", auth.currentUser.uid);
                 }
             }
-        })
-        .catch(error => {
-            // Handle any errors from the redirect process
-            console.error("Error processing redirect result:", error);
-            showCloudStatus(`Error during sign-in: ${error.message}`, 'error', 0);
-            // As a fallback, still sign in anonymously if there's no current user
+        } catch (error) {
+            // Handle any errors during the sign-in process.
+            console.error("Error during initial authentication:", error);
+            showCloudStatus(`Sign-in error: ${error.message}`, 'error', 0);
+            // As a final fallback, try to sign in anonymously so the app doesn't break.
             if (!auth.currentUser) {
-                auth.signInAnonymously().catch(e => console.error("Error-path anonymous sign-in failed", e));
+                await auth.signInAnonymously();
+            }
+        }
+
+        // AFTER the initial state is resolved, we attach the listener.
+        // This listener will now handle all FUTURE state changes, like logging out.
+        auth.onAuthStateChanged(user => {
+            // This part updates the UI based on the current login status.
+            if (user && !user.isAnonymous) {
+                currentUserId = user.uid;
+                console.log("Auth state is PERMANENT user:", currentUserId);
+                if (userDisplayName) userDisplayName.textContent = user.displayName;
+                const userPhoto = document.getElementById('user-photo');
+                if(userPhoto && user.photoURL) userPhoto.src = user.photoURL;
+
+                if (userInfo) userInfo.style.display = 'block';
+                if (loginSection) loginSection.style.display = 'none';
+                if (saveToCloudBtn) saveToCloudBtn.disabled = false;
+                if (loadFromCloudBtn) loadFromCloudBtn.disabled = false;
+                 // Don't show status on initial load, only on changes.
+                if (appInitialized) showCloudStatus("Cloud connected.", 'success');
+
+            } else if (user && user.isAnonymous) {
+                currentUserId = user.uid;
+                console.log("Auth state is ANONYMOUS user:", currentUserId);
+                if (userInfo) userInfo.style.display = 'none';
+                if (loginSection) loginSection.style.display = 'block';
+                if (googleLoginBtn) googleLoginBtn.textContent = 'Sign In & Sync Data';
+                if (saveToCloudBtn) saveToCloudBtn.disabled = false;
+                if (loadFromCloudBtn) loadFromCloudBtn.disabled = false;
+                if (!appInitialized) showCloudStatus("Sign in with Google to sync your data.", 'loading', 0);
+
+            } else {
+                currentUserId = null;
+                console.log("Auth state is NO user.");
+                if (userInfo) userInfo.style.display = 'none';
+                if (loginSection) loginSection.style.display = 'block';
+                if (googleLoginBtn) googleLoginBtn.textContent = 'Sign In with Google';
+                showCloudStatus("Please sign in to use the cloud.", 'error', 0);
+                if (saveToCloudBtn) saveToCloudBtn.disabled = true;
+                if (loadFromCloudBtn) loadFromCloudBtn.disabled = true;
+
+                // If the user has logged out, start a new anonymous session automatically.
+                if (isLoggingOut) {
+                    isLoggingOut = false;
+                    auth.signInAnonymously().catch(e => console.error("Re-authentication anonymously failed", e));
+                }
+            }
+
+            // The critical step: Initialize the app with data only ONCE,
+            // after the definitive user (permanent or anonymous) has been set.
+            if (!appInitialized) {
+                initializeApp();
             }
         });
+    }
+
+    // Run the startup function to kick everything off.
+    startup();
+
     /**
-     * Diese Funktion wird nur EINMAL aufgerufen. Sie hängt alle permanenten
-     * Event-Listener an und führt das erste Laden der Daten durch.
+     * This function is now only called once by initializeApp() to set up listeners.
+     * The auth logic has been moved to the startup() function.
      */
     function initializeApp() {
-        if (appInitialized) return; // Sicherheits-Check
-        console.log("Initializing application event listeners...");
+        if (appInitialized) return; // Safety-Check
+        console.log("Initializing application event listeners and loading data...");
 
-        // Alle Event-Listener hier bündeln
+        // Attach all non-auth event listeners.
         attachEventListeners();
 
-        // Lokale Daten laden und die Seite zum ersten Mal rendern
+        // Load local data and render the page for the first time.
         loadData();
         render();
 
         appInitialized = true;
+        console.log("Application successfully initialized.");
     }
 
+    // --- The rest of your functions (handleGoogleLogin, handleLogout, etc.) stay the same ---
     function handleGoogleLogin() {
         showCloudStatus("Redirecting to Google...", 'loading', 0);
         auth.signInWithRedirect(googleProvider);
