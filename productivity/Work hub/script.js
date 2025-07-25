@@ -78,26 +78,37 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
     auth.onAuthStateChanged(user => {
-        // Dieser Teil aktualisiert nur die UI basierend auf dem Login-Status
         if (user && !user.isAnonymous) {
+            // A permanent user is signed in
             currentUserId = user.uid;
             console.log("Permanent user signed in:", currentUserId, user.displayName);
-            if (userDisplayName) userDisplayName.textContent = user.displayName;
+            if (userDisplayName) {
+                 userDisplayName.textContent = user.displayName;
+                 // Also update the user photo if it exists
+                 const userPhoto = document.getElementById('user-photo');
+                 if(userPhoto && user.photoURL) {
+                     userPhoto.src = user.photoURL;
+                 }
+            }
             if (userInfo) userInfo.style.display = 'block';
             if (loginSection) loginSection.style.display = 'none';
             showCloudStatus("Cloud connected.", 'success');
             if (saveToCloudBtn) saveToCloudBtn.disabled = false;
             if (loadFromCloudBtn) loadFromCloudBtn.disabled = false;
+
         } else if (user && user.isAnonymous) {
+            // An anonymous user is active
             currentUserId = user.uid;
             console.log("Anonymous user session active:", currentUserId);
             if (userInfo) userInfo.style.display = 'none';
             if (loginSection) loginSection.style.display = 'block';
-            if (googleLoginBtn) googleLoginBtn.textContent = 'Sign In & Keep Data';
+            if (googleLoginBtn) googleLoginBtn.textContent = 'Sign In & Sync Data';
             showCloudStatus("Sign in with Google to sync your data.", 'loading', 0);
-            if (saveToCloudBtn) saveToCloudBtn.disabled = false;
-            if (loadFromCloudBtn) loadFromCloudBtn.disabled = false;
+            if (saveToCloudBtn) saveToCloudBtn.disabled = false; // Allow saving even in anonymous mode
+            if (loadFromCloudBtn) loadFromCloudBtn.disabled = false; // Allow loading even in anonymous mode
+
         } else {
+            // No user is signed in
             currentUserId = null;
             console.log("No user signed in.");
             if (userInfo) userInfo.style.display = 'none';
@@ -106,20 +117,42 @@ document.addEventListener('DOMContentLoaded', () => {
             showCloudStatus("Please sign in to use the cloud.", 'error', 0);
             if (saveToCloudBtn) saveToCloudBtn.disabled = true;
             if (loadFromCloudBtn) loadFromCloudBtn.disabled = true;
-
-            if (!isLoggingOut) {
-                auth.signInAnonymously().catch(e => console.error("Initial anonymous sign-in failed", e));
-            }
+            // Only set isLoggingOut to false here, don't trigger another sign-in
             isLoggingOut = false;
         }
 
-        // --- ENTSCHEIDENDE ÄNDERUNG ---
-        // Initialisiere die App, nachdem der erste Auth-Status bekannt ist.
+        // This logic is still perfect. It initializes the app just once
+        // after the definitive, first auth state has been determined.
         if (!appInitialized) {
             initializeApp();
         }
     });
-
+    // First, try to get the result from a redirect. This is the key change.
+    auth.getRedirectResult()
+        .then(result => {
+            if (result && result.user) {
+                // User signed in via redirect.
+                // The onAuthStateChanged listener above will handle everything.
+                console.log("Redirect result processed successfully for user:", result.user.uid);
+                showCloudStatus("Sign-in successful!", 'success');
+            } else {
+                // No user from redirect. If no one is logged in at all, sign-in anonymously.
+                // This prevents the race condition.
+                if (!auth.currentUser) {
+                    console.log("No redirect user found, signing in anonymously.");
+                    auth.signInAnonymously().catch(e => console.error("Initial anonymous sign-in failed", e));
+                }
+            }
+        })
+        .catch(error => {
+            // Handle any errors from the redirect process
+            console.error("Error processing redirect result:", error);
+            showCloudStatus(`Error during sign-in: ${error.message}`, 'error', 0);
+            // As a fallback, still sign in anonymously if there's no current user
+            if (!auth.currentUser) {
+                auth.signInAnonymously().catch(e => console.error("Error-path anonymous sign-in failed", e));
+            }
+        });
     /**
      * Diese Funktion wird nur EINMAL aufgerufen. Sie hängt alle permanenten
      * Event-Listener an und führt das erste Laden der Daten durch.
