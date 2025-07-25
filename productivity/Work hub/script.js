@@ -225,12 +225,53 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
       showCloudStatus("Saving to cloud...", 'loading', 0);
-      const dataToSave = { tools, categories, todos };
+
+      // --- START OF THE FIX ---
+      // Create clean copies of the data, replacing 'undefined' with 'null'.
+      
+      const sanitizedTools = tools.map(tool => ({
+        id: tool.id ?? Date.now(),
+        name: tool.name ?? 'Untitled Tool',
+        url: tool.url ?? '',
+        category: tool.category ?? 'Uncategorized',
+        status: tool.status ?? 'not-set',
+        description: tool.description ?? '' // Use empty string instead of null for description
+      }));
+
+      const sanitizedTodos = todos.map(todo => ({
+        id: todo.id ?? Date.now(),
+        text: todo.text ?? 'Untitled Task',
+        dueDate: todo.dueDate ?? null,
+        done: todo.done ?? false,
+        completionDate: todo.completionDate ?? null,
+        category: todo.category ?? 'Uncategorized',
+        linkedTools: todo.linkedTools ?? []
+      }));
+
+      // Create a clean categories object.
+      const sanitizedCategories = {};
+      for (const key in categories) {
+        if (Object.hasOwnProperty.call(categories, key) && categories[key]) {
+             sanitizedCategories[key] = {
+                color: categories[key].color ?? '#3498db'
+             };
+        }
+      }
+
+      const dataToSave = { 
+        tools: sanitizedTools, 
+        categories: sanitizedCategories, 
+        todos: sanitizedTodos 
+      };
+      
+      // --- END OF THE FIX ---
+
       db.collection("userData").doc(currentUserId).set({ data: dataToSave })
         .then(() => {
             showCloudStatus("Data saved successfully!", 'success');
         })
         .catch(error => {
+            // This error will now properly catch any real issues.
             console.error("Error saving data to Firestore:", error);
             showCloudStatus("Error: Failed to save data. " + error.message, 'error', 0);
         });
