@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Image Color Editor</title>
+ 
+    <link rel="stylesheet" href="style.css">
+</head>
+
+
+<body>
+
+    <div class="container">
+        <!-- Control Panel -->
+        <div class="controls">
+            <h1>Color Editor</h1>
+
+            <div class="control-group file-upload">
+                <label for="imageLoader" class="file-label">Load Image</label>
+                <input type="file" id="imageLoader" accept="image/*"/>
+            </div>
+
+            <div class="control-group">
+                <label>Color to Replace</label>
+                <div class="color-display">
+                    <div id="colorToReplaceBox" class="color-box"></div>
+                    <span id="colorToReplaceHex">#ffffff</span>
+                </div>
+                 <p class="help-text">Click on the image to select a color.</p>
+            </div>
+
+            <div class="control-group">
+                <label for="newColorHex">New Color</label>
+                <div class="color-display">
+                    <input type="color" id="newColorPicker" value="#00b4d8">
+                    <input type="text" id="newColorHex" value="#00b4d8">
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label for="tolerance">Tolerance: <span id="toleranceValue">20</span></label>
+                <input type="range" id="tolerance" min="0" max="100" value="20">
+            </div>
+
+            <div class="control-group feature-toggle">
+                <input type="checkbox" id="adjustToneToggle">
+                <label for="adjustToneToggle">Adjust overall image tone</label>
+                <p class="help-text">Shifts all colors to maintain harmony.</p>
+            </div>
+
+            <button id="applyBtn" class="primary-btn">Apply Color Change</button>
+            
+            <div class="history-controls">
+                <button id="undoBtn">Undo</button>
+                <button id="resetBtn">Reset</button>
+            </div>
+
+            <a href="#" id="downloadBtn" class="disabled" download="edited-image.png">Download Image</a>
+            
+        </div>
+
+        <!-- Image Display Area -->
+        <div class="canvas-container">
+            <div id="loadingMessage">Please load an image to begin.</div>
+            <canvas id="imageCanvas"></canvas>
+        </div>
+    </div>
+    
+    <!-- Your script runs last -->
+    <script src="script.js"></script>
+</html>
