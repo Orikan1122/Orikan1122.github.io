@@ -179,10 +179,21 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log("Application successfully initialized.");
     }
 
-    // --- The rest of your functions (handleGoogleLogin, handleLogout, etc.) stay the same ---
     function handleGoogleLogin() {
-        showCloudStatus("Redirecting to Google...", 'loading', 0);
-        auth.signInWithRedirect(googleProvider);
+        showCloudStatus("Opening Google Sign-In...", 'loading', 0);
+        auth.signInWithPopup(googleProvider)
+            .then((result) => {
+                // The user is successfully signed in.
+                const user = result.user;
+                console.log("Sign in with popup successful for user:", user.uid);
+                showCloudStatus("Sign-in successful!", 'success');
+                // The `onAuthStateChanged` listener that you already have will
+                // automatically detect this change and update the UI.
+            }).catch((error) => {
+                // Handle errors if the user closes the popup, etc.
+                console.error("Error during popup sign-in:", error.code, error.message);
+                showCloudStatus(`Error: ${error.message}`, 'error', 0);
+            });
     }
     
     function handleLogout() {
