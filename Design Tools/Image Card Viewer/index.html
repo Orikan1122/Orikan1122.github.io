@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Card Image Organizer</title>
+    
+    <!-- Toast UI Image Editor CSS -->
+    <link type="text/css" href="https://uicdn.toast.com/tui-color-picker/v2.2.6/tui-color-picker.css" rel="stylesheet">
+    <link type="text/css" href="https://uicdn.toast.com/tui-image-editor/v3.15.2/tui-image-editor.css" rel="stylesheet">
+    
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>AI Card Image Organizer</h1>
+
+        <div class="top-controls">
+            <div class="io-buttons">
+                <button id="createCardBtn">Create New Card</button>
+                <button id="exportBtn">Export JSON</button>
+                <input type="file" id="importFile" accept=".json" style="display: none;">
+                <label for="importFile" class="import-label">Import JSON</label>
+            </div>
+             <div class="settings-buttons">
+                <button id="manageCategoriesBtn">Manage Categories</button>
+                <select id="sort-select">
+                    <option value="id">Sort: Order Added</option>
+                    <option value="frontPrompt">Sort: Front Prompt (A-Z)</option>
+                    <option value="framePrompt">Sort: Frame Prompt (A-Z)</option>
+                    <option value="backPrompt">Sort: Back Prompt (A-Z)</option>
+                    <option value="category">Sort: Category (A-Z)</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="filter-container"></div>
+        <div class="gallery" id="gallery">
+            <p class="placeholder-text">Your collection is empty. Import a file or create a new card.</p>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div class="modal" id="viewPromptsModal">
+        <div class="modal-content">
+            <span class="close-btn">×</span>
+            <h2>Image Prompts</h2>
+            <div class="prompt-view-group">
+                <label>Front Image Prompt:</label>
+                <p id="viewFrontPromptText"></p>
+            </div>
+            <hr>
+            <div class="prompt-view-group">
+                <label>Frame Image Prompt:</label>
+                <p id="viewFramePromptText"></p>
+            </div>
+            <hr>
+            <div class="prompt-view-group">
+                <label>Back Image Prompt:</label>
+                <p id="viewBackPromptText"></p>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="editModal">
+        <div class="modal-content">
+            <span class="close-btn">×</span>
+            <h2>Edit Card</h2>
+            <input type="hidden" id="editCardId">
+            <div class="form-group">
+                <label for="editFrontPrompt">Front Image Prompt:</label>
+                <textarea id="editFrontPrompt" rows="3"></textarea>
+            </div>
+            <div class="form-group">
+                <label for="editFramePrompt">Frame Image Prompt:</label>
+                <textarea id="editFramePrompt" rows="3"></textarea>
+            </div>
+            <div class="form-group">
+                <label for="editBackPrompt">Back Image Prompt:</label>
+                <textarea id="editBackPrompt" rows="3"></textarea>
+            </div>
+            <div class="form-group">
+                <label for="editCategorySelect">Category:</label>
+                <select id="editCategorySelect"></select>
+            </div>
+            <button id="saveEditBtn" class="btn-save">Save Changes</button>
+        </div>
+    </div>
+
+    <div class="modal" id="newCardModal">
+        <div class="modal-content">
+            <span class="close-btn">×</span>
+            <h2>Create New Card</h2>
+            <form>
+                <div class="form-group">
+                    <label for="newCardFront">1. Select Front Image:</label>
+                    <input type="file" id="newCardFront" class="file-input" accept="image/*">
+                </div>
+                 <div class="form-group">
+                    <label for="newCardFrontPrompt">2. Enter Front Image Prompt:</label>
+                    <textarea id="newCardFrontPrompt" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="newCardFrame">3. Select Frame Image:</label>
+                    <input type="file" id="newCardFrame" class="file-input" accept="image/*">
+                </div>
+                <div class="form-group">
+                    <label for="newCardFramePrompt">4. Enter Frame Image Prompt:</label>
+                    <textarea id="newCardFramePrompt" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="newCardBack">5. Select Back Image:</label>
+                    <input type="file" id="newCardBack" class="file-input" accept="image/*">
+                </div>
+                <div class="form-group">
+                    <label for="newCardBackPrompt">6. Enter Back Image Prompt:</label>
+                    <textarea id="newCardBackPrompt" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="newCardCategorySelect">7. Assign Category:</label>
+                    <select id="newCardCategorySelect"></select>
+                </div>
+                <button type="button" id="saveNewCardBtn" class="btn-save">Create Card</button>
+            </form>
+        </div>
+    </div>
+    
+    <div class="modal" id="categoryModal">
+        <div class="modal-content">
+            <span class="close-btn">×</span>
+            <h2>Manage Categories</h2>
+            <ul id="categoryList" class="category-list"></ul>
+            <hr>
+            <h3>Create New Category</h3>
+            <div class="form-group input-with-button">
+                <input type="text" id="newCategoryName" placeholder="Enter new category name">
+                <button id="createCategoryBtn">Create</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- NEW: Image Editor Modal -->
+    <div class="modal" id="imageEditorModal" style="--tui-image-editor-container-background-color: #f4f5f7;">
+        <div class="modal-content" style="max-width: 90vw; width: 1200px; height: 90vh;">
+            <span class="close-btn" id="closeEditorBtn">×</span>
+            <div id="tui-image-editor-container"></div>
+            <button id="saveImageEditorChanges" class="btn-save" style="position: absolute; bottom: 25px; right: 25px; width: auto;">Save Image</button>
+        </div>
+    </div>
+
+    <!-- Toast UI Image Editor JavaScript -->
+    <script type="text/javascript" src="https://uicdn.toast.com/tui.code-snippet/v1.5.2/tui-code-snippet.min.js"></script>
+    <script type="text/javascript" src="https://uicdn.toast.com/tui-color-picker/v2.2.6/tui-color-picker.min.js"></script>
+    <script type="text/javascript" src="https://uicdn.toast.com/tui-image-editor/v3.15.2/tui-image-editor.min.js"></script>
+    
+    <script src="script.js"></script>
+</body>
+</html>
