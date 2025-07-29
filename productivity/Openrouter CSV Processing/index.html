@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSV Text Analysis with OpenRouter</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>CSV Text Analysis Tool</h1>
+        <p>Upload a .csv file, enter your OpenRouter API key, fetch and select a model, and write a prompt to analyze the text in each row. The results will appear in a new column in the table below.</p>
+
+        <div class="input-group">
+            <label for="apiKey">OpenRouter API Key:</label>
+            <div class="api-key-group">
+                <input type="password" id="apiKey" placeholder="Enter your OpenRouter API key">
+                <button id="fetchModelsBtn">Fetch Models</button>
+            </div>
+        </div>
+
+        <div class="input-group">
+            <label for="modelSelect">Select a Model:</label>
+            <select id="modelSelect" disabled>
+                <option value="">-- Enter API Key and Fetch Models --</option>
+            </select>
+        </div>
+
+        <div class="input-group">
+            <label for="prompt">Prompt:</label>
+            <textarea id="prompt" placeholder="e.g., Read [row] and decide if the overall topic is 'Technology' or 'Finance'." rows="3"></textarea>
+            <p class="info">Use `[row]` as a placeholder for the content of the CSV row.</p>
+        </div>
+
+        <div class="input-group">
+            <label for="csvFile">CSV File:</label>
+            <input type="file" id="csvFile" accept=".csv">
+        </div>
+
+        <div class="button-group">
+            <button id="processBtn">Process</button>
+            <button id="stopBtn" disabled>Stop</button>
+            <button id="downloadBtn" disabled>Download Modified CSV</button>
+            <button id="clearBtn">Clear Progress & All Data</button>
+        </div>
+
+        <div id="progressContainer">
+            <p>Progress: <span id="progressText">0 / 0</span></p>
+            <progress id="progressBar" value="0" max="100"></progress>
+        </div>
+
+        <div class="table-container">
+            <table id="csvTable">
+                <thead></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- SCRIPT SECTION - THE ONLY PART THAT HAS CHANGED -->
+    <!-- 1. Load Papa Parse from the jsDelivr CDN, which is more reliable. -->
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
+    
+    <!-- 2. Load your local script file second. -->
+    <script src="script.js"></script>
+</body>
+</html>
