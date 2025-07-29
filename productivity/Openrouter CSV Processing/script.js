@@ -1,227 +1,300 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // --- DOM ELEMENTS ---
-    const statusEl = document.getElementById('status');
-    const downloadBtn = document.getElementById('downloadCSV');
-    const updateBtn = document.getElementById('updateData');
-    const ctx = document.getElementById('climateChart').getContext('2d');
+    // DOM Elements
+    const apiKeyInput = document.getElementById('apiKey');
+    const fetchModelsBtn = document.getElementById('fetchModelsBtn');
+    const modelSelect = document.getElementById('modelSelect');
+    const promptInput = document.getElementById('prompt');
+    const csvFileInput = document.getElementById('csvFile');
+    const processBtn = document.getElementById('processBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const progressText = document.getElementById('progressText');
+    const progressBar = document.getElementById('progressBar');
+    const tableHead = document.querySelector('#csvTable thead');
+    const tableBody = document.querySelector('#csvTable tbody');
 
-    // --- DATA SOURCES ---
-    const PROXY_URL = "https://api.allorigins.win/raw?url=";
-    const GISS_CO2_URL = "https://data.giss.nasa.gov/modelforce/ghgases/Fig1A.ext.txt";
-    const GML_CO2_URL = "https://gml.noaa.gov/webdata/ccgg/trends/co2/co2_mm_gl.txt";
-    // Using a simpler, more direct file for temperature data.
-    const BERKELEY_TEMP_URL = "http://berkeleyearth.lbl.gov/auto/Global/Complete_TAVG_complete.txt";
-    
-    let climateChart;
-    let finalMergedData = []; // To store the processed data for download
+    // State variables and constants
+    let csvData = [];
+    let headers = [];
+    let isProcessing = false;
+    let currentIndex = 0;
+    const MAX_RETRIES = 3;
+    const INITIAL_RETRY_DELAY_MS = 2000;
 
-    // --- LIVE DATA PARSING FUNCTIONS ---
+    // --- DATA & STATE MANAGEMENT ---
 
-    function parseGissCo2(text) {
-        const lines = text.split('\n');
-        const data = [];
-        let dataStarted = false;
-        for (const line of lines) {
-            if (line.includes('Ice-') && line.includes('1850')) dataStarted = true;
-            if (!dataStarted || !line.trim() || line.startsWith('-') || line.startsWith('Refer')) continue;
+    const saveData = () => {
+        localStorage.setItem('csvAnalyzerData', JSON.stringify(csvData));
+        localStorage.setItem('csvAnalyzerApiKey', apiKeyInput.value);
+        localStorage.setItem('csvAnalyzerPrompt', promptInput.value);
+        localStorage.setItem('csvAnalyzerModel', modelSelect.value);
+        localStorage.setItem('csvAnalyzerIndex', currentIndex);
+    };
 
-            const parts = line.trim().split(/\s+/);
-            for (let i = 0; i < parts.length; i++) {
-                if (/^\d{4}$/.test(parts[i]) && !isNaN(parseFloat(parts[i + 1]))) {
-                    data.push({ Year: parseInt(parts[i]), CO2_Annual: parseFloat(parts[i + 1]) });
-                    i++;
+    const loadSavedData = () => {
+        const savedApiKey = localStorage.getItem('csvAnalyzerApiKey');
+        const savedPrompt = localStorage.getItem('csvAnalyzerPrompt');
+        const savedData = localStorage.getItem('csvAnalyzerData');
+        const savedIndex = localStorage.getItem('csvAnalyzerIndex');
+
+        if (savedPrompt) promptInput.value = savedPrompt;
+
+        if (savedData) {
+            csvData = JSON.parse(savedData);
+            if (csvData.length > 0) {
+                headers = Object.keys(csvData[0]);
+                renderTable();
+                downloadBtn.disabled = false;
+                currentIndex = savedIndex ? parseInt(savedIndex, 10) : 0;
+                updateProgress();
+                if (currentIndex > 0) {
+                    setTimeout(() => alert(`Resuming from previous session. Processed ${currentIndex} rows.`), 100);
                 }
             }
         }
-        return data;
-    }
-
-    function parseGmlCo2(text) {
-        return text.trim().split('\n')
-            .filter(line => !line.startsWith('#'))
-            .map(line => {
-                const parts = line.trim().split(/\s+/);
-                return { Year: parseInt(parts[0]), Month: parseInt(parts[1]), CO2: parseFloat(parts[3]) };
-            });
-    }
-
-    function parseBerkeleyTemp(text) {
-        return text.trim().split('\n')
-            .filter(line => !line.startsWith('%') && line.trim())
-            .map(line => {
-                const parts = line.trim().split(/\s+/);
-                // The Monthly Anomaly is the 3rd column (index 2)
-                return { Year: parseInt(parts[0]), Month: parseInt(parts[1]), Temperature_Anomaly: parseFloat(parts[2]) };
-            });
-    }
-
-    // --- DATA PROCESSING & MERGING ---
-
-    function processAndMergeData(gissData, gmlData, tempData) {
-        const gissMap = new Map(gissData.map(i => [i.Year, i.CO2_Annual]));
-        const gmlMap = new Map(gmlData.map(i => [`${i.Year}-${i.Month}`, i.CO2]));
-
-        const merged = tempData.map(tempRow => {
-            const { Year, Month } = tempRow;
-            let co2 = null;
-            const gmlKey = `${Year}-${Month}`;
-
-            if (gmlMap.has(gmlKey)) {
-                co2 = gmlMap.get(gmlKey);
-            } else {
-                const prevYearData = gissMap.get(Year - 1);
-                const currentYearData = gissMap.get(Year);
-                if (prevYearData && currentYearData) {
-                    const co2Diff = currentYearData - prevYearData;
-                    co2 = prevYearData + (co2Diff * (Month - 1) / 12);
-                } else if (currentYearData) {
-                    co2 = currentYearData;
-                }
-            }
-            
-            return {
-                Date: new Date(Year, Month - 1),
-                Temperature_Anomaly: tempRow.Temperature_Anomaly,
-                CO2: co2 ? parseFloat(co2.toFixed(2)) : null
-            };
-        });
         
-        return merged.filter(row => row.Date.getFullYear() >= 1900 && row.CO2 !== null);
-    }
+        if (savedApiKey) {
+            apiKeyInput.value = savedApiKey;
+            fetchModels();
+        }
+    };
 
-    // --- CHART & UI FUNCTIONS ---
+    const clearSavedData = () => {
+        if (confirm('Are you sure you want to clear all progress and saved data? This cannot be undone.')) {
+            localStorage.clear();
+            location.reload();
+        }
+    };
 
-    function renderChart(data, source) {
-        if (climateChart) climateChart.destroy();
+    // --- UI & TABLE RENDERING ---
 
-        climateChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                datasets: [{
-                    label: 'Temperature Anomaly (°C)',
-                    data: data,
-                    parsing: { xAxisKey: 'Date', yAxisKey: 'Temperature_Anomaly' },
-                    borderColor: '#e74c3c', yAxisID: 'y', borderWidth: 1.5, pointRadius: 0
-                }, {
-                    label: 'CO2 (ppm)',
-                    data: data,
-                    parsing: { xAxisKey: 'Date', yAxisKey: 'CO2' },
-                    borderColor: '#3498db', yAxisID: 'y1', borderWidth: 1.5, pointRadius: 0
-                }]
-            },
-            options: {
-                responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
-                scales: {
-                    x: { type: 'time', time: { unit: 'year' }, title: { display: true, text: 'Year' } },
-                    y: { position: 'left', title: { display: true, text: 'Temperature Anomaly (°C)', color: '#e74c3c' }, ticks: { color: '#e74c3c' } },
-                    y1: { position: 'right', title: { display: true, text: 'CO2 (ppm)', color: '#3498db' }, ticks: { color: '#3498db' }, grid: { drawOnChartArea: false } }
+    const renderTable = () => {
+        tableHead.innerHTML = '';
+        tableBody.innerHTML = '';
+
+        if (headers.length > 0) {
+            const headerRow = document.createElement('tr');
+            headers.forEach(header => {
+                const th = document.createElement('th');
+                th.textContent = header;
+                headerRow.appendChild(th);
+            });
+            tableHead.appendChild(headerRow);
+        }
+
+        csvData.forEach(row => {
+            const tableRow = document.createElement('tr');
+            headers.forEach(header => {
+                const td = document.createElement('td');
+                td.textContent = row[header] || '';
+                tableRow.appendChild(td);
+            });
+            tableBody.appendChild(tableRow);
+        });
+    };
+
+    const updateProgress = () => {
+        const total = csvData.length;
+        progressText.textContent = `${currentIndex} / ${total}`;
+        progressBar.value = total > 0 ? (currentIndex / total) * 100 : 0;
+    };
+    
+    const updateTableCell = (rowIndex, columnName, value) => {
+        const colIndex = headers.indexOf(columnName);
+        if (rowIndex < tableBody.children.length && colIndex !== -1) {
+            tableBody.children[rowIndex].children[colIndex].textContent = value;
+        }
+    };
+
+    const handleFile = (file) => {
+        if (!file) return;
+        Papa.parse(file, {
+            header: true,
+            skipEmptyLines: true,
+            complete: (results) => {
+                csvData = results.data;
+                headers = results.meta.fields;
+                if (!headers.includes('response')) {
+                    headers.push('response');
+                    csvData.forEach(row => row.response = '');
                 }
+                currentIndex = 0;
+                renderTable();
+                updateProgress();
+                saveData();
+                downloadBtn.disabled = false;
             }
         });
-        statusEl.textContent = `Data loaded successfully from ${source}. Displaying ${data.length} records.`;
-    }
+    };
+    
+    // --- API & PROCESSING LOGIC ---
 
-    function downloadDataAsCSV() {
-        if (finalMergedData.length === 0) return;
-        const headers = "Date,Temperature_Anomaly_C,CO2_ppm";
-        const rows = finalMergedData.map(d => `${d.Date.toISOString().split('T')[0]},${d.Temperature_Anomaly},${d.CO2}`).join('\n');
-        const csvContent = `${headers}\n${rows}`;
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const fetchModels = async () => {
+        const apiKey = apiKeyInput.value.trim();
+        if (!apiKey) {
+            alert('Please enter your OpenRouter API key first.');
+            return;
+        }
+        modelSelect.innerHTML = '<option value="">-- Fetching models... --</option>';
+        modelSelect.disabled = true;
+        try {
+            const response = await fetch('https://openrouter.ai/api/v1/models');
+            if (!response.ok) throw new Error('Failed to fetch models. Check your API key.');
+            const { data } = await response.json();
+            populateModelDropdown(data);
+        } catch (error) {
+            console.error('Error fetching models:', error);
+            alert(error.message);
+            modelSelect.innerHTML = '<option value="">-- Fetching failed --</option>';
+        }
+    };
+
+    const populateModelDropdown = (models) => {
+        modelSelect.innerHTML = '';
+        if (!models || models.length === 0) {
+            modelSelect.innerHTML = '<option value="">-- No models found --</option>';
+            return;
+        }
+        models.sort((a, b) => a.name.localeCompare(b.name)).forEach(model => {
+            const option = document.createElement('option');
+            option.value = model.id;
+            option.textContent = `${model.name} (${model.id})`;
+            modelSelect.appendChild(option);
+        });
+        modelSelect.disabled = false;
+        const savedModel = localStorage.getItem('csvAnalyzerModel');
+        if (savedModel) modelSelect.value = savedModel;
+    };
+
+    const startProcessing = () => {
+        const apiKey = apiKeyInput.value.trim();
+        const promptTemplate = promptInput.value.trim();
+        const selectedModel = modelSelect.value;
+
+        if (!apiKey || !promptTemplate || csvData.length === 0 || !selectedModel) {
+            alert('Please provide an API key, select a model, write a prompt, and upload a CSV file.');
+            return;
+        }
+        if (!promptTemplate.includes('[row]')) {
+            alert('Your prompt must include the `[row]` placeholder.');
+            return;
+        }
+
+        isProcessing = true;
+        processBtn.disabled = true;
+        stopBtn.disabled = false;
+        csvFileInput.disabled = true;
+        
+        processRow(currentIndex); // Start the processing chain
+    };
+
+    const processRow = async (index, retries = 0) => {
+        if (!isProcessing || index >= csvData.length) {
+            if (isProcessing) { // Only show "complete" if it wasn't manually stopped
+                alert('Processing complete!');
+            }
+            stopProcessing();
+            return;
+        }
+
+        const row = csvData[index];
+        const rowContent = Object.values(row).slice(0, -1).join(', ');
+        const prompt = promptInput.value.trim().replace('[row]', rowContent);
+        
+        try {
+            const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${apiKeyInput.value.trim()}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    model: modelSelect.value,
+                    messages: [{ role: 'user', content: prompt }]
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(`API Error: ${errorData.error.message || 'Provider returned an error'}`);
+            }
+
+            const data = await response.json();
+            let rawResult = data.choices[0].message.content;
+            const thinkEndTag = '◁/think▷';
+            const thinkEndIndex = rawResult.indexOf(thinkEndTag);
+            if (thinkEndIndex !== -1) {
+                rawResult = rawResult.substring(thinkEndIndex + thinkEndTag.length);
+            }
+            const finalResult = rawResult.trim();
+
+            // Success
+            csvData[index]['response'] = finalResult;
+            updateTableCell(index, 'response', finalResult);
+            currentIndex++;
+            updateProgress();
+            saveData();
+            
+            // Immediately process the next row
+            processRow(currentIndex);
+
+        } catch (error) {
+            console.error(`Error on row ${index + 1} (Attempt ${retries + 1}):`, error);
+
+            if (retries < MAX_RETRIES) {
+                const delay = INITIAL_RETRY_DELAY_MS * Math.pow(2, retries);
+                console.log(`Retrying in ${delay / 1000}s...`);
+                setTimeout(() => {
+                    processRow(index, retries + 1); // Retry the SAME row
+                }, delay);
+            } else {
+                console.error(`Failed to process row ${index + 1} after ${MAX_RETRIES} retries.`);
+                const failureMessage = 'ERROR: Processing Failed';
+                csvData[index]['response'] = failureMessage;
+                updateTableCell(index, 'response', failureMessage);
+                currentIndex++;
+                updateProgress();
+                saveData();
+                
+                // Move on to the NEXT row
+                processRow(currentIndex);
+            }
+        }
+    };
+
+    const stopProcessing = () => {
+        isProcessing = false;
+        processBtn.disabled = false;
+        stopBtn.disabled = true;
+        csvFileInput.disabled = false;
+    };
+
+    const downloadCSV = () => {
+        if (csvData.length === 0) {
+            alert("There is no data to download.");
+            return;
+        }
+        const csv = Papa.unparse(csvData);
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
         const url = URL.createObjectURL(blob);
         link.setAttribute('href', url);
-        link.setAttribute('download', 'global_climate_data_live.csv');
+        link.setAttribute('download', 'modified_data.csv');
         link.style.visibility = 'hidden';
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-    }
-    
-    // --- MAIN EXECUTION LOGIC ---
-
-    async function loadAndDisplayData() {
-        downloadBtn.disabled = true;
-        updateBtn.disabled = true;
-        statusEl.textContent = 'Attempting to fetch live data from sources...';
-
-        try {
-            const [gissText, gmlText, tempText] = await Promise.all([
-                fetch(PROXY_URL + encodeURIComponent(GISS_CO2_URL)).then(res => res.text()),
-                fetch(PROXY_URL + encodeURIComponent(GML_CO2_URL)).then(res => res.text()),
-                fetch(PROXY_URL + encodeURIComponent(BERKELEY_TEMP_URL)).then(res => res.text())
-            ]);
-            
-            statusEl.textContent = 'Parsing live data...';
-            const gissData = parseGissCo2(gissText);
-            const gmlData = parseGmlCo2(gmlText);
-            const tempData = parseBerkeleyTemp(tempText);
-            
-            statusEl.textContent = 'Processing and merging live data...';
-            finalMergedData = processAndMergeData(gissData, gmlData, tempData);
-
-            renderChart(finalMergedData, 'Live Web Sources');
-            downloadBtn.disabled = false;
-
-        } catch (error) {
-            console.error("Live data fetch failed:", error);
-            statusEl.textContent = 'Live data fetch failed. Loading fallback data instead.';
-            loadFallbackData(); // Call the fallback function on error
-        } finally {
-            updateBtn.disabled = false;
-        }
-    }
-    
-    // --- FALLBACK DATA FUNCTION ---
-
-    function loadFallbackData() {
-        const fallbackCsvData = `Year,Month,Temperature_Anomaly,CO2
-        1900,1,-0.285,295.7
-        1900,2,0.098,295.7
-        ... (the rest of the CSV data you provided earlier) ...
-        2025,5,1.078,383.4
-        2025,6,1.039,384.2`; // NOTE: You need to paste the full data here.
-
-        const data = parseFallbackCsv(fallbackCsvData).map(row => ({
-            ...row,
-            Date: new Date(row.Year, row.Month - 1)
-        }));
-
-        finalMergedData = data;
-        renderChart(data, 'Cached Fallback');
-        downloadBtn.disabled = false;
-    }
-    
-    function parseFallbackCsv(csvString) {
-        const lines = csvString.trim().split('\n');
-        const headers = lines[0].split(',').map(h => h.trim());
-        return lines.slice(1).map(line => {
-            const values = line.split(',');
-            const obj = {};
-            headers.forEach((header, i) => {
-                obj[header] = parseFloat(values[i]);
-            });
-            return obj;
-        });
-    }
-
-    // --- INITIAL LOAD ---
-    loadAndDisplayData();
+    };
 
     // --- EVENT LISTENERS ---
-    updateBtn.addEventListener('click', loadAndDisplayData);
-    downloadBtn.addEventListener('click', downloadDataAsCSV);
+    csvFileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
+    fetchModelsBtn.addEventListener('click', fetchModels);
+    processBtn.addEventListener('click', startProcessing);
+    stopBtn.addEventListener('click', stopProcessing);
+    downloadBtn.addEventListener('click', downloadCSV);
+    clearBtn.addEventListener('click', clearSavedData);
 
-    // --- Abridged Fallback Data ---
-    // In the code above, paste the full CSV content you have into the `fallbackCsvData` variable for a complete fallback.
-    // I am only including a small sample here to keep the code block readable.
-    const fallbackCsvData = `Year,Month,Temperature_Anomaly,CO2
-    1900,1,-0.285,295.7
-    1900,2,0.098,295.7
-    1900,3,-0.093,295.7
-    2023,10,1.404,418.85
-    2023,11,1.407,420.4
-    2023,12,1.379,421.51
-    2024,1,1.245,422.26
-    2024,2,1.373,422.82
-    2024,3,1.27,423.41`;
+    // Initial Load
+    loadSavedData();
 });
