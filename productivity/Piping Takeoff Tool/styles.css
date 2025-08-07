@@ -1,0 +1,238 @@
+:root {
+    --primary-bg: #f4f7f6;
+    --secondary-bg: #ffffff;
+    --border-color: #d1d9e6;
+    --text-color: #333;
+    --header-bg: #2c3e50;
+    --header-text: #ecf0f1;
+    --accent-color: #3498db;
+    --danger-color: #e74c3c;
+    --edit-color: #f39c12;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    margin: 0;
+    background-color: var(--primary-bg);
+    color: var(--text-color);
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+}
+
+header {
+    background-color: var(--header-bg);
+    color: var(--header-text);
+    padding: 10px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+header h1 {
+    margin: 0;
+    font-size: 1.5em;
+}
+
+.project-controls {
+    display: flex;
+    gap: 10px;
+}
+
+button {
+    padding: 8px 12px;
+    border: none;
+    background-color: var(--accent-color);
+    color: white;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+button:hover {
+    background-color: #2980b9;
+}
+
+#export-a3-pdf-btn {
+    background-color: #27ae60;
+}
+#export-a3-pdf-btn:hover {
+    background-color: #229954;
+}
+
+#app-container {
+    display: flex;
+    flex-grow: 1;
+    overflow: hidden;
+}
+
+/* Left Panel */
+#controls-panel {
+    width: 500px;
+    min-width: 350px;
+    max-width: 800px; /* Prevent it from getting too large */
+    background-color: var(--secondary-bg);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0; /* Prevent panel from shrinking on its own */
+}
+
+.control-section {
+    padding: 15px 20px;
+}
+
+.control-section:not(:last-child) {
+     border-bottom: 1px solid var(--border-color);
+}
+
+.control-section h2 {
+    margin-top: 0;
+    font-size: 1.2em;
+    padding-bottom: 10px;
+    margin-bottom: 15px;
+}
+
+.instructions {
+    font-size: 0.9em;
+    color: #555;
+    background-color: #f9f9f9;
+    padding: 10px;
+    border-radius: 4px;
+    border-left: 3px solid var(--accent-color);
+    margin-top: 10px;
+}
+
+#scale-section {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+/* Piping Register Table */
+#table-wrapper {
+    overflow-x: auto;
+    flex-grow: 1;
+}
+#piping-register {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9em;
+}
+
+#piping-register th, #piping-register td {
+    border: 1px solid var(--border-color);
+    padding: 8px;
+    text-align: center;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+#piping-register th {
+    background-color: var(--primary-bg);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+#piping-register input[type="color"] {
+    width: 40px;
+    height: 25px;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+}
+
+#piping-register select, #piping-register input[type="number"] {
+    width: 95%;
+    box-sizing: border-box;
+    padding: 4px;
+}
+
+#piping-register .remove-row-btn {
+    background-color: var(--danger-color);
+}
+
+#register-body tr.active-row {
+    background-color: #eaf5ff;
+    outline: 2px solid var(--accent-color);
+}
+
+/* Resizer */
+#resizer {
+    width: 5px;
+    cursor: col-resize;
+    background-color: #e0e0e0;
+    flex-shrink: 0;
+}
+#resizer:hover {
+    background-color: var(--accent-color);
+}
+
+
+/* Right Panel */
+#viewer-container {
+    flex-grow: 1;
+    background-color: #e0e0e0;
+    position: relative;
+    overflow: hidden; /* This will contain the canvas */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#pdf-viewer {
+    position: relative;
+    transform-origin: top left;
+    box-shadow: 0 0 10px rgba(0,0,0,0.5);
+    background-color: white;
+}
+
+#pdf-canvas, #drawing-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+#drawing-canvas {
+    z-index: 10;
+}
+#pdf-viewer.pan-mode { cursor: grab; }
+#pdf-viewer.draw-mode { cursor: crosshair; }
+#pdf-viewer.calibrate-mode { cursor: crosshair; }
+
+#viewer-controls {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    display: flex;
+    gap: 10px;
+    z-index: 20;
+}
+
+/* Modal and Pipe DB Management */
+.modal{display:none;position:fixed;z-index:100;left:0;top:0;width:100%;height:100%;overflow:auto;background-color:rgba(0,0,0,0.4)}.modal-content{background-color:#fefefe;margin:10% auto;padding:20px;border:1px solid #888;width:80%;max-width:600px;border-radius:5px}.close-btn{color:#aaa;float:right;font-size:28px;font-weight:bold;cursor:pointer}.close-btn:hover,.close-btn:focus{color:black}#pipe-db-list{margin-bottom:20px;max-height: 250px; overflow-y: auto;}#add-pipe-form input{display:block;width:95%;margin-bottom:10px;padding:8px}
+
+.pipe-db-entry {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px;
+    border-bottom: 1px solid #eee;
+}
+.pipe-db-actions button {
+    margin-left: 5px;
+    padding: 4px 8px;
+    font-size: 0.8em;
+}
+.edit-pipe-btn { background-color: var(--edit-color); }
+.edit-pipe-btn:hover { background-color: #d68910; }
+.delete-pipe-btn { background-color: var(--danger-color); }
+.delete-pipe-btn:hover { background-color: #c0392b; }
+
+/* Class to hide elements during PDF export */
+.hide-for-pdf {
+    display: none !important;
+}
