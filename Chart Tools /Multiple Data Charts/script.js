@@ -17,11 +17,15 @@ document.addEventListener('DOMContentLoaded', function () {
     const minValueThreshold = document.getElementById('minValueThreshold');
     const minFilterAction = document.getElementById('minFilterAction');
 
+    // --- FORMULA COLUMN REFERENCES ---
+    const createFormulaColumnBtn = document.getElementById('createFormulaColumnBtn');
+
     // --- STATE VARIABLES ---
     let parsedData = [];
     let uplotInstances = [null, null, null];
     let maxColumnCount = 0;
-    const seriesColors = ["#007bff", "#dc3545", "#28a745", "#ffc107", "#6f42c1", "#fd7e14", "#20c997", "#e83e8c"];
+    let formulaColumns = []; // To store formula-based columns
+    const seriesColors = ["#007bff", "#dc3545", "#28a745", "#ffc107", "#6f42c1", "#fd7e14", "#20c997", "#e83e8c", "#6610f2", "#17a2b8"];
 
     // --- EVENT LISTENERS ---
     generateBtn.addEventListener('click', () => {
@@ -37,11 +41,12 @@ document.addEventListener('DOMContentLoaded', function () {
     exportBtn.addEventListener('click', exportSetup);
     importBtn.addEventListener('click', importSetup);
 
+    createFormulaColumnBtn.addEventListener('click', createFormulaColumn);
+
     document.querySelectorAll('.weekday-filter, #hideTimeGapsCheckbox').forEach(element => {
         element.addEventListener('change', drawCharts);
     });
     
-    // Event listeners for value filters
     [enableValueFilter, valueThreshold, filterAction, enableMinValueFilter, minValueThreshold, minFilterAction].forEach(element => {
         element.addEventListener('change', drawCharts);
     });
@@ -60,6 +65,9 @@ document.addEventListener('DOMContentLoaded', function () {
         const lines = dataInput.value.trim().split('\n');
         parsedData = [];
         maxColumnCount = 0;
+        formulaColumns = []; // Reset formula columns on new data import
+        updateFormulaColumnsList(); // Clear the formula list UI
+
         lines.forEach(line => {
             const parts = line.trim().split('\t');
             if (parts.length < 2) return;
@@ -81,17 +89,25 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function updateSeriesConfigInputs() {
         seriesConfigContainer.innerHTML = '';
-        if (maxColumnCount === 0) {
+        const totalColumns = maxColumnCount + formulaColumns.length;
+
+        if (totalColumns === 0) {
             seriesConfigContainer.innerHTML = '<p class="placeholder">Bitte zuerst Daten verarbeiten.</p>';
             return;
         }
-        for (let i = 0; i < maxColumnCount; i++) {
+
+        for (let i = 0; i < totalColumns; i++) {
+            const isFormulaColumn = i >= maxColumnCount;
             const itemDiv = document.createElement('div');
             itemDiv.className = 'series-item';
             
+            const label = isFormulaColumn ? `Formel ${i + 1}` : `Spalte ${i + 1}`;
+            // Use the formula itself as the default name for a formula column
+            const defaultValue = isFormulaColumn ? formulaColumns[i - maxColumnCount].formula : `Wert ${i + 1}`;
+
             itemDiv.innerHTML = `
-                <span class="series-item-label">Spalte ${i + 1}</span>
-                <input type="text" class="series-name-input" id="seriesName${i}" value="Wert ${i + 1}" placeholder="Serienname">
+                <span class="series-item-label">${label}</span>
+                <input type="text" class="series-name-input" id="seriesName${i}" value="${defaultValue}" placeholder="Serienname">
                 <select class="series-chart-select" id="seriesChartSelect${i}">
                     <option value="-1">Verbergen</option>
                     <option value="0">Chart 1</option>
@@ -107,47 +123,105 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    // --- FORMULA COLUMN FUNCTIONS ---
+    function createFormulaColumn() {
+        const formula = document.getElementById('formulaInput').value.trim();
+        if (!formula) {
+            alert("Bitte geben Sie eine Formel ein.");
+            return;
+        }
+
+        const columnRegex = /\{(\d+)\}/g;
+        const columnsInFormula = [...formula.matchAll(columnRegex)].map(match => parseInt(match[1], 10) - 1);
+
+        if (columnsInFormula.some(colIndex => colIndex >= maxColumnCount)) {
+            alert("Fehler: Die Formel verweist auf eine Original-Spalte, die nicht existiert.");
+            return;
+        }
+
+        const newColumnIndex = maxColumnCount + formulaColumns.length;
+        const newColumn = { formula, columnIndex: newColumnIndex };
+
+        formulaColumns.push(newColumn);
+        applyFormulas();
+        updateSeriesConfigInputs();
+        drawCharts();
+        updateFormulaColumnsList();
+        document.getElementById('formulaInput').value = '';
+    }
+
+    function applyFormulas() {
+        if (formulaColumns.length === 0 || parsedData.length === 0) return;
+
+        parsedData.forEach(row => {
+            // Ensure the values array is long enough to hold new formula results
+            row.values.length = maxColumnCount + formulaColumns.length;
+
+            formulaColumns.forEach(formulaCol => {
+                let formulaToEvaluate = formulaCol.formula;
+                const columnRegex = /\{(\d+)\}/g;
+                
+                formulaToEvaluate = formulaToEvaluate.replace(columnRegex, (match, colNum) => {
+                    const colIndex = parseInt(colNum, 10) - 1;
+                    const value = row.values[colIndex];
+                    return value !== null ? value : 'null';
+                });
+
+                try {
+                    const result = new Function(`return ${formulaToEvaluate}`)();
+                    row.values[formulaCol.columnIndex] = (typeof result === 'number' && isFinite(result)) ? result : null;
+                } catch (e) {
+                    console.error("Fehler bei der Formel-Auswertung:", e);
+                    row.values[formulaCol.columnIndex] = null;
+                }
+            });
+        });
+    }
+
+    function updateFormulaColumnsList() {
+        const listContainer = document.getElementById('formula-columns-list');
+        listContainer.innerHTML = '';
+        formulaColumns.forEach((col) => {
+            const item = document.createElement('div');
+            item.className = 'formula-item';
+            item.textContent = `Spalte ${col.columnIndex + 1}: ${col.formula}`;
+            listContainer.appendChild(item);
+        });
+    }
+
     // --- CHART DRAWING & SYNC ---
     function drawCharts() {
         uplotInstances.forEach(p => p && p.destroy());
         uplotInstances = [null, null, null];
         
+        applyFormulas(); // Apply formulas before any filtering or drawing
+
         const selectedDays = Array.from(document.querySelectorAll('.weekday-filter:checked')).map(cb => parseInt(cb.value, 10));
         let dataToDisplay = parsedData.filter(point => selectedDays.includes(point.dayOfWeek));
         
-        // --- Apply MAX value filter ---
+        // Apply MAX value filter
         const isMaxFilterEnabled = enableValueFilter.checked;
         const maxThreshold = parseFloat(valueThreshold.value);
         const maxAction = filterAction.value;
 
         if (isMaxFilterEnabled && !isNaN(maxThreshold)) {
             if (maxAction === 'replace') {
-                dataToDisplay = dataToDisplay.map(point => {
-                    const newValues = point.values.map(v => (v !== null && v > maxThreshold) ? null : v);
-                    return { ...point, values: newValues };
-                });
-            } else { // action === 'filter'
-                dataToDisplay = dataToDisplay.filter(point => {
-                    return point.values.every(v => v === null || v <= maxThreshold);
-                });
+                dataToDisplay = dataToDisplay.map(point => ({ ...point, values: point.values.map(v => (v !== null && v > maxThreshold) ? null : v) }));
+            } else {
+                dataToDisplay = dataToDisplay.filter(point => point.values.every(v => v === null || v <= maxThreshold));
             }
         }
         
-        // --- Apply MIN value filter ---
+        // Apply MIN value filter
         const isMinFilterEnabled = enableMinValueFilter.checked;
         const minThreshold = parseFloat(minValueThreshold.value);
         const minAction = minFilterAction.value;
 
         if (isMinFilterEnabled && !isNaN(minThreshold)) {
             if (minAction === 'replace') {
-                dataToDisplay = dataToDisplay.map(point => {
-                    const newValues = point.values.map(v => (v !== null && v < minThreshold) ? null : v);
-                    return { ...point, values: newValues };
-                });
-            } else { // action === 'filter'
-                dataToDisplay = dataToDisplay.filter(point => {
-                    return point.values.every(v => v === null || v >= minThreshold);
-                });
+                dataToDisplay = dataToDisplay.map(point => ({ ...point, values: point.values.map(v => (v !== null && v < minThreshold) ? null : v) }));
+            } else {
+                dataToDisplay = dataToDisplay.filter(point => point.values.every(v => v === null || v >= minThreshold));
             }
         }
         
@@ -158,7 +232,7 @@ document.addEventListener('DOMContentLoaded', function () {
         
         const hideGaps = document.getElementById('hideTimeGapsCheckbox').checked;
         const xValues = hideGaps ? dataToDisplay.map((_, i) => i) : dataToDisplay.map(p => p.timestamp);
-
+        const totalColumns = maxColumnCount + formulaColumns.length;
         const syncKey = uPlot.sync("my-sync-group");
 
         for (let i = 0; i < 3; i++) {
@@ -166,7 +240,7 @@ document.addEventListener('DOMContentLoaded', function () {
             chartContainer.innerHTML = '';
             
             const seriesForThisChart = [];
-            for (let j = 0; j < maxColumnCount; j++) {
+            for (let j = 0; j < totalColumns; j++) {
                 const selectEl = document.getElementById(`seriesChartSelect${j}`);
                 if (selectEl && parseInt(selectEl.value, 10) === i) {
                     seriesForThisChart.push(j);
@@ -185,7 +259,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 uplotData.push(dataToDisplay.map(p => p.values[colIndex] || null));
                 const nameInput = document.getElementById(`seriesName${colIndex}`);
                 uplotSeriesConfig.push({
-                    label: nameInput ? nameInput.value : `Wert ${colIndex + 1}`,
+                    label: nameInput ? nameInput.value : `Spalte ${colIndex + 1}`,
                     stroke: seriesColors[colIndex % seriesColors.length],
                     width: 1.5,
                     spanGaps: true
@@ -196,30 +270,27 @@ document.addEventListener('DOMContentLoaded', function () {
                 width: chartContainer.clientWidth,
                 height: chartContainer.clientHeight,
                 series: uplotSeriesConfig,
-                cursor: {
-                    sync: { key: syncKey, setCursor: true, setSelect: true }
-                },
+                cursor: { sync: { key: syncKey, setCursor: true, setSelect: true } },
                 axes: [ { values: hideGaps ? (self, ticks) => ticks.map(tickIndex => { const point = dataToDisplay[Math.round(tickIndex)]; return point ? new Date(point.timestamp * 1000).toLocaleDateString('de-DE') : ''; }) : null }, {} ],
                 plugins: [{ hooks: {
                     setCursor: (u) => {
-                        const { left, top, idx } = u.cursor;
+                        const { idx } = u.cursor;
                         if (idx == null) { tooltipEl.style.display = 'none'; return; }
                         const timestamp = hideGaps ? dataToDisplay[idx].timestamp : u.data[0][idx];
                         const date = new Date(timestamp * 1000).toLocaleString('de-DE', { weekday: 'long', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
                         let content = `<div><strong>${date}</strong></div>`;
-                        for (let k = 1; k < u.series.length; k++) {
-                            if (u.series[k].show) {
+                        u.series.forEach((s, k) => {
+                            if (k > 0 && s.show) {
                                const value = u.data[k][idx];
-                               content += `<div style="color:${u.series[k].stroke}">${u.series[k].label}: ${value != null ? value.toFixed(3) : 'N/A'}</div>`;
+                               content += `<div style="color:${s.stroke}">${s.label}: ${value != null ? value.toFixed(3) : 'N/A'}</div>`;
                             }
-                        }
+                        });
                         tooltipEl.innerHTML = content;
                         tooltipEl.style.display = 'block';
-                        const chartsAreaRect = document.getElementById('charts-area').getBoundingClientRect();
-                        const cursorLeftInArea = u.root.parentElement.offsetLeft + left;
-                        const cursorTopInArea = u.root.parentElement.offsetTop + top;
-                        tooltipEl.style.left = `${cursorLeftInArea + 10}px`;
-                        tooltipEl.style.top = `${cursorTopInArea + 10}px`;
+                        const chartRect = u.root.getBoundingClientRect();
+                        const areaRect = document.getElementById('charts-area').getBoundingClientRect();
+                        tooltipEl.style.left = `${chartRect.left - areaRect.left + u.cursor.left + 10}px`;
+                        tooltipEl.style.top = `${chartRect.top - areaRect.top + u.cursor.top + 10}px`;
                     }
                 }}]
             };
@@ -234,6 +305,7 @@ document.addEventListener('DOMContentLoaded', function () {
             alert("Bitte zuerst Daten verarbeiten, bevor ein Layout exportiert wird.");
             return;
         }
+        const totalColumns = maxColumnCount + formulaColumns.length;
         const setup = {
             weekdays: Array.from(document.querySelectorAll('.weekday-filter:checked')).map(cb => parseInt(cb.value)),
             hideGaps: document.getElementById('hideTimeGapsCheckbox').checked,
@@ -247,9 +319,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 threshold: minValueThreshold.value,
                 action: minFilterAction.value
             },
-            series: []
+            series: [],
+            // Note: Formulas are not exported as they depend on the current data structure.
         };
-        for (let i = 0; i < maxColumnCount; i++) {
+        for (let i = 0; i < totalColumns; i++) {
             setup.series.push({
                 name: document.getElementById(`seriesName${i}`).value,
                 chartIndex: document.getElementById(`seriesChartSelect${i}`).value
@@ -290,22 +363,22 @@ document.addEventListener('DOMContentLoaded', function () {
             alert("Ungültige Konfigurationsdatei.");
             return;
         }
-        if (setup.series.length !== maxColumnCount) {
-            alert(`Layout-Fehler: Das Layout ist für ${setup.series.length} Spalten, aber die aktuellen Daten haben ${maxColumnCount}. Bitte zuerst passende Daten laden.`);
+        // Assuming formulas are not part of the layout, we match against original columns + existing formulas
+        const totalColumns = maxColumnCount + formulaColumns.length;
+        if (setup.series.length !== totalColumns) {
+            alert(`Layout-Fehler: Das Layout ist für ${setup.series.length} Spalten, aber die aktuellen Daten haben ${totalColumns}. Bitte zuerst passende Daten laden oder Formeln anpassen.`);
             return;
         }
 
         document.querySelectorAll('.weekday-filter').forEach(cb => cb.checked = setup.weekdays.includes(parseInt(cb.value)));
         document.getElementById('hideTimeGapsCheckbox').checked = setup.hideGaps;
 
-        // Apply max value filter settings from file
         if (setup.valueFilter) {
             enableValueFilter.checked = setup.valueFilter.enabled;
             valueThreshold.value = setup.valueFilter.threshold;
             filterAction.value = setup.valueFilter.action;
         }
 
-        // Apply min value filter settings from file
         if (setup.minValueFilter) {
             enableMinValueFilter.checked = setup.minValueFilter.enabled;
             minValueThreshold.value = setup.minValueFilter.threshold;
@@ -321,5 +394,5 @@ document.addEventListener('DOMContentLoaded', function () {
         statusDiv.textContent = "Layout erfolgreich importiert und angewendet.";
     }
 
-    drawCharts();
+    drawCharts(); // Initial draw on page load
 });
