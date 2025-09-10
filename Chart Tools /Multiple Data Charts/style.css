@@ -134,6 +134,31 @@ button:hover { background-color: var(--primary-btn-hover); }
     color: #555;
     margin-bottom: 10px;
 }
+#formula-creator-container {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+}
 
+#formulaInput {
+    flex: 1;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+#createFormulaColumnBtn {
+    flex-basis: 150px;
+    margin-top: 0;
+}
+
+.formula-item {
+    background-color: #e9ecef;
+    padding: 8px;
+    border-radius: 4px;
+    margin-bottom: 5px;
+    font-size: 14px;
+}
 .status-panel { margin-top: 15px; font-style: italic; color: #555; padding-top: 15px; border-top: 1px solid var(--border-color); }
+
 .u-tooltip { background: rgba(0, 0, 0, 0.85); color: white; padding: 8px; border-radius: 4px; font-size: 14px; position: absolute; z-index: 10; pointer-events: none; display: none; }
