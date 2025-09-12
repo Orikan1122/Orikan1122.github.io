@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fortgeschrittenes Tortendiagramm mit Breakout</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="controls">
+    <h2>Einstellungen</h2>
+    
+    <div class="control-group">
+        <label for="data-input">Daten eingeben (Format: Kategorie,Wert)</label>
+        <textarea id="data-input">Smartphones,450
+Laptops,280
+Kopfhörer,350
+Smartwatches,190
+Zubehör,520
+Tablets,150
+Kameras,90
+Gaming-Konsolen,25
+Drucker,15</textarea>
+    </div>
+    
+    <div class="control-group">
+        <label>Beschriftungen im Diagramm:</label>
+        <div class="label-options">
+            <div><label><input type="checkbox" id="label-category" value="category" checked> Kategorie</label></div>
+            <div><label><input type="checkbox" id="label-value" value="value"> Wert</label></div>
+            <div><label><input type="checkbox" id="label-percentage" value="percentage" checked> Prozent (%)</label></div>
+        </div>
+    </div>
+
+    <div class="control-group">
+        <label for="inner-radius">Innenradius (Donut)</label>
+        <input type="range" id="inner-radius" min="0" max="150" value="70" step="5">
+    </div>
+    
+    <div class="control-group">
+        <label for="breakout-threshold">Schwelle für 'Sonstige'-Gruppe (%)</label>
+        <input type="range" id="breakout-threshold" min="0" max="10" value="5" step="1">
+    </div>
+    
+    <div class="control-group">
+        <label>Farben anpassen</label>
+        <div id="color-picker-container"></div>
+    </div>
+    
+    <button id="update-button">Diagramm aktualisieren</button>
+</div>
+
+<div class="main-content">
+    <div class="chart-and-legend">
+        <div id="pie-chart"></div>
+        <div id="legend" class="legend"></div>
+    </div>
+    <div id="data-table" class="data-table-container"></div>
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script src="script.js"></script>
+
+</body>
+</html>
