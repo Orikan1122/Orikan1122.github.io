@@ -67,6 +67,7 @@
                     </div>
                 </div>
             </div>
+
             <div class="control-section">
                 <h2>5. Formel-Spalten erstellen</h2>
                 <div id="formula-creator-container">
@@ -77,15 +78,16 @@
                     <!-- Erstellte Formel-Spalten werden hier angezeigt -->
                 </div>
             </div>
+
             <div class="control-section">
-                <h2>5. Spalten zuweisen & benennen</h2>
+                <h2>6. Spalten zuweisen & benennen</h2>
                 <div id="seriesConfigContainer" class="series-config-container">
                     <p class="placeholder">Bitte zuerst Daten verarbeiten.</p>
                 </div>
             </div>
 
             <div class="control-section">
-                <h2>6. Layout speichern / laden</h2>
+                <h2>7. Layout speichern / laden</h2>
                 <p class="layout-note">Hinweis: Der Layout-Export speichert die Wochentags- und Wertefilter, die Spaltennamen und die Zuweisung zu den Charts.</p>
                 <button id="exportSetupBtn">Layout exportieren</button>
                 <button id="importSetupBtn">Layout importieren</button>
@@ -96,16 +98,25 @@
 
         <div id="charts-area">
             <div id="chart-wrapper-1" class="chart-wrapper">
-                <h3>Chart 1</h3>
-                <div id="chartContainer1" class="chart-container"></div>
+                <div class="chart-main">
+                    <h3>Chart 1</h3>
+                    <div id="chartContainer1" class="chart-container"></div>
+                </div>
+                <div id="stats-panel-1" class="stats-panel"></div>
             </div>
             <div id="chart-wrapper-2" class="chart-wrapper">
-                <h3>Chart 2</h3>
-                <div id="chartContainer2" class="chart-container"></div>
+                <div class="chart-main">
+                    <h3>Chart 2</h3>
+                    <div id="chartContainer2" class="chart-container"></div>
+                </div>
+                <div id="stats-panel-2" class="stats-panel"></div>
             </div>
             <div id="chart-wrapper-3" class="chart-wrapper">
-                <h3>Chart 3</h3>
-                <div id="chartContainer3" class="chart-container"></div>
+                 <div class="chart-main">
+                    <h3>Chart 3</h3>
+                    <div id="chartContainer3" class="chart-container"></div>
+                </div>
+                <div id="stats-panel-3" class="stats-panel"></div>
             </div>
             <!-- Tooltip is shared by all charts -->
             <div class="u-tooltip"></div>
