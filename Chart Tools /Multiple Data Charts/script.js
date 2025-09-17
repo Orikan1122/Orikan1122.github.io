@@ -71,13 +71,34 @@ document.addEventListener('DOMContentLoaded', function () {
         lines.forEach(line => {
             const parts = line.trim().split('\t');
             if (parts.length < 2) return;
-            const [datePart, timePart] = parts[0].split(' ');
+
+            const dateTimeString = parts[0].trim();
+            const [datePart, timePart] = dateTimeString.split(' ');
             if (!datePart || !timePart) return;
-            const [day, month, year] = datePart.split('.').map(Number);
-            const [hour, minute] = timePart.split(':').map(Number);
-            const dateObject = new Date(year, month - 1, day, hour, minute);
+
+            // Use a regular expression to split by either '.' or '/'
+            const dateComponents = datePart.split(/[.\/]/).map(Number);
+            if (dateComponents.length !== 3) return; 
+            const [day, month, year] = dateComponents;
+
+            // Handle time with optional seconds
+            const timeComponents = timePart.split(':').map(Number);
+            if (timeComponents.length < 2 || timeComponents.length > 3) return;
+            const hour = timeComponents[0];
+            const minute = timeComponents[1];
+            const second = timeComponents[2] || 0; // Default seconds to 0 if not present
+
+            if ([day, month, year, hour, minute, second].some(isNaN)) return;
+            
+            // The 'month' argument in new Date() is 0-indexed (0-11)
+            const dateObject = new Date(year, month - 1, day, hour, minute, second);
             const timestamp = Math.floor(dateObject.getTime() / 1000);
-            if (isNaN(timestamp)) return;
+            
+            // Final check to ensure the date is valid and wasn't rolled over by the Date constructor
+            if (isNaN(timestamp) || dateObject.getFullYear() !== year || dateObject.getMonth() !== month - 1 || dateObject.getDate() !== day) {
+                 console.warn(`Skipping invalid date format: ${dateTimeString}`);
+                 return;
+            }
             
             const values = parts.slice(1).map(v => parseFloat(v.replace(',', '.')) || null);
             if (values.length > maxColumnCount) maxColumnCount = values.length;
