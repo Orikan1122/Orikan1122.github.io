@@ -3,6 +3,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const apiKeyInput = document.getElementById('apiKey');
     const fetchModelsBtn = document.getElementById('fetchModelsBtn');
     const modelSelect = document.getElementById('modelSelect');
+    const freeModelsFilter = document.getElementById('freeModelsFilter'); // New element
     const promptInput = document.getElementById('prompt');
     const csvFileInput = document.getElementById('csvFile');
     const processBtn = document.getElementById('processBtn');
@@ -15,6 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const tableBody = document.querySelector('#csvTable tbody');
 
     // State variables and constants
+    let allModels = []; // New: To store a complete list of models
     let csvData = [];
     let headers = [];
     let isProcessing = false;
@@ -142,7 +144,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch('https://openrouter.ai/api/v1/models');
             if (!response.ok) throw new Error('Failed to fetch models. Check your API key.');
             const { data } = await response.json();
-            populateModelDropdown(data);
+
+            // Process and store all models with a flag for freeness
+            allModels = data.map(model => ({
+                id: model.id,
+                name: model.name,
+                isFree: parseFloat(model.pricing.prompt) === 0 && parseFloat(model.pricing.completion) === 0
+            }));
+
+            populateModelDropdown(); // Populate the dropdown for the first time
         } catch (error) {
             console.error('Error fetching models:', error);
             alert(error.message);
@@ -150,21 +160,30 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    const populateModelDropdown = (models) => {
+    const populateModelDropdown = () => {
+        const showFreeOnly = freeModelsFilter.checked;
+        const modelsToDisplay = showFreeOnly ? allModels.filter(m => m.isFree) : allModels;
+
         modelSelect.innerHTML = '';
-        if (!models || models.length === 0) {
-            modelSelect.innerHTML = '<option value="">-- No models found --</option>';
+        if (!modelsToDisplay || modelsToDisplay.length === 0) {
+            const message = showFreeOnly ? '-- No free models found --' : '-- No models found --';
+            modelSelect.innerHTML = `<option value="">${message}</option>`;
             return;
         }
-        models.sort((a, b) => a.name.localeCompare(b.name)).forEach(model => {
+
+        modelsToDisplay.sort((a, b) => a.name.localeCompare(b.name)).forEach(model => {
             const option = document.createElement('option');
             option.value = model.id;
-            option.textContent = `${model.name} (${model.id})`;
+            const freeTag = model.isFree ? ' (Free)' : '';
+            option.textContent = `${model.name}${freeTag} (${model.id})`;
             modelSelect.appendChild(option);
         });
+
         modelSelect.disabled = false;
         const savedModel = localStorage.getItem('csvAnalyzerModel');
-        if (savedModel) modelSelect.value = savedModel;
+        if (savedModel && modelsToDisplay.some(m => m.id === savedModel)) {
+            modelSelect.value = savedModel;
+        }
     };
 
     const startProcessing = () => {
@@ -186,12 +205,12 @@ document.addEventListener('DOMContentLoaded', () => {
         stopBtn.disabled = false;
         csvFileInput.disabled = true;
         
-        processRow(currentIndex); // Start the processing chain
+        processRow(currentIndex);
     };
 
     const processRow = async (index, retries = 0) => {
         if (!isProcessing || index >= csvData.length) {
-            if (isProcessing) { // Only show "complete" if it wasn't manually stopped
+            if (isProcessing) {
                 alert('Processing complete!');
             }
             stopProcessing();
@@ -229,14 +248,12 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             const finalResult = rawResult.trim();
 
-            // Success
             csvData[index]['response'] = finalResult;
             updateTableCell(index, 'response', finalResult);
             currentIndex++;
             updateProgress();
             saveData();
             
-            // Immediately process the next row
             processRow(currentIndex);
 
         } catch (error) {
@@ -246,7 +263,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const delay = INITIAL_RETRY_DELAY_MS * Math.pow(2, retries);
                 console.log(`Retrying in ${delay / 1000}s...`);
                 setTimeout(() => {
-                    processRow(index, retries + 1); // Retry the SAME row
+                    processRow(index, retries + 1);
                 }, delay);
             } else {
                 console.error(`Failed to process row ${index + 1} after ${MAX_RETRIES} retries.`);
@@ -257,7 +274,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateProgress();
                 saveData();
                 
-                // Move on to the NEXT row
                 processRow(currentIndex);
             }
         }
@@ -290,6 +306,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- EVENT LISTENERS ---
     csvFileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
     fetchModelsBtn.addEventListener('click', fetchModels);
+    freeModelsFilter.addEventListener('change', populateModelDropdown); // New listener
     processBtn.addEventListener('click', startProcessing);
     stopBtn.addEventListener('click', stopProcessing);
     downloadBtn.addEventListener('click', downloadCSV);
