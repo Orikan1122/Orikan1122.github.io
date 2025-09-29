@@ -1,0 +1,203 @@
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background-color: #f4f7f6;
+    color: #333;
+    margin: 0;
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh;
+}
+
+.container {
+    width: 100%;
+    max-width: 800px;
+    margin: 0 auto;
+    background-color: #fff;
+    padding: 30px;
+    border-radius: 8px;
+    box-shadow: 0 2px_10px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
+}
+
+h1 {
+    color: #2c3e50;
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+p {
+    line-height: 1.6;
+}
+
+.input-group {
+    margin-bottom: 20px;
+    flex-grow: 1;
+}
+
+.input-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: bold;
+    color: #34495e;
+}
+
+.input-group input[type="password"],
+.input-group select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+.api-key-group {
+    display: flex;
+    gap: 10px;
+}
+
+.api-key-group input {
+    flex-grow: 1;
+}
+
+.settings-group {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+}
+
+.credits-display {
+    text-align: center;
+    background-color: #ecf0f1;
+    padding: 10px 20px;
+    border-radius: 5px;
+    margin-top: 25px; /* Aligns with the top of the select box */
+}
+.credits-display h3 {
+    margin: 0 0 5px 0;
+    color: #2c3e50;
+}
+.credits-display p {
+    margin: 0;
+    font-size: 1.2em;
+    font-weight: bold;
+    color: #27ae60;
+}
+
+
+.filter-group {
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+}
+
+.filter-group label {
+    margin-left: 5px;
+    font-weight: normal;
+}
+
+
+button {
+    background-color: #3498db;
+    color: white;
+    padding: 10px 15px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1em;
+    transition: background-color 0.3s;
+}
+
+button:hover {
+    background-color: #2980b9;
+}
+
+button:disabled {
+    background-color: #bdc3c7;
+    cursor: not-allowed;
+}
+
+#fetchModelsBtn {
+    background-color: #5dade2;
+    flex-shrink: 0;
+}
+
+#fetchModelsBtn:hover {
+    background-color: #3498db;
+}
+
+#clearBtn {
+    background-color: #e74c3c;
+    margin-top: 20px;
+}
+
+#clearBtn:hover {
+    background-color: #c0392b;
+}
+
+
+/* Chat styles */
+.chat-container {
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    display: flex;
+    flex-direction: column;
+    height: 400px; /* Or any desired height */
+    margin-top: 20px;
+}
+
+#chat-box {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.chat-message {
+    padding: 10px;
+    border-radius: 10px;
+    max-width: 80%;
+    word-wrap: break-word;
+}
+
+.user-message {
+    background-color: #3498db;
+    color: white;
+    align-self: flex-end;
+    border-bottom-right-radius: 0;
+}
+
+.bot-message {
+    background-color: #ecf0f1;
+    color: #333;
+    align-self: flex-start;
+    border-bottom-left-radius: 0;
+}
+
+.chat-input-area {
+    display: flex;
+    border-top: 1px solid #ccc;
+}
+
+#userInput {
+    flex-grow: 1;
+    padding: 10px;
+    border: none;
+    resize: none;
+    border-radius: 0 0 0 5px;
+    font-family: inherit;
+    font-size: 1em;
+}
+
+#userInput:focus {
+    outline: none;
+}
+
+#sendBtn {
+    border-radius: 0 0 5px 0;
+    border-top-left-radius: 0;
+}
