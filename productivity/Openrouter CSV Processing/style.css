@@ -65,6 +65,19 @@ p {
     color: #7f8c8d;
 }
 
+/* New styles for the filter checkbox */
+.filter-group {
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+}
+
+.filter-group label {
+    margin-bottom: 0; /* Override default label style */
+    margin-left: 8px;
+    font-weight: normal;
+}
+
 .button-group {
     display: flex;
     gap: 10px;
