@@ -24,6 +24,11 @@
             <select id="modelSelect" disabled>
                 <option value="">-- Enter API Key and Fetch Models --</option>
             </select>
+            <!-- Added a filter checkbox for free models -->
+            <div class="filter-group">
+                <input type="checkbox" id="freeModelsFilter">
+                <label for="freeModelsFilter">Show only free models</label>
+            </div>
         </div>
 
         <div class="input-group">
@@ -57,11 +62,7 @@
         </div>
     </div>
 
-    <!-- SCRIPT SECTION - THE ONLY PART THAT HAS CHANGED -->
-    <!-- 1. Load Papa Parse from the jsDelivr CDN, which is more reliable. -->
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
-    
-    <!-- 2. Load your local script file second. -->
     <script src="script.js"></script>
 </body>
 </html>
