@@ -1,0 +1,251 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap');
+
+body {
+    /* UPDATED: Font changed to Montserrat */
+    font-family: 'Montserrat', sans-serif;
+    background-color: #f0f2f5;
+    color: #333;
+    line-height: 1.6;
+    margin: 0;
+    padding: 20px;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+header {
+    background-color: #cc0000;
+    color: #fff;
+    padding: 20px 30px;
+}
+
+header h1 { margin: 0; font-size: 1.8em; }
+header p { margin: 5px 0 0; opacity: 0.9; }
+
+.card {
+    padding: 30px;
+    border-bottom: 1px solid #e0e0e0;
+}
+.card:last-child { border-bottom: none; }
+
+h2 {
+    color: #cc0000;
+    border-bottom: 2px solid #cc0000;
+    padding-bottom: 10px;
+    margin-top: 0;
+}
+
+h3 { margin-top: 25px; color: #333; }
+
+.form-group { margin-bottom: 15px; }
+
+label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+input[type="text"], textarea, select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+    /* UPDATED: Inherit the new body font */
+    font-family: 'Montserrat', sans-serif;
+}
+
+button {
+    background-color: #6c757d;
+    color: #fff;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1em;
+    font-weight: bold;
+    /* UPDATED: Inherit the new body font */
+    font-family: 'Montserrat', sans-serif;
+    transition: background-color 0.3s ease;
+}
+button:hover { background-color: #5a6268; }
+button.primary { background-color: #cc0000; }
+button.primary:hover { background-color: #a40000; }
+button.secondary { background-color: #6c757d; }
+button.secondary:hover { background-color: #5a6268; }
+
+.button-group {
+    margin-top: 20px;
+    display: flex;
+    gap: 10px;
+}
+
+.io-buttons {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 25px;
+    padding-bottom: 25px;
+    border-bottom: 1px solid #eee;
+}
+
+.process-step-item {
+    background-color: #f9f9f9;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+.process-step-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 15px;
+    margin-bottom: 15px;
+}
+.process-step-header h4 { margin: 0; color: #cc0000; }
+.remove-step-btn { background: #dc3545; padding: 5px 10px; }
+
+.step-description-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.risk-categories-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    border-top: 1px dashed #ccc;
+    padding-top: 20px;
+}
+.risk-category {
+    background: #fff;
+    border: 1px solid #e8e8e8;
+    padding: 15px;
+    border-radius: 5px;
+}
+.risk-category-header { display: flex; align-items: center; gap: 10px; }
+.risk-details {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #eee;
+}
+.risk-quantify-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+
+.output-subsection {
+    margin-top: 30px;
+    padding-top: 30px;
+    border-top: 1px solid #eee;
+}
+
+.chart-container {
+    position: relative;
+    margin: 20px auto;
+    height: 400px;
+    width: 100%;
+}
+
+.summary-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+.summary-table th, .summary-table td {
+    border: 1px solid #ddd;
+    padding: 12px;
+    text-align: left;
+    vertical-align: middle;
+}
+.summary-table th { background-color: #cc0000; color: white; text-align: center; }
+.summary-table tbody tr:nth-child(even) { background-color: #f9f9f9; }
+
+.risk-visual-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+.risk-matrix-grid {
+    position: relative;
+    display: grid;
+    grid-template-columns: 30px 30px;
+    grid-template-rows: 30px 30px;
+    border: 1px solid #999;
+}
+.risk-matrix-quadrant {
+    border: 1px solid #ccc;
+    box-sizing: border-box;
+}
+.risk-matrix-dot {
+    position: absolute;
+    width: 0;
+    height: 0;
+    border: 5px solid #000;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+}
+.risk-description {
+    font-size: 0.9em;
+    color: #555;
+    text-align: center;
+}
+
+.mitigation-item-input {
+    background: #fdfdfd;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+.mitigation-item-input p { margin: 0 0 10px 0; }
+.mitigation-item-input .risk-source { font-weight: bold; color: #cc0000; }
+.mitigation-assessment-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-top: 15px;
+}
+.mitigation-legend {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #eee;
+}
+.mitigation-legend p {
+    margin: 5px 0;
+}
+
+@media print {
+    @page {
+        size: A4 portrait;
+        margin: 1.5cm;
+    }
+    body {
+        padding: 0; margin: 0; background-color: #fff;
+        font-size: 9pt; -webkit-print-color-adjust: exact; print-color-adjust: exact;
+    }
+    header, #fra-section, #mitigation-definition-section, .print-hide { display: none !important; }
+    .container, #output-section, .output-subsection { 
+        box-shadow: none; border: none; width: 100%;
+        max-width: 100%; padding: 0; margin: 0; display: block !important;
+    }
+    #risk-summary-subsection { page-break-after: always; }
+    .summary-table { font-size: 8pt; }
+    .summary-table tr { page-break-inside: avoid; }
+    .summary-table td, .summary-table th { padding: 5px; }
+    .risk-matrix-grid { grid-template-columns: 20px 20px; grid-template-rows: 20px 20px; }
+    .risk-matrix-dot { border-width: 4px; }
+    .print-page-wrapper {
+        page-break-before: always; page-break-inside: avoid;
+        width: 100%; box-sizing: border-box;
+    }
+    .chart-container {
+        width: 18cm !important; 
+        height: 12cm !important;
+        margin: 10px auto; 
+    }
+    .mitigation-legend { border: none; padding-top: 10px; }
+}
