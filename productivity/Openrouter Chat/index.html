@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenRouter Chat Tool</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>OpenRouter AI Chat</h1>
+        <p>Enter your OpenRouter API key, select a model, and start chatting. You can also filter for free models and check your credit balance.</p>
+
+        <div class="input-group">
+            <label for="apiKey">OpenRouter API Key:</label>
+            <div class="api-key-group">
+                <input type="password" id="apiKey" placeholder="Enter your OpenRouter API key">
+                <button id="fetchModelsBtn">Fetch Models & Credits</button>
+            </div>
+        </div>
+
+        <div class="settings-group">
+            <div class="input-group">
+                <label for="modelSelect">Select a Model:</label>
+                <select id="modelSelect" disabled>
+                    <option value="">-- Enter API Key and Fetch --</option>
+                </select>
+                <div class="filter-group">
+                    <input type="checkbox" id="freeModelsFilter">
+                    <label for="freeModelsFilter">Show only free models</label>
+                </div>
+            </div>
+            <div class="credits-display">
+                <h3>Credits Left</h3>
+                <p id="creditsText">$0.00</p>
+            </div>
+        </div>
+
+        <div class="chat-container">
+            <div id="chat-box"></div>
+            <div class="chat-input-area">
+                <textarea id="userInput" placeholder="Type your message here..." rows="3"></textarea>
+                <button id="sendBtn">Send</button>
+            </div>
+        </div>
+         <div class="button-group">
+            <button id="clearBtn">Clear Chat & Saved Data</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
