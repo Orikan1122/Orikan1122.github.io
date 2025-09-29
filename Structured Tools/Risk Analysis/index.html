@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Step-by-Step Risk Assessment Tool (RAP)</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.4.0/dist/chartjs-plugin-annotation.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <!-- LIBS FOR DOCX EXPORT -->
+    <script src="https://unpkg.com/html-docx-js/dist/html-docx.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+</head>
+<body>
+    <!-- REMOVED the old word-export-content div -->
+
+    <div class="container" id="main-container">
+        <header>
+            <h1>Risk Assessment Process (RAP)</h1>
+            <p>Following the CCHBC ICSC methodology for analyzing risks in process changes.</p>
+        </header>
+
+        <div id="fra-section" class="card">
+            <div class="io-buttons">
+                <input type="file" id="import-file" accept=".json" style="display: none;">
+                <button type="button" class="secondary" id="import-btn">Import JSON</button>
+                <button type="button" class="secondary" id="export-btn">Export JSON</button>
+            </div>
+
+            <h2>Step 1 & 2: Detail the Process & Identify Risks</h2>
+            <p>Break down the change into steps. Describe the 'Current' and 'Future' state, and for each step, identify any potential risks across the four categories.</p>
+            
+            <div id="process-steps-container"></div>
+
+            <div class="button-group">
+                <button type="button" onclick="addProcessStep()">+ Add Process Step</button>
+                <button type="button" class="primary" onclick="generateRiskAnalysis()">Generate Risk Analysis</button>
+            </div>
+        </div>
+
+        <div id="output-section" class="card" style="display:none;">
+            <h2>Analysis & Mitigation</h2>
+            
+            <div id="risk-summary-subsection" class="output-subsection">
+                <h3>Risk Quantification Summary</h3>
+                <p>This table provides a step-by-step overview of the identified risks.</p>
+                <table class="summary-table" id="summary-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Current Process</th>
+                            <th>Future Process</th>
+                            <th>Change</th>
+                            <th>Quality</th>
+                            <th>Food Safety</th>
+                            <th>Environment</th>
+                            <th>Health & Safety</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+            <div id="mitigation-definition-section" class="output-subsection" style="display:none;">
+                <h3>Step 3: Identify Possible Solutions to Mitigate Risk</h3>
+                <p>For each medium or high risk identified, define a mitigation action and assess its potential impact and the effort required to implement it.</p>
+                <div id="mitigation-input-container"></div>
+                <button type="button" class="primary" onclick="prioritizeMitigations()">Step 4: Prioritize Mitigation Actions</button>
+            </div>
+
+            <div id="prioritization-section" class="output-subsection" style="display:none;">
+                <div class="print-page-wrapper">
+                    <h3>Step 4: Prioritize Mitigation Actions (Impact / Effort Matrix)</h3>
+                    <p>This chart helps you decide which solutions to implement first. Focus on the top-left quadrant for "Quick Wins."</p>
+                    <div class="chart-container">
+                        <canvas id="impact-effort-matrix"></canvas>
+                    </div>
+                    <div id="mitigation-legend" class="mitigation-legend"></div>
+                </div>
+            </div>
+
+             <div id="final-export-buttons" class="output-subsection print-hide" style="display: none;">
+                <button onclick="window.print()">Print PDF Report</button>
+                <!-- UPDATED: This button now directly downloads the DOCX file -->
+                <button type="button" class="secondary" onclick="exportToWordDoc()">Download Word Report (A3)</button>
+             </div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
