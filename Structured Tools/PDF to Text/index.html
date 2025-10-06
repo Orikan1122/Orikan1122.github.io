@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Text and Table Extractor</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 2em;
+        }
+        #output {
+            white-space: pre-wrap;
+            background-color: #f4f4f4;
+            padding: 1em;
+            border: 1px solid #ccc;
+            margin-top: 1em;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        #recreatedTables table {
+            border-collapse: collapse;
+            margin-top: 1.5em;
+            width: 100%;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        #recreatedTables th, #recreatedTables td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        #recreatedTables th {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+    <h1>PDF Text and Table Extractor</h1>
+    <p>Choose a PDF file to extract its text and tables. The structured JSON output and a visual recreation of the tables will be displayed below.</p>
+    <input type="file" id="pdfFile" accept=".pdf">
+    <button onclick="extractData()">Extract Data</button>
+
+    <h2>Extracted Structured Data (JSON):</h2>
+    <pre id="output"></pre>
+
+    <h2>Recreated Tables:</h2>
+    <div id="recreatedTables"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.min.js"></script>
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.worker.min.js';
+
+        async function extractData() {
+            const fileInput = document.getElementById('pdfFile');
+            if (!fileInput.files.length) {
+                alert('Please select a PDF file first.');
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+
+            reader.onload = async function(e) {
+                const typedarray = new Uint8Array(e.target.result);
+                const pdf = await pdfjsLib.getDocument(typedarray).promise;
+                const structuredOutput = {
+                    pages: []
+                };
+
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const textContent = await page.getTextContent();
+                    const { text, tables } = processPageContent(textContent);
+                    structuredOutput.pages.push({
+                        pageNumber: i,
+                        text: text,
+                        tables: tables
+                    });
+                }
+
+                // Display the structured JSON output
+                document.getElementById('output').textContent = JSON.stringify(structuredOutput, null, 2);
+
+                // Render the extracted tables as HTML
+                renderTables(structuredOutput.pages);
+            };
+
+            reader.readAsArrayBuffer(file);
+        }
+
+        function processPageContent(textContent) {
+            const items = textContent.items;
+            let lines = [];
+
+            // Group text items into lines based on their vertical position
+            items.forEach(item => {
+                let line = lines.find(l => Math.abs(l.y - item.transform[5]) < 5);
+                if (!line) {
+                    line = { y: item.transform[5], items: [] };
+                    lines.push(line);
+                }
+                line.items.push(item);
+            });
+
+            // Sort lines by their vertical position
+            lines.sort((a, b) => b.y - a.y);
+
+            // Sort items within each line by their horizontal position
+            lines.forEach(line => {
+                line.items.sort((a, b) => a.transform[4] - b.transform[4]);
+            });
+
+            let pageText = [];
+            let tables = [];
+            let currentTable = [];
+
+            lines.forEach(line => {
+                const lineText = line.items.map(item => item.str).join(' ');
+
+                // Heuristic to detect table rows: multiple items with significant horizontal gaps
+                if (line.items.length > 1) {
+                    let isTableRow = false;
+                    for (let i = 0; i < line.items.length - 1; i++) {
+                        const currentItem = line.items[i];
+                        const nextItem = line.items[i + 1];
+                        const gap = nextItem.transform[4] - (currentItem.transform[4] + currentItem.width);
+                        if (gap > 5) { // Arbitrary threshold for a gap between columns
+                            isTableRow = true;
+                            break;
+                        }
+                    }
+
+                    if (isTableRow) {
+                        currentTable.push(line.items.map(item => item.str));
+                    } else {
+                        if (currentTable.length > 0) {
+                            tables.push(currentTable);
+                            currentTable = [];
+                        }
+                        pageText.push(lineText);
+                    }
+                } else {
+                    if (currentTable.length > 0) {
+                        tables.push(currentTable);
+                        currentTable = [];
+                    }
+                    pageText.push(lineText);
+                }
+            });
+
+            if (currentTable.length > 0) {
+                tables.push(currentTable);
+            }
+
+            return { text: pageText, tables: tables };
+        }
+
+        function renderTables(pages) {
+            const container = document.getElementById('recreatedTables');
+            container.innerHTML = ''; // Clear previous results
+
+            pages.forEach(page => {
+                if (page.tables.length > 0) {
+                    page.tables.forEach((tableData, tableIndex) => {
+                        const tableTitle = document.createElement('h3');
+                        tableTitle.textContent = `Table ${tableIndex + 1} from Page ${page.pageNumber}`;
+                        container.appendChild(tableTitle);
+
+                        const tableElement = document.createElement('table');
+                        
+                        // Create header row
+                        const thead = tableElement.createTHead();
+                        const headerRow = thead.insertRow();
+                        tableData[0].forEach(headerText => {
+                            const th = document.createElement('th');
+                            th.textContent = headerText;
+                            headerRow.appendChild(th);
+                        });
+
+                        // Create body rows
+                        const tbody = tableElement.createTBody();
+                        for (let i = 1; i < tableData.length; i++) {
+                            const rowData = tableData[i];
+                            const row = tbody.insertRow();
+                            rowData.forEach(cellText => {
+                                const cell = row.insertCell();
+                                cell.textContent = cellText;
+                            });
+                        }
+
+                        container.appendChild(tableElement);
+                    });
+                }
+            });
+
+            if (container.innerHTML === '') {
+                container.textContent = 'No tables were detected in the document.';
+            }
+        }
+    </script>
+</body>
+</html>
