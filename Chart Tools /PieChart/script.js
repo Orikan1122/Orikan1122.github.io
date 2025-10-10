@@ -4,6 +4,9 @@ const dataInput = document.getElementById('data-input');
 const labelCategoryCheckbox = document.getElementById('label-category');
 const labelValueCheckbox = document.getElementById('label-value');
 const labelPercentageCheckbox = document.getElementById('label-percentage');
+// START MODIFICATION
+const labelFontSizeSlider = document.getElementById('label-font-size');
+// END MODIFICATION
 const innerRadiusSlider = document.getElementById('inner-radius');
 const breakoutThresholdSlider = document.getElementById('breakout-threshold');
 const colorPickerContainer = document.getElementById('color-picker-container');
@@ -138,6 +141,9 @@ function drawPieLabels(pieData, totalValue) {
 
     const text = svg.selectAll(".arc-label").data(pieData).enter()
         .append("text").attr("class", "arc-label")
+        // START MODIFICATION
+        .style("font-size", `${labelFontSizeSlider.value}px`)
+        // END MODIFICATION
         .attr("transform", d => `translate(${labelArc.centroid(d)})`);
 
     appendMultiLineText(text, d => d.data, totalValue);
@@ -262,7 +268,7 @@ function initialize() {
 updateButton.addEventListener('click', () => {
     const newData = parseData();
     if (newData.length !== colorPickerContainer.children.length) {
-        setupColor-pickers(newData);
+        setupColorPickers(newData);
     }
     // Reset breakout position on full update for predictability
     breakoutPosition = { x: null, y: null };

@@ -141,7 +141,9 @@ body {
 }
 
 .arc-label {
-    font-size: 14px;
+    /* START MODIFICATION */
+    /* font-size is now set dynamically in JS */
+    /* END MODIFICATION */
     fill: white;
     font-weight: bold;
     text-anchor: middle;
