@@ -59,38 +59,27 @@ p {
 
 #output-container {
     margin-top: 30px;
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 20px;
+    /* Styles for the old image grid removed/simplified */
 }
 
-.image-card {
-    border: 1px solid #e0e0e0;
+/* New style for the download button */
+.download-link {
+    display: inline-block;
+    padding: 12px 30px;
+    background-color: #28a745; /* Green color for success/download */
+    color: white;
     border-radius: 8px;
-    overflow: hidden;
-    background-color: #fafafa;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-    display: flex;
-    flex-direction: column;
-}
-
-.image-card img {
-    width: 100%;
-    height: auto;
-    display: block;
-}
-
-.image-card a {
-    display: block;
-    padding: 10px;
-    background-color: #f1f1f1;
-    text-align: center;
+    font-weight: 600;
     text-decoration: none;
-    color: #007bff;
-    font-weight: 500;
-    transition: background-color 0.2s ease;
+    transition: background-color 0.3s ease;
+    font-size: 1.1em;
 }
 
-.image-card a:hover {
-    background-color: #e0e0e0;
+.download-link:hover {
+    background-color: #1e7e34;
+}
+
+/* Remove old .image-card styles as they are no longer needed */
+.image-card, .image-card img, .image-card a {
+    display: none !important; /* Temporarily hide old classes if they exist */
 }

@@ -1,102 +1,121 @@
-// Set the workerSrc to point to the CDN. This is required for PDF.js to work.
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.worker.min.js`;
+// The pdfjsLib worker setting is removed as it's no longer used.
 
 // Get references to the HTML elements
-const pdfUpload = document.getElementById('pdf-upload');
+// Changed ID from pdf-upload to image-upload
+const imageUpload = document.getElementById('image-upload');
 const outputContainer = document.getElementById('output-container');
 const statusContainer = document.getElementById('status-container');
 
 // Listen for a file to be selected
-pdfUpload.addEventListener('change', handleFileSelect, false);
+imageUpload.addEventListener('change', handleFileSelect, false);
+
+// --- Utility Functions ---
+
+// 1. Reads a File object and resolves with its Data URL
+function readFileAsDataURL(file) {
+    return new Promise((resolve, reject) => {
+        if (!file.type.startsWith('image/')) {
+            return reject(new Error("File is not a valid image type."));
+        }
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+        reader.readAsDataURL(file);
+    });
+}
+
+// 2. Gets the actual dimensions of an image from its Data URL
+function getImageDimensions(dataUrl) {
+    return new Promise(resolve => {
+        const img = new Image();
+        img.onload = () => resolve({ width: img.width, height: img.height });
+        img.src = dataUrl;
+    });
+}
+
+// 3. Displays the final download link
+function displayDownloadLink(pdfDataUrl, numImages) {
+    outputContainer.innerHTML = ''; // Clear previous content
+
+    const downloadLink = document.createElement('a');
+    downloadLink.href = pdfDataUrl;
+    downloadLink.download = `converted_images_(${numImages}).pdf`;
+    downloadLink.textContent = `⬇️ Download PDF (${numImages} Pages)`;
+    downloadLink.className = 'download-link';
+    
+    outputContainer.appendChild(downloadLink);
+}
+
+// --- Main Conversion Logic ---
 
 async function handleFileSelect(event) {
-    const file = event.target.files[0];
-    if (!file || file.type !== 'application/pdf') {
-        alert('Please select a valid PDF file.');
-        return;
-    }
-
+    const files = event.target.files;
+    
+    if (files.length === 0) return;
+    
     // Clear previous output and status
     outputContainer.innerHTML = '';
-    statusContainer.textContent = 'Loading PDF...';
+    statusContainer.textContent = `Found ${files.length} images. Starting conversion...`;
 
     try {
-        const fileReader = new FileReader();
+        // Get jsPDF constructor from the global scope (thanks to the CDN)
+        const { jsPDF } = window.jspdf;
         
-        fileReader.onload = async function() {
-            // The file content is read as an ArrayBuffer
-            const typedarray = new Uint8Array(this.result);
+        // Initialize jsPDF document (Portrait, Millimeters, A4 size)
+        const doc = new jsPDF('p', 'mm', 'a4'); 
+        
+        // Define A4 dimensions in mm
+        const a4Width = 210;
+        const a4Height = 297;
+        
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+
+            // Add a new page for every image (except the first one, which uses the default page)
+            if (i > 0) {
+                doc.addPage();
+            }
+
+            statusContainer.textContent = `Processing image ${i + 1} of ${files.length}...`;
             
-            // Load the PDF document
-            const pdf = await pdfjsLib.getDocument({ data: typedarray }).promise;
-            statusContainer.textContent = `PDF loaded. Found ${pdf.numPages} pages. Converting...`;
+            // Convert file to Data URL
+            const imageDataUrl = await readFileAsDataURL(file);
             
-            // Process each page
-            for (let i = 1; i <= pdf.numPages; i++) {
-                statusContainer.textContent = `Processing page ${i} of ${pdf.numPages}...`;
-                await processPage(pdf, i);
+            // Get original dimensions
+            const { width: originalWidth, height: originalHeight } = await getImageDimensions(imageDataUrl);
+
+            // --- Fit image to A4 logic ---
+            let imgWidth = a4Width;
+            let imgHeight = (originalHeight * a4Width) / originalWidth;
+
+            // If the image is taller than A4, scale it down to fit the height
+            if (imgHeight > a4Height) {
+                imgHeight = a4Height;
+                imgWidth = (originalWidth * a4Height) / originalHeight;
             }
             
-            statusContainer.textContent = 'Conversion complete!';
-        };
+            // Calculate center position
+            const x = (a4Width - imgWidth) / 2;
+            const y = (a4Height - imgHeight) / 2;
 
-        // Read the file as an ArrayBuffer
-        fileReader.readAsArrayBuffer(file);
+            // Determine image format (only supports JPG and PNG for simplicity with jsPDF)
+            const imgFormat = file.type === 'image/png' ? 'PNG' : 'JPEG';
+            
+            // Add image to the current page
+            doc.addImage(imageDataUrl, imgFormat, x, y, imgWidth, imgHeight);
+        }
+        
+        // Output the PDF as a Data URL string
+        const pdfDataUrl = doc.output('datauristring');
+        
+        // Display the final download link
+        displayDownloadLink(pdfDataUrl, files.length);
+
+        statusContainer.textContent = `Conversion complete! ${files.length} images combined into one PDF.`;
 
     } catch (error) {
-        console.error('Error processing PDF:', error);
+        console.error('Error processing image to PDF:', error);
         statusContainer.textContent = 'An error occurred. Please check the console.';
-        alert('Failed to process the PDF file.');
+        alert('Failed to process the images: ' + error.message);
     }
-}
-
-async function processPage(pdf, pageNumber) {
-    // Get the page
-    const page = await pdf.getPage(pageNumber);
-
-    // Set the scale for rendering (higher scale = better quality)
-    const scale = 2.0;
-    const viewport = page.getViewport({ scale: scale });
-
-    // Create a canvas element to render the page
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d');
-    canvas.height = viewport.height;
-    canvas.width = viewport.width;
-
-    // Render the page onto the canvas
-    const renderContext = {
-        canvasContext: context,
-        viewport: viewport
-    };
-    await page.render(renderContext).promise;
-
-    // Convert the canvas to a JPG image data URL
-    // Use a quality setting of 0.9 (90%)
-    const imageDataUrl = canvas.toDataURL('image/jpeg', 0.9);
-
-    // Display the image and a download link
-    displayImage(imageDataUrl, pageNumber);
-}
-
-function displayImage(url, pageNum) {
-    // Create a container for the image and its download link
-    const imageCard = document.createElement('div');
-    imageCard.className = 'image-card';
-
-    // Create the image element
-    const img = document.createElement('img');
-    img.src = url;
-    img.alt = `Page ${pageNum}`;
-
-    // Create the download link
-    const downloadLink = document.createElement('a');
-    downloadLink.href = url;
-    downloadLink.download = `page_${pageNum}.jpg`;
-    downloadLink.textContent = `Download Page ${pageNum}`;
-
-    // Append the image and link to the card, and the card to the output container
-    imageCard.appendChild(img);
-    imageCard.appendChild(downloadLink);
-    outputContainer.appendChild(imageCard);
 }

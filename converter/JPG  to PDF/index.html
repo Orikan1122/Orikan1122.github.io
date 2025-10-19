@@ -3,25 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF to JPG Converter</title>
+    <title>JPG to PDF Converter</title>
     <link rel="stylesheet" href="style.css">
     <!-- 
-      We are including the PDF.js library from a CDN (Content Delivery Network).
-      This is the magic that lets us read and render PDF files in the browser.
+      Replacing PDF.js with jsPDF.
+      jsPDF allows us to create PDF files in the browser.
     -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
 
     <div class="container">
-        <h1>PDF to JPG Converter</h1>
-        <p>Select a multi-page PDF file. Each page will be converted into a separate JPG image right in your browser.</p>
+        <h1>JPG to PDF Converter</h1>
+        <p>Select one or more JPG or PNG image files. They will be combined into a single PDF document right in your browser.</p>
 
         <div class="input-area">
-            <label for="pdf-upload" class="upload-label">
-                <span>📁 Choose a PDF File</span>
+            <label for="image-upload" class="upload-label">
+                <span>🖼️ Choose Image(s)</span>
             </label>
-            <input type="file" id="pdf-upload" accept=".pdf" hidden>
+            <!-- Changed ID, accept attribute to images, and added 'multiple' -->
+            <input type="file" id="image-upload" accept="image/jpeg, image/png" multiple hidden>
         </div>
 
         <div id="status-container">
@@ -29,7 +30,7 @@
         </div>
 
         <div id="output-container">
-            <!-- Converted JPG images will be displayed here -->
+            <!-- The PDF download link will be displayed here -->
         </div>
     </div>
 
