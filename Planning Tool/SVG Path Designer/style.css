@@ -1,0 +1,208 @@
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    margin: 0;
+    background-color: #f0f2f5;
+    color: #333;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 20px;
+}
+
+#app-container {
+    width: 100%;
+    max-width: 1400px;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+header {
+    background-color: #2c3e50;
+    color: white;
+    padding: 15px 25px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+header h1 {
+    margin: 0;
+    font-size: 1.5em;
+}
+
+#toolbar {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+#toolbar button {
+    background-color: #3498db;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: background-color 0.2s;
+}
+
+#toolbar button:hover {
+    background-color: #2980b9;
+}
+
+#toolbar button:disabled {
+    background-color: #95a5a6;
+    cursor: not-allowed;
+}
+
+#undo-btn {
+    background-color: #e67e22;
+}
+#undo-btn:hover {
+    background-color: #d35400;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+    font-size: 0.9em;
+}
+
+#main-content {
+    display: flex;
+    flex-wrap: wrap;
+    padding: 25px;
+}
+
+#drawing-area {
+    flex: 3;
+    min-width: 600px;
+}
+
+#drawing-board {
+    border: 1px solid #bdc3c7;
+    background-color: #ecf0f1;
+    cursor: crosshair;
+    display: block;
+}
+
+#controls-panel {
+    flex: 1;
+    min-width: 300px;
+    padding-left: 25px;
+    border-left: 1px solid #ecf0f1;
+}
+
+#controls-panel h2 {
+    margin-top: 0;
+    color: #2c3e50;
+}
+
+#d-output {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px;
+    border: 1px solid #bdc3c7;
+    border-radius: 5px;
+    font-family: "Courier New", Courier, monospace;
+    font-size: 0.9em;
+    resize: vertical;
+    background-color: #fdfdfd;
+}
+
+#copy-btn {
+    width: 100%;
+    margin-top: 10px;
+    padding: 10px;
+    background-color: #27ae60;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 1em;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+#copy-btn:hover {
+    background-color: #229954;
+}
+
+#point-controls {
+    margin-top: 20px;
+}
+
+#point-controls button {
+    width: 100%;
+    padding: 10px;
+    background-color: #8e44ad;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 1em;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+#point-controls button:hover {
+    background-color: #7d3c98;
+}
+
+#instructions {
+    margin-top: 20px;
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 5px;
+    border: 1px solid #e9ecef;
+}
+
+/* --- SVG Element Styles --- */
+.main-path {
+    fill: rgba(52, 152, 219, 0.2);
+    stroke: #3498db;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.control-line {
+    stroke: #95a5a6;
+    stroke-width: 1;
+    stroke-dasharray: 4 2;
+}
+
+.anchor-point, .control-point {
+    stroke: #2c3e50;
+    stroke-width: 2;
+    cursor: move;
+    transition: r 0.1s ease-in-out;
+}
+
+.anchor-point {
+    fill: #e74c3c;
+}
+.anchor-point:hover {
+    r: 8;
+}
+
+.control-point {
+    fill: #f1c40f;
+}
+.control-point:hover {
+    r: 6;
+}
+
+.anchor-point.selected {
+    fill: #c0392b;
+    stroke: #e74c3c;
+    stroke-width: 3;
+}
+
+.grid-line {
+    stroke: #d7dbdd;
+    stroke-width: 0.5;
+}
