@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced SVG Path Designer</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app-container">
+        <header>
+            <h1>Advanced SVG Path Designer</h1>
+            <div id="toolbar">
+                <button id="undo-btn" title="Undo (Ctrl+Z)">Undo</button>
+                <button id="new-path-btn">New Path</button>
+                <button id="close-path-btn">Close Path</button>
+                <label class="checkbox-label">
+                    <input type="checkbox" id="snap-toggle">
+                    Snap to Grid
+                </label>
+            </div>
+        </header>
+
+        <main id="main-content">
+            <div id="drawing-area">
+                <svg id="drawing-board" width="800" height="600"></svg>
+            </div>
+
+            <div id="controls-panel">
+                <h2>Path Data</h2>
+                <p>The `d` attribute for your SVG path.</p>
+                <textarea id="d-output" readonly rows="10"></textarea>
+                <button id="copy-btn">Copy to Clipboard</button>
+                
+                <div id="point-controls">
+                    <!-- Contextual buttons will be injected here by JS -->
+                </div>
+
+                <div id="instructions">
+                    <h3>How to Use:</h3>
+                    <ul>
+                        <li><strong>Add Point:</strong> Click on an empty area of the canvas.</li>
+                        <li><strong>Select Point:</strong> Click on an existing anchor point.</li>
+                        <li><strong>Move Point:</strong> Drag an anchor point or a control point handle.</li>
+                        <li><strong>Delete Point:</strong> Select a point and press 'Delete' or 'Backspace'.</li>
+                        <li><strong>Convert Point:</strong> Select a point (not the first one) to toggle it between a curve and a straight line corner.</li>
+                        <li><strong>Undo:</strong> Use the Undo button or press Ctrl+Z.</li>
+                    </ul>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
