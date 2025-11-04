@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Professioneller Diagramm-Editor</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="header">
+        <div class="title-area">
+            <h1>Diagramm-Editor</h1>
+            <p class="subtitle">Tipp: Doppelklicken Sie auf Text, um ihn zu bearbeiten. Verwenden Sie Markdown: **fett**, *kursiv*.</p>
+        </div>
+        <div class="controls">
+            <!-- Steuerelemente für ausgewählte Elemente -->
+            <div class="selection-controls">
+                <button id="toggleArrowBtn" title="Pfeilspitze ein/ausblenden" disabled>⇋ Pfeil</button>
+                <button id="rotateTextBtn" title="Text innerhalb des Elements um 90° drehen" disabled>⟳ Text</button>
+                <button id="rotateNodeBtn" title="Ganzes Element um 90° drehen" disabled>⟳ Element</button>
+                <select id="arrowCategorySelect" title="Pfeil-Kategorie zuweisen" disabled>
+                    <option value="">-- Kategorie --</option>
+                </select>
+            </div>
+
+            <!-- Globale Steuerelemente -->
+            <button id="editArrowCategoriesBtn">Pfeil-Farben</button>
+            <button id="editPaletteBtn">Palette</button>
+            <button id="exportSvgBtn">Export</button>
+            <button id="saveBtn">Speichern</button>
+            <label class="file-input-label">Laden<input type="file" id="loadInput" accept=".json"></label>
+        </div>
+    </div>
+    
+    <div id="editor-container">
+        <div id="myPaletteDiv"></div>
+        <div id="resizer"></div>
+        <div id="myDiagramDiv"></div>
+    </div>
+
+    <!-- Modals (Inhalt unverändert) -->
+    <div id="paletteEditorModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <h2>Palette anpassen</h2>
+            <div id="paletteItemsList"></div><hr>
+            <h3 id="paletteFormTitle">Neues Element hinzufügen</h3>
+            <form id="paletteItemForm">
+                <div class="form-grid">
+                    <label>Text: <textarea id="newItemText" rows="3" required></textarea></label>
+                    <label>Form: <select id="newItemCategory"></select></label>
+                    <label>Breite: <input type="number" id="newItemWidth" value="120" min="10"></label>
+                    <label>Höhe: <input type="number" id="newItemHeight" value="80" min="10"></label>
+                    <label>Füllfarbe: <input type="color" id="newItemFill" value="#4a86e8"></label>
+                    <label>Randfarbe: <input type="color" id="newItemStroke" value="#2a4d80"></label>
+                </div>
+                <div id="customSvgInput" style="display: none;"><label>SVG-Pfad-Daten (d="..."): <textarea id="newItemSvgPath" rows="2"></textarea></label></div>
+                <button type="submit" id="paletteFormSubmitBtn">Hinzufügen</button>
+                <button type="button" id="cancelEditBtn" style="display: none;">Bearbeitung abbrechen</button>
+            </form>
+            <div class="modal-actions">
+                <button id="savePaletteBtn">Speichern & Schliessen</button>
+                <button id="cancelPaletteBtn">Abbrechen</button>
+            </div>
+        </div>
+    </div>
+    <div id="arrowCategoryModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <h2>Pfeil-Farben verwalten</h2>
+            <div id="arrowCategoryList"></div><hr>
+            <h3>Neue Kategorie hinzufügen</h3>
+            <form id="addArrowCategoryForm">
+                <label>Name: <input type="text" id="newCategoryName" required></label>
+                <label>Farbe: <input type="color" id="newCategoryColor" value="#555555"></label>
+                <button type="submit">Hinzufügen</button>
+            </form>
+            <div class="modal-actions"><button id="closeArrowCategoryBtn">Schliessen</button></div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/gojs/release/go.js"></script>
+    <script src="https://unpkg.com/gojs@2.3.11/extensions/Figures.js"></script>
+    <script src="app.js"></script>
+
+</body>
+</html>
