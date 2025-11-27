@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTML Log to CSV Converter</title>
+    <style>
+        /* Basic CSS for a clean look */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            background: white;
+            padding: 2rem 3rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            width: 90%;
+            max-width: 600px;
+            text-align: center;
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+        }
+
+        p {
+            color: #7f8c8d;
+            margin-bottom: 2rem;
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            align-items: center;
+        }
+
+        .file-input-wrapper {
+            border: 2px dashed #bdc3c7;
+            padding: 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: border-color 0.3s, background-color 0.3s;
+        }
+
+        .file-input-wrapper:hover {
+            border-color: #3498db;
+            background-color: #ecf0f1;
+        }
+
+        input[type="file"] {
+            display: none; /* Hide the default input */
+        }
+
+        .options {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 0.8rem 1.5rem;
+            border-radius: 5px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.2s;
+        }
+
+        button:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+        }
+        
+        button:not(:disabled):hover {
+            background-color: #2980b9;
+            transform: translateY(-2px);
+        }
+
+        #status {
+            margin-top: 1.5rem;
+            font-weight: bold;
+            min-height: 1.2em;
+        }
+
+        .status-success {
+            color: #27ae60;
+        }
+
+        .status-error {
+            color: #c0392b;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>HTML Log to CSV Converter</h1>
+        <p>Upload your data log file to convert it to a CSV. You can also aggregate the 15-minute energy data into daily totals.</p>
+
+        <div class="controls">
+            <label for="fileInput" class="file-input-wrapper">
+                <span id="fileName">Click here to choose a file...</span>
+            </label>
+            <input type="file" id="fileInput" accept=".html,.htm">
+
+            <div class="options">
+                <input type="checkbox" id="aggregateCheckbox">
+                <label for="aggregateCheckbox">Calculate daily energy totals</label>
+            </div>
+
+            <button id="downloadBtn" disabled>Process and Download CSV</button>
+        </div>
+        
+        <div id="status"></div>
+    </div>
+
+    <script>
+        // --- DOM Elements ---
+        const fileInput = document.getElementById('fileInput');
+        const fileNameSpan = document.getElementById('fileName');
+        const aggregateCheckbox = document.getElementById('aggregateCheckbox');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const statusDiv = document.getElementById('status');
+
+        // --- Global State ---
+        let parsedHeaders = [];
+        let parsedData = [];
+        let originalFileName = '';
+
+        // --- Event Listeners ---
+        fileInput.addEventListener('change', handleFileSelect);
+        downloadBtn.addEventListener('click', handleDownload);
+
+        /**
+         * Handles the file selection event. Reads the file and parses the HTML table.
+         */
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            originalFileName = file.name.replace(/\.[^/.]+$/, ""); // Remove extension
+            fileNameSpan.textContent = file.name;
+            statusDiv.textContent = 'Reading file...';
+            statusDiv.className = '';
+
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                try {
+                    const fileContent = e.target.result;
+                    parseHTMLContent(fileContent);
+                    statusDiv.textContent = `File "${file.name}" processed successfully! Ready to download.`;
+                    statusDiv.className = 'status-success';
+                    downloadBtn.disabled = false;
+                } catch (error) {
+                    statusDiv.textContent = `Error parsing file: ${error.message}`;
+                    statusDiv.className = 'status-error';
+                    console.error(error);
+                    downloadBtn.disabled = true;
+                }
+            };
+            
+            reader.onerror = function() {
+                 statusDiv.textContent = 'Error reading the file.';
+                 statusDiv.className = 'status-error';
+                 downloadBtn.disabled = true;
+            };
+
+            reader.readAsText(file);
+        }
+
+        /**
+         * Parses the HTML string to extract table headers and data rows.
+         */
+        function parseHTMLContent(htmlString) {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(htmlString, 'text/html');
+            
+            // Clear previous data
+            parsedHeaders = [];
+            parsedData = [];
+
+            // Get Headers
+            const headerRow = doc.querySelector('table thead tr.subtitle');
+            if (!headerRow) throw new Error("Could not find the header row ('thead tr.subtitle').");
+            headerRow.querySelectorAll('td').forEach(td => {
+                parsedHeaders.push(td.textContent.trim());
+            });
+
+            // Get Data Rows
+            const dataRows = doc.querySelectorAll('table tbody tr');
+            if (dataRows.length === 0) throw new Error("Could not find any data rows ('tbody tr').");
+            
+            dataRows.forEach(row => {
+                const rowData = [];
+                row.querySelectorAll('td').forEach(cell => {
+                    rowData.push(cell.textContent.trim());
+                });
+                if (rowData.length === parsedHeaders.length) {
+                    parsedData.push(rowData);
+                }
+            });
+            
+            if(parsedData.length === 0) throw new Error("Found table structure but no valid data rows.");
+        }
+
+        /**
+         * Handles the download button click. Generates and downloads the appropriate CSV.
+         */
+        function handleDownload() {
+            if (parsedData.length === 0) {
+                statusDiv.textContent = 'No data to download.';
+                statusDiv.className = 'status-error';
+                return;
+            }
+
+            let csvContent = '';
+            let fileName = '';
+
+            if (aggregateCheckbox.checked) {
+                csvContent = generateAggregatedCSV();
+                fileName = `${originalFileName}_daily_summary.csv`;
+            } else {
+                csvContent = generateDirectCSV();
+                fileName = `${originalFileName}_raw_data.csv`;
+            }
+
+            downloadCSV(csvContent, fileName);
+        }
+
+        /**
+         * Generates CSV content directly from the parsed data.
+         */
+        function generateDirectCSV() {
+            const headerString = parsedHeaders.map(h => `"${h}"`).join(',');
+            const rowsString = parsedData.map(row => 
+                row.map(cell => `"${cell}"`).join(',')
+            ).join('\n');
+
+            return `${headerString}\n${rowsString}`;
+        }
+        
+        /**
+         * Generates CSV content with daily aggregated energy data.
+         */
+        function generateAggregatedCSV() {
+            // Find the indices of the energy columns
+            const timestampIndex = 1;
+            const kVAhIndex = parsedHeaders.indexOf('Scheinenergie (kVAh)');
+            const kWhIndex = parsedHeaders.indexOf('Wirkenergie (kWh)');
+            const kVARhIndex = parsedHeaders.indexOf('Blindenergie (kVARh)');
+
+            if (kVAhIndex === -1 || kWhIndex === -1 || kVARhIndex === -1) {
+                throw new Error("Could not find required energy columns for aggregation.");
+            }
+
+            // Group data by day
+            const groupedByDay = {};
+            parsedData.forEach(row => {
+                const timestamp = row[timestampIndex];
+                const date = timestamp.split(' ')[0]; // 'YYYY-MM-DD'
+                if (!groupedByDay[date]) {
+                    groupedByDay[date] = [];
+                }
+                groupedByDay[date].push(row);
+            });
+            
+            const sortedDates = Object.keys(groupedByDay).sort();
+            const aggregatedResults = [];
+            let lastDayValues = null;
+
+            // Process each day
+            for (const date of sortedDates) {
+                const dayReadings = groupedByDay[date];
+                // The last reading of the day is the cumulative total at day's end
+                const lastReadingOfDay = dayReadings[dayReadings.length - 1];
+                
+                const currentValues = {
+                    kVAh: parseFloat(lastReadingOfDay[kVAhIndex]),
+                    kWh: parseFloat(lastReadingOfDay[kWhIndex]),
+                    kVARh: parseFloat(lastReadingOfDay[kVARhIndex])
+                };
+
+                if (lastDayValues) {
+                    const dailyConsumption = {
+                        date: date,
+                        kVAh_daily: (currentValues.kVAh - lastDayValues.kVAh).toFixed(2),
+                        kWh_daily: (currentValues.kWh - lastDayValues.kWh).toFixed(2),
+                        kVARh_daily: (currentValues.kVARh - lastDayValues.kVARh).toFixed(2)
+                    };
+                    aggregatedResults.push(dailyConsumption);
+                }
+
+                // Update last day's values for the next iteration
+                lastDayValues = currentValues;
+            }
+
+            // Create CSV string from aggregated results
+            const headers = ['Datum', 'Scheinenergie (kVAh/Tag)', 'Wirkenergie (kWh/Tag)', 'Blindenergie (kVARh/Tag)'];
+            const headerString = headers.map(h => `"${h}"`).join(',');
+            
+            const rowsString = aggregatedResults.map(res => 
+                `"${res.date}","${res.kVAh_daily}","${res.kWh_daily}","${res.kVARh_daily}"`
+            ).join('\n');
+            
+            return `${headerString}\n${rowsString}`;
+        }
+
+
+        /**
+         * Triggers a browser download for the given CSV content.
+         */
+        function downloadCSV(csvContent, fileName) {
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            
+            if (link.download !== undefined) {
+                const url = URL.createObjectURL(blob);
+                link.setAttribute('href', url);
+                link.setAttribute('download', fileName);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        }
+    </script>
+</body>
+</html>
