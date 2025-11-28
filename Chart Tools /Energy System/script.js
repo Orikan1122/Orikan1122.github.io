@@ -232,20 +232,29 @@ document.addEventListener('DOMContentLoaded', () => {
         closeDetailsBtn.addEventListener('click', () => {
             detailsPanel.classList.add('hidden');
             selectedNodeId = null;
-            renderApp(); // Clear selection highlights
-        }); // <--- Close the details button listener here
+            renderApp();
+        });
 
-        // NOW add the export listener outside
         if (exportLossBtn) {
             exportLossBtn.addEventListener('click', exportLossReport);
         }
-        typeSelector.addEventListener('change', handleTypeChange);
+
+        // Configuration Listeners
+        typeSelector.addEventListener('change', () => handleTypeChange(true));
         electricalType.addEventListener('change', saveMetadata);
         heatoilEnergy.addEventListener('change', saveMetadata);
         
-        // NEW: Loss Config Listener
-        lossModelSelector.addEventListener('change', handleLossModelChange);
+        // --- LOSS CONFIG LISTENER (FIXED) ---
+        // Pass 'true' to save only when User changes the dropdown
+        lossModelSelector.addEventListener('change', () => handleLossModelChange(true));
         lossParamInput.addEventListener('change', saveMetadata);
+        // ------------------------------------
+
+        // --- UNMEASURED LISTENER (FIXED) ---
+        unmeasuredModelSelector.addEventListener('change', () => handleUnmeasuredModelChange(true));
+        unmeasuredParamInput.addEventListener('change', saveMetadata);
+        unmeasuredLabelInput.addEventListener('change', saveMetadata);
+        // -----------------------------------
 
         productionUnit.addEventListener('input', saveMetadata);
         productionLinkChecklist.addEventListener('change', handleProductionLinkChange);
@@ -258,7 +267,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // View Navigation
         overviewTabBtn.addEventListener('click', () => switchView('overview'));
-        lossTabBtn.addEventListener('click', () => switchView('loss')); // NEW
+        lossTabBtn.addEventListener('click', () => switchView('loss'));
         regressionTabBtn.addEventListener('click', () => switchView('regression'));
 
         // Overview / Visuals
@@ -280,7 +289,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         showWelcomeMessage();
     }
-
     // --- DATA MODEL & HELPERS ---
     const getTree = (type) => type === 'energy' ? appData.systems : appData.productionLines;
     const findNodeInTree = (id, nodes) => { for (const n of nodes) { if (n.id === id) return n; if (n.children) { const found = findNodeInTree(id, n.children); if (found) return found; } } return null; };
@@ -318,7 +326,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- LOSS LOGIC (NEW) ---
-    function handleLossModelChange() {
+// Update this function to accept the 'save' parameter
+    function handleLossModelChange(save = false) {
         const model = lossModelSelector.value;
         lossParamContainer.classList.toggle('hidden', model === 'none');
         
@@ -335,7 +344,11 @@ document.addEventListener('DOMContentLoaded', () => {
             lossHelpText.textContent = 'Fixed amount subtracted daily.';
             lossParamInput.step = "0.1";
         }
-        saveMetadata();
+
+        // CRITICAL FIX: Only save if explicitly asked (user interaction)
+        if (save) {
+            saveMetadata();
+        }
     }
 
     /**
@@ -547,8 +560,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     electricalType: 'kWh/Tag', 
                     heatoilEnergy: 10, 
                     linkedProductionIds: [],
-                    lossModel: 'none', // 'percent', 'quadratic', 'fixed'
-                    lossParam: 0 
+                    lossModel: 'none', 
+                    lossParam: 0,
+                    // --- NEW DEFAULTS ---
+                    unmeasuredModel: 'none',
+                    unmeasuredParam: 0,
+                    unmeasuredLabel: 'Unmeasured'
+                    // --------------------
                 } 
             };
         } else {
@@ -670,16 +688,20 @@ document.addEventListener('DOMContentLoaded', () => {
             electricalType.value = node.metadata.electricalType || 'kWh/Tag';
             heatoilEnergy.value = node.metadata.heatoilEnergy || 10;
             
-            // Render Loss Config
+            // --- LOSS CONFIG (FIXED) ---
             lossModelSelector.value = node.metadata.lossModel || 'none';
             lossParamInput.value = node.metadata.lossParam || 0;
-            handleLossModelChange();
+            // Pass 'false' so we don't trigger a save while the rest of the form is still loading
+            handleLossModelChange(false);
+            // ---------------------------
 
-            // NEW: Render Unmeasured Config
+            // --- UNMEASURED CONFIG ---
             unmeasuredModelSelector.value = node.metadata.unmeasuredModel || 'none';
             unmeasuredParamInput.value = node.metadata.unmeasuredParam || 0;
             unmeasuredLabelInput.value = node.metadata.unmeasuredLabel || 'Unmeasured';
-            handleUnmeasuredModelChange();
+            // Pass 'false' here too
+            handleUnmeasuredModelChange(false); 
+            // -------------------------
 
             if (!node.metadata.linkedProductionIds) {
                 node.metadata.linkedProductionIds = [];
@@ -701,18 +723,29 @@ document.addEventListener('DOMContentLoaded', () => {
         if (save) saveMetadata(); 
     }
 
-    function handleUnmeasuredModelChange() {
+    function handleUnmeasuredModelChange(save = false) {
+        // Read the current value from the dropdown
         const model = unmeasuredModelSelector.value;
-        unmeasuredParamContainer.classList.toggle('hidden', model === 'none');
         
-        if (model === 'percent') {
-            unmeasuredParamLabel.textContent = 'Percentage of Input (%)';
-        } else if (model === 'fixed') {
-            unmeasuredParamLabel.textContent = 'Daily Consumption (kWh)';
+        // Toggle visibility: Hide if 'none', Show if anything else
+        if (model === 'none') {
+            unmeasuredParamContainer.classList.add('hidden');
+        } else {
+            unmeasuredParamContainer.classList.remove('hidden');
+            
+            // Update label text based on selection
+            if (model === 'percent') {
+                unmeasuredParamLabel.textContent = 'Percentage of Input (%)';
+            } else if (model === 'fixed') {
+                unmeasuredParamLabel.textContent = 'Daily Consumption (kWh)';
+            }
         }
-        saveMetadata();
+        
+        // Only save to the database if the USER triggered this (save = true)
+        if (save) {
+            saveMetadata();
+        }
     }
-
     // UPDATE existing saveMetadata function
     function saveMetadata() { 
         if (!selectedNodeId) return; 
@@ -722,20 +755,26 @@ document.addEventListener('DOMContentLoaded', () => {
         if (selectedNodeType === 'energy') { 
             node.type = typeSelector.value; 
             node.metadata.electricalType = electricalType.value; 
-            node.metadata.heatoilEnergy = parseFloat(heatoilEnergy.value); 
+            node.metadata.heatoilEnergy = parseFloat(heatoilEnergy.value) || 10; 
             
             // Loss Config
             node.metadata.lossModel = lossModelSelector.value;
-            node.metadata.lossParam = parseFloat(lossParamInput.value);
+            node.metadata.lossParam = parseFloat(lossParamInput.value) || 0;
 
-            // NEW: Unmeasured Config
+            // --- UNMEASURED CONFIG SAVE ---
             node.metadata.unmeasuredModel = unmeasuredModelSelector.value;
-            node.metadata.unmeasuredParam = parseFloat(unmeasuredParamInput.value);
+            
+            // Ensure we save a valid number, default to 0 if empty
+            const uVal = parseFloat(unmeasuredParamInput.value);
+            node.metadata.unmeasuredParam = isNaN(uVal) ? 0 : uVal;
+            
             node.metadata.unmeasuredLabel = unmeasuredLabelInput.value;
+            // ------------------------------
 
         } else { 
             node.metadata.unit = productionUnit.value; 
         } 
+        
         updateAllVisuals(); 
     }
 
