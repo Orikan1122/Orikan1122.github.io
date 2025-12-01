@@ -1,0 +1,143 @@
+body { font-family: sans-serif; display: flex; height: 100vh; margin: 0; background: #2b2b2b; color: #fff; overflow: hidden; }
+
+/* RESIZABLE SIDEBAR */
+#sidebar { 
+    width: 320px; min-width: 250px; max-width: 50%;
+    background: #333; padding: 20px; display: flex; flex-direction: column; 
+    box-shadow: 2px 0 10px rgba(0,0,0,0.5); overflow-y: auto; z-index: 20; flex-shrink: 0; 
+}
+#resizer { width: 8px; background: #3a3a3a; cursor: col-resize; z-index: 30; flex-shrink: 0; }
+#resizer:hover, #resizer.resizing { background: #0d6efd; }
+
+h3 { color: #aaa; font-size: 12px; text-transform: uppercase; border-bottom: 1px solid #444; margin-top: 20px; }
+.control-group { margin-bottom: 15px; }
+label { font-size: 12px; color: #ccc; display: block; margin-bottom: 5px; }
+input, select { width: 100%; box-sizing: border-box; background: #222; color: #fff; border: 1px solid #555; padding: 5px; }
+.color-row { display: flex; align-items: center; }
+.color-row input[type="color"] { width: 40px; border: none; background: none; height: 30px; }
+
+button { width: 100%; padding: 8px; margin-bottom: 5px; cursor: pointer; border: none; border-radius: 3px; font-weight: bold; }
+.row-buttons { display: flex; gap: 5px; }
+.btn-primary { background: #0d6efd; color: white; }
+.btn-success { background: #198754; color: white; }
+.btn-danger { background: #dc3545; color: white; }
+.btn-warning { background: #ffc107; color: black; }
+.btn-secondary { background: #6c757d; color: white; }
+button:disabled { background: #444; color: #777; cursor: not-allowed; }
+
+.inspector-box { display: none; background: #2c3e50; border: 1px solid #1abc9c; padding: 10px; border-radius: 4px; margin-bottom: 10px; }
+.insp-info { font-size: 12px; color: #aaa; margin-bottom: 8px; }
+
+#main-area { flex-grow: 1; position: relative; overflow: hidden; background: #222; }
+/* --- style.css updates --- */
+
+#edit-scroll-wrapper { 
+    width: 100%; 
+    height: 100%; 
+    overflow: hidden; 
+    background: #1a1a1a; 
+    position: relative;
+    cursor: default; /* Changed from 'grab' to 'default' arrow */
+}
+
+/* Only show the moving cursor when holding down the mouse */
+#edit-scroll-wrapper:active {
+    cursor: move; 
+}
+
+#edit-container { 
+    position: absolute; 
+    top: 0; 
+    left: 0;
+    transform-origin: 0 0; /* Zooms from top-left, we handle centering in JS */
+    box-shadow: 0 0 20px rgba(0,0,0,0.5); 
+}
+
+#map-image { display: block; pointer-events: auto; user-select: none; }
+#marker-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+
+/* SVG DOTS STYLING */
+circle { pointer-events: auto; cursor: grab; transition: stroke 0.1s; }
+circle:hover { stroke: #fff; stroke-width: 2px; }
+circle.dragging { cursor: grabbing; fill: #fff !important; }
+.selected-dot { fill: #00ffcc !important; stroke: #fff !important; stroke-width: 2px; r: 9px !important; }
+
+#preview-container { 
+    position: absolute; 
+    top: 0; 
+    left: 0; 
+    width: 100%; 
+    height: 100%; 
+    display: none; /* JS toggles this to 'block' */
+    background: #222; 
+    z-index: 50; /* Needs to be higher than everything else */
+}
+#preview-chart { width: 100%; height: 100%; }
+#pathList { list-style: none; padding: 0; margin: 0; }
+#pathList li { font-size: 12px; background: #444; margin-bottom: 2px; padding: 5px; display: flex; justify-content: space-between; }
+.small-text { font-size: 11px; color:#aaa; line-height: 1.4; }
+/* --- style.css --- */
+
+/* ... keep your existing body/sidebar styles ... */
+
+/* MAP AREA & LAYERS */
+#main-area { flex-grow: 1; position: relative; overflow: hidden; background: #222; }
+#edit-scroll-wrapper { width: 100%; height: 100%; overflow: auto; display: flex; justify-content: center; align-items: center; }
+
+/* Container holding both Image and SVG */
+#edit-container { 
+    position: relative; 
+    box-shadow: 0 0 20px #000; 
+    transform-origin: center center; 
+}
+
+/* 1. The Image (Bottom Layer) */
+#map-image { 
+    display: block; 
+    user-select: none; /* Prevent blue highlight selection */
+    pointer-events: auto; /* Allow clicking to add points */
+}
+
+/* 2. The SVG (Top Layer) */
+#marker-layer { 
+    position: absolute; 
+    top: 0; 
+    left: 0; 
+    width: 100%; 
+    height: 100%; 
+    z-index: 10; /* MUST be above image */
+    pointer-events: none; /* Let clicks pass through to image... */
+}
+
+/* 3. The Dots (Interactive Elements) */
+circle { 
+    pointer-events: all; /* ...EXCEPT the dots, they capture clicks */
+    cursor: grab; 
+    transition: r 0.1s, stroke-width 0.1s; 
+}
+circle:hover { 
+    stroke: #fff; 
+    stroke-width: 2px; 
+    r: 8px; /* Visual feedback on hover */
+}
+circle.dragging { 
+    cursor: grabbing; 
+    fill: #fff !important; 
+    r: 9px;
+}
+.selected-dot { 
+    fill: #00ffcc !important; 
+    stroke: #fff !important; 
+    stroke-width: 2px; 
+    r: 10px !important; 
+}
+
+.relocating-cursor {
+    cursor: crosshair !important;
+}
+
+/* ... Keep previous CSS ... */
+/* Ensure dots are clickable */
+circle { pointer-events: auto; cursor: pointer; transition: r 0.1s; }
+circle:hover { stroke: #fff; stroke-width: 2px; r: 8px; }
+.selected-dot { fill: #00ffcc !important; stroke: #fff !important; stroke-width: 2px; r: 10px !important; }

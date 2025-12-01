@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blueprint Animator v7 (Relocate)</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- SIDEBAR -->
+    <div id="sidebar">
+        <h2>Blueprint Animator v7</h2>
+        
+        <!-- 1. SETUP -->
+        <h3>1. Setup</h3>
+        <div class="control-group">
+            <div class="row-buttons">
+                <button onclick="document.getElementById('jsonLoader').click()" class="btn-secondary">📂 Load</button>
+                <button onclick="exportProject()" class="btn-secondary">💾 Save</button>
+                <input type="file" id="jsonLoader" accept=".json" style="display:none">
+            </div>
+            <label style="margin-top:5px">Image:</label>
+            <input type="file" id="imgLoader" accept="image/*">
+            <button onclick="rotateImage()" class="btn-secondary" style="margin-top:5px;">↻ Rotate 90°</button>
+        </div>
+        <div class="control-group">
+            <label>Zoom: <span id="zoomVal">100%</span></label>
+            <input type="range" id="zoomSlider" min="10" max="150" value="100">
+        </div>
+
+        <!-- 2. DRAWING & EDITING -->
+        <h3>2. Edit Paths</h3>
+        <div class="small-text" style="text-align:left; margin-bottom:5px;">
+            • Click dot to Edit.<br>
+            • Drag dot to Move.<br>
+        </div>
+        <button id="btnStart" class="btn-primary" disabled>+ Start New Path</button>
+        
+        <div class="row-buttons">
+            <button id="btnUndo" class="btn-danger" disabled>Undo</button>
+            <button id="btnFinish" class="btn-success" disabled>Finish</button>
+        </div>
+        
+        <!-- UPDATED POINT INSPECTOR -->
+        <div id="point-inspector" class="inspector-box">
+            <h4>● Point Inspector</h4>
+            
+            <!-- Info -->
+            <div class="insp-info">
+                Status: <span id="insp-current-wait" style="color:#00ffcc; font-weight:bold;">Moving</span>
+            </div>
+            
+            <!-- Wait Time -->
+            <label>Wait Time (Seconds):</label>
+            <div style="display:flex; gap:5px; margin-bottom:10px;">
+                <input type="number" id="insp-seconds" value="0" min="0" step="0.5">
+                <button onclick="updateWaitTime()" class="btn-primary">Update Wait</button>
+            </div>
+
+                <label>Actions:</label>
+                
+                <!-- NEW BUTTON HERE -->
+                <button onclick="continuePath()" id="btnContinue" class="btn-primary" style="margin-bottom:5px;">🖊 Continue Path</button>
+                
+                <button onclick="startRelocate()" id="btnRelocate" class="btn-warning">📍 Set New Position</button>
+                <div id="relocateMsg" style="display:none; color:#ffc107; font-size:11px; margin-bottom:5px; text-align:center;">
+                    Click map to place point...
+                </div>
+
+            <div class="row-buttons" style="margin-top:5px;">
+                <button onclick="deleteSelectedPoint()" class="btn-danger">🗑 Delete</button>
+                <button onclick="closeInspector()" class="btn-secondary">Close</button>
+            </div>
+        </div>
+
+        <ul id="pathList"></ul>
+
+        <!-- 3. ANIMATION -->
+        <h3>3. Animation</h3>
+        <div class="control-group">
+            <div class="color-row">
+                <label>Dot:</label> <input type="color" id="objColor" value="#ffcc00">
+                <label style="margin-left:10px">Line:</label> <input type="color" id="pathColor" value="#0d6efd">
+            </div>
+        </div>
+        <div class="control-group">
+            <label>Cycle Speed: <span id="speedLabel">4s</span></label>
+            <input type="range" id="speedSlider" min="1" max="20" value="4">
+        </div>
+        <div class="control-group">
+            <label>Loop Mode:</label>
+            <select id="loopMode">
+                <option value="infinite">Infinite Loop</option>
+                <option value="finite">Specific Count</option>
+            </select>
+            <input type="number" id="loopCount" value="1" min="1" style="display:none; margin-top:5px;">
+        </div>
+
+        <!-- 4. ACTIONS -->
+        <h3>4. Actions</h3>
+        <button id="btnPreview" class="btn-warning" disabled>▶ PREVIEW</button>
+        <button id="btnRecord" class="btn-danger" disabled style="margin-top:5px;">● Record Video</button>
+        <div id="recStatus" class="small-text" style="display:none; color:#ff6b6b; font-weight:bold;">Processing...</div>
+    </div>
+
+    <div id="resizer"></div>
+
+    <!-- MAIN AREA -->
+    <div id="main-area">
+        <div id="edit-scroll-wrapper">
+            <div id="edit-container">
+                <img id="map-image" src="" alt="">
+                <svg id="marker-layer"></svg>
+            </div>
+        </div>
+        <div id="preview-container">
+            <div id="preview-chart"></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
