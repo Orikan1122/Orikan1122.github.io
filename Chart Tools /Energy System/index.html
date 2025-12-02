@@ -24,6 +24,9 @@
     <script src="https://code.highcharts.com/modules/draggable-points.js"></script>
     <script src="https://code.highcharts.com/dashboards/modules/layout.js"></script>
     <script src="https://code.highcharts.com/modules/accessibility.js"></script>
+    <script src="https://code.highcharts.com/modules/accessibility.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/simple-statistics@7.8.3/dist/simple-statistics.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/simple-statistics@7.8.3/dist/simple-statistics.min.js"></script>
 
 </head>
@@ -144,6 +147,15 @@
                                     <option value="kWh">kWh</option>
                                     <option value="MWh">MWh</option>
                                 </select>
+                            </div>
+                                <div class="button-group" style="margin-left: auto; display: flex; gap: 5px;">
+                                    <button id="save-sankey-btn" class="btn-primary small-btn" title="Save current node positions">
+                                        <i class="fa-solid fa-floppy-disk"></i> Save Layout
+                                    </button>
+                                    <button id="reset-sankey-btn" class="btn-secondary small-btn" title="Reset to auto-layout">
+                                        <i class="fa-solid fa-rotate-left"></i> Reset
+                                    </button>
+                                </div>
                             </div>
                         </div>
                         

@@ -581,24 +581,6 @@ input[type="file"] { display: none; }
 .chart-container.small {
     min-height: 250px;
 }
-/* --- HIGHCHARTS STYLED MODE FIXES (FINAL) --- */
-
-/* 1. NODES (The Rectangles) */
-/* Targeted specifically at rect elements to override default styles */
-.highcharts-series-sankey g.node-dist rect.highcharts-point { fill: #3b82f6 !important; stroke: #3b82f6 !important; }
-.highcharts-series-sankey g.node-prod rect.highcharts-point { fill: #10b981 !important; stroke: #10b981 !important; }
-.highcharts-series-sankey g.node-loss rect.highcharts-point { fill: #ef4444 !important; stroke: #ef4444 !important; }
-.highcharts-series-sankey g.node-virt rect.highcharts-point { fill: #8b5cf6 !important; stroke: #8b5cf6 !important; }
-.highcharts-series-sankey g.node-unk rect.highcharts-point  { fill: #94a3b8 !important; stroke: #94a3b8 !important; }
-
-/* 2. LINKS (The Flow Paths) */
-/* Targeted specifically at path elements */
-.highcharts-series-sankey path.highcharts-link.link-good { fill: #3b82f6 !important; fill-opacity: 0.3 !important; stroke: none !important; }
-.highcharts-series-sankey path.highcharts-link.link-loss { fill: #ef4444 !important; fill-opacity: 0.4 !important; stroke: none !important; }
-.highcharts-series-sankey path.highcharts-link.link-virt { fill: #8b5cf6 !important; fill-opacity: 0.4 !important; stroke: none !important; }
-.highcharts-series-sankey path.highcharts-link.link-unk  { fill: #94a3b8 !important; fill-opacity: 0.4 !important; stroke: none !important; }
-
-
 /* 4. HOVER STATE */
 .highcharts-series-sankey path.highcharts-link:hover {
     fill-opacity: 0.7 !important;

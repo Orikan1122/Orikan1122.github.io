@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
 
     // --- STATE MANAGEMENT ---
-    let appData = { systems: [], productionLines: [] };
+    let appData = { systems: [], productionLines: [], sankeyPositions: {} };
     let selectedNodeId = null;
     let selectedNodeType = null;
     
@@ -283,7 +283,23 @@ document.addEventListener('DOMContentLoaded', () => {
         startResetAnalysisBtn.addEventListener('click', startOrResetIterativeAnalysis);
         refineAnalysisBtn.addEventListener('click', runSingleRefinementPass);
 
-        // Drag & Drop
+        // Sankey Layout Controls
+        // --- ADD/UPDATE THIS SECTION ---
+        const saveSankeyBtn = document.getElementById('save-sankey-btn');
+        const resetSankeyBtn = document.getElementById('reset-sankey-btn');
+        
+        if (saveSankeyBtn) {
+            // Remove old listeners to prevent duplicates (optional safety)
+            const newSaveBtn = saveSankeyBtn.cloneNode(true);
+            saveSankeyBtn.parentNode.replaceChild(newSaveBtn, saveSankeyBtn);
+            newSaveBtn.addEventListener('click', saveSankeyLayout);
+        }
+
+        if (resetSankeyBtn) {
+            const newResetBtn = resetSankeyBtn.cloneNode(true);
+            resetSankeyBtn.parentNode.replaceChild(newResetBtn, resetSankeyBtn);
+            newResetBtn.addEventListener('click', resetSankeyLayout);
+        }
         setupDragAndDrop(hierarchyTree, 'energy');
         setupDragAndDrop(productionTree, 'production');
 
@@ -1001,57 +1017,82 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
  // --- UPDATED SANKEY: PROFESSIONAL STREAM COLORING ---
-// --- UPDATED SANKEY: FIXED DATA MAPPING ---
+
     function renderSankeyChart(startDate, endDate) {
+        // 1. Get Height Input & Apply
+        const heightInputVal = parseInt(sankeyHeightInput.value, 10);
+        const chartHeight = heightInputVal || 600; 
+        
+        const chartDom = document.getElementById('sankey-chart');
+        chartDom.style.height = `${chartHeight}px`;
+
         if (sankeyChart) {
-            sankeyChart.destroy();
+            sankeyChart.dispose();
             sankeyChart = null;
         }
 
-        const chartHeight = parseInt(sankeyHeightInput.value, 10) || 400;
-        const maxLevels = parseInt(sankeyLevelsInput.value, 10);
-        const showPercentages = sankeyPercentageToggle.checked;
+        sankeyChart = echarts.init(chartDom);
 
-        // CSS Classes from style.css
-        const CLASSES = {
-            NODE_DIST:    'node-dist', 
-            NODE_PROD:    'node-prod', 
-            NODE_LOSS:    'node-loss', 
-            NODE_VIRT:    'node-virt', 
-            NODE_UNK:     'node-unk',  
-            
-            LINK_GOOD:    'link-good', 
-            LINK_LOSS:    'link-loss', 
-            LINK_VIRT:    'link-virt', 
-            LINK_UNK:     'link-unk'   
+        const showPercentages = sankeyPercentageToggle.checked;
+        const maxLevels = parseInt(sankeyLevelsInput.value, 10);
+        
+        // --- KEY LOGIC: CHECK FOR SAVED LAYOUT ---
+        const savedLayout = appData.sankeyPositions || {};
+        const savedKeys = Object.keys(savedLayout);
+        const hasSavedLayout = savedKeys.length > 0;
+
+        // DEBUGGING: Check the console to see what the code decides
+        if (hasSavedLayout) {
+            console.log(`[Sankey] Found ${savedKeys.length} saved positions. Applying MANUAL layout.`);
+        } else {
+            console.log("[Sankey] No saved positions found. Applying AUTO layout.");
+        }
+
+        const COLORS = {
+            DIST: '#3b82f6', PROD: '#10b981', LOSS: '#ef4444', VIRT: '#8b5cf6', UNK:  '#94a3b8'
         };
 
         const nodes = [];
-        const dataRows = []; 
+        const links = [];
         const totalSystemInput = (appData.systems || []).reduce((sum, root) => sum + calculateTotalKwh(root, startDate, endDate), 0);
 
-        const traversalQueue = (appData.systems || []).map((rootNode, index) => ({
-            node: rootNode,
-            level: 1
-        }));
+        const traversalQueue = (appData.systems || []).map((rootNode) => ({ node: rootNode, level: 1 }));
         
         const processedNodes = new Set();
-        const nodeColorMap = new Map();
+        const addedNodeNames = new Set(); 
 
+        const addNode = (name, color) => {
+            if (!addedNodeNames.has(name)) {
+                const nodeObj = {
+                    name: name,
+                    itemStyle: { color: color, borderColor: color }
+                };
+
+                // --- INJECT COORDINATES ---
+                if (hasSavedLayout && savedLayout[name]) {
+                    const savedX = parseFloat(savedLayout[name].x);
+                    const savedY = parseFloat(savedLayout[name].y);
+                    
+                    if (!isNaN(savedX) && !isNaN(savedY)) {
+                        nodeObj.x = savedX;
+                        nodeObj.y = savedY;
+                    }
+                }
+
+                nodes.push(nodeObj);
+                addedNodeNames.add(name);
+            }
+        };
+
+        // --- TRAVERSAL LOOP ---
         while (traversalQueue.length > 0) {
             const { node, level } = traversalQueue.shift();
-
             if (!node || processedNodes.has(node.id)) continue;
             processedNodes.add(node.id);
 
-            // 1. Determine Node Class
             const isLeafNode = (!node.children || node.children.length === 0);
-            const nodeClass = isLeafNode ? CLASSES.NODE_PROD : CLASSES.NODE_DIST;
-
-            if (!nodeColorMap.has(node.name)) {
-                nodes.push({ id: node.name, className: nodeClass });
-                nodeColorMap.set(node.name, true);
-            }
+            const nodeColor = isLeafNode ? COLORS.PROD : COLORS.DIST;
+            addNode(node.name, nodeColor);
 
             const parentKwh = calculateTotalKwh(node, startDate, endDate);
             if (parentKwh <= 0.01) continue;
@@ -1059,10 +1100,9 @@ document.addEventListener('DOMContentLoaded', () => {
             let childrenKwh = 0;
             let totalTechLoss = 0;
             let totalUnmeasured = 0;
-
             const shouldProcessChildren = !(maxLevels > 0 && level >= maxLevels);
 
-            // Calc Dates
+            // Filter Dates
             const dateSet = new Set();
             node.data.forEach(d => dateSet.add(d.date));
             if(node.children) node.children.forEach(c => c.data.forEach(d => dateSet.add(d.date)));
@@ -1097,95 +1137,194 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
 
-            // --- DRAW STREAMS ---
-
-            // Virtual (Purple)
+            // Build Links
             if (totalUnmeasured > 0.01) {
                 const label = node.metadata.unmeasuredLabel || 'Unmeasured';
                 const nodeName = `${label} (${node.name})`;
-                dataRows.push({
-                    from: node.name, 
-                    to: nodeName, 
-                    weight: totalUnmeasured,
-                    className: CLASSES.LINK_VIRT
-                });
-                nodes.push({ id: nodeName, className: CLASSES.NODE_VIRT }); 
+                addNode(nodeName, COLORS.VIRT);
+                links.push({ source: node.name, target: nodeName, value: totalUnmeasured });
             }
-
-            // Loss (Red)
             if (totalTechLoss > 0.01) {
                 const lossNodeName = `Loss (${node.name})`;
-                dataRows.push({
-                    from: node.name,
-                    to: lossNodeName,
-                    weight: totalTechLoss,
-                    className: CLASSES.LINK_LOSS
-                });
-                nodes.push({ id: lossNodeName, className: CLASSES.NODE_LOSS }); 
+                addNode(lossNodeName, COLORS.LOSS);
+                links.push({ source: node.name, target: lossNodeName, value: totalTechLoss });
             }
-
-            // Children (Blue)
             if (shouldProcessChildren && node.children && node.children.length > 0) {
                 node.children.forEach(child => {
                     const childKwh = calculateTotalKwh(child, startDate, endDate);
                     if (childKwh > 0.01) {
-                        dataRows.push({
-                            from: node.name,
-                            to: child.name,
-                            weight: childKwh,
-                            className: CLASSES.LINK_GOOD
-                        });
+                        links.push({ source: node.name, target: child.name, value: childKwh });
                         childrenKwh += childKwh;
                         traversalQueue.push({ node: child, level: level + 1 });
                     }
                 });
             }
-            
-            // Unattributed (Grey)
             if (!isLeafNode) {
                 const unattributedKwh = parentKwh - childrenKwh - totalTechLoss - totalUnmeasured;
                 if (unattributedKwh > 0.01) {
                     const unattributedName = `Unattributed (${node.name})`;
-                    dataRows.push({
-                        from: node.name,
-                        to: unattributedName,
-                        weight: unattributedKwh,
-                        className: CLASSES.LINK_UNK
-                    });
-                    nodes.push({ id: unattributedName, className: CLASSES.NODE_UNK });
+                    addNode(unattributedName, COLORS.UNK);
+                    links.push({ source: node.name, target: unattributedName, value: unattributedKwh });
                 }
             }
         }
 
-        sankeyChartDiv.innerHTML = '';
-        if (dataRows.length === 0) {
-            sankeyChartDiv.textContent = 'No energy flow data.';
+        if (links.length === 0) {
+            sankeyChart.dispose();
+            sankeyChart = null;
+            chartDom.innerHTML = '<div class="empty-state">No energy flow data found.</div>';
             return;
         }
 
-        sankeyChart = Highcharts.chart('sankey-chart', {
-            chart: { height: chartHeight, backgroundColor: 'transparent' },
-            title: { text: 'Energy Balance Diagram', style: { fontSize: '16px' } },
-            subtitle: { text: 'Visualizing Distribution, Productive Use, and Waste Streams', style: { color: '#666' } },
-            series: [{
-                // keys: ['from', 'to', 'weight'], <--- REMOVED! This fixes the object mapping.
-                nodes: nodes,
-                data: dataRows,
-                type: 'sankey',
-                name: 'Energy Balance',
-                dataLabels: {
-                    enabled: true,
-                    formatter: function() {
-                        if (showPercentages && !this.point.isNode && totalSystemInput > 0) {
-                            const percentage = (this.point.weight / totalSystemInput) * 100;
-                            if (percentage >= 0.1) return `${percentage.toFixed(1)}%`;
-                        }
-                        return '';
-                    },
-                    style: { fontSize: '11px', fontWeight: 'bold', textOutline: 'none' }
+        const option = {
+            tooltip: {
+                trigger: 'item',
+                triggerOn: 'mousemove',
+                formatter: function (params) {
+                    if (params.dataType === 'node') {
+                        return `${params.name}: <b>${params.value.toFixed(2)} kWh</b>`;
+                    } else {
+                        return `${params.data.source} → ${params.data.target}: <b>${params.value.toFixed(2)} kWh</b>`;
+                    }
                 }
-            }]
+            },
+            series: [
+                {
+                    type: 'sankey',
+                    // IMPORTANT: Explicitly setting layout mode based on data presence
+                    layout: hasSavedLayout ? 'none' : undefined,
+                    draggable: true,
+                    emphasis: { focus: 'adjacency' },
+                    data: nodes,
+                    links: links,
+                    lineStyle: { color: 'gradient', curveness: 0.5 },
+                    nodeGap: 30, 
+                    nodeWidth: 20,
+                    left: '10%', right: '20%', top: '5%', bottom: '5%',
+                    label: {
+                        color: '#333',
+                        fontSize: 12,
+                        position: 'right',
+                        distance: 5,
+                        formatter: function(params) {
+                            let name = params.name;
+                            if (name.length > 25) name = name.substring(0, 23) + '..';
+                            if (showPercentages && totalSystemInput > 0) {
+                                const pct = (params.value / totalSystemInput) * 100;
+                                return `${name} (${pct.toFixed(1)}%)`;
+                            }
+                            return name;
+                        }
+                    }
+                }
+            ]
+        };
+
+        sankeyChart.setOption(option);
+        
+        // Final resize to ensure pixels align with container
+        setTimeout(() => {
+            sankeyChart.resize();
+        }, 100);
+        
+        window.addEventListener('resize', function() {
+            if(sankeyChart) sankeyChart.resize();
         });
+    }
+    // --- SANKEY LAYOUT PERSISTENCE ---
+
+    function saveSankeyLayout() {
+        if (!sankeyChart) return;
+
+        try {
+            const newPositions = {};
+            
+            // Access the internal graph model securely
+            const model = sankeyChart.getModel();
+            const seriesModel = model.getSeriesByIndex(0);
+            const graph = seriesModel.getGraph();
+
+            // Iterate over the graph nodes (these contain the visual layout)
+            graph.nodes.forEach(node => {
+                const layout = node.getLayout(); // Returns {x, y, width, height}
+                
+                // node.id corresponds to the 'name' in Sankey charts
+                if (layout && node.id) {
+                    newPositions[node.id] = { 
+                        x: layout.x, 
+                        y: layout.y 
+                    };
+                }
+            });
+
+            // Check if we actually found coordinates
+            if (Object.keys(newPositions).length > 0) {
+                appData.sankeyPositions = newPositions;
+                alert("Layout saved! Positions will be maintained.");
+                
+                // Re-render to apply 'layout: none' with the new coordinates
+                renderSankeyChart(); 
+            } else {
+                console.warn("No positions found in graph model.");
+                alert("Could not detect node positions. Please move a node slightly and try again.");
+            }
+        } catch (err) {
+            console.error("Error saving layout:", err);
+            alert("An error occurred while saving. See console for details.");
+        }
+    }
+    // --- SANKEY LAYOUT FUNCTIONS ---
+
+// --- SANKEY LAYOUT FUNCTIONS (Copy & Paste this block) ---
+
+    function resetSankeyLayout() {
+        if (!confirm("Reset diagram to automatic layout? Your custom positions will be lost.")) return;
+        
+        // Clear the saved positions
+        appData.sankeyPositions = {}; 
+        console.log("[Layout] Positions cleared.");
+        
+        // Re-render. With empty positions, it will naturally revert to Auto Layout.
+        renderSankeyChart(); 
+    }
+
+    function saveSankeyLayout() {
+        if (!sankeyChart) return;
+        
+        console.log("[Layout] Attempting to save...");
+        const newPositions = {};
+        let foundCoordinates = false;
+
+        // Try to read the visual positions from the internal chart view
+        try {
+            const view = sankeyChart._chartsViews ? sankeyChart._chartsViews[0] : null;
+            
+            if (view && view._data) {
+                view._data.each(function (idx) {
+                    const layout = view._data.getItemLayout(idx); // {x, y, ...}
+                    const name = view._data.getName(idx);
+                    
+                    if (layout && name && !isNaN(layout.x) && !isNaN(layout.y)) {
+                        newPositions[name] = { x: layout.x, y: layout.y };
+                        foundCoordinates = true;
+                    }
+                });
+            }
+        } catch (e) {
+            console.warn("[Layout] Error reading coordinates:", e);
+        }
+
+        if (foundCoordinates) {
+            // Save to state
+            appData.sankeyPositions = newPositions;
+            console.log("[Layout] Saved positions for", Object.keys(newPositions).length, "nodes.");
+            alert("Layout saved! Your custom positions will be preserved.");
+            
+            // Re-render immediately to lock in the 'Manual' mode
+            renderSankeyChart(); 
+        } else {
+            alert("Could not detect node positions. Please try moving a node slightly and saving again.");
+        }
     }
     // Kept placeholders for exports and regression helpers to fit within prompt limits
     function renderProductionLinkChecklist(energyNode) { productionLinkChecklist.innerHTML = ''; const linkedIds = new Set(energyNode.metadata.linkedProductionIds || []); const traverseProduction = (nodes, path) => { nodes.forEach(node => { const currentPath = [...path, node.name]; if (!node.children || node.children.length === 0) { const div = document.createElement('div'); div.className = 'checkbox-item'; const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.id = `link-check-${node.id}`; checkbox.value = node.id; checkbox.checked = linkedIds.has(node.id); const label = document.createElement('label'); label.htmlFor = `link-check-${node.id}`; label.textContent = currentPath.join(' -> '); div.appendChild(checkbox); div.appendChild(label); productionLinkChecklist.appendChild(div); } if (node.children) { traverseProduction(node.children, currentPath); } }); }; traverseProduction(appData.productionLines || [], []); if (productionLinkChecklist.innerHTML === '') productionLinkChecklist.innerHTML = '<p class="help-text">No production lines found.</p>'; }
