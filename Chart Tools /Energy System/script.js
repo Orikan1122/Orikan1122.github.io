@@ -892,8 +892,106 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- EXISTING CHART RENDERERS (KEPT EXACTLY AS REQUESTED) ---
     function renderUsageChart(node, startDate, endDate, type) { if (usageChart) { usageChart.destroy(); usageChart = null; } const unit = type === 'energy' ? (node.type === 'Heating Oil' ? 'Liters' : (node.metadata.electricalType || 'Value')) : (node.metadata.unit || 'Value'); let filteredData = node.data; if(startDate && endDate) { filteredData = node.data.filter(d => { const itemDate = new Date(d.date); return itemDate >= startDate && itemDate <= endDate; }); } const chartData = filteredData.map(d => [new Date(d.date).getTime(), d.value]); usageChart = Highcharts.chart('usage-chart', { chart: { type: 'line', zoomType: 'x', height: 250 }, title: { text: null }, xAxis: { type: 'datetime', title: { text: null } }, yAxis: { title: { text: unit } }, legend: { enabled: false }, series: [{ name: `Value`, data: chartData, color: '#3b82f6' }] }); }
     
-    function renderAttributionChart(node, startDate, endDate, type) { if (attributionChart) { attributionChart.destroy(); attributionChart = null; } const containerDiv = document.getElementById('attribution-chart'); if (!node.children || node.children.length === 0) { attributionTitle.classList.add('hidden'); containerDiv.classList.add('hidden'); return; } attributionTitle.classList.remove('hidden'); containerDiv.classList.remove('hidden'); const parentTotal = calculateTotalForNode(node, startDate, endDate, type); if (parentTotal <= 0.01) { containerDiv.innerHTML = '<p class="help-text" style="text-align:center;">No data for parent.</p>'; return; } let childrenTotal = 0; const chartData = []; node.children.forEach(child => { const childTotal = calculateTotalForNode(child, startDate, endDate, type); if (childTotal > 0.01) { childrenTotal += childTotal; chartData.push({ name: child.name, y: childTotal }); } }); const unattributed = Math.max(0, parentTotal - childrenTotal); if (unattributed > 0.01) { chartData.push({ name: 'Unattributed', y: unattributed, color: '#cbd5e1' }); } if (chartData.length === 0) { containerDiv.innerHTML = '<p class="help-text" style="text-align:center;">No sub-item data.</p>'; return; } const unit = type === 'energy' ? 'kWh' : (node.metadata.unit || 'value'); chartData.sort((a,b) => b.y - a.y); attributionChart = Highcharts.chart('attribution-chart', { chart: { type: 'pie', height: 250 }, title: { text: null }, tooltip: { pointFormat: `{series.name}: <b>{point.percentage:.1f}%</b> ({point.y:.2f} ${unit})` }, plotOptions: { pie: { allowPointSelect: true, cursor: 'pointer', dataLabels: { enabled: false } } }, series: [{ name: 'Contribution', colorByPoint: true, data: chartData }] }); }
-    
+    function renderAttributionChart(node, startDate, endDate, type) { 
+        if (attributionChart) { 
+            attributionChart.destroy(); 
+            attributionChart = null; 
+        } 
+
+        const containerDiv = document.getElementById('attribution-chart'); 
+        
+        // Validation: Hide if no children
+        if (!node.children || node.children.length === 0) { 
+            attributionTitle.classList.add('hidden'); 
+            containerDiv.classList.add('hidden'); 
+            return; 
+        } 
+        
+        attributionTitle.classList.remove('hidden'); 
+        containerDiv.classList.remove('hidden'); 
+        
+        const parentTotal = calculateTotalForNode(node, startDate, endDate, type); 
+        
+        if (parentTotal <= 0.01) { 
+            containerDiv.innerHTML = '<p class="help-text" style="text-align:center;">No data for parent.</p>'; 
+            return; 
+        } 
+        
+        let childrenTotal = 0; 
+        const chartData = []; 
+        
+        node.children.forEach(child => { 
+            const childTotal = calculateTotalForNode(child, startDate, endDate, type); 
+            if (childTotal > 0.01) { 
+                childrenTotal += childTotal; 
+                chartData.push({ name: child.name, y: childTotal }); 
+            } 
+        }); 
+        
+        const unattributed = Math.max(0, parentTotal - childrenTotal); 
+        if (unattributed > 0.01) { 
+            chartData.push({ name: 'Unattributed', y: unattributed, color: '#cbd5e1' }); 
+        } 
+        
+        if (chartData.length === 0) { 
+            containerDiv.innerHTML = '<p class="help-text" style="text-align:center;">No sub-item data.</p>'; 
+            return; 
+        } 
+        
+        const unit = type === 'energy' ? 'kWh' : (node.metadata.unit || 'value'); 
+        chartData.sort((a,b) => b.y - a.y); 
+        
+        attributionChart = Highcharts.chart('attribution-chart', { 
+            chart: { 
+                type: 'pie', 
+                height: 300, // Increased height slightly to fit labels
+                style: { fontFamily: 'inherit' }
+            }, 
+            title: { text: null }, 
+            tooltip: { 
+                pointFormat: `{series.name}: <b>{point.percentage:.1f}%</b> ({point.y:.2f} ${unit})` 
+            }, 
+            plotOptions: { 
+                pie: { 
+                    allowPointSelect: true, 
+                    cursor: 'pointer', 
+                    showInLegend: true, // Show items in legend
+                    dataLabels: { 
+                        enabled: true, // Turn on labels on the visual
+                        format: '<b>{point.name}</b>: {point.percentage:.1f} %',
+                        distance: 10,
+                        style: {
+                            fontSize: '11px',
+                            textOutline: 'none',
+                            fontWeight: 'normal',
+                            color: '#333'
+                        },
+                        filter: {
+                            property: 'percentage',
+                            operator: '>',
+                            value: 2 // Only show label if slice is > 2% to prevent clutter
+                        }
+                    } 
+                } 
+            },
+            legend: {
+                enabled: true,
+                align: 'right',
+                verticalAlign: 'middle',
+                layout: 'vertical',
+                itemStyle: {
+                    fontSize: '11px',
+                    fontWeight: 'normal'
+                }
+            },
+            series: [{ 
+                name: 'Contribution', 
+                colorByPoint: true, 
+                data: chartData,
+                innerSize: '40%' // Makes it a donut chart (optional, looks cleaner with labels)
+            }] 
+        }); 
+    }
     function renderStackedAreaChart(node, startDate, endDate, type) { if (stackedAreaChart) { stackedAreaChart.destroy(); stackedAreaChart = null; } const containerDiv = document.getElementById('stacked-area-chart'); if (!node.children || node.children.length === 0) { containerDiv.classList.add('hidden'); return; } containerDiv.classList.remove('hidden'); let allDates = new Set(); const filterAndAddDates = (data) => { if (!data) return; data.forEach(d => { const itemDate = new Date(d.date); if ((!startDate || itemDate >= startDate) && (!endDate || itemDate <= endDate)) { allDates.add(d.date); } }); }; filterAndAddDates(node.data); node.children.forEach(child => filterAndAddDates(child.data)); const sortedDates = Array.from(allDates).sort(); if (sortedDates.length === 0) return; const parentDataMap = new Map(node.data.map(d => [d.date, d.value])); const childDataMaps = node.children.map(child => ({ name: child.name, map: new Map(child.data.map(d => [d.date, d.value])) })); const seriesData = []; childDataMaps.forEach(child => { const data = sortedDates.map(date => [new Date(date).getTime(), child.map.get(date) || 0]); seriesData.push({ name: child.name, data: data }); }); const unattributedData = sortedDates.map(date => { const timestamp = new Date(date).getTime(); const parentValue = parentDataMap.get(date) || 0; const childrenSum = childDataMaps.reduce((sum, child) => sum + (child.map.get(date) || 0), 0); return [timestamp, Math.max(0, parentValue - childrenSum)]; }); seriesData.push({ name: 'Unattributed', data: unattributedData, color: '#cbd5e1' }); const unit = type === 'energy' ? 'kWh' : (node.metadata.unit || 'value'); stackedAreaChart = Highcharts.chart('stacked-area-chart', { chart: { type: 'area', zoomType: 'x', height: 200 }, title: { text: null }, xAxis: { type: 'datetime' }, yAxis: { labels: { format: '{value}%' }, title: { enabled: false } }, tooltip: { pointFormat: `<span style="color:{series.color}">{series.name}</span>: <b>{point.percentage:.1f}%</b> ({point.y:,.2f} ${unit})<br/>`, split: true }, plotOptions: { area: { stacking: 'percent', marker: { enabled: false }, lineWidth: 0 } }, series: seriesData }); }
     
     function renderMultiLineChart(node, startDate, endDate, type) { if (multiLineChart) { multiLineChart.destroy(); multiLineChart = null; } const containerDiv = document.getElementById('multi-line-chart'); if (!node.children || node.children.length === 0) { containerDiv.classList.add('hidden'); return; } containerDiv.classList.remove('hidden'); let allDates = new Set(); const filterAndAddDates = (data) => { if (!data) return; data.forEach(d => { const itemDate = new Date(d.date); if ((!startDate || itemDate >= startDate) && (!endDate || itemDate <= endDate)) { allDates.add(d.date); } }); }; node.children.forEach(child => filterAndAddDates(child.data)); const sortedDates = Array.from(allDates).sort(); if (sortedDates.length === 0) return; const seriesData = node.children.map(child => { const childMap = new Map(child.data.map(d => [d.date, d.value])); const data = sortedDates.map(date => [new Date(date).getTime(), childMap.get(date) || 0]); return { name: child.name, data: data }; }); let unit = 'value'; if (type === 'energy') { unit = 'kWh'; } else if (node.children[0] && node.children[0].metadata) { unit = node.children[0].metadata.unit || 'units'; } multiLineChart = Highcharts.chart('multi-line-chart', { chart: { type: 'line', zoomType: 'x', height: 200 }, title: { text: null }, yAxis: { title: { text: unit } }, xAxis: { type: 'datetime' }, tooltip: { shared: true }, legend: { enabled: false }, series: seriesData }); }
