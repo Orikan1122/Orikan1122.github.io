@@ -1,21 +1,390 @@
-body { font-family: sans-serif; background: #f4f4f9; margin: 0; }
-#app-container { display: flex; height: 100vh; }
-#controls-panel { width: 350px; padding: 20px; background: white; overflow-y: auto; border-right: 1px solid #ddd; }
-#charts-area { flex: 1; padding: 20px; display: flex; flex-direction: column; gap: 20px; overflow-y: auto; }
+:root {
+    --panel-bg: #ffffff;
+    --app-bg: #f4f6f8;
+    --text-color: #333333;
+    --header-color: #0d3c4b; /* Dark Teal */
+    --border-color: #e0e0e0;
+    
+    /* Buttons */
+    --primary-btn: #007bff;
+    --primary-btn-hover: #0056b3;
+    --secondary-btn: #6c757d;
+    --secondary-btn-hover: #545b62;
+    --danger-btn: #dc3545;
+    --danger-btn-hover: #a71d2a;
+    --warning-btn: #ffc107;
+    --warning-btn-hover: #d39e00;
 
-.control-section { margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 15px; }
-h2 { font-size: 16px; color: #333; margin-top: 0; }
-textarea { width: 100%; height: 100px; }
-button { width: 100%; padding: 8px; margin-top: 5px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 4px; }
-button:hover { background: #0056b3; }
-#resetZoomBtn, #exportSetupBtn, #importSetupBtn { background: #6c757d; }
+    /* Inputs */
+    --input-border: #ced4da;
+    --input-focus: #80bdff;
+}
 
-.chart-wrapper { display: flex; background: white; padding: 10px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); min-height: 300px; }
-.chart-main { flex: 1; min-width: 0; }
-.stats-panel { width: 180px; margin-left: 10px; border-left: 1px solid #eee; padding-left: 10px; font-size: 12px; overflow-y: auto; }
+/* --- GLOBAL RESET & LAYOUT --- */
+* { box-sizing: border-box; }
 
-.series-item { display: flex; gap: 5px; margin-bottom: 5px; background: #f9f9f9; padding: 5px; }
-.series-item input { flex: 1; }
-.formula-item { background: #eee; padding: 5px; margin-bottom: 5px; display: flex; justify-content: space-between; font-size: 12px; }
-.formula-btn { width: auto; font-size: 10px; padding: 2px 5px; margin-left: 2px; }
-.u-tooltip { position: absolute; background: rgba(0,0,0,0.8); color: white; padding: 5px; border-radius: 3px; pointer-events: none; display: none; z-index: 100; font-size: 12px; }
+body { 
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+    margin: 0; 
+    background-color: var(--app-bg); 
+    color: var(--text-color); 
+    height: 100vh;
+    overflow: hidden; /* Prevent body scroll, use container scroll */
+}
+
+#app-container {
+    display: flex;
+    height: 100vh;
+    width: 100vw;
+}
+
+/* --- SIDEBAR (CONTROLS) --- */
+#controls-panel {
+    flex: 0 0 380px; /* Fixed width */
+    height: 100%;
+    padding: 20px;
+    background: var(--panel-bg);
+    box-shadow: 2px 0 10px rgba(0,0,0,0.05);
+    overflow-y: auto; /* Scrollable sidebar */
+    border-right: 1px solid var(--border-color);
+    z-index: 10;
+}
+
+#controls-panel h1 {
+    text-align: center;
+    color: var(--header-color);
+    font-size: 22px;
+    margin-top: 0;
+    margin-bottom: 20px;
+    border-bottom: 2px solid var(--header-color);
+    padding-bottom: 10px;
+}
+
+#controls-panel h2 {
+    font-size: 16px;
+    color: var(--header-color);
+    margin-top: 25px;
+    margin-bottom: 10px;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 5px;
+}
+
+.control-section { margin-bottom: 25px; }
+
+/* --- INPUTS & BUTTONS --- */
+textarea, input[type="text"], input[type="number"], select {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid var(--input-border);
+    border-radius: 4px;
+    font-size: 14px;
+    font-family: inherit;
+    transition: border-color 0.2s;
+}
+
+textarea:focus, input:focus, select:focus {
+    outline: none;
+    border-color: var(--primary-btn);
+    box-shadow: 0 0 0 3px rgba(0,123,255,0.15);
+}
+
+textarea { 
+    height: 120px; 
+    font-family: 'Courier New', Courier, monospace; 
+    font-size: 13px; 
+    resize: vertical;
+}
+
+button {
+    width: 100%;
+    padding: 10px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    color: white;
+    transition: background-color 0.2s;
+    margin-top: 8px;
+}
+
+/* Specific Button Colors */
+#generateChartBtn, #createFormulaColumnBtn { background-color: var(--primary-btn); }
+#generateChartBtn:hover, #createFormulaColumnBtn:hover { background-color: var(--primary-btn-hover); }
+
+#resetZoomBtn, #exportSetupBtn, #importSetupBtn { background-color: var(--secondary-btn); margin-top: 5px; }
+#resetZoomBtn:hover, #exportSetupBtn:hover, #importSetupBtn:hover { background-color: var(--secondary-btn-hover); }
+
+/* --- SPECIFIC CONTROL GROUPS --- */
+
+/* Aggregation Dropdowns (Row Layout) */
+.aggregation-control-container div {
+    display: flex;
+    gap: 10px;
+    margin-top: 5px;
+}
+
+/* Weekday Checkboxes */
+.weekday-filter-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin: 10px 0;
+}
+.weekday-filter-container label, 
+.gap-control-container label,
+.mode-control-container label {
+    cursor: pointer;
+    font-size: 14px;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+/* Filter Options (Min/Max) */
+.filter-options {
+    background: #f8f9fa;
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    margin-top: 5px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+.filter-options input[type="number"] { width: 70px; }
+.filter-options select { flex: 1; min-width: 120px; }
+
+/* --- FORMULA LIST --- */
+#formula-creator-container {
+    display: flex;
+    gap: 5px;
+}
+#formulaInput { flex: 1; }
+#createFormulaColumnBtn { width: auto; margin-top: 0; padding: 0 15px; }
+
+#formula-columns-list { margin-top: 10px; }
+.formula-item {
+    background: #eef2f5;
+    border: 1px solid #dee2e6;
+    padding: 8px;
+    border-radius: 4px;
+    margin-bottom: 6px;
+    font-size: 13px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.formula-text {
+    font-family: monospace;
+    color: #495057;
+    margin-right: 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.formula-actions { display: flex; gap: 4px; }
+.formula-btn {
+    width: auto;
+    padding: 3px 8px;
+    font-size: 11px;
+    margin: 0;
+}
+.edit-btn { background-color: var(--warning-btn); color: #212529; }
+.edit-btn:hover { background-color: var(--warning-btn-hover); }
+.delete-btn { background-color: var(--danger-btn); }
+.delete-btn:hover { background-color: var(--danger-btn-hover); }
+
+/* --- SERIES CONFIGURATION --- */
+.series-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    background: #fafafa;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    margin-bottom: 6px;
+}
+.series-item-label {
+    font-size: 12px;
+    font-weight: bold;
+    color: #555;
+    flex: 0 0 60px; /* Fixed label width */
+}
+.series-name-input { padding: 4px 8px; font-size: 13px; }
+.series-chart-select { padding: 4px; font-size: 13px; flex: 0 0 95px; }
+
+.placeholder {
+    color: #999;
+    font-style: italic;
+    font-size: 13px;
+    text-align: center;
+    padding: 10px;
+}
+
+/* --- CHARTS AREA (RIGHT SIDE) --- */
+#charts-area {
+    flex: 1;
+    padding: 20px;
+    background-color: var(--app-bg);
+    overflow-y: auto; /* Main scroll area */
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    position: relative;
+}
+
+/* Chart Wrapper: Holds Chart + Stats Panel */
+.chart-wrapper {
+    background: var(--panel-bg);
+    border-radius: 8px;
+    padding: 15px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    display: flex;
+    min-height: 320px; /* Ensure height for plot */
+    border: 1px solid white; /* clean edge */
+}
+
+/* Left part of wrapper: The Chart itself */
+.chart-main {
+    flex: 1; /* Takes up remaining space */
+    display: flex;
+    flex-direction: column;
+    min-width: 0; /* Prevents flexbox overflow issues */
+}
+
+.chart-main h3 {
+    margin: 0 0 10px 0;
+    color: var(--header-color);
+    font-size: 16px;
+    border-left: 4px solid var(--primary-btn);
+    padding-left: 10px;
+}
+
+.chart-container {
+    flex: 1;
+    width: 100%;
+    position: relative;
+}
+
+/* Right part of wrapper: The Statistics Panel */
+.stats-panel {
+    flex: 0 0 220px; /* Fixed width for stats */
+    margin-left: 20px;
+    padding-left: 15px;
+    border-left: 1px solid var(--border-color);
+    overflow-y: auto;
+    max-height: 300px;
+    font-size: 12px;
+}
+
+/* Custom Scrollbar for Stats */
+.stats-panel::-webkit-scrollbar { width: 6px; }
+.stats-panel::-webkit-scrollbar-track { background: #f1f1f1; }
+.stats-panel::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
+.stats-panel::-webkit-scrollbar-thumb:hover { background: #aaa; }
+
+.stats-panel::before {
+    content: "Statistik (sichtbarer Bereich)";
+    display: block;
+    font-weight: bold;
+    color: #888;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+}
+
+/* Stats Groups */
+.stats-series-group {
+    background: #fdfdfd;
+    border: 1px solid #f0f0f0;
+    border-radius: 4px;
+    padding: 8px;
+    margin-bottom: 10px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+}
+
+.stats-series-group strong {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 13px;
+    color: #333;
+}
+
+.stats-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 3px;
+    color: #555;
+}
+.stats-row span { color: #888; }
+.stats-row b { color: #333; font-weight: 600; }
+
+/* Stats Table (for Duration Curve) */
+.stats-series-group table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 8px;
+    font-size: 11px;
+}
+.stats-series-group table th, 
+.stats-series-group table td {
+    padding: 3px 5px;
+    border-bottom: 1px solid #eee;
+}
+.stats-series-group table th {
+    background-color: #f8f9fa;
+    color: #666;
+    font-weight: 600;
+    text-align: left;
+}
+.stats-series-group table td:last-child {
+    text-align: right;
+    font-family: monospace;
+}
+
+/* --- TOOLTIP (uPlot) --- */
+.u-tooltip {
+    position: absolute;
+    background: rgba(255, 255, 255, 0.95);
+    color: #333;
+    padding: 10px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+    box-shadow: 2px 2px 10px rgba(0,0,0,0.15);
+    pointer-events: none;
+    z-index: 1000;
+    font-size: 12px;
+    line-height: 1.4;
+    white-space: nowrap;
+    display: none;
+}
+.u-tooltip b {
+    display: block;
+    margin-bottom: 5px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 3px;
+    color: var(--header-color);
+}
+.u-tooltip div {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+/* --- STATUS BAR --- */
+.status-panel {
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid var(--border-color);
+    font-size: 13px;
+    color: #666;
+    line-height: 1.5;
+}
+
+/* Helper for hidden elements */
+.hidden { display: none !important; }
