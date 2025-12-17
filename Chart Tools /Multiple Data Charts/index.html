@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Multi-Chart Dashboard</title>
+    <!-- uPlot Bibliothek laden -->
     <link rel="stylesheet" href="https://leeoniya.github.io/uPlot/dist/uPlot.min.css">
     <link rel="stylesheet" href="style.css">
 </head>
@@ -15,12 +16,36 @@
 
             <div class="control-section">
                 <h2>1. Daten einfügen</h2>
-                <textarea id="dataInput" placeholder="TT.MM.JJJJ HH:mm	Wert1	Wert2..."></textarea>
+                <textarea id="dataInput" placeholder="TT.MM.JJJJ HH:mm&#9;Wert1&#9;Wert2..."></textarea>
                 <button id="generateChartBtn">Daten verarbeiten & Charts erstellen</button>
             </div>
 
             <div class="control-section">
                 <h2>2. Globale Chart-Optionen</h2>
+                
+                <!-- WICHTIG: Neue IDs für Aggregation und Methode -->
+                <div class="aggregation-control-container">
+                    <label>Daten-Auflösung & Methode:</label>
+                    <div style="display: flex; gap: 10px;">
+                        <select id="aggregationSelect" style="flex:1">
+                            <option value="original">Original (Minutengenau)</option>
+                            <option value="hour">Stündlich</option>
+                            <option value="day">Täglich</option>
+                        </select>
+                        <select id="aggregationMethod" style="flex:1">
+                            <option value="avg">Durchschnitt (Ø)</option>
+                            <option value="sum">Summe (∑)</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- WICHTIG: ID für Dauerlinie -->
+                <div class="mode-control-container">
+                    <label style="font-weight: bold; color: #1565c0;">
+                        <input type="checkbox" id="durationCurveCheckbox"> Als Jahresdauerlinie anzeigen (XY sortiert)
+                    </label>
+                </div>
+
                 <div class="weekday-filter-container">
                     <label><input type="checkbox" class="weekday-filter" value="1" checked> Mo</label>
                     <label><input type="checkbox" class="weekday-filter" value="2" checked> Di</label>
@@ -31,7 +56,7 @@
                     <label><input type="checkbox" class="weekday-filter" value="0" checked> So</label>
                 </div>
                 <div class="gap-control-container">
-                    <label><input type="checkbox" id="hideTimeGapsCheckbox"> Zeitlücken ausblenden</label>
+                    <label><input type="checkbox" id="hideTimeGapsCheckbox"> Zeitlücken ausblenden (nur Zeitmodus)</label>
                 </div>
                 <button id="resetZoomBtn">Globalen Zoom zurücksetzen</button>
             </div>
@@ -74,9 +99,7 @@
                     <input type="text" id="formulaInput" placeholder="z.B. {1} + {2}">
                     <button id="createFormulaColumnBtn">Neue Spalte erstellen</button>
                 </div>
-                <div id="formula-columns-list">
-                    <!-- Erstellte Formel-Spalten werden hier angezeigt -->
-                </div>
+                <div id="formula-columns-list"></div>
             </div>
 
             <div class="control-section">
@@ -88,7 +111,7 @@
 
             <div class="control-section">
                 <h2>7. Layout speichern / laden</h2>
-                <p class="layout-note">Hinweis: Der Layout-Export speichert die Wochentags- und Wertefilter, die Spaltennamen und die Zuweisung zu den Charts.</p>
+                <p class="layout-note">Speichert Filter, Formeln und Namen.</p>
                 <button id="exportSetupBtn">Layout exportieren</button>
                 <button id="importSetupBtn">Layout importieren</button>
             </div>
@@ -102,27 +125,33 @@
                     <h3>Chart 1</h3>
                     <div id="chartContainer1" class="chart-container"></div>
                 </div>
-                <div id="stats-panel-1" class="stats-panel"></div>
+                <div id="stats-panel-1" class="stats-panel">
+                    <p class="placeholder">Keine Daten</p>
+                </div>
             </div>
             <div id="chart-wrapper-2" class="chart-wrapper">
                 <div class="chart-main">
                     <h3>Chart 2</h3>
                     <div id="chartContainer2" class="chart-container"></div>
                 </div>
-                <div id="stats-panel-2" class="stats-panel"></div>
+                <div id="stats-panel-2" class="stats-panel">
+                    <p class="placeholder">Keine Daten</p>
+                </div>
             </div>
             <div id="chart-wrapper-3" class="chart-wrapper">
                  <div class="chart-main">
                     <h3>Chart 3</h3>
                     <div id="chartContainer3" class="chart-container"></div>
                 </div>
-                <div id="stats-panel-3" class="stats-panel"></div>
+                <div id="stats-panel-3" class="stats-panel">
+                    <p class="placeholder">Keine Daten</p>
+                </div>
             </div>
-            <!-- Tooltip is shared by all charts -->
             <div class="u-tooltip"></div>
         </div>
     </div>
 
+    <!-- Wichtig: uPlot VOR script.js laden -->
     <script src="https://leeoniya.github.io/uPlot/dist/uPlot.iife.min.js"></script>
     <script src="script.js"></script>
 </body>

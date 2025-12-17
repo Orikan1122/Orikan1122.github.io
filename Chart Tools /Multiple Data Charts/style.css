@@ -1,156 +1,21 @@
-:root {
-    --panel-bg: #fff;
-    --app-bg: #f4f4f9;
-    --text-color: #333;
-    --header-color: #0b4a58;
-    --primary-btn: #1565c0;
-    --primary-btn-hover: #0d47a1;
-    --secondary-btn: #6c757d;
-    --secondary-btn-hover: #5a6268;
-    --border-color: #eee;
-}
+body { font-family: sans-serif; background: #f4f4f9; margin: 0; }
+#app-container { display: flex; height: 100vh; }
+#controls-panel { width: 350px; padding: 20px; background: white; overflow-y: auto; border-right: 1px solid #ddd; }
+#charts-area { flex: 1; padding: 20px; display: flex; flex-direction: column; gap: 20px; overflow-y: auto; }
 
-body { 
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
-    margin: 0; 
-    background-color: var(--app-bg); 
-    color: var(--text-color); 
-}
+.control-section { margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 15px; }
+h2 { font-size: 16px; color: #333; margin-top: 0; }
+textarea { width: 100%; height: 100px; }
+button { width: 100%; padding: 8px; margin-top: 5px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 4px; }
+button:hover { background: #0056b3; }
+#resetZoomBtn, #exportSetupBtn, #importSetupBtn { background: #6c757d; }
 
-#app-container {
-    display: flex;
-    height: 100vh;
-}
+.chart-wrapper { display: flex; background: white; padding: 10px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); min-height: 300px; }
+.chart-main { flex: 1; min-width: 0; }
+.stats-panel { width: 180px; margin-left: 10px; border-left: 1px solid #eee; padding-left: 10px; font-size: 12px; overflow-y: auto; }
 
-#controls-panel {
-    flex: 0 0 380px;
-    padding: 20px;
-    background: var(--panel-bg);
-    box-shadow: 2px 0 10px rgba(0,0,0,0.1);
-    overflow-y: auto;
-}
-
-#charts-area {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    padding: 20px;
-    gap: 15px;
-    position: relative;
-}
-
-/* --- KORREKTES LAYOUT FÜR CHART & STATISTIK-PANEL --- */
-.chart-wrapper {
-    flex: 1;
-    display: flex; /* Dies ist entscheidend, damit Chart und Panel nebeneinander liegen */
-    background: var(--panel-bg);
-    border-radius: 8px;
-    padding: 10px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-    min-height: 0;
-}
-
-.chart-main {
-    flex: 1; /* Der Haupt-Chart-Bereich füllt den verfügbaren Platz */
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-}
-/* --- ENDE DER KORREKTUR --- */
-
-.chart-main h3 {
-    margin: 0 0 10px 5px;
-    color: var(--header-color);
-    font-size: 16px;
-}
-.chart-container {
-    width: 100%;
-    flex-grow: 1;
-}
-
-/* Styles für die seitlichen Statistik-Panels */
-.stats-panel {
-    flex: 0 0 200px; /* Gibt dem Panel eine feste Breite von 200px */
-    padding: 10px;
-    margin-left: 15px;
-    border-left: 1px solid var(--border-color);
-    overflow-y: auto;
-}
-
-.stats-panel::before {
-    content: "Statistiken (Auswahl)";
-    display: block;
-    font-weight: bold;
-    font-size: 14px;
-    color: var(--header-color);
-    margin-bottom: 10px;
-}
-
-.stats-panel .placeholder {
-    font-style: italic;
-    color: #888;
-    font-size: 13px;
-}
-.stats-series-group {
-    margin-bottom: 10px;
-}
-.stats-series-group strong {
-    font-size: 14px;
-    display: block;
-    margin-bottom: 5px;
-    border-bottom: 1px solid #f0f0f0;
-    padding-bottom: 3px;
-    word-wrap: break-word;
-}
-.stats-series-group div {
-    font-size: 13px;
-    padding-left: 5px;
-}
-
-/* Controls Panel Styles */
-h1 { text-align: center; color: var(--header-color); font-size: 24px; }
-h2 { border-bottom: 2px solid var(--border-color); padding-bottom: 5px; margin-top: 25px; margin-bottom: 15px; font-size: 18px; }
-.control-section { margin-bottom: 20px; }
-
-textarea { width: 100%; height: 150px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; padding: 10px; font-family: 'Courier New', Courier, monospace; font-size: 14px; }
-button { width: 100%; padding: 10px; background-color: var(--primary-btn); color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 15px; margin-top: 10px; }
-button:hover { background-color: var(--primary-btn-hover); }
-
-#resetZoomBtn, #exportSetupBtn, #importSetupBtn { background-color: var(--secondary-btn); }
-#resetZoomBtn:hover, #exportSetupBtn:hover, #importSetupBtn:hover { background-color: var(--secondary-btn-hover); }
-
-.weekday-filter-container { display: flex; flex-wrap: wrap; gap: 15px; padding: 5px 0; }
-.weekday-filter-container label, .gap-control-container label, .filter-control-container label { cursor: pointer; user-select: none; font-size: 15px; }
-.gap-control-container { margin-top: 15px; }
-
-.filter-options { margin-top: 10px; padding: 10px; border: 1px solid var(--border-color); border-radius: 4px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
-.filter-options input[type="number"] { width: 80px; padding: 6px; border: 1px solid #ccc; border-radius: 4px; }
-.filter-options select { padding: 6px; border: 1px solid #ccc; border-radius: 4px; flex: 1; }
-
-.series-config-container .series-item { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 4px; margin-bottom: 5px; border: 1px solid var(--border-color); }
-.series-config-container .series-item-label { font-weight: bold; flex-basis: 60px; }
-.series-config-container input[type="text"] { flex: 1; padding: 6px; border: 1px solid #ccc; border-radius: 4px; }
-.series-config-container select { flex-basis: 100px; padding: 6px; border: 1px solid #ccc; border-radius: 4px; }
-.series-config-container .placeholder { font-style: italic; color: #888; }
-
-#formula-creator-container { display: flex; gap: 10px; margin-bottom: 10px; }
-#formulaInput { flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
-#createFormulaColumnBtn { flex-basis: 150px; margin-top: 0; }
-
-.formula-item { background-color: #e9ecef; padding: 8px; border-radius: 4px; margin-bottom: 5px; font-size: 14px; display: flex; justify-content: space-between; align-items: center; }
-
-.formula-item-buttons button { 
-    width: auto; 
-    padding: 2px 6px; 
-    margin: 0 0 0 5px; 
-    font-size: 12px; 
-    line-height: 1.5; 
-    background-color: var(--secondary-btn); 
-}
-.formula-item-buttons button:hover { 
-    background-color: var(--secondary-btn-hover); 
-}
-
-.layout-note { font-size: 13px; font-style: italic; color: #555; margin-bottom: 10px; }
-.status-panel { margin-top: 15px; font-style: italic; color: #555; padding-top: 15px; border-top: 1px solid var(--border-color); }
-.u-tooltip { background: rgba(0, 0, 0, 0.85); color: white; padding: 8px; border-radius: 4px; font-size: 14px; position: absolute; z-index: 10; pointer-events: none; display: none; }
+.series-item { display: flex; gap: 5px; margin-bottom: 5px; background: #f9f9f9; padding: 5px; }
+.series-item input { flex: 1; }
+.formula-item { background: #eee; padding: 5px; margin-bottom: 5px; display: flex; justify-content: space-between; font-size: 12px; }
+.formula-btn { width: auto; font-size: 10px; padding: 2px 5px; margin-left: 2px; }
+.u-tooltip { position: absolute; background: rgba(0,0,0,0.8); color: white; padding: 5px; border-radius: 3px; pointer-events: none; display: none; z-index: 100; font-size: 12px; }
