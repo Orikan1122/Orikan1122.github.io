@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Markdown Tool & Editor</title>
+    <!-- Import Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&family=Merriweather:wght@400;700&family=Fira+Code&display=swap" rel="stylesheet">
+    <!-- Link to Custom CSS -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <header>
+        <div class="header-left">
+            <h1>MD Builder</h1>
+        </div>
+        
+        <!-- Style Controls -->
+        <div class="controls">
+            <!-- Font & Size -->
+            <div class="control-group">
+                <select id="fontSelect" title="Font Family">
+                    <option value="'Roboto', sans-serif">Roboto</option>
+                    <option value="Arial, Helvetica, sans-serif">Arial</option>
+                    <option value="'Effra', 'Frutiger', 'Segoe UI', sans-serif">Effra</option>
+                    <option value="'Merriweather', serif">Merriweather</option>
+                    <option value="'Fira Code', monospace">Code</option>
+                </select>
+                <input type="number" id="sizeInput" value="16" min="10" max="40" title="Font Size (px)">
+                <input type="color" id="colorInput" value="#333333" title="Base Text Color">
+            </div>
+
+            <div class="control-divider"></div>
+
+            <!-- ACTION BUTTONS -->
+            <div class="control-group">
+                <button id="promptBtn" class="btn ai-btn" title="Copy instruction for ChatBot">
+                    🤖 Get AI Prompt
+                </button>
+                <button id="copyHtmlBtn" class="btn html-btn" title="Copy rendered HTML code">
+                    📋 Copy HTML
+                </button>
+                <label for="fileUpload" class="btn upload-btn">
+                    📂 Upload
+                </label>
+                <input type="file" id="fileUpload" accept=".md,.txt">
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- Column 1: Raw Markdown Input -->
+        <section class="panel">
+            <div class="panel-header">Raw Markdown</div>
+            <textarea id="rawInput" placeholder="# Type Markdown here..."></textarea>
+        </section>
+
+        <!-- Column 2: Split Element Editor -->
+        <section class="panel">
+            <div class="panel-header">Block Editor</div>
+            <div id="elementList" class="scrollable-list">
+                <p class="placeholder-text">Add text to see blocks...</p>
+            </div>
+        </section>
+
+        <!-- Column 3: HTML Output -->
+        <section class="panel">
+            <div class="panel-header">HTML Preview</div>
+            <div id="previewOutput" class="preview-box"></div>
+        </section>
+    </main>
+
+    <!-- Import Marked.js -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
