@@ -142,7 +142,8 @@
               tree._files.forEach(file => {
                   const li = document.createElement('li');
                   const button = document.createElement('a');
-                  button.href = file.path;
+                  // URL-encode the path to handle spaces and special characters correctly
+                  button.href = file.path.split('/').map(encodeURIComponent).join('/');
                   button.textContent = file.name.replace(/_/g, ' ');
                   button.className = 'tool-button';
                   li.appendChild(button);
