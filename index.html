@@ -92,7 +92,7 @@
     try {
       const response = await fetch(apiUrl);
       const data = await response.json();
-      const indexFiles = data.tree.filter(file => file.path.endsWith('/index.html'));
+      const indexFiles = data.tree.filter(file => file.path.toLowerCase().endsWith('/index.html'));
 
       if (indexFiles.length === 0) {
         container.innerHTML = '<p>No tools with an index.html file were found.</p>';
