@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secured Script Manager</title>
+    <style>
+        :root { --bg: #1e1e1e; --sidebar: #252526; --accent: #0078d4; --text: #d4d4d4; }
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; height: 100vh; background: var(--bg); color: var(--text); overflow: hidden; }
+        
+        /* Layout */
+        .sidebar { width: 300px; background: var(--sidebar); border-right: 1px solid #3e3e42; display: flex; flex-direction: column; }
+        .main { flex-grow: 1; padding: 20px; display: flex; flex-direction: column; gap: 15px; }
+        
+        /* Elements */
+        input, textarea { background: #3c3c3c; border: 1px solid #3e3e42; color: white; padding: 10px; border-radius: 4px; font-family: inherit; }
+        .code-editor { flex-grow: 1; font-family: monospace; resize: none; white-space: pre; overflow: auto; }
+        button { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; background: var(--accent); color: white; }
+        .script-item { padding: 10px; cursor: pointer; border-bottom: 1px solid #333; }
+        .script-item:hover { background: #2a2d2e; }
+        .script-item.active { border-left: 3px solid var(--accent); background: #37373d; }
+        
+        /* LOGIN MODAL */
+        #loginOverlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); display: flex; justify-content: center; align-items: center; z-index: 100;
+        }
+        .login-box {
+            background: #252526; padding: 30px; border-radius: 8px; width: 400px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5); display: flex; flex-direction: column; gap: 15px;
+        }
+        .login-box h2 { margin-top: 0; }
+        .login-box label { font-size: 12px; color: #888; margin-bottom: -10px; }
+    </style>
+</head>
+<body>
+
+    <div id="loginOverlay">
+        <div class="login-box">
+            <h2>Setup / Login</h2>
+            <p style="font-size:13px; color:#aaa;">Ihre Daten werden nur lokal im Browser gespeichert.</p>
+            
+            <label>Google Script Web App URL</label>
+            <input type="text" id="cfgUrl" placeholder="https://script.google.com/macros/s/..." >
+            
+            <label>Data File ID (Google Drive)</label>
+            <input type="text" id="cfgId" placeholder="1ySDPNPo8..." >
+            
+            <label>Zugriffspasswort</label>
+            <input type="password" id="cfgPw" placeholder="Ihr geheimes Passwort">
+            
+            <button onclick="saveConfigAndLogin()">Verbinden</button>
+        </div>
+    </div>
+
+    <div class="sidebar">
+        <div style="padding:15px"><input id="search" placeholder="Search..." onkeyup="renderList()" style="width:100%;box-sizing:border-box"></div>
+        <div id="list" style="flex-grow:1; overflow-y:auto"></div>
+        <button onclick="createNew()" style="margin:10px">+ New Script</button>
+        <button onclick="logout()" style="margin:10px; background:#d9534f; font-size:12px">Logout / Reset</button>
+    </div>
+
+    <div class="main">
+        <input id="inpTitle" placeholder="Title">
+        <input id="inpDesc" placeholder="Description">
+        <textarea id="inpCode" class="code-editor" placeholder="Code..." spellcheck="false"></textarea>
+        <div style="display:flex; gap:10px">
+            <button onclick="saveData()" style="background:#28a745">Save to Cloud</button>
+            <button onclick="copyCode()">Copy Code</button>
+            <button onclick="deleteCurrent()" style="background:#d9534f; margin-left:auto">Delete</button>
+        </div>
+    </div>
+
+    <script>
+        let scripts = [];
+        let currentId = null;
+        let config = { url: "", id: "", pw: "" };
+
+        // 1. INIT: Check LocalStorage
+        window.onload = () => {
+            const savedConfig = localStorage.getItem("ps_manager_config");
+            if (savedConfig) {
+                config = JSON.parse(savedConfig);
+                document.getElementById('loginOverlay').style.display = 'none';
+                loadData();
+            }
+        };
+
+        // 2. LOGIN LOGIC
+        function saveConfigAndLogin() {
+            const url = document.getElementById('cfgUrl').value.trim();
+            const id = document.getElementById('cfgId').value.trim();
+            const pw = document.getElementById('cfgPw').value.trim();
+
+            if(!url || !id || !pw) return alert("Bitte alle Felder ausfüllen!");
+
+            config = { url, id, pw };
+            localStorage.setItem("ps_manager_config", JSON.stringify(config));
+            document.getElementById('loginOverlay').style.display = 'none';
+            loadData();
+        }
+
+        function logout() {
+            localStorage.removeItem("ps_manager_config");
+            location.reload();
+        }
+
+        // 3. CORE FUNCTIONS (Modified with Password)
+        async function loadData() {
+            try {
+                // Wir hängen ?id=...&pw=... an
+                const finalUrl = `${config.url}?id=${config.id}&pw=${encodeURIComponent(config.pw)}&t=${Date.now()}`;
+                const res = await fetch(finalUrl);
+                const data = await res.json();
+
+                if (data.error) throw new Error(data.error);
+                scripts = Array.isArray(data) ? data : [];
+                renderList();
+            } catch (err) {
+                alert("Fehler beim Laden: " + err.message + "\n\nPrüfen Sie Passwort und URL.");
+                document.getElementById('loginOverlay').style.display = 'flex'; // Show login again on error
+            }
+        }
+
+        async function saveData() {
+            if (!currentId) return;
+            updateLocalEntry();
+            
+            const btn = document.querySelector('button[onclick="saveData()"]');
+            const oldText = btn.innerText;
+            btn.innerText = "Saving..."; btn.disabled = true;
+
+            try {
+                const finalUrl = `${config.url}?id=${config.id}&pw=${encodeURIComponent(config.pw)}`;
+                await fetch(finalUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify(scripts)
+                });
+                // Success assumption for simple CORS
+            } catch (err) {
+                console.error(err);
+            } finally {
+                btn.innerText = oldText; btn.disabled = false;
+            }
+        }
+
+        // --- Standard UI Logic (Same as before) ---
+        function renderList() {
+            const list = document.getElementById('list');
+            const search = document.getElementById('search').value.toLowerCase();
+            list.innerHTML = '';
+            scripts.forEach(s => {
+                if ((s.title+s.desc).toLowerCase().includes(search)) {
+                    const d = document.createElement('div');
+                    d.className = `script-item ${s.id==currentId?'active':''}`;
+                    d.innerHTML = `<b>${s.title}</b><br><small>${s.desc}</small>`;
+                    d.onclick = () => loadEntry(s.id);
+                    list.appendChild(d);
+                }
+            });
+        }
+        function loadEntry(id) {
+            currentId = id;
+            const s = scripts.find(x => x.id === id);
+            document.getElementById('inpTitle').value = s.title;
+            document.getElementById('inpDesc').value = s.desc;
+            document.getElementById('inpCode').value = s.code;
+            renderList();
+        }
+        function createNew() {
+            currentId = Date.now().toString();
+            scripts.push({id: currentId, title: "New", desc: "", code: ""});
+            loadEntry(currentId);
+        }
+        function updateLocalEntry() {
+            const s = scripts.find(x => x.id === currentId);
+            if(s) {
+                s.title = document.getElementById('inpTitle').value;
+                s.desc = document.getElementById('inpDesc').value;
+                s.code = document.getElementById('inpCode').value;
+            }
+        }
+        function deleteCurrent() {
+            if(!confirm("Delete?")) return;
+            scripts = scripts.filter(x => x.id !== currentId);
+            currentId = null;
+            document.querySelector('.main input').value = ""; // clear inputs
+            renderList();
+            saveData();
+        }
+        function copyCode() {
+            navigator.clipboard.writeText(document.getElementById('inpCode').value);
+        }
+    </script>
+</body>
+</html>
