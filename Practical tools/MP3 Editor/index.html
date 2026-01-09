@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Cutter Pro (Edge Safe)</title>
+    <script src="https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.min.js"></script>
+    <script src="https://unpkg.com/wavesurfer.js@7/dist/plugins/regions.min.js"></script>
+    
+    <style>
+        :root { --primary: #0078D7; --dark: #202020; --light: #f0f0f0; } /* Edge Blau ;) */
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: var(--dark);
+            color: var(--light);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            background: #2b2b2b;
+            padding: 2rem;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 800px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        h2 { margin-top: 0; text-align: center; color: var(--light); }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        button, .file-upload-label {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+            font-size: 0.9rem;
+        }
+
+        .btn-primary { background-color: var(--primary); color: white; }
+        .btn-primary:hover { background-color: #005a9e; }
+        .btn-primary:disabled { background-color: #444; cursor: not-allowed; opacity: 0.7; }
+        
+        .btn-sec { background-color: #444; color: white; }
+        .btn-sec:hover { background-color: #555; }
+        .btn-sec:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        input[type="file"] { display: none; }
+        
+        .file-upload-label {
+            background-color: #3a3a3a;
+            color: white;
+            border: 1px solid #555;
+            display: inline-block;
+        }
+        .file-upload-label:hover { background-color: #444; }
+
+        #waveform {
+            width: 100%;
+            margin: 20px 0;
+            background: rgba(0,0,0,0.2);
+            border-radius: 4px;
+            /* Wichtig für Performance bei großen Dateien */
+            contain: content; 
+        }
+
+        .time-display {
+            text-align: center;
+            font-family: 'Consolas', monospace;
+            margin-top: 10px;
+            font-size: 1rem;
+            color: #ccc;
+        }
+
+        .info-text {
+            font-size: 0.8rem;
+            color: #888;
+            text-align: center;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>🎵 Audio Cutter (Edge Safe)</h2>
+    
+    <div style="text-align: center;">
+        <label for="audio-input" class="file-upload-label">📂 MP3 auswählen</label>
+        <input type="file" id="audio-input" accept="audio/*">
+    </div>
+
+    <audio id="audio-element" style="display:none;"></audio>
+
+    <div id="waveform"></div>
+    
+    <div class="time-display">
+        Start: <span id="start-time">0.00</span>s | 
+        Ende: <span id="end-time">0.00</span>s | 
+        Dauer: <span id="duration">0.00</span>s
+    </div>
+
+    <div class="controls">
+        <button id="play-btn" class="btn-sec" disabled>▶ Play/Pause</button>
+        <button id="play-region-btn" class="btn-sec" disabled>🔁 Loop Auswahl</button>
+        <button id="download-btn" class="btn-primary" disabled>💾 Speichern</button>
+    </div>
+
+    <p class="info-text">Tipp: Falls die Wellenform bei sehr großen Dateien langsam lädt, warte kurz.</p>
+</div>
+
+<script>
+    let wavesurfer;
+    let wsRegions;
+    let activeRegion;
+    let originalBlob;
+
+    // Wir holen uns das Audio Element
+    const mediaElement = document.querySelector('#audio-element');
+
+    const initWaveSurfer = () => {
+        // Alte Instanz zerstören, falls vorhanden
+        if (wavesurfer) wavesurfer.destroy();
+
+        wavesurfer = WaveSurfer.create({
+            container: '#waveform',
+            waveColor: '#555',
+            progressColor: '#0078D7',
+            cursorColor: '#fff',
+            barWidth: 2,
+            height: 100,
+            // WICHTIG: Nutze das Media Element Backend für Stabilität in Edge
+            media: mediaElement, 
+            // Optional: Rendert die Wellenform schneller, aber ungenauer
+            // backend: 'MediaElement', (in V7 via 'media' Parameter gelöst)
+        });
+
+        wsRegions = wavesurfer.registerPlugin(WaveSurfer.Regions.create());
+
+        wsRegions.on('region-updated', (region) => {
+            activeRegion = region;
+            updateTimeDisplay(region.start, region.end);
+        });
+
+        wsRegions.on('region-clicked', (region, e) => {
+            e.stopPropagation();
+            activeRegion = region;
+            region.play();
+        });
+
+        // Wenn Audio bereit ist (Decoded)
+        wavesurfer.on('decode', () => {
+            const duration = wavesurfer.getDuration();
+            // Standard Region setzen
+            wsRegions.addRegion({
+                start: duration * 0.1,
+                end: duration * 0.4,
+                color: 'rgba(0, 120, 215, 0.3)',
+                drag: true,
+                resize: true
+            });
+            
+            enableControls();
+        });
+
+        // Error Handling für Edge Crashes
+        wavesurfer.on('error', (e) => {
+            console.error("Wavesurfer Fehler:", e);
+            alert("Fehler beim Laden der Audio-Datei. Die Datei ist möglicherweise beschädigt oder zu groß für den Browser-Speicher.");
+        });
+    };
+
+    // Initialisieren beim Laden
+    initWaveSurfer();
+
+    // DOM Elemente
+    const fileInput = document.getElementById('audio-input');
+    const playBtn = document.getElementById('play-btn');
+    const playRegionBtn = document.getElementById('play-region-btn');
+    const downloadBtn = document.getElementById('download-btn');
+    
+    // UI Update
+    function updateTimeDisplay(start, end) {
+        document.getElementById('start-time').textContent = start.toFixed(2);
+        document.getElementById('end-time').textContent = end.toFixed(2);
+        document.getElementById('duration').textContent = (end - start).toFixed(2);
+    }
+
+    function enableControls() {
+        playBtn.disabled = false;
+        playRegionBtn.disabled = false;
+        downloadBtn.disabled = false;
+    }
+
+    // File Input
+    fileInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            // Reset UI
+            if(wsRegions) wsRegions.clearRegions();
+            playBtn.disabled = true;
+            
+            originalBlob = file;
+            const objectUrl = URL.createObjectURL(file);
+            
+            // Laden über Wavesurfer (nutzt intern unser mediaElement)
+            wavesurfer.load(objectUrl);
+            
+            document.querySelector('.file-upload-label').textContent = "📂 " + file.name;
+        }
+    });
+
+    // Buttons
+    playBtn.onclick = () => wavesurfer.playPause();
+    
+    playRegionBtn.onclick = () => {
+        if (activeRegion) {
+            activeRegion.play();
+        } else {
+            wavesurfer.play();
+        }
+    };
+
+    // Download Logik (Blob Slicing)
+    downloadBtn.onclick = () => {
+        if (!activeRegion || !originalBlob) {
+            alert("Bitte wähle zuerst einen Bereich aus.");
+            return;
+        }
+
+        const duration = wavesurfer.getDuration();
+        if (duration === 0) return;
+
+        const startPercent = activeRegion.start / duration;
+        const endPercent = activeRegion.end / duration;
+
+        const startByte = Math.floor(originalBlob.size * startPercent);
+        const endByte = Math.floor(originalBlob.size * endPercent);
+
+        // Sicherstellen, dass Start vor Ende liegt
+        if (startByte >= endByte) return;
+
+        const slicedBlob = originalBlob.slice(startByte, endByte, originalBlob.type);
+
+        const url = URL.createObjectURL(slicedBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `cut_${Date.now()}.mp3`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    };
+
+</script>
+
+</body>
+</html>
