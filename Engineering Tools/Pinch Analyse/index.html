@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Pinch Analysis Tool 2.0</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation"></script> 
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-title">
+                <h1>Pinch Analyse Pro 2.0</h1>
+                <p>Energy Targeting & Network Design</p>
+            </div>
+            <div class="global-settings">
+                <label>Globales ΔT<sub>min</sub> [K]: 
+                    <input type="number" id="dTmin" value="10" step="1" onchange="calculate()">
+                </label>
+                <div class="actions">
+                    <button class="btn-sec" onclick="saveToFile()">💾 Export</button>
+                    <button class="btn-sec" onclick="document.getElementById('fileInput').click()">📂 Import</button>
+                    <input type="file" id="fileInput" style="display:none" onchange="loadFromFile(event)">
+                </div>
+            </div>
+        </header>
+
+        <div class="main-layout">
+            <aside class="sidebar">
+                <div class="card input-form">
+                    <h3 id="formTitle">Strom definieren</h3>
+                    <input type="hidden" id="editIndex" value="-1">
+                    
+                    <div class="form-group">
+                        <label>Name</label>
+                        <input type="text" id="name" placeholder="z.B. Reaktor Feed">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Typ</label>
+                        <select id="type">
+                            <option value="hot">🔥 Abkühlung (Hot)</option>
+                            <option value="cold">❄️ Aufheizung (Cold)</option>
+                        </select>
+                    </div>
+
+                    <div class="row">
+                        <div class="col">
+                            <label>T Start [°C]</label>
+                            <input type="number" id="tStart" step="any">
+                        </div>
+                        <div class="col">
+                            <label>T Ziel [°C]</label>
+                            <input type="number" id="tTarget" step="any">
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col">
+                            <label>Last [kW]</label>
+                            <input type="number" id="heatLoad" step="any">
+                        </div>
+                        <div class="col">
+                            <label>h [kW/m²K]</label>
+                            <input type="number" id="hValue" value="1.0" step="0.1" title="Wärmeübergangskoeffizient">
+                        </div>
+                    </div>
+
+                    <p class="hint">Für Phasenwechsel (Latent): Start = Ziel T</p>
+
+                    <div class="btn-group">
+                        <button id="addBtn" onclick="addOrUpdateStream()">Hinzufügen</button>
+                        <button id="cancelBtn" onclick="resetForm()" class="btn-cancel" style="display:none">Abbrechen</button>
+                    </div>
+                </div>
+
+                <div class="list-container">
+                    <div class="stream-list-header">Aktive Ströme</div>
+                    <div class="table-wrapper">
+                        <table id="streamTable">
+                            <thead><tr><th>Name</th><th>T [°C]</th><th>kW</th><th>CP</th><th>Action</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </aside>
+
+            <main class="content">
+                
+                <div class="tabs">
+                    <button class="tab-link active" onclick="openTab('tab-composite')">Verbundkurven (CC)</button>
+                    <button class="tab-link" onclick="openTab('tab-gcc')">Grand Composite (GCC)</button>
+                    <button class="tab-link" onclick="openTab('tab-grid')">Grid Diagramm</button>
+                    <button class="tab-link" onclick="openTab('tab-cost')">Kosten & Optimum</button>
+                </div>
+
+                <div id="tab-composite" class="tab-content active">
+                    <div class="chart-wrapper">
+                        <canvas id="compositeChart"></canvas>
+                    </div>
+                    <div class="kpi-box">
+                        <div class="kpi-item"><strong>Heizbedarf (QH):</strong> <span id="resQH">-</span> kW</div>
+                        <div class="kpi-item"><strong>Kühlbedarf (QC):</strong> <span id="resQC">-</span> kW</div>
+                        <div class="kpi-item"><strong>Pinch Temp:</strong> <span id="resPinch">-</span> °C</div>
+                        <div class="kpi-item"><strong>Recovery:</strong> <span id="resRec">-</span> %</div>
+                    </div>
+                </div>
+
+                <div id="tab-gcc" class="tab-content">
+                    <p class="chart-desc">Nutzen Sie die GCC zur Auswahl von Utilities (Dampf, Kühlwasser).</p>
+                    <div class="chart-wrapper">
+                        <canvas id="gccChart"></canvas>
+                    </div>
+                </div>
+
+                <div id="tab-grid" class="tab-content">
+                    <p class="chart-desc">Design-Hilfe: CP-Regeln beachten! (Oben: CP_h ≤ CP_c | Unten: CP_h ≥ CP_c)</p>
+                    <div class="canvas-scroll">
+                        <canvas id="gridCanvas" height="500"></canvas>
+                    </div>
+                </div>
+
+                <div id="tab-cost" class="tab-content">
+                    <div class="chart-wrapper">
+                        <canvas id="costChart"></canvas>
+                    </div>
+                    <div id="costReport" class="report-text"></div>
+                </div>
+
+                <div class="card interpretation-panel" style="margin: 20px; border-left: 5px solid #3b82f6; background: #f0f9ff;">
+                    <h3 style="margin-top:0;">🤖 KI-Analyse & Handlungsempfehlungen</h3>
+                    <div id="ai-insight-content" class="insight-content">
+                        Warte auf Berechnung...
+                    </div>
+                </div>
+
+            </main>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
