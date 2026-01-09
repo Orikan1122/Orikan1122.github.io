@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hybrid-EWS Expert ULTIMATE | SIA & Hydraulik</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Hybrid-EWS Expert <span class="badge">ULTIMATE</span></h1>
+            <p>SIA 384/6 (50J) | Hydraulik & Druckverlust | JAZ-Simulation | Mechanik</p>
+        </header>
+
+        <div class="main-grid">
+            <!-- SIDEBAR: EINGABEN -->
+            <aside class="sidebar">
+                
+                <!-- Sektion 1: Standort & Last -->
+                <div class="card">
+                    <h3>1. Standort & Bedarf</h3>
+                    <div class="input-group">
+                        <label>Höhe (m ü.M.): <input type="number" id="altitude" value="450"></label>
+                        <label>Boden λ (W/mK): <input type="number" id="lambda" value="2.4" step="0.1"></label>
+                    </div>
+                    <label>Konstante Quelle (kW): <input type="number" id="p_source" value="150" title="z.B. Flusswasser, Abwärme"></label>
+                    <label>Januar Spitzenlast (kW): <input type="number" id="q_peak" value="250"></label>
+                    <button class="accordion-btn" onclick="toggleMonths()">Monats-Profil anpassen ▼</button>
+                    <div class="month-grid hidden" id="monthInputs"></div>
+                </div>
+                
+                <!-- Sektion 2: Feld & Bohrung -->
+                <div class="card">
+                    <h3>2. Sondenfeld Layout</h3>
+                    <div class="input-group">
+                        <label>Reihen (X): <input type="number" id="grid_x" value="2"></label>
+                        <label>Spalten (Y): <input type="number" id="grid_y" value="10"></label>
+                    </div>
+                    <label>Abstand (m): <input type="number" id="spacing" value="6"></label>
+                    <label>Bohrloch-Widerstand Rb: <input type="number" id="rb_val" value="0.09" step="0.01" title="0.08-0.12 für Doppel-U"></label>
+                </div>
+
+                <!-- Sektion 3: Hydraulik & Fluid -->
+                <div class="card">
+                    <h3>3. Fluid & Hydraulik</h3>
+                    <label>Sole-Konzentration: 
+                        <select id="glycol_percent">
+                            <option value="0">Wasser (0%)</option>
+                            <option value="20">20% Glykol</option>
+                            <option value="25" selected>25% Glykol (Std)</option>
+                            <option value="30">30% Glykol</option>
+                            <option value="35">35% Glykol</option>
+                        </select>
+                    </label>
+                    <label>Volumenstrom (l/min pro Sonde): <input type="number" id="flow_rate" value="38"></label>
+                    <small style="color:#64748b; display:block; margin-bottom:5px;">Typ: Doppel-U 32mm</small>
+                </div>
+
+                <!-- Sektion 4: Mechanik & Kosten -->
+                <div class="card">
+                    <h3>4. Rohr & Wirtschaft</h3>
+                    <div class="input-group">
+                        <label>SDR Klasse: 
+                            <select id="pipe_sdr">
+                                <option value="11">PN16 (SDR 11)</option>
+                                <option value="17">PN10 (SDR 17)</option>
+                            </select>
+                        </label>
+                        <label>Ovalität (%): <input type="number" id="ovality" value="3"></label>
+                    </div>
+                    <label>Grout Dichte (kg/m³): <input type="number" id="grout_density" value="1600"></label>
+                    <div class="input-group">
+                        <label>Bohrung (CHF/m): <input type="number" id="p_meter" value="105"></label>
+                        <label>Strom (Rp./kWh): <input type="number" id="p_elec" value="25"></label>
+                    </div>
+                </div>
+
+                <button id="simBtn" class="btn-primary">Vollständige Simulation</button>
+                <div class="btn-group">
+                    <button id="expBtn">Export JSON</button>
+                    <button id="impBtn">Import JSON</button>
+                    <input type="file" id="fileIn" style="display:none">
+                </div>
+            </aside>
+
+            <!-- MAIN: ERGEBNISSE -->
+            <main class="content">
+                <!-- Empfehlungskarte -->
+                <div class="card recommendation-card">
+                    <h3>🎯 Experten-Analyse & Strategie</h3>
+                    <div id="recText">Berechnung läuft...</div>
+                </div>
+
+                <!-- KPI Grid -->
+                <div class="results-grid">
+                    <div class="card res-box">
+                        <h4>Auslegung</h4>
+                        <div class="val" id="res_l">0 m</div>
+                        <small id="res_count">Total: 0 m</small>
+                    </div>
+                    <div class="card res-box border-sia">
+                        <h4>SIA 384/6 (50J)</h4>
+                        <div class="val" id="res_sia">-</div>
+                        <small id="res_tp">Trend 50a</small>
+                    </div>
+                    <div class="card res-box border-hydro">
+                        <h4>Hydraulik</h4>
+                        <div id="res_hydro_val" class="val-sub">-</div>
+                        <small id="res_hydro_pressure">-</small>
+                    </div>
+                    <div class="card res-box border-eff">
+                        <h4>Effizienz (JAZ)</h4>
+                        <div class="val" id="res_jaz">-</div>
+                        <small id="res_opex">Betriebskosten</small>
+                    </div>
+                </div>
+
+                <!-- Charts -->
+                <div class="charts-grid">
+                    <div class="card">
+                        <h3>Energiebilanz & JAZ Simulation</h3>
+                        <canvas id="energyChart"></canvas>
+                    </div>
+                    <div class="card">
+                        <h3>Temperaturverlauf & Hydraulik</h3>
+                        <canvas id="tempChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Details -->
+                <div class="charts-grid">
+                     <div class="card">
+                        <h3>Feld-Layout & Interferenz</h3>
+                        <canvas id="gridCanvas" width="400" height="200"></canvas>
+                    </div>
+                    <div class="card">
+                        <h3>EN 805 Druckprüfung</h3>
+                        <div class="pressure-test-flex">
+                            <canvas id="pressureCanvas" width="250" height="150"></canvas>
+                            <div id="mechReport" class="mini-report"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Textbericht -->
+                <div class="card">
+                    <h3>Wirtschaftlichkeits- & Technikbericht</h3>
+                    <div id="full_report" class="report-text">-</div>
+                </div>
+            </main>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
