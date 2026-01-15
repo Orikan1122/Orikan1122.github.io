@@ -7,47 +7,45 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- Toggle Buttons -->
     <div class="toggle-buttons">
         <button id="toggle-sidebar" class="btn btn-secondary btn-small" title="Toggle Actions Sidebar">☰</button>
+        <button id="theme-toggle" class="btn btn-secondary btn-small" title="Toggle Dark/Light Mode">🌙</button>
         <button id="toggle-tools" class="btn btn-secondary btn-small" title="Toggle Tools Pane">Tools</button>
+        <button id="toggle-calendar" class="btn btn-secondary btn-small" title="Toggle Calendar Pane">Calendar</button>
         <button id="toggle-todos" class="btn btn-secondary btn-small" title="Toggle To-Dos Pane">To-Dos</button>
     </div>
 
-    <!-- Main App Structure -->
     <div class="hub-container">
         <aside class="sidebar" id="sidebar">
             <h2>Actions</h2>
             
-            <!-- DATA ACTIONS & AUTHENTICATION -->
             <div class="data-actions">
-                <!-- Authentication UI -->
-                <div id="auth-container">
-                    <!-- This section shows when a user IS logged in -->
-                    <div id="user-info" style="display: none; text-align: center;">
-                        <img id="user-photo" src="" alt="User photo" style="width: 60px; height: 60px; border-radius: 50%; margin-bottom: 10px;">
-                        <p style="margin: 0 0 5px 0; font-size: 0.9rem;">Signed in as:</p>
-                        <p style="margin: 0 0 10px 0;"><strong id="user-display-name"></strong></p>
-                        <button id="logout-btn" class="btn btn-secondary">Log Out</button>
+                <div id="drive-config-section">
+                    <h3>Cloud Setup (Google Drive)</h3>
+                    <div class="form-group">
+                        <label for="conf-url">Web App URL</label>
+                        <input type="password" id="conf-url" placeholder="https://script.google.com/..." class="small-input">
                     </div>
-
-                    <!-- This section shows when no user is logged in -->
-                    <div id="login-section" style="display: none;">
-                         <h3>Account</h3>
-                         <button id="google-login-btn" class="btn">Sign In with Google</button>
+                    <div class="form-group">
+                        <label for="conf-id">File ID</label>
+                        <input type="password" id="conf-id" placeholder="Google Drive File ID" class="small-input">
                     </div>
+                    <div class="form-group">
+                        <label for="conf-pw">Access Password</label>
+                        <input type="password" id="conf-pw" placeholder="Secret Password" class="small-input">
+                    </div>
+                    <button id="save-config-btn" class="btn btn-secondary btn-small" style="width:100%">Save Config</button>
                 </div>
 
                 <div id="cloud-status" class="cloud-status-indicator"></div>
                 
-                <h3 style="margin-top: 20px;">Cloud Storage</h3>
+                <h3 style="margin-top: 20px;">Cloud Sync</h3>
                 <div class="data-actions-row">
-                    <button id="save-to-cloud-btn" class="btn" disabled>Save to Cloud</button>
-                    <button id="load-from-cloud-btn" class="btn" disabled>Load from Cloud</button>
+                    <button id="save-to-cloud-btn" class="btn">Save to Drive</button>
+                    <button id="load-from-cloud-btn" class="btn">Load from Drive</button>
                 </div>
                 
                 <h3 style="margin-top: 20px;">Local Data</h3>
-                 <button id="weekly-summary-btn" class="btn">Weekly Summary</button>
                 <div class="data-actions-row">
                     <button id="export-btn" class="btn">Export Data</button>
                     <div class="btn-import-wrapper">
@@ -57,9 +55,8 @@
                 </div>
             </div>
             
-            <hr style="margin: 25px 0; border: 1px solid var(--border-color);">
+            <hr style="margin: 25px 0; border: 0; border-top: 1px solid var(--border-color);">
 
-            <!-- TOOL FORM -->
             <h3>Add/Edit Tool</h3>
             <form id="add-tool-form">
                 <div class="form-group">
@@ -96,7 +93,6 @@
                 <button type="submit">Add Tool</button>
             </form>
 
-            <!-- TODO FORM -->
             <h3>Add To-Do</h3>
             <form id="add-todo-form">
                 <div class="form-group">
@@ -119,59 +115,162 @@
                 <div class="form-group">
                     <label for="todo-linked-tools">Link Tools (optional)</label>
                     <select id="todo-linked-tools" multiple>
-                        <!-- Tool options will be populated here by JS -->
-                    </select>
+                        </select>
                 </div>
                 <button type="submit">Add To-Do</button>
             </form>
         </aside>
 
-        <main class="main-content">
-                <div class="content-pane" id="tools-pane">
-                    <div class="pane-header">
-                        <h2>My Tools</h2>
-                        <div class="header-controls">
-                            <input type="search" id="tool-search-input" class="filter-input" placeholder="Filter by name/desc...">
-                            <button id="launch-all-btn" class="btn btn-small" disabled>Launch All</button>
-                        </div>
-                    </div>
-                    <div class="pane-body">
-                        <div id="category-filters"></div>
-                        <div id="tool-list-container"></div>
-                    </div>
-                </div>
-            <div class="content-pane" id="todos-pane">
-                <div class="pane-header">
-                    <h2>My To-Do List</h2>
-                    <input type="search" id="todo-search-input" class="filter-input" placeholder="Filter by task...">
-                </div>
-                <div class="pane-body">
-                     <div class="todo-options">
-                        <label><input type="checkbox" id="show-done-todos" checked> Show Completed</label>
-                    </div>
-                    <div id="todo-list-container"></div>
+    <main class="main-content" id="main-content">
+        <!-- PANE 1: TOOLS -->
+        <div class="content-pane" id="tools-pane">
+            <div class="pane-header">
+                <h2>My Tools</h2>
+                <div class="header-controls">
+                    <input type="search" id="tool-search-input" class="filter-input" placeholder="Filter by name/desc...">
+                    <button id="launch-all-btn" class="btn btn-small" disabled>Launch All</button>
                 </div>
             </div>
-        </main>
-    </div>
-
-    <!-- Weekly Summary Modal -->
-    <div class="modal-overlay" id="summary-modal-overlay">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Weekly Summary</h3>
-                <button class="close-btn" id="summary-modal-close-btn">×</button>
-            </div>
-            <div id="summary-modal-body">
-                <!-- Summary content will be injected here by JS -->
+            <div class="pane-body">
+                <div id="category-filters"></div>
+                <div id="tool-list-container"></div>
             </div>
         </div>
+
+        <!-- GUTTER 1 -->
+        <div class="gutter" id="gutter-1"></div>
+
+        <!-- PANE 2: CALENDAR (NEW) -->
+        <div class="content-pane" id="calendar-pane">
+            <div class="pane-header">
+                <h2>Year Planner</h2>
+                <div></div>
+            </div>
+            <div class="pane-body">
+                <!-- Smart Header -->
+                <div class="smart-header">
+                    <div class="smart-title" id="smart-date-display">Loading...</div>
+                    <div class="smart-info" id="smart-event-display">Loading...</div>
+                </div>
+
+                <!-- Settings Panel -->
+                <!-- REPLACE THE EXISTING <div class="settings-panel"> BLOCK WITH THIS: -->
+                <div class="settings-panel">
+                    <!-- New Header for Toggling -->
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; padding-bottom:5px; border-bottom:1px solid #ccc;">
+                        <span style="font-weight:bold; color:#000080; font-size:14px;">Configuration & Categories</span>
+                        <button id="toggle-cal-settings-btn" class="btn btn-secondary btn-small" style="font-size:11px; padding:2px 8px;">_</button>
+                    </div>
+
+                    <!-- Wrapper for collapsible content -->
+                    <div id="cal-settings-content">
+                        <div class="row-flex">
+                            <div class="input-group">
+                                <label>View Year</label>
+                                <input type="number" id="config-year" value="2026" style="width: 70px; font-weight:bold;">
+                            </div>
+                            <div class="input-group">
+                                <label>Jan Weeks</label>
+                                <input type="number" id="w-jan" value="5" min="4" max="6" style="width: 40px;">
+                            </div>
+                            <div class="input-group">
+                                <label>Dec Weeks</label>
+                                <input type="number" id="w-dec" value="6" min="4" max="6" style="width: 40px;">
+                            </div>
+                            <div class="input-group" style="flex:1;">
+                                <label>Week Pattern (Manual)</label>
+                                <textarea id="week-pattern-input"></textarea>
+                            </div>
+                            <button id="btn-reset-pattern" class="cal-btn btn-gray">Reset</button>
+                        </div>
+
+                        <div class="divider"></div>
+
+                        <div class="row-flex">
+                            <div style="display:flex; gap:10px; align-items:flex-end; border-right:1px solid #ccc; padding-right:20px;">
+                                <div class="input-group">
+                                    <label>Copy events to:</label>
+                                    <input type="number" id="copy-target-year" value="2027" style="width: 60px;">
+                                </div>
+                                <button id="btn-copy-year" class="cal-btn btn-green">Copy All</button>
+                            </div>
+
+                            <div style="flex:1; display:flex; gap:10px; align-items:flex-end;">
+                                <div class="input-group">
+                                    <label>New Category</label>
+                                    <input type="text" id="new-cat-name" placeholder="Name">
+                                </div>
+                                <div class="input-group">
+                                    <label>Color</label>
+                                    <input type="color" id="new-cat-color" value="#33ccff" style="width:40px; padding:0;">
+                                </div>
+                                <button id="btn-add-cat" class="cal-btn btn-blue">Add</button>
+                            </div>
+                        </div>
+                        <div id="cat-list-display" style="display:flex; flex-wrap:wrap; margin-top:5px;"></div>
+                    </div>
+                </div>
+
+                <!-- Editor Panel -->
+                <div class="editor-panel row-flex">
+                    <div class="input-group">
+                        <label>Start Date</label>
+                        <input type="date" id="input-start-date">
+                    </div>
+                    <div class="input-group">
+                        <label>End Date (Range)</label>
+                        <input type="date" id="input-end-date">
+                    </div>
+                    <div class="input-group">
+                        <label>Type</label>
+                        <select id="event-type"></select>
+                    </div>
+                    <div class="input-group">
+                        <label>Event Name</label>
+                        <input type="text" id="event-name" placeholder="Name" style="width:160px;">
+                    </div>
+                    <div class="input-group">
+                        <label>Time</label>
+                        <input type="text" id="event-time" placeholder="0:00" value="0:00" style="width: 60px;">
+                    </div>
+                    <div style="padding-bottom:5px;">
+                        <label style="font-size:12px; cursor: pointer; display:flex; align-items:center;">
+                            <input type="checkbox" id="event-highlight" checked> Highlight
+                        </label>
+                    </div>
+                    <button id="btn-save-event" class="cal-btn btn-save">Save</button>
+                    <button id="btn-del-event" class="cal-btn btn-del">Delete</button>
+                </div>
+
+                <!-- Grids -->
+                <div class="calendar-wrapper">
+                    <div id="calendar-top"></div>
+                    <div id="calendar-bottom"></div>
+                </div>
+
+                <!-- Lists -->
+                <div id="lists-container" class="lists-wrapper"></div>
+            </div>
+        </div>
+
+        <!-- GUTTER 2 -->
+        <div class="gutter" id="gutter-2"></div>
+
+        <!-- PANE 3: TODOS -->
+        <div class="content-pane" id="todos-pane">
+            <div class="pane-header">
+                <h2>My To-Do List</h2>
+                <input type="search" id="todo-search-input" class="filter-input" placeholder="Filter by task...">
+            </div>
+            <div class="pane-body">
+                <div class="todo-options">
+                    <label><input type="checkbox" id="show-done-todos" checked> Show Completed</label>
+                </div>
+                <div id="todo-list-container"></div>
+            </div>
+        </div>
+    </main>
     </div>
-    
-    <!-- Firebase SDKs -->
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
     
     <script src="script.js" defer></script>
 </body>

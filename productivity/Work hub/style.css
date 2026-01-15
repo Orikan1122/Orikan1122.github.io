@@ -1,18 +1,30 @@
 :root {
-    --primary-bg: #f0f2f5;
-    --secondary-bg: #ffffff;
-    --text-color: #333;
-    --header-color: #2c3e50;
-    --accent-color: #3498db;
-    --accent-hover: #2980b9;
-    --danger-color: #e74c3c;
-    --danger-hover: #c0392b;
-    --secondary-action-color: #95a5a6;
-    --secondary-action-hover: #7f8c8d;
-    --success-color: #2ecc71;
-    --border-color: #dde3e8;
-    --shadow-color: rgba(0, 0, 0, 0.1);
-    --overdue-bg: #fff1f0;
+    /* --- LIGHT MODE (High Contrast Defaults) --- */
+    --primary-bg: #eef2f6;      /* Slightly darker than pure white for background */
+    --secondary-bg: #ffffff;    /* Pure white for cards/sidebar */
+    
+    --text-color: #222222;      /* Almost black for sharp text */
+    --text-muted: #666666;
+    --header-color: #1a1a1a;
+    
+    --border-color: #ccc;       /* Darker grey for visible lines */
+    --input-bg: #ffffff;
+    --input-border: #999;       /* Darker border for inputs */
+    
+    --card-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    --modal-bg: rgba(0, 0, 0, 0.5);
+    --config-bg: #f8f9fa;
+    --overdue-bg: #fff5f5;
+    
+    /* --- BUTTONS & ACCENTS --- */
+    --accent-color: #2980b9;       /* Strong Blue */
+    --accent-hover: #1c5980;
+    --secondary-action-color: #7f8c8d; /* Strong Grey */
+    --secondary-action-hover: #616c6d;
+    --danger-color: #c0392b;
+    --danger-hover: #a93226;
+    --success-color: #27ae60;
+    
     /* Status Colors */
     --status-working: #2ecc71;
     --status-unfinished: #f1c40f;
@@ -20,10 +32,32 @@
     --status-not-set: #bdc3c7;
 }
 
+/* --- DARK MODE OVERRIDES --- */
+body.dark-mode {
+    --primary-bg: #121212;
+    --secondary-bg: #1e1e1e;
+    
+    --text-color: #e0e0e0;
+    --text-muted: #a0a0a0;
+    --header-color: #ffffff;
+    
+    --border-color: #444444;
+    --input-bg: #2d2d2d;
+    --input-border: #555;
+    
+    --card-shadow: 0 4px 8px rgba(0,0,0,0.4);
+    --modal-bg: rgba(0, 0, 0, 0.8);
+    --config-bg: #2d2d2d;
+    --overdue-bg: #3c2a2a;
+    
+    /* Adjust accent slightly for dark mode contrast */
+    --accent-color: #3498db; 
+    --accent-hover: #5dade2;
+}
+
 html, body {
     margin: 0;
-    /* v-- ADJUST THIS VALUE TO CHANGE THE TOP HEIGHT --v */
-    padding-top: 30px; 
+    padding-top: 40px; /* Space for the top bar */
     padding-right: 15px;
     padding-bottom: 15px;
     padding-left: 15px;
@@ -33,118 +67,200 @@ html, body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     background-color: var(--primary-bg);
     color: var(--text-color);
+    transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .hub-container {
     display: flex;
-    height: 100%; /* Changed from 100vh to fill the padded body */
+    height: 100%; 
     border: 1px solid var(--border-color);
     border-radius: 8px;
-    overflow: hidden; /* Prevents content from spilling out of rounded corners */
+    overflow: hidden;
+    background-color: var(--secondary-bg);
+    box-shadow: var(--card-shadow);
 }
 
+/* SIDEBAR */
 .sidebar {
-    width: 350px; flex-shrink: 0; background-color: var(--secondary-bg);
-    padding: 20px; overflow-y: auto; border-right: 1px solid var(--border-color);
-    transition: margin-left 0.3s ease;
+    width: 350px; 
+    flex-shrink: 0; 
+    background-color: var(--secondary-bg);
+    padding: 20px; 
+    overflow-y: auto; 
+    border-right: 1px solid var(--border-color);
+    transition: margin-left 0.3s ease, background-color 0.3s ease, border-color 0.3s ease;
 }
 .sidebar.hidden { margin-left: -351px; }
 
+/* MAIN CONTENT SPLIT */
 .main-content {
-    flex-grow: 1; display: flex; overflow: hidden;
+    flex-grow: 1; 
+    display: flex; 
+    overflow: hidden;
+    background-color: var(--primary-bg); /* Distinct form sidebar */
 }
+
 .content-pane {
-    flex-grow: 1; flex-basis: 0; display: flex; flex-direction: column;
-    overflow: hidden; transition: all 0.3s ease;
+    flex: 1 1 50%;
+    display: flex; 
+    flex-direction: column;
+    overflow: hidden; 
+    min-width: 200px;
+    background-color: var(--secondary-bg); /* Panes are white/dark */
 }
 .content-pane.hidden {
-    flex-grow: 0; padding: 0; width: 0; opacity: 0;
-    overflow: hidden; white-space: nowrap; border-right: none;
+    flex-grow: 0 !important; 
+    flex-basis: 0 !important;
+    padding: 0; width: 0; min-width: 0; opacity: 0;
 }
+/* Border between panes if they touch without gutter */
 .content-pane:not(:last-child) { border-right: 1px solid var(--border-color); }
 
-.pane-header {
-    padding: 15px 20px; border-bottom: 1px solid var(--border-color);
-    background-color: #fafafa; display: flex; justify-content: space-between;
-    align-items: center; flex-shrink: 0; gap: 15px;
+
+/* GUTTER / RESIZER */
+.gutter {
+    width: 12px;
+    background-color: var(--primary-bg); /* Use primary BG to look like a gap */
+    border-left: 1px solid var(--border-color);
+    border-right: 1px solid var(--border-color);
+    cursor: col-resize;
+    flex-shrink: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: background-color 0.2s;
 }
-.pane-header h2 { margin: 0; font-size: 1.2rem; }
+.gutter:hover { background-color: var(--accent-color); border-color: var(--accent-color); }
+.gutter::after {
+    content: "⋮";
+    color: var(--text-muted);
+    font-size: 14px;
+    font-weight: bold;
+}
+.gutter.hidden { display: none; }
+
+
+.pane-header {
+    padding: 15px 20px; 
+    border-bottom: 1px solid var(--border-color);
+    background-color: var(--secondary-bg); 
+    display: flex; 
+    justify-content: space-between;
+    align-items: center; 
+    flex-shrink: 0; 
+    gap: 15px;
+}
+.pane-header h2 { margin: 0; font-size: 1.2rem; color: var(--header-color); }
 .pane-body { padding: 20px; overflow-y: auto; }
 
 .header-controls { display: flex; align-items: center; gap: 10px; }
 
-.filter-input {
-    padding: 8px 12px; border: 1px solid var(--border-color);
-    border-radius: 6px; font-size: 0.9rem; width: 220px;
+/* FORM ELEMENTS */
+.form-group { margin-bottom: 15px; }
+.form-group label { display: block; margin-bottom: 5px; font-weight: bold; color: var(--text-color); }
+
+input, select, textarea, .filter-input {
+    width: 100%; 
+    padding: 8px 10px; 
+    border: 1px solid var(--input-border);
+    background-color: var(--input-bg);
+    color: var(--text-color); /* CRITICAL FIX: Ensures text isn't white on white */
+    border-radius: 4px; 
+    box-sizing: border-box; 
+    font-size: 1rem;
 }
+.filter-input { width: 220px; }
+.form-group select[multiple] { height: 120px; }
+.form-group input[type="color"] { padding: 2px; height: 40px; background-color: var(--input-bg); }
+.form-group textarea { resize: vertical; min-height: 80px; }
 
 h2, h3 { color: var(--header-color); }
 .sidebar h2 { margin-top: 0; padding-bottom: 10px; border-bottom: 1px solid var(--border-color); }
-.sidebar h3 { margin-top: 25px; margin-bottom: 15px; }
 
-.form-group { margin-bottom: 15px; }
-.form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
-.form-group input, .form-group select, .form-group textarea {
-    width: 100%; padding: 10px; border: 1px solid var(--border-color);
-    border-radius: 4px; box-sizing: border-box; font-size: 1rem;
-}
-.form-group select[multiple] { height: 120px; }
-.form-group input[type="color"] { padding: 5px; height: 45px; }
-.form-group textarea { resize: vertical; min-height: 80px; }
-.category-group { display: flex; gap: 10px; align-items: center; }
-.category-group .category-name { flex-grow: 1; }
-
+/* BUTTONS - VISUAL FIXES */
 button, .btn {
     background-color: var(--accent-color);
-    color: white; border: none; padding: 10px 15px;
-    border-radius: 4px; cursor: pointer; font-size: 1rem;
-    transition: background-color 0.2s ease, color 0.2s ease;
-    text-decoration: none; display: inline-block; text-align: center;
+    color: #fff; /* Always white text on colored buttons */
+    border: 1px solid rgba(0,0,0,0.1);
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    display: inline-block;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.15); /* Gives depth */
 }
-button:hover, .btn:hover { background-color: var(--accent-hover); }
+button:hover, .btn:hover { 
+    background-color: var(--accent-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 3px 6px rgba(0,0,0,0.2);
+}
+button:disabled, .btn:disabled {
+    background-color: var(--status-not-set);
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
 .btn-secondary { background-color: var(--secondary-action-color); }
 .btn-secondary:hover { background-color: var(--secondary-action-hover); }
-.btn-small { padding: 4px 8px; font-size: 0.8rem; }
+.btn-small { padding: 4px 10px; font-size: 0.85rem; }
 button.btn-danger { background-color: var(--danger-color); }
 button.btn-danger:hover { background-color: var(--danger-hover); }
-.btn.copied { background-color: var(--success-color); }
 
+/* DATA ACTIONS AREA */
 .data-actions {
     margin-top: 30px; border-top: 1px solid var(--border-color); padding-top: 20px;
-    display: flex; flex-direction: column; gap: 10px;
+    display: flex; flex-direction: column; gap: 15px;
 }
 .data-actions-row { display: flex; gap: 10px; }
 .data-actions .btn-import-wrapper { position: relative; overflow: hidden; flex-grow: 1; }
 .data-actions input[type="file"] { position: absolute; left: 0; top: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
 
+/* TOP BAR TOGGLES */
 .toggle-buttons {
     position: fixed;
-    top: 10px; /* <-- This must be updated too! */
+    top: 5px; 
     right: 25px;
     z-index: 1000;
-    display: flex; gap: 10px; background: rgba(255, 255, 255, 0.8);
-    backdrop-filter: blur(5px); padding: 8px; border-radius: 8px; box-shadow: 0 2px 10px var(--shadow-color);
+    display: flex; gap: 10px; 
+    background: var(--secondary-bg);
+    border: 1px solid var(--border-color);
+    padding: 5px 10px; 
+    border-radius: 0 0 8px 8px; /* Hanging look */
+    box-shadow: var(--card-shadow);
 }
 
+/* FILTERS */
 #category-filters { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
 .category-filter {
     color: white; font-weight: bold; padding: 5px 12px;
     border-radius: 15px; cursor: pointer; transition: all 0.2s ease;
-    border: 2px solid transparent; opacity: 0.85;
+    border: 2px solid transparent; opacity: 0.9;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
 }
 .category-filter:hover, .category-filter.active {
-    opacity: 1; transform: translateY(-1px); box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    opacity: 1; transform: scale(1.05);
 }
-.category-filter.active { border-color: rgba(255,255,255,0.7); }
+.category-filter.active { border-color: #555; }
 
+/* CARDS */
 #tool-list-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
 #todo-list-container { display: flex; flex-direction: column; gap: 15px; }
+
 .tool-card, .todo-card {
-    background-color: var(--secondary-bg); border: 1px solid var(--border-color);
-    border-radius: 8px; padding: 15px; transition: box-shadow 0.2s ease, border-color 0.2s ease;
+    background-color: var(--secondary-bg); 
+    border: 1px solid var(--border-color);
+    border-radius: 8px; 
+    padding: 15px; 
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
     display: flex; flex-direction: column;
 }
-.tool-card:hover, .todo-card:hover { box-shadow: 0 4px 12px var(--shadow-color); }
+.tool-card:hover, .todo-card:hover { box-shadow: var(--card-shadow); border-color: var(--accent-color); }
 
 .card-content, .edit-area { flex-grow: 1; }
 .category-tag {
@@ -158,69 +274,214 @@ button.btn-danger:hover { background-color: var(--danger-hover); }
 .status-badge {
     padding: 3px 8px; border-radius: 12px; color: white;
     font-size: 0.8rem; font-weight: bold; flex-shrink: 0; text-transform: capitalize;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.2);
 }
 .status-badge.working { background-color: var(--status-working); }
 .status-badge.unfinished { background-color: var(--status-unfinished); }
 .status-badge.issues-to-be-fixed { background-color: var(--status-issues); }
 .status-badge.not-set { background-color: var(--status-not-set); }
-.tool-description { flex-grow: 1; margin: 0 0 15px 0; font-size: 0.95rem; }
+.tool-description { flex-grow: 1; margin: 0 0 15px 0; font-size: 0.95rem; color: var(--text-color); }
 
-.todo-options { margin-bottom: 20px; }
+/* Find the existing .todo-options block and replace it with this: */
+
+.todo-options { 
+    margin-bottom: 20px; 
+}
+
+.todo-options label {
+    display: flex;
+    align-items: center;
+    gap: 8px; /* Controls space between the checkbox and text */
+    cursor: pointer;
+    width: fit-content; /* Ensures the label only takes necessary space */
+}
+
+/* We must override the global input width setting for this checkbox */
+.todo-options input[type="checkbox"] {
+    width: auto; 
+    margin: 0;
+    height: 18px; /* Slightly larger clickable area */
+    width: 18px;
+}
 .todo-card.overdue { background-color: var(--overdue-bg); border-left: 4px solid var(--danger-color); }
 .todo-card.done { text-decoration: line-through; opacity: 0.6; }
-.todo-card.done .todo-text { color: #777; }
+.todo-card.done .todo-text { color: var(--text-muted); }
 .todo-card-header { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
-.todo-card-header input[type="checkbox"] { margin-top: 6px; transform: scale(1.2); cursor: pointer; }
-.todo-card-header .todo-text { flex-grow: 1; margin: 0; font-size: 1rem; text-decoration: none; }
+.todo-card-header input[type="checkbox"] { margin-top: 4px; width: 18px; height: 18px; cursor: pointer; }
+.todo-card-header .todo-text { flex-grow: 1; margin: 0; font-size: 1rem; text-decoration: none; color: var(--text-color); }
 .todo-card-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 15px; }
 .todo-linked-tools button { margin-right: 5px; }
-.due-date { font-size: 0.85rem; color: #555; text-decoration: none; }
-
-/* Modal Styles */
-.modal-overlay, .modal-content, .modal-header, .summary-section {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0, 0, 0, 0.5); z-index: 2000;
-    display: none; justify-content: center; align-items: center;
-}
-.modal-content { position: static; background: white; padding: 30px; border-radius: 8px; width: 90%; max-width: 700px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); max-height: 80vh; overflow-y: auto; }
-.modal-header { position: static; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 15px; margin-bottom: 20px; }
-.modal-header h3 { margin: 0; }
-.modal-header .close-btn { font-size: 1.5rem; font-weight: bold; cursor: pointer; background: none; border: none; padding: 0 10px; color: #888; }
-.modal-header .close-btn:hover { color: #000; }
-.summary-section { position: static; margin-bottom: 25px; }
-.summary-section h4 { display: flex; justify-content: space-between; align-items: center; }
-.summary-section ul { list-style-type: disc; padding-left: 20px; margin-top: 10px; }
-.summary-section ul li { margin-bottom: 8px; }
-/* Add these new styles to the end of your style.css file */
-
-.data-actions {
-    margin-top: 30px; border-top: 1px solid var(--border-color); padding-top: 20px;
-    display: flex; flex-direction: column; gap: 15px; /* Increased gap */
-}
-.data-actions-row { display: flex; gap: 10px; }
-.data-actions .btn-import-wrapper { position: relative; overflow: hidden; flex-grow: 1; }
-.data-actions input[type="file"] { position: absolute; left: 0; top: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+.due-date { font-size: 0.85rem; color: var(--text-muted); text-decoration: none; }
 
 .cloud-status-indicator {
-    padding: 10px;
+    padding: 10px; border-radius: 4px; font-weight: 500; text-align: center;
+    display: none; transition: all 0.3s ease; margin-bottom: 10px;
+}
+.cloud-status-indicator.success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+.cloud-status-indicator.error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+.cloud-status-indicator.loading { background-color: #e2e3e5; color: #383d41; border: 1px solid #d6d8db; }
+
+#drive-config-section {
+    background-color: var(--config-bg);
+    padding: 15px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    margin-bottom: 20px;
+}
+/* --- START CALENDAR INTEGRATION STYLES --- */
+
+/* Calendar Pane Specifics */
+#calendar-pane {
+    min-width: 400px; /* Minimum width to keep calendar usable */
+}
+#calendar-pane .pane-body {
+    background-color: #f4f4f4; /* Match calendar original background */
+}
+
+/* Smart Header */
+.smart-header {
+    background: linear-gradient(to right, #000080, #0033cc);
+    color: white;
+    padding: 15px 20px;
+    width: 100%;
+    border-radius: 5px;
+    margin-bottom: 20px;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.2);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-sizing: border-box;
+}
+.smart-title { font-size: 18px; font-weight: bold; }
+.smart-info { font-size: 14px; text-align: right; }
+.smart-info div { margin-top: 2px; }
+
+/* Panels */
+.settings-panel, .editor-panel {
+    background: #fff;
+    border: 1px solid #ccc;
+    padding: 15px;
+    margin-bottom: 20px;
     border-radius: 4px;
-    font-weight: 500;
-    text-align: center;
-    display: none; /* Hidden by default */
-    transition: all 0.3s ease;
+    width: 100%;
+    box-sizing: border-box;
 }
-.cloud-status-indicator.success {
-    background-color: #d4edda; /* Light green */
-    color: #155724; /* Dark green */
-    display: block;
+.settings-panel { background: #eef2f5; border-color: #b0c4de; }
+
+/* Calendar Utilities */
+.row-flex { display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap; }
+.divider { width: 100%; height: 1px; background: #ccc; margin: 15px 0; }
+
+.input-group { display: flex; flex-direction: column; gap: 3px; }
+.input-group label { font-size: 10px; font-weight: bold; color: #555; text-transform: uppercase; }
+.input-group input, .input-group select { padding: 5px; border: 1px solid #ccc; height: 32px; box-sizing: border-box; border-radius: 3px; background-color: #fff; color: #333;}
+
+/* Calendar Buttons */
+.cal-btn { height: 32px; padding: 0 15px; cursor: pointer; border: none; border-radius: 3px; color: white; font-size: 12px; display: inline-block; }
+.btn-save { background-color: #000080; }
+.btn-del { background-color: #c00; }
+.btn-blue { background-color: #0066cc; }
+.btn-gray { background-color: #666; }
+.btn-green { background-color: #28a745; }
+
+/* List Delete Button */
+.btn-list-del {
+    background-color: #ffcccc;
+    color: #cc0000;
+    border: 1px solid #cc0000;
+    border-radius: 4px;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    cursor: pointer;
 }
-.cloud-status-indicator.error {
-    background-color: #f8d7da; /* Light red */
-    color: #721c24; /* Dark red */
-    display: block;
+.btn-list-del:hover { background-color: #c00; color: white; }
+
+/* Grid System */
+.calendar-wrapper {
+    background: white;
+    padding: 15px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    overflow-x: auto;
+    width: 100%;
+    box-sizing: border-box;
+    margin-bottom: 20px;
 }
-.cloud-status-indicator.loading {
-    background-color: #e2e3e5; /* Light grey */
-    color: #383d41; /* Dark grey */
-    display: block;
+table.cal-grid { border-collapse: collapse; border: 2px solid #000080; margin-bottom: 20px; width: auto; }
+.cal-grid th, .cal-grid td {
+    text-align: center; padding: 0; min-width: 26px; height: 22px;
+    font-size: 13px; cursor: pointer; border-right: 1px dotted #888; border-bottom: 1px dotted #888;
+    color: #000; /* Force black text for calendar cells */
+}
+.month-end-border { border-right: 3px solid #000 !important; }
+.header-row th { border: 1px solid #000080; background-color: #fff; border-bottom: 2px solid #000080; padding: 4px; color: #000; }
+.wk-header-row th { background-color: #000080; color: #ffff00; border: 1px solid #fff; font-weight: normal; }
+.day-label { background-color: #fff; border-right: 2px solid #000080 !important; font-weight: bold; width: 40px; cursor: default; color: #000;}
+.weekend-row td, .weekend-row th:not(.day-label) { background-color: #d0cece; }
+.empty-cell { background-color: #fff !important; cursor: default; }
+.cal-grid td:hover:not(.day-label):not(.empty-cell) { background-color: #e6f7ff; border: 1px solid #000080; }
+.cal-grid td.selected { outline: 2px solid red; z-index: 10; position: relative; }
+
+/* List Views */
+.lists-wrapper { width: 100%; display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
+.category-box { background: white; border: 1px solid #ccc; min-width: 300px; flex: 1; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+.category-header { padding: 6px 10px; font-weight: bold; color: #000; font-size: 13px; text-transform: uppercase; border-bottom: 3px solid #ccc; }
+
+table.compact-list { width: 100%; border-collapse: collapse; font-size: 12px; color: #333; }
+.compact-list th { text-align: left; background: #eee; padding: 4px 8px; border-bottom: 1px solid #ddd; color: #000; }
+.compact-list td { padding: 4px 8px; border-bottom: 1px solid #f0f0f0; cursor: pointer; }
+.compact-list tr:hover { background-color: #f9f9f9; }
+
+.cat-tag { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 12px; font-size: 11px; border: 1px solid #ccc; background: white; margin-right: 5px; margin-top:5px; color: #000;}
+.cat-tag span { cursor: pointer; margin-left: 6px; color: #c00; font-weight: bold; }
+.pattern-box textarea { width: 100%; height: 30px; font-family: monospace; resize: vertical; border: 1px solid #ccc; background: #fff; color: #000;}
+
+/* Dark Mode Overrides for Calendar */
+body.dark-mode #calendar-pane .pane-body { background-color: #2d2d2d; }
+body.dark-mode .settings-panel { background-color: #383838; border-color: #555; }
+body.dark-mode .editor-panel { background-color: #383838; border-color: #555; }
+body.dark-mode .calendar-wrapper { background-color: #383838; }
+
+/* --- UPDATED: Force Grid Cells to White --- */
+body.dark-mode .cal-grid td { 
+    background-color: #ffffff; /* Force White Background */
+    color: #000000;            /* Force Black Text */
+}
+
+/* Keep weekends Light Grey (so they are visible against white days) */
+body.dark-mode .weekend-row td { 
+    background-color: #d0cece; 
+}
+
+/* Ensure Headers are White */
+body.dark-mode .header-row th { 
+    background-color: #ffffff;
+    color: #000000;
+}
+body.dark-mode .day-label {
+    background-color: #ffffff !important;
+    color: #000000;
+}
+
+/* Empty filler cells */
+body.dark-mode .empty-cell {
+    background-color: #ffffff !important;
+}
+
+/* --- End Grid Updates --- */
+
+body.dark-mode .category-box { background-color: #383838; border-color: #555; }
+body.dark-mode .category-header { color: #e0e0e0; }
+body.dark-mode table.compact-list { color: #e0e0e0; }
+body.dark-mode .compact-list th { background-color: #444; color: #fff; }
+body.dark-mode .compact-list tr:hover { background-color: #444; }
+body.dark-mode .input-group label { color: #bbb; }
+body.dark-mode .input-group input, body.dark-mode .input-group select { background-color: #555; color: #fff; border-color: #666; }
+/* Add to bottom of style.css */
+#cal-settings-content.collapsed {
+    display: none;
 }

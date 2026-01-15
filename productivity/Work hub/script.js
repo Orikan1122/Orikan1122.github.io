@@ -1,37 +1,62 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // --- FIREBASE SETUP ---
-    const firebaseConfig = {
-        apiKey: "AIzaSyBoZtDWEJwPFYvvR6LJgPM8fIqQWrQgDFs",
-        authDomain: "json-database-1122.firebaseapp.com",
-        projectId: "json-database-1122",
-        storageBucket: "json-database-1122.appspot.com",
-        messagingSenderId: "332768532067",
-        appId: "1:332768532067:web:3bc80fee92d17c046c8a56"
-    };
-
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
-    const auth = firebase.auth();
-    const googleProvider = new firebase.auth.GoogleAuthProvider();
-    let currentUserId = null;
-    let isLoggingOut = false;
     
-    // NEUE WACHVARIABLE: Stellt sicher, dass die App nur einmal initialisiert wird.
-    let appInitialized = false;
-
-
-    // --- STATE & REFS ---
+    // --- CONFIG & STATE ---
+    // Standard WorkHub State
     let tools = [], categories = {}, todos = [];
     let currentCategoryFilter = 'all';
     let showDoneTodos = true;
     let toolSearchTerm = '';
     let todoSearchTerm = '';
-    const STORAGE_KEY = 'workHubDataV10';
+    let isDarkMode = false;
+
+    // Calendar State
+    let calendarData = {
+        events: {
+            "2026-01-01": { name: "Neujahrstag", type: "Holiday", time: "0:00", highlight: true }
+        },
+        categories: [
+            { name: "Holiday", color: "#ffc000" },
+            { name: "Birthday", color: "#ff99cc" },
+            { name: "Vacation", color: "#66ccff" },
+            { name: "Work", color: "#ccff99" },
+            { name: "Other", color: "#e0e0e0" }
+        ],
+        config: {
+            year: 2026,
+            janWeeks: 5,
+            decWeeks: 6,
+            weekPattern: [] 
+        }
+    };
+    
+    // Calendar Runtime Variables (Not saved directly, calculated)
+    const MONTHS_TOP = ["January", "February", "March", "April", "May", "June"];
+    const MONTHS_BOTTOM = ["July", "August", "September", "October", "November", "December"];
+    let monthCols = {
+        "January": 5, "February": 4, "March": 4, "April": 5, "May": 4, "June": 4,
+        "July": 5, "August": 4, "September": 4, "October": 5, "November": 4, "December": 6
+    };
+    let anchorDate = null;
+    let selectedDateKey = null;
+
+    // Storage Keys
+    const STORAGE_KEY = 'workHubDataV11'; // Incremented version
+    const CONFIG_KEY = 'workHubDriveConfig';
+    const THEME_KEY = 'workHubTheme';
 
     // --- UI Element References ---
     const sidebar = document.getElementById('sidebar');
     const toolsPane = document.getElementById('tools-pane');
+    const calendarPane = document.getElementById('calendar-pane');
     const todosPane = document.getElementById('todos-pane');
+    const mainContent = document.getElementById('main-content');
+    
+    const gutter1 = document.getElementById('gutter-1');
+    const gutter2 = document.getElementById('gutter-2');
+    
+    const themeToggleBtn = document.getElementById('theme-toggle');
+    
+    // WorkHub Inputs
     const addToolForm = document.getElementById('add-tool-form');
     const addTodoForm = document.getElementById('add-todo-form');
     const toolListContainer = document.getElementById('tool-list-container');
@@ -46,168 +71,246 @@ document.addEventListener('DOMContentLoaded', () => {
     const exportBtn = document.getElementById('export-btn');
     const importFile = document.getElementById('import-file');
     const launchAllBtn = document.getElementById('launch-all-btn');
-    const summaryModalOverlay = document.getElementById('summary-modal-overlay');
-    const summaryModalBody = document.getElementById('summary-modal-body');
     const showDoneTodosCheckbox = document.getElementById('show-done-todos');
     const toolSearchInput = document.getElementById('tool-search-input');
     const todoSearchInput = document.getElementById('todo-search-input');
     const saveToCloudBtn = document.getElementById('save-to-cloud-btn');
     const loadFromCloudBtn = document.getElementById('load-from-cloud-btn');
     const cloudStatusEl = document.getElementById('cloud-status');
-    const authContainer = document.getElementById('auth-container');
-    const userInfo = document.getElementById('user-info');
-    const userDisplayName = document.getElementById('user-display-name');
-    const loginSection = document.getElementById('login-section');
-    const googleLoginBtn = document.getElementById('google-login-btn');
-    const logoutBtn = document.getElementById('logout-btn');
+    const confUrlInput = document.getElementById('conf-url');
+    const confIdInput = document.getElementById('conf-id');
+    const confPwInput = document.getElementById('conf-pw');
+    const saveConfigBtn = document.getElementById('save-config-btn');
 
+    // Calendar Inputs
+    const calConfigYear = document.getElementById('config-year');
+    const calWJan = document.getElementById('w-jan');
+    const calWDec = document.getElementById('w-dec');
+    const calWeekPatternInput = document.getElementById('week-pattern-input');
+    const calCopyTargetYear = document.getElementById('copy-target-year');
+    const calNewCatName = document.getElementById('new-cat-name');
+    const calNewCatColor = document.getElementById('new-cat-color');
+    const calInputStartDate = document.getElementById('input-start-date');
+    const calInputEndDate = document.getElementById('input-end-date');
+    const calEventType = document.getElementById('event-type');
+    const calEventName = document.getElementById('event-name');
+    const calEventTime = document.getElementById('event-time');
+    const calEventHighlight = document.getElementById('event-highlight');
 
-    // --- FIREBASE AUTH & DATA ---
+    // --- INITIALIZATION ---
+    function initializeApp() {
+        loadTheme();
+        loadLocalData();
+        loadConfig();
+        attachEventListeners();
+        setupSplitScreen();
+        
+        // Render WorkHub
+        renderHub();
+        // Render Calendar
+        initCalendar();
+        
+        console.log("App initialized.");
+    }
 
-    /**
-     * This is the main startup function for the application.
-     * By using an async function, we can force the code to wait until the
-     * authentication status is definitively known before initializing the app.
-     * This solves the race condition.
-     */
-    async function startup() {
-        console.log("App startup: Checking for authentication redirect...");
-        try {
-            // First, AWAIT the result of the redirect. This pauses the code here.
-            const result = await auth.getRedirectResult();
-            
-            if (result && result.user) {
-                // This means the user has just successfully signed in with Google.
-                console.log("Redirect sign-in successful for user:", result.user.uid);
-                showCloudStatus("Sign-in successful!", 'success');
-                // auth.currentUser is now correctly set with the permanent user.
-            } else {
-                // This means the page loaded without a redirect (e.g., first visit, refresh).
-                console.log("No redirect result found.");
-                // We check if a user is ALREADY signed in (from a previous session).
-                if (!auth.currentUser) {
-                    // If no one is signed in at all, we create a new anonymous session.
-                    console.log("No active user session, signing in anonymously.");
-                    await auth.signInAnonymously();
-                } else {
-                    // An existing session was found.
-                    console.log("Existing session detected for user:", auth.currentUser.uid);
-                }
-            }
-        } catch (error) {
-            // Handle any errors during the sign-in process.
-            console.error("Error during initial authentication:", error);
-            showCloudStatus(`Sign-in error: ${error.message}`, 'error', 0);
-            // As a final fallback, try to sign in anonymously so the app doesn't break.
-            if (!auth.currentUser) {
-                await auth.signInAnonymously();
-            }
+    initializeApp();
+
+    // --- THEME MANAGEMENT ---
+    function loadTheme() {
+        const savedTheme = localStorage.getItem(THEME_KEY);
+        isDarkMode = savedTheme === 'dark';
+        applyTheme();
+    }
+
+    function toggleTheme() {
+        isDarkMode = !isDarkMode;
+        localStorage.setItem(THEME_KEY, isDarkMode ? 'dark' : 'light');
+        applyTheme();
+    }
+
+    function applyTheme() {
+        if (isDarkMode) {
+            document.body.classList.add('dark-mode');
+            themeToggleBtn.textContent = '☀️';
+            themeToggleBtn.title = 'Switch to Light Mode';
+        } else {
+            document.body.classList.remove('dark-mode');
+            themeToggleBtn.textContent = '🌙';
+            themeToggleBtn.title = 'Switch to Dark Mode';
+        }
+    }
+
+    // --- SPLIT SCREEN LOGIC ---
+    function setupSplitScreen() {
+        // Toggle Buttons
+        document.getElementById('toggle-sidebar')?.addEventListener('click', () => sidebar.classList.toggle('hidden'));
+        
+        document.getElementById('toggle-tools')?.addEventListener('click', () => {
+             toolsPane.classList.toggle('hidden');
+             updateGutters();
+        });
+        
+        document.getElementById('toggle-calendar')?.addEventListener('click', () => {
+            calendarPane.classList.toggle('hidden');
+            updateGutters();
+        });
+
+        document.getElementById('toggle-todos')?.addEventListener('click', () => {
+            todosPane.classList.toggle('hidden');
+            updateGutters();
+        });
+
+        // Initialize Gutters
+        updateGutters();
+
+        // Drag Logic for Gutter 1 (Between Tools and Calendar)
+        setupDrag(gutter1, toolsPane, calendarPane);
+        // Drag Logic for Gutter 2 (Between Calendar and Todos)
+        setupDrag(gutter2, calendarPane, todosPane);
+    }
+
+    function updateGutters() {
+        const tHidden = toolsPane.classList.contains('hidden');
+        const cHidden = calendarPane.classList.contains('hidden');
+        const tdHidden = todosPane.classList.contains('hidden');
+
+        // Gutter 1 is visible if Tools is visible AND (Calendar OR Todos) is visible
+        if (!tHidden && (!cHidden || !tdHidden)) {
+            gutter1.classList.remove('hidden');
+        } else {
+            gutter1.classList.add('hidden');
         }
 
-        // AFTER the initial state is resolved, we attach the listener.
-        // This listener will now handle all FUTURE state changes, like logging out.
-        auth.onAuthStateChanged(user => {
-            // This part updates the UI based on the current login status.
-            if (user && !user.isAnonymous) {
-                currentUserId = user.uid;
-                console.log("Auth state is PERMANENT user:", currentUserId);
-                if (userDisplayName) userDisplayName.textContent = user.displayName;
-                const userPhoto = document.getElementById('user-photo');
-                if(userPhoto && user.photoURL) userPhoto.src = user.photoURL;
+        // Gutter 2 is visible if Calendar is visible AND Todos is visible
+        if (!cHidden && !tdHidden) {
+            gutter2.classList.remove('hidden');
+        } else {
+            gutter2.classList.add('hidden');
+        }
+    }
 
-                if (userInfo) userInfo.style.display = 'block';
-                if (loginSection) loginSection.style.display = 'none';
-                if (saveToCloudBtn) saveToCloudBtn.disabled = false;
-                if (loadFromCloudBtn) loadFromCloudBtn.disabled = false;
-                 // Don't show status on initial load, only on changes.
-                if (appInitialized) showCloudStatus("Cloud connected.", 'success');
+    function setupDrag(gutter, leftEl, rightEl) {
+        let isDragging = false;
+        gutter.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            document.body.style.cursor = 'col-resize';
+            document.body.style.userSelect = 'none';
+        });
 
-            } else if (user && user.isAnonymous) {
-                currentUserId = user.uid;
-                console.log("Auth state is ANONYMOUS user:", currentUserId);
-                if (userInfo) userInfo.style.display = 'none';
-                if (loginSection) loginSection.style.display = 'block';
-                if (googleLoginBtn) googleLoginBtn.textContent = 'Sign In & Sync Data';
-                if (saveToCloudBtn) saveToCloudBtn.disabled = false;
-                if (loadFromCloudBtn) loadFromCloudBtn.disabled = false;
-                if (!appInitialized) showCloudStatus("Sign in with Google to sync your data.", 'loading', 0);
+        document.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            const containerRect = mainContent.getBoundingClientRect();
+            // Simple flex-basis adjustment based on mouse position relative to container
+            // This is a simplified split logic for 3 panes
+            const pointerX = e.clientX - containerRect.left;
+            const percent = (pointerX / containerRect.width) * 100;
+            
+            // Apply size preference to left element
+            leftEl.style.flexBasis = `${percent}%`;
+            leftEl.style.flexGrow = '0';
+        });
 
-            } else {
-                currentUserId = null;
-                console.log("Auth state is NO user.");
-                if (userInfo) userInfo.style.display = 'none';
-                if (loginSection) loginSection.style.display = 'block';
-                if (googleLoginBtn) googleLoginBtn.textContent = 'Sign In with Google';
-                showCloudStatus("Please sign in to use the cloud.", 'error', 0);
-                if (saveToCloudBtn) saveToCloudBtn.disabled = true;
-                if (loadFromCloudBtn) loadFromCloudBtn.disabled = true;
-
-                // If the user has logged out, start a new anonymous session automatically.
-                if (isLoggingOut) {
-                    isLoggingOut = false;
-                    auth.signInAnonymously().catch(e => console.error("Re-authentication anonymously failed", e));
-                }
-            }
-
-            // The critical step: Initialize the app with data only ONCE,
-            // after the definitive user (permanent or anonymous) has been set.
-            if (!appInitialized) {
-                initializeApp();
+        document.addEventListener('mouseup', () => {
+            if (isDragging) {
+                isDragging = false;
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
             }
         });
     }
 
-    // Run the startup function to kick everything off.
-    startup();
-
-    /**
-     * This function is now only called once by initializeApp() to set up listeners.
-     * The auth logic has been moved to the startup() function.
-     */
-    function initializeApp() {
-        if (appInitialized) return; // Safety-Check
-        console.log("Initializing application event listeners and loading data...");
-
-        // Attach all non-auth event listeners.
-        attachEventListeners();
-
-        // Load local data and render the page for the first time.
-        loadData();
-        render();
-
-        appInitialized = true;
-        console.log("Application successfully initialized.");
+    // --- GOOGLE DRIVE BRIDGE FUNCTIONS ---
+    function getDriveConfig() {
+        return {
+            url: confUrlInput.value.trim(),
+            id: confIdInput.value.trim(),
+            pw: confPwInput.value.trim()
+        };
     }
 
-    function handleGoogleLogin() {
-        showCloudStatus("Opening Google Sign-In...", 'loading', 0);
-        auth.signInWithPopup(googleProvider)
-            .then((result) => {
-                // The user is successfully signed in.
-                const user = result.user;
-                console.log("Sign in with popup successful for user:", user.uid);
-                showCloudStatus("Sign-in successful!", 'success');
-                // The `onAuthStateChanged` listener that you already have will
-                // automatically detect this change and update the UI.
-            }).catch((error) => {
-                // Handle errors if the user closes the popup, etc.
-                console.error("Error during popup sign-in:", error.code, error.message);
-                showCloudStatus(`Error: ${error.message}`, 'error', 0);
+    function saveConfig() {
+        const config = getDriveConfig();
+        localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
+        showCloudStatus("Configuration saved locally.", 'success');
+    }
+
+    function loadConfig() {
+        const storedConfig = localStorage.getItem(CONFIG_KEY);
+        if (storedConfig) {
+            const config = JSON.parse(storedConfig);
+            if(confUrlInput) confUrlInput.value = config.url || '';
+            if(confIdInput) confIdInput.value = config.id || '';
+            if(confPwInput) confPwInput.value = config.pw || '';
+        }
+    }
+
+    async function saveToCloud() {
+        const cfg = getDriveConfig();
+        if (!cfg.url || !cfg.id || !cfg.pw) {
+            showCloudStatus("Missing configuration.", 'error');
+            return;
+        }
+
+        showCloudStatus("Saving to Google Drive...", 'loading', 0);
+        // Add calendarData to payload
+        const dataToSave = { tools, categories, todos, calendarData };
+        const endpoint = `${cfg.url}?id=${cfg.id}&pw=${cfg.pw}`;
+
+        try {
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify(dataToSave)
             });
-    }
-    
-    function handleLogout() {
-        isLoggingOut = true; 
-        auth.signOut().then(() => {
-            console.log("User logged out.");
-        }).catch(error => {
-            console.error("Logout failed:", error);
-            isLoggingOut = false;
-        });
+            const result = await response.json();
+            if (result.error) throw new Error(result.error);
+            showCloudStatus("Saved to Drive successfully!", 'success');
+        } catch (error) {
+            console.error("Save Error:", error);
+            showCloudStatus(`Error: ${error.message}`, 'error', 0);
+        }
     }
 
-    // --- Alle Funktionen bleiben gleich, werden aber jetzt korrekt aufgerufen ---
-    
+    async function loadFromCloud() {
+        const cfg = getDriveConfig();
+        if (!cfg.url || !cfg.id || !cfg.pw) {
+            showCloudStatus("Missing configuration.", 'error');
+            return;
+        }
+
+        if (!confirm("Overwrite local data with data from Drive?")) return;
+
+        showCloudStatus("Loading from Google Drive...", 'loading', 0);
+        const endpoint = `${cfg.url}?id=${cfg.id}&pw=${cfg.pw}&t=${Date.now()}`;
+
+        try {
+            const response = await fetch(endpoint);
+            const data = await response.json();
+
+            if (data.error) throw new Error(data.error);
+            
+            if (data.tools) tools = data.tools;
+            if (data.categories) categories = data.categories;
+            if (data.todos) todos = data.todos;
+            // Load Calendar Data
+            if (data.calendarData) {
+                calendarData = data.calendarData;
+                // Safe check for config properties
+                if (!calendarData.config) calendarData.config = { year: 2026, janWeeks: 5, decWeeks: 6, weekPattern: [] };
+            }
+
+            saveLocalData(); 
+            renderHub();
+            initCalendar();
+            showCloudStatus("Loaded from Drive successfully!", 'success');
+
+        } catch (error) {
+            console.error("Load Error:", error);
+            showCloudStatus(`Error: ${error.message}`, 'error', 0);
+        }
+    }
+
+    // --- DATA HELPERS (WorkHub) ---
     function showCloudStatus(message, type = 'loading', duration = 3000) {
         if (!cloudStatusEl) return;
         cloudStatusEl.textContent = message;
@@ -218,110 +321,22 @@ document.addEventListener('DOMContentLoaded', () => {
             }, duration);
         }
     }
-    
-    function saveToCloud() {
-      if (!currentUserId) {
-        showCloudStatus("Cannot save: User not authenticated.", 'error');
-        return;
-      }
-      showCloudStatus("Saving to cloud...", 'loading', 0);
 
-      // --- START OF THE FIX ---
-      // Create clean copies of the data, replacing 'undefined' with 'null'.
-      
-      const sanitizedTools = tools.map(tool => ({
-        id: tool.id ?? Date.now(),
-        name: tool.name ?? 'Untitled Tool',
-        url: tool.url ?? '',
-        category: tool.category ?? 'Uncategorized',
-        status: tool.status ?? 'not-set',
-        description: tool.description ?? '' // Use empty string instead of null for description
-      }));
-
-      const sanitizedTodos = todos.map(todo => ({
-        id: todo.id ?? Date.now(),
-        text: todo.text ?? 'Untitled Task',
-        dueDate: todo.dueDate ?? null,
-        done: todo.done ?? false,
-        completionDate: todo.completionDate ?? null,
-        category: todo.category ?? 'Uncategorized',
-        linkedTools: todo.linkedTools ?? []
-      }));
-
-      // Create a clean categories object.
-      const sanitizedCategories = {};
-      for (const key in categories) {
-        if (Object.hasOwnProperty.call(categories, key) && categories[key]) {
-             sanitizedCategories[key] = {
-                color: categories[key].color ?? '#3498db'
-             };
-        }
-      }
-
-      const dataToSave = { 
-        tools: sanitizedTools, 
-        categories: sanitizedCategories, 
-        todos: sanitizedTodos 
-      };
-      
-      // --- END OF THE FIX ---
-
-      db.collection("userData").doc(currentUserId).set({ data: dataToSave })
-        .then(() => {
-            showCloudStatus("Data saved successfully!", 'success');
-        })
-        .catch(error => {
-            // This error will now properly catch any real issues.
-            console.error("Error saving data to Firestore:", error);
-            showCloudStatus("Error: Failed to save data. " + error.message, 'error', 0);
-        });
-    }
-
-    function loadFromCloud() {
-        if (!currentUserId) {
-            showCloudStatus("Cannot load: User not authenticated.", 'error');
-            return;
-        }
-        if (!confirm("This will overwrite your current local data with the data from the cloud. Proceed?")) {
-            return;
-        }
-        showCloudStatus("Loading from cloud...", 'loading', 0);
-        
-        db.collection("userData").doc(currentUserId).get()
-            .then(doc => {
-                if (doc.exists) {
-                    const cloudData = doc.data().data;
-                    tools = cloudData.tools || [];
-                    categories = cloudData.categories || {};
-                    todos = cloudData.todos || [];
-                    
-                    saveData();
-                    render();
-                    showCloudStatus("Data loaded successfully!", 'success');
-                } else {
-                    showCloudStatus("No data found in the cloud for this user.", 'error');
-                }
-            })
-            .catch(error => {
-                console.error("Error loading data from Firestore:", error);
-                showCloudStatus("Error: Failed to load data.", 'error');
-            });
-    }
-
-    function loadData() {
+    function loadLocalData() {
         const storedData = localStorage.getItem(STORAGE_KEY);
         if (storedData) {
             const data = JSON.parse(storedData);
             tools = data.tools || [];
             categories = data.categories || {};
             todos = data.todos || [];
+            if(data.calendarData) calendarData = data.calendarData;
         }
         showDoneTodos = JSON.parse(localStorage.getItem('showDoneTodos')) ?? true;
         if(showDoneTodosCheckbox) showDoneTodosCheckbox.checked = showDoneTodos;
     }
 
-    function saveData() {
-        const data = { tools, categories, todos };
+    function saveLocalData() {
+        const data = { tools, categories, todos, calendarData };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
         localStorage.setItem('showDoneTodos', JSON.stringify(showDoneTodos));
     }
@@ -358,19 +373,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function getWeekRange(date) {
-        const d = new Date(date);
-        const day = d.getDay();
-        const diffToMonday = d.getDate() - day + (day === 0 ? -6 : 1);
-        const startOfWeek = new Date(d.setDate(diffToMonday));
-        startOfWeek.setHours(0, 0, 0, 0);
-        const endOfWeek = new Date(startOfWeek);
-        endOfWeek.setDate(startOfWeek.getDate() + 6);
-        endOfWeek.setHours(23, 59, 59, 999);
-        return { start: startOfWeek, end: endOfWeek };
-    }
-
-    function render() {
+    // --- RENDER WORKHUB ---
+    function renderHub() {
         renderCategories();
         renderTools();
         renderTodos();
@@ -381,10 +385,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!toolListContainer) return;
         toolListContainer.innerHTML = '';
         const filteredTools = getFilteredTools();
-        updateLaunchAllButton(filteredTools.length);
+        if (launchAllBtn) launchAllBtn.disabled = filteredTools.length === 0;
+        if (launchAllBtn) launchAllBtn.textContent = filteredTools.length > 0 ? `Launch All (${filteredTools.length})` : 'Launch All';
 
         if (filteredTools.length === 0) {
-            toolListContainer.innerHTML = `<p style="color:#777">No tools found matching your criteria.</p>`;
+            toolListContainer.innerHTML = `<p style="color:var(--text-muted)">No tools found matching your criteria.</p>`;
             return;
         }
         filteredTools.forEach(tool => {
@@ -458,7 +463,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         if (sortedTodos.length === 0) {
-            todoListContainer.innerHTML = `<p style="color:#777">No tasks found matching your criteria.</p>`;
+            todoListContainer.innerHTML = `<p style="color:var(--text-muted)">No tasks found matching your criteria.</p>`;
         } else {
             sortedTodos.forEach(todo => {
                 const card = document.createElement('div');
@@ -510,12 +515,6 @@ document.addEventListener('DOMContentLoaded', () => {
             toolSelector.appendChild(option);
         });
     }
-    
-    function updateLaunchAllButton(count) {
-        if (!launchAllBtn) return;
-        launchAllBtn.disabled = count === 0;
-        launchAllBtn.textContent = count > 0 ? `Launch All (${count})` : 'Launch All';
-    }
 
     function toggleToolEditMode(card, tool) {
         const statusOptions = ['not-set', 'working', 'unfinished', 'issues-to-be-fixed'];
@@ -553,8 +552,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         pruneOrphanedCategories();
-        saveData();
-        render();
+        saveLocalData();
+        renderHub();
     }
 
     function toggleTodoEditMode(card, todo) {
@@ -592,40 +591,479 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         pruneOrphanedCategories();
-        saveData();
-        render();
+        saveLocalData();
+        renderHub();
     }
     
-    /**
-     * NEUE FUNKTION: Bündelt alle Event-Listener, die nicht direkt mit der Auth zu tun haben.
-     */
-    function attachEventListeners() {
-        // Auth-Buttons
-        googleLoginBtn?.addEventListener('click', handleGoogleLogin);
-        logoutBtn?.addEventListener('click', handleLogout);
+    // --- CALENDAR FUNCTIONS (Ported & Integrated) ---
+    function initCalendar() {
+        if (!calendarData.config) {
+             calendarData.config = { year: 2026, janWeeks: 5, decWeeks: 6, weekPattern: [] };
+        }
         
+        // Populate inputs from saved state
+        calConfigYear.value = calendarData.config.year;
+        calWJan.value = calendarData.config.janWeeks;
+        calWDec.value = calendarData.config.decWeeks;
+        calWeekPatternInput.value = (calendarData.config.weekPattern || []).join(', ');
+
+        updateCategoryDropdown();
+        renderCalendarCategoryTags();
+        recalcDateAnchor();
+        updateSmartHeader();
+        
+        // Start minute ticker
+        setInterval(updateSmartHeader, 60000);
+    }
+
+    function updateSmartHeader() {
+        const now = new Date(); 
+        const d = String(now.getDate()).padStart(2,'0');
+        const m = String(now.getMonth()+1).padStart(2,'0');
+        const y = now.getFullYear();
+        
+        // Week Calc
+        const oneJan = new Date(now.getFullYear(), 0, 1);
+        const days = Math.floor((now - oneJan) / 86400000);
+        const wkNum = Math.ceil((now.getDay() + 1 + days) / 7);
+
+        document.getElementById("smart-date-display").innerHTML = 
+            `Today is ${d}.${m}.${y} <span style="opacity:0.7">| Cal Week ${wkNum}</span>`;
+
+        const keyToday = formatDateKey(now);
+        const tmr = new Date(now); tmr.setDate(now.getDate()+1);
+        const keyTmr = formatDateKey(tmr);
+
+        const evToday = calendarData.events[keyToday] ? calendarData.events[keyToday].name : "No events";
+        const evTmr = calendarData.events[keyTmr] ? calendarData.events[keyTmr].name : "No events";
+
+        document.getElementById("smart-event-display").innerHTML = `
+            <div><strong>Today:</strong> ${evToday}</div>
+            <div><strong>Tomorrow:</strong> ${evTmr}</div>
+        `;
+    }
+
+    function recalcDateAnchor() {
+        const year = parseInt(calConfigYear.value);
+        calendarData.config.year = year;
+        
+        const jan1 = new Date(year, 0, 1);
+        const dayOfWeek = jan1.getDay(); 
+        let jsDay = dayOfWeek === 0 ? 6 : dayOfWeek - 1; 
+        const monday = new Date(jan1);
+        monday.setDate(jan1.getDate() - jsDay);
+        anchorDate = monday;
+        
+        // If pattern exists, use it, else reset
+        if (calendarData.config.weekPattern && calendarData.config.weekPattern.length > 0) {
+            renderFromPattern();
+        } else {
+            resetPattern();
+        }
+    }
+    
+    function updateStructure() {
+        monthCols["January"] = parseInt(calWJan.value);
+        monthCols["December"] = parseInt(calWDec.value);
+        
+        // Save to config
+        calendarData.config.janWeeks = monthCols["January"];
+        calendarData.config.decWeeks = monthCols["December"];
+        
+        resetPattern();
+    }
+
+    function resetPattern() {
+        // Recalculate default week pattern
+        monthCols["January"] = parseInt(calWJan.value);
+        monthCols["December"] = parseInt(calWDec.value);
+        const totalWeeks = Object.values(monthCols).reduce((a,b) => a+b, 0);
+        
+        let arr = []; 
+        for(let i=1; i<=totalWeeks; i++) arr.push(i);
+        
+        calendarData.config.weekPattern = arr;
+        calWeekPatternInput.value = arr.join(", ");
+        
+        saveLocalData();
+        renderFromPattern();
+    }
+    
+    function renderFromPattern() {
+        const txt = calWeekPatternInput.value;
+        if(txt) {
+             calendarData.config.weekPattern = txt.split(",").map(s => s.trim());
+        }
+        renderCalendarAll();
+    }
+
+    function renderCalendarAll() {
+        const year = parseInt(calConfigYear.value);
+        const topConfig = MONTHS_TOP.map(m => ({ name: m, cols: monthCols[m] }));
+        const bottomConfig = MONTHS_BOTTOM.map(m => ({ name: m, cols: monthCols[m] }));
+        
+        let topTotalWeeks = topConfig.reduce((a,b) => a + b.cols, 0);
+        const fullPattern = calendarData.config.weekPattern || [];
+        const topWeeksArr = fullPattern.slice(0, topTotalWeeks);
+        const botWeeksArr = fullPattern.slice(topTotalWeeks);
+
+        createTable("calendar-top", topConfig, topWeeksArr, anchorDate, year, 0);
+        createTable("calendar-bottom", bottomConfig, botWeeksArr, anchorDate, year, topTotalWeeks);
+        renderListGroups(year);
+    }
+
+    function createTable(containerId, config, weekLabels, anchorDate, targetYear, weekOffsetGlobal) {
+        const container = document.getElementById(containerId);
+        container.innerHTML = "";
+        const table = document.createElement("table");
+        table.className = "cal-grid"; 
+
+        // 1. Month Header
+        const trMonth = document.createElement("tr");
+        trMonth.className = "header-row";
+        const thYear = document.createElement("th"); thYear.innerText = targetYear; thYear.style.width="50px"; trMonth.appendChild(thYear);
+        config.forEach(m => {
+            const th = document.createElement("th"); th.colSpan = m.cols; th.innerText = m.name; th.className = "month-end-border"; trMonth.appendChild(th);
+        });
+        table.appendChild(trMonth);
+
+        // 2. Week Header
+        const trWeek = document.createElement("tr"); trWeek.className = "wk-header-row";
+        const thLabel = document.createElement("th"); thLabel.innerText = "Wk#"; trWeek.appendChild(thLabel);
+        let flatColIndex = 0;
+        config.forEach(m => {
+            for(let i=0; i<m.cols; i++) {
+                const th = document.createElement("th"); th.innerText = weekLabels[flatColIndex] || "?";
+                if(i === m.cols - 1) th.classList.add("month-end-border");
+                trWeek.appendChild(th); flatColIndex++;
+            }
+        });
+        table.appendChild(trWeek);
+
+        // Days
+        const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+        days.forEach((dName, dIndex) => {
+            const tr = document.createElement("tr");
+            if(dIndex >= 5) tr.className = "weekend-row";
+            const tdLabel = document.createElement("td"); tdLabel.className = "day-label"; tdLabel.innerText = dName; tr.appendChild(tdLabel);
+            
+            let localWeekOffset = 0;
+            config.forEach(m => {
+                for(let i=0; i<m.cols; i++) {
+                    const td = document.createElement("td");
+                    const totalWeeks = weekOffsetGlobal + localWeekOffset;
+                    const daysToAdd = (totalWeeks * 7) + dIndex;
+                    const cellDate = new Date(anchorDate);
+                    cellDate.setDate(anchorDate.getDate() + daysToAdd);
+                    
+                    if (cellDate.getFullYear() !== targetYear) {
+                         td.className = "empty-cell";
+                    } else {
+                        const dateKey = formatDateKey(cellDate);
+                        td.innerText = String(cellDate.getDate()).padStart(2, '0');
+                        td.dataset.date = dateKey;
+                        if (calendarData.events[dateKey] && calendarData.events[dateKey].highlight) {
+                            td.style.backgroundColor = getCalendarCategoryColor(calendarData.events[dateKey].type);
+                            td.style.fontWeight = "bold";
+                        }
+                        if (dateKey === selectedDateKey) td.classList.add("selected");
+                        
+                        // Event listener
+                        td.addEventListener('click', () => selectDate(dateKey));
+                    }
+                    if(i === m.cols - 1) td.classList.add("month-end-border");
+                    tr.appendChild(td); localWeekOffset++;
+                }
+            });
+            table.appendChild(tr);
+        });
+        container.appendChild(table);
+    }
+
+    function renderListGroups(filterYear) {
+        const container = document.getElementById("lists-container");
+        container.innerHTML = "";
+        
+        // Convert filterYear to string for comparison
+        filterYear = String(filterYear);
+
+        // 1. Group events by type
+        let grouped = {};
+        Object.keys(calendarData.events).sort().forEach(dateKey => {
+            // Only show events for current year view
+            if(dateKey.startsWith(filterYear)) {
+                const ev = calendarData.events[dateKey];
+                const type = ev.type || "Other";
+                if(!grouped[type]) grouped[type] = [];
+                const parts = dateKey.split("-");
+                const dObj = new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
+                grouped[type].push({ dateKey: dateKey, dateObj: dObj, ...ev });
+            }
+        });
+
+        // 2. Render Tables
+        Object.keys(grouped).forEach(type => {
+            const box = document.createElement("div"); box.className = "category-box";
+            const header = document.createElement("div"); header.className = "category-header";
+            const col = getCalendarCategoryColor(type);
+            header.innerText = type; header.style.borderBottom = `3px solid ${col}`;
+            box.appendChild(header);
+
+            const table = document.createElement("table"); table.className = "compact-list";
+            table.innerHTML = `<thead><tr><th style="width:30px"></th><th>Date</th><th>Event</th><th>Time/Days</th></tr></thead>`;
+            const tbody = document.createElement("tbody");
+
+            let list = grouped[type];
+            if(list.length > 0) {
+                let currentStart = list[0];
+                let currentEnd = list[0];
+                let count = 1;
+
+                for (let i = 1; i < list.length; i++) {
+                    const prev = list[i-1];
+                    const curr = list[i];
+                    
+                    const isConsecutive = (curr.dateObj - prev.dateObj) === 86400000; // 24hrs in ms
+                    const isSameEvent = curr.name === prev.name;
+
+                    if (isConsecutive && isSameEvent) {
+                        currentEnd = curr;
+                        count++;
+                    } else {
+                        tbody.appendChild(createRow(currentStart, currentEnd, count));
+                        currentStart = curr;
+                        currentEnd = curr;
+                        count = 1;
+                    }
+                }
+                tbody.appendChild(createRow(currentStart, currentEnd, count));
+            }
+
+            table.appendChild(tbody);
+            box.appendChild(table);
+            container.appendChild(box);
+        });
+    }
+
+    function createRow(startItem, endItem, count) {
+        const tr = document.createElement("tr");
+
+        // Delete Button Cell
+        const tdDel = document.createElement("td");
+        const btnDel = document.createElement("button");
+        btnDel.className = "btn-list-del";
+        btnDel.innerHTML = "×";
+        btnDel.title = "Delete Event";
+        btnDel.onclick = (e) => {
+            e.stopPropagation(); // Prevent row click
+            deleteRange(startItem.dateObj, endItem.dateObj);
+        };
+        tdDel.appendChild(btnDel);
+
+        // Date Text
+        let dateText = count > 1 ? `${formatDisplayDate(startItem.dateKey)} - ${formatDisplayDate(endItem.dateKey)}` : formatDisplayDate(startItem.dateKey);
+        // Time Text
+        let timeText = count > 1 ? `<b>${count} Days</b>` : startItem.time;
+
+        // Inner HTML without the delete button (we appended it)
+        const tdDate = document.createElement("td"); tdDate.innerHTML = dateText;
+        const tdName = document.createElement("td"); tdName.innerHTML = startItem.name;
+        const tdTime = document.createElement("td"); tdTime.innerHTML = timeText;
+
+        tr.appendChild(tdDel);
+        tr.appendChild(tdDate);
+        tr.appendChild(tdName);
+        tr.appendChild(tdTime);
+        
+        tr.onclick = () => selectDate(startItem.dateKey);
+        
+        return tr;
+    }
+
+    function deleteRange(startDateObj, endDateObj) {
+        if(!confirm("Delete this event/range?")) return;
+        
+        let curr = new Date(startDateObj);
+        while(curr <= endDateObj) {
+            const k = formatDateKey(curr);
+            delete calendarData.events[k];
+            curr.setDate(curr.getDate() + 1);
+        }
+        saveLocalData();
+        renderCalendarAll(); 
+        updateSmartHeader();
+    }
+
+    function selectDate(dateKey) {
+        selectedDateKey = dateKey;
+        document.querySelectorAll(".selected").forEach(e=>e.classList.remove("selected"));
+        const cell = document.querySelector(`td[data-date="${dateKey}"]`);
+        if(cell) { 
+            cell.classList.add("selected"); 
+            // Optional: scroll into view logic, can be annoying if auto triggered
+            // cell.scrollIntoView({behavior:"smooth", block:"center", inline:"center"}); 
+        }
+
+        calInputStartDate.value = dateKey;
+        calInputEndDate.value = ""; 
+        
+        if(calendarData.events[dateKey]) {
+            calEventName.value = calendarData.events[dateKey].name;
+            calEventTime.value = calendarData.events[dateKey].time;
+            calEventType.value = calendarData.events[dateKey].type || "Holiday";
+            calEventHighlight.checked = calendarData.events[dateKey].highlight;
+        } else {
+            calEventName.value = "";
+            calEventTime.value = "0:00";
+            calEventHighlight.checked = true;
+        }
+    }
+
+    function saveEvent() {
+        const startVal = calInputStartDate.value;
+        const endVal = calInputEndDate.value;
+        const name = calEventName.value;
+        const time = calEventTime.value;
+        const type = calEventType.value;
+        const highlight = calEventHighlight.checked;
+
+        if(!startVal || !name) return alert("Start Date and Name required");
+
+        if (!endVal || endVal === startVal) {
+            calendarData.events[startVal] = { name, time, type, highlight };
+            selectedDateKey = startVal;
+        } else {
+            const sDate = new Date(startVal);
+            const eDate = new Date(endVal);
+            if(eDate < sDate) return alert("End date error");
+            let curr = new Date(sDate);
+            while (curr <= eDate) {
+                calendarData.events[formatDateKey(curr)] = { name, time, type, highlight };
+                curr.setDate(curr.getDate() + 1);
+            }
+        }
+        
+        saveLocalData();
+        renderCalendarAll(); 
+        updateSmartHeader();
+    }
+
+    function deleteEvent() {
+        const startVal = calInputStartDate.value;
+        if(startVal && calendarData.events[startVal]) {
+            delete calendarData.events[startVal];
+            calEventName.value = "";
+            saveLocalData();
+            renderCalendarAll(); 
+            updateSmartHeader();
+        }
+    }
+
+    function copyEventsToYear() {
+        const currentYearStr = calConfigYear.value;
+        const targetYearStr = calCopyTargetYear.value;
+        
+        if(!targetYearStr) return alert("Enter target year");
+        if(currentYearStr === targetYearStr) return alert("Target year must be different");
+
+        if(!confirm(`Copy all events from ${currentYearStr} to ${targetYearStr}? (This copies same Day/Month)`)) return;
+
+        let count = 0;
+        Object.keys(calendarData.events).forEach(key => {
+            if(key.startsWith(currentYearStr)) {
+                const ev = calendarData.events[key];
+                const parts = key.split("-"); // [YYYY, MM, DD]
+                const newKey = `${targetYearStr}-${parts[1]}-${parts[2]}`;
+                calendarData.events[newKey] = { ...ev };
+                count++;
+            }
+        });
+
+        saveLocalData();
+        alert(`Copied ${count} days to ${targetYearStr}.`);
+    }
+
+    // --- CALENDAR CATEGORIES ---
+    function updateCategoryDropdown() {
+        calEventType.innerHTML = "";
+        calendarData.categories.forEach(c => {
+            const opt = document.createElement("option"); opt.value = c.name; opt.innerText = c.name; calEventType.appendChild(opt);
+        });
+    }
+    
+    function renderCalendarCategoryTags() {
+        const div = document.getElementById("cat-list-display"); 
+        div.innerHTML = "";
+        calendarData.categories.forEach((c, index) => {
+            const tag = document.createElement("div"); 
+            tag.className = "cat-tag"; 
+            tag.style.borderLeft = `5px solid ${c.color}`;
+            tag.innerHTML = `${c.name}`;
+            
+            const closeSpan = document.createElement("span");
+            closeSpan.innerHTML = "&times;";
+            closeSpan.onclick = () => removeCalendarCategory(index);
+            
+            tag.appendChild(closeSpan);
+            div.appendChild(tag);
+        });
+    }
+    
+    function addCalendarCategory() {
+        const name = calNewCatName.value;
+        const color = calNewCatColor.value;
+        if(name) { 
+            calendarData.categories.push({ name, color }); 
+            saveLocalData();
+            updateCategoryDropdown(); 
+            renderCalendarCategoryTags(); 
+            renderCalendarAll(); 
+        }
+    }
+    
+    function removeCalendarCategory(index) {
+        if(confirm("Remove category?")) { 
+            calendarData.categories.splice(index, 1); 
+            saveLocalData();
+            updateCategoryDropdown(); 
+            renderCalendarCategoryTags(); 
+            renderCalendarAll(); 
+        }
+    }
+    
+    function getCalendarCategoryColor(typeName) {
+        const found = calendarData.categories.find(c => c.name === typeName); 
+        return found ? found.color : "#ccc";
+    }
+
+    function formatDateKey(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+    function formatDisplayDate(s) { const d = new Date(s); const m = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]; return `${d.getDate()}-${m[d.getMonth()]}`; }
+
+
+    // --- EVENT LISTENERS ---
+    function attachEventListeners() {
+        
+        // Theme
+        themeToggleBtn?.addEventListener('click', toggleTheme);
+
         // Cloud Actions
+        saveConfigBtn?.addEventListener('click', saveConfig);
         saveToCloudBtn?.addEventListener('click', saveToCloud);
         loadFromCloudBtn?.addEventListener('click', loadFromCloud);
-
-        // UI Toggles
-        document.getElementById('toggle-sidebar')?.addEventListener('click', () => sidebar.classList.toggle('hidden'));
-        document.getElementById('toggle-tools')?.addEventListener('click', () => toolsPane.classList.toggle('hidden'));
-        document.getElementById('toggle-todos')?.addEventListener('click', () => todosPane.classList.toggle('hidden'));
         
-        // Search and Filters
+        // WorkHub Search and Filters
         toolSearchInput?.addEventListener('input', e => { toolSearchTerm = e.target.value; renderTools(); });
         todoSearchInput?.addEventListener('input', e => { todoSearchTerm = e.target.value; renderTodos(); });
         showDoneTodosCheckbox?.addEventListener('change', () => {
             showDoneTodos = showDoneTodosCheckbox.checked;
-            saveData();
+            saveLocalData();
             renderTodos();
         });
         categoryFiltersContainer?.addEventListener('click', (e) => {
             const target = e.target.closest('.category-filter');
             if (target) {
                 currentCategoryFilter = target.dataset.category;
-                render();
+                renderHub();
             }
         });
 
@@ -659,8 +1097,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 categories[categoryKey] = { color: toolCategoryColorInput.value };
             }
             
-            saveData();
-            render();
+            saveLocalData();
+            renderHub();
             addToolForm.reset();
             toolCategoryColorInput.value = '#3498db';
         });
@@ -684,8 +1122,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 categories[categoryKey] = { color: todoCategoryColorInput.value };
             }
 
-            saveData();
-            render();
+            saveLocalData();
+            renderHub();
             addTodoForm.reset();
             todoCategoryColorInput.value = '#3498db';
         });
@@ -705,8 +1143,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (confirm('Delete this task?')) { 
                         todos = todos.filter(t => t.id !== todoId); 
                         pruneOrphanedCategories();
-                        saveData(); 
-                        render(); 
+                        saveLocalData(); 
+                        renderHub(); 
                     } 
                 }
                 else if (action === 'edit-todo') { toggleTodoEditMode(card, todo); }
@@ -718,7 +1156,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (todo) {
                     todo.done = checkbox.checked;
                     todo.completionDate = todo.done ? new Date().toISOString() : null;
-                    saveData();
+                    saveLocalData();
                     renderTodos();
                 }
             }
@@ -745,8 +1183,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (confirm(`Delete "${tool.name}"?`)) { 
                     tools = tools.filter(t => t.id !== toolId); 
                     pruneOrphanedCategories();
-                    saveData(); 
-                    render(); 
+                    saveLocalData(); 
+                    renderHub(); 
                 } 
             }
             else if (action === 'edit-tool') { toggleToolEditMode(card, tool); }
@@ -763,41 +1201,25 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // MODAL & DATA I/O HANDLERS
-        document.getElementById('weekly-summary-btn')?.addEventListener('click', () => {
-            const now = new Date();
-            const thisWeek = getWeekRange(now);
-            const nextWeekDate = new Date(new Date().setDate(now.getDate() + 7));
-            const nextWeek = getWeekRange(nextWeekDate);
-
-            const completedThisWeek = todos.filter(t => t.done && t.completionDate && new Date(t.completionDate) >= thisWeek.start && new Date(t.completionDate) <= thisWeek.end);
-            const plannedForNextWeek = todos.filter(t => !t.done && t.dueDate && new Date(t.dueDate) >= nextWeek.start && new Date(t.dueDate) <= nextWeek.end);
-
-            summaryModalBody.innerHTML = `
-                <div class="summary-section" data-section="completed"><h4><span>Completed This Week (${completedThisWeek.length})</span><button class="btn btn-secondary btn-small" data-action="copy-summary">Copy</button></h4><ul>${completedThisWeek.length > 0 ? completedThisWeek.map(t => `<li>${t.text}</li>`).join('') : '<li>No tasks completed this week.</li>'}</ul></div>
-                <div class="summary-section" data-section="planned"><h4><span>Planned for Next Week (${plannedForNextWeek.length})</span><button class="btn btn-secondary btn-small" data-action="copy-summary">Copy</button></h4><ul>${plannedForNextWeek.length > 0 ? plannedForNextWeek.map(t => `<li>${t.text} (Due: ${t.dueDate})</li>`).join('') : '<li>No tasks planned for next week.</li>'}</ul></div>`;
-            if (summaryModalOverlay) summaryModalOverlay.style.display = 'flex';
+        // --- CALENDAR LISTENERS ---
+        calConfigYear?.addEventListener('change', recalcDateAnchor);
+        calWJan?.addEventListener('change', updateStructure);
+        calWDec?.addEventListener('change', updateStructure);
+        calWeekPatternInput?.addEventListener('change', renderFromPattern);
+        calInputStartDate?.addEventListener('change', () => {
+             const val = calInputStartDate.value;
+             if(val) selectDate(val);
         });
-
-        document.getElementById('summary-modal-close-btn')?.addEventListener('click', () => { if(summaryModalOverlay) summaryModalOverlay.style.display = 'none' });
-        summaryModalOverlay?.addEventListener('click', e => { if (e.target === summaryModalOverlay) summaryModalOverlay.style.display = 'none'; });
         
-        summaryModalBody?.addEventListener('click', e => {
-            const button = e.target.closest('button[data-action="copy-summary"]');
-            if (button) {
-                const section = button.closest('.summary-section');
-                const title = section.querySelector('h4 span').textContent;
-                const items = [...section.querySelectorAll('li')].map(li => `- ${li.textContent}`).join('\n');
-                navigator.clipboard.writeText(`${title}\n${items}`).then(() => {
-                    button.textContent = 'Copied!'; button.classList.add('copied');
-                    setTimeout(() => { button.textContent = 'Copy'; button.classList.remove('copied'); }, 2000);
-                });
-            }
-        });
+        document.getElementById('btn-reset-pattern')?.addEventListener('click', resetPattern);
+        document.getElementById('btn-copy-year')?.addEventListener('click', copyEventsToYear);
+        document.getElementById('btn-add-cat')?.addEventListener('click', addCalendarCategory);
+        document.getElementById('btn-save-event')?.addEventListener('click', saveEvent);
+        document.getElementById('btn-del-event')?.addEventListener('click', deleteEvent);
 
+        // DATA I/O HANDLERS
         exportBtn?.addEventListener('click', () => {
-            if (tools.length === 0 && todos.length === 0) { alert('No data to export.'); return; }
-            const dataStr = JSON.stringify({ tools, categories, todos }, null, 2);
+            const dataStr = JSON.stringify({ tools, categories, todos, calendarData }, null, 2);
             const blob = new Blob([dataStr], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -806,7 +1228,17 @@ document.addEventListener('DOMContentLoaded', () => {
             a.click();
             URL.revokeObjectURL(url);
         });
-
+        document.getElementById('toggle-cal-settings-btn')?.addEventListener('click', (e) => {
+            const content = document.getElementById('cal-settings-content');
+            content.classList.toggle('collapsed');
+            
+            // Optional: Change button symbol based on state
+            if (content.classList.contains('collapsed')) {
+                e.target.textContent = '+'; // Symbol when closed
+            } else {
+                e.target.textContent = '_'; // Symbol when open
+            }
+        });
         importFile?.addEventListener('change', e => {
             const file = e.target.files[0];
             if (!file) return;
@@ -814,12 +1246,19 @@ document.addEventListener('DOMContentLoaded', () => {
             reader.onload = event => {
                 try {
                     const data = JSON.parse(event.target.result);
-                    if (!data.tools || !data.categories || !data.todos) throw new Error("JSON missing required data.");
+                    // Basic validation
+                    if (!data.tools) throw new Error("JSON missing required data.");
+                    
                     if (confirm('This will overwrite all current data. Proceed?')) {
-                        tools = data.tools; categories = data.categories; todos = data.todos;
-                        saveData();
+                        tools = data.tools || [];
+                        categories = data.categories || {};
+                        todos = data.todos || [];
+                        calendarData = data.calendarData || calendarData; // Fallback if old JSON format
+                        
+                        saveLocalData();
                         currentCategoryFilter = 'all';
-                        render();
+                        renderHub();
+                        initCalendar();
                         alert('Data imported successfully!');
                     }
                 } catch (error) {
@@ -832,4 +1271,4 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-}); // Ende des DOMContentLoaded Listeners
+});
