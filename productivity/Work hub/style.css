@@ -485,3 +485,41 @@ body.dark-mode .input-group input, body.dark-mode .input-group select { backgrou
 #cal-settings-content.collapsed {
     display: none;
 }
+/* --- Multi-Event Styles --- */
+#day-events-list {
+    width: 100%;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed #ccc;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.event-pill {
+    background: #eef2f6;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 11px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+.event-pill:hover { background: #dfe6ed; border-color: #999; }
+.event-pill.active { background: #000080; color: white; border-color: #000060; }
+.event-pill .pill-color { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.event-pill .pill-close { font-weight: bold; margin-left: 5px; opacity: 0.6; }
+.event-pill .pill-close:hover { opacity: 1; color: red; }
+
+/* Indicator for multiple events in grid */
+.multi-event-dot {
+    position: absolute;
+    bottom: 1px;
+    right: 1px;
+    width: 4px;
+    height: 4px;
+    background-color: #000;
+    border-radius: 50%;
+}
+body.dark-mode .multi-event-dot { background-color: #fff; }

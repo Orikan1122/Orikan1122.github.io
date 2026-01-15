@@ -596,12 +596,20 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     // --- CALENDAR FUNCTIONS (Ported & Integrated) ---
+// --- CALENDAR FUNCTIONS (Updated for Multi-Event Support) ---
     function initCalendar() {
         if (!calendarData.config) {
              calendarData.config = { year: 2026, janWeeks: 5, decWeeks: 6, weekPattern: [] };
         }
         
-        // Populate inputs from saved state
+        // MIGRATION: Convert old single-object events to Arrays
+        Object.keys(calendarData.events).forEach(key => {
+            if (!Array.isArray(calendarData.events[key])) {
+                calendarData.events[key] = [calendarData.events[key]];
+            }
+        });
+
+        // Populate inputs
         calConfigYear.value = calendarData.config.year;
         calWJan.value = calendarData.config.janWeeks;
         calWDec.value = calendarData.config.decWeeks;
@@ -612,9 +620,10 @@ document.addEventListener('DOMContentLoaded', () => {
         recalcDateAnchor();
         updateSmartHeader();
         
-        // Start minute ticker
         setInterval(updateSmartHeader, 60000);
     }
+
+    let editingEventIndex = -1; // Track which sub-event we are editing
 
     function updateSmartHeader() {
         const now = new Date(); 
@@ -622,7 +631,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const m = String(now.getMonth()+1).padStart(2,'0');
         const y = now.getFullYear();
         
-        // Week Calc
         const oneJan = new Date(now.getFullYear(), 0, 1);
         const days = Math.floor((now - oneJan) / 86400000);
         const wkNum = Math.ceil((now.getDay() + 1 + days) / 7);
@@ -634,12 +642,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const tmr = new Date(now); tmr.setDate(now.getDate()+1);
         const keyTmr = formatDateKey(tmr);
 
-        const evToday = calendarData.events[keyToday] ? calendarData.events[keyToday].name : "No events";
-        const evTmr = calendarData.events[keyTmr] ? calendarData.events[keyTmr].name : "No events";
+        // Helper to get names from array
+        const getNames = (k) => {
+            if(!calendarData.events[k]) return "No events";
+            return calendarData.events[k].map(e => e.name).join(", ");
+        };
 
         document.getElementById("smart-event-display").innerHTML = `
-            <div><strong>Today:</strong> ${evToday}</div>
-            <div><strong>Tomorrow:</strong> ${evTmr}</div>
+            <div><strong>Today:</strong> ${getNames(keyToday)}</div>
+            <div><strong>Tomorrow:</strong> ${getNames(keyTmr)}</div>
         `;
     }
 
@@ -654,7 +665,6 @@ document.addEventListener('DOMContentLoaded', () => {
         monday.setDate(jan1.getDate() - jsDay);
         anchorDate = monday;
         
-        // If pattern exists, use it, else reset
         if (calendarData.config.weekPattern && calendarData.config.weekPattern.length > 0) {
             renderFromPattern();
         } else {
@@ -665,35 +675,25 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateStructure() {
         monthCols["January"] = parseInt(calWJan.value);
         monthCols["December"] = parseInt(calWDec.value);
-        
-        // Save to config
         calendarData.config.janWeeks = monthCols["January"];
         calendarData.config.decWeeks = monthCols["December"];
-        
         resetPattern();
     }
 
     function resetPattern() {
-        // Recalculate default week pattern
         monthCols["January"] = parseInt(calWJan.value);
         monthCols["December"] = parseInt(calWDec.value);
         const totalWeeks = Object.values(monthCols).reduce((a,b) => a+b, 0);
-        
-        let arr = []; 
-        for(let i=1; i<=totalWeeks; i++) arr.push(i);
-        
+        let arr = []; for(let i=1; i<=totalWeeks; i++) arr.push(i);
         calendarData.config.weekPattern = arr;
         calWeekPatternInput.value = arr.join(", ");
-        
         saveLocalData();
         renderFromPattern();
     }
     
     function renderFromPattern() {
         const txt = calWeekPatternInput.value;
-        if(txt) {
-             calendarData.config.weekPattern = txt.split(",").map(s => s.trim());
-        }
+        if(txt) calendarData.config.weekPattern = txt.split(",").map(s => s.trim());
         renderCalendarAll();
     }
 
@@ -718,7 +718,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const table = document.createElement("table");
         table.className = "cal-grid"; 
 
-        // 1. Month Header
         const trMonth = document.createElement("tr");
         trMonth.className = "header-row";
         const thYear = document.createElement("th"); thYear.innerText = targetYear; thYear.style.width="50px"; trMonth.appendChild(thYear);
@@ -727,7 +726,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         table.appendChild(trMonth);
 
-        // 2. Week Header
         const trWeek = document.createElement("tr"); trWeek.className = "wk-header-row";
         const thLabel = document.createElement("th"); thLabel.innerText = "Wk#"; trWeek.appendChild(thLabel);
         let flatColIndex = 0;
@@ -740,7 +738,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         table.appendChild(trWeek);
 
-        // Days
         const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
         days.forEach((dName, dIndex) => {
             const tr = document.createElement("tr");
@@ -762,13 +759,24 @@ document.addEventListener('DOMContentLoaded', () => {
                         const dateKey = formatDateKey(cellDate);
                         td.innerText = String(cellDate.getDate()).padStart(2, '0');
                         td.dataset.date = dateKey;
-                        if (calendarData.events[dateKey] && calendarData.events[dateKey].highlight) {
-                            td.style.backgroundColor = getCalendarCategoryColor(calendarData.events[dateKey].type);
-                            td.style.fontWeight = "bold";
-                        }
-                        if (dateKey === selectedDateKey) td.classList.add("selected");
                         
-                        // Event listener
+                        const eventsArr = calendarData.events[dateKey];
+                        if (eventsArr && eventsArr.length > 0) {
+                            // Find primary event to color (first highlighted, or just first)
+                            const primary = eventsArr.find(e => e.highlight) || eventsArr[0];
+                            if(primary.highlight) {
+                                td.style.backgroundColor = getCalendarCategoryColor(primary.type);
+                                td.style.fontWeight = "bold";
+                            }
+                            // Add dot if multiple events
+                            if (eventsArr.length > 1) {
+                                const dot = document.createElement('div');
+                                dot.className = 'multi-event-dot';
+                                td.appendChild(dot);
+                            }
+                        }
+                        
+                        if (dateKey === selectedDateKey) td.classList.add("selected");
                         td.addEventListener('click', () => selectDate(dateKey));
                     }
                     if(i === m.cols - 1) td.classList.add("month-end-border");
@@ -783,25 +791,24 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderListGroups(filterYear) {
         const container = document.getElementById("lists-container");
         container.innerHTML = "";
-        
-        // Convert filterYear to string for comparison
         filterYear = String(filterYear);
 
-        // 1. Group events by type
+        // Group by type
         let grouped = {};
         Object.keys(calendarData.events).sort().forEach(dateKey => {
-            // Only show events for current year view
             if(dateKey.startsWith(filterYear)) {
-                const ev = calendarData.events[dateKey];
-                const type = ev.type || "Other";
-                if(!grouped[type]) grouped[type] = [];
-                const parts = dateKey.split("-");
-                const dObj = new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
-                grouped[type].push({ dateKey: dateKey, dateObj: dObj, ...ev });
+                // Loop through all events on this day
+                const evList = calendarData.events[dateKey];
+                evList.forEach(ev => {
+                    const type = ev.type || "Other";
+                    if(!grouped[type]) grouped[type] = [];
+                    const parts = dateKey.split("-");
+                    const dObj = new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
+                    grouped[type].push({ dateKey: dateKey, dateObj: dObj, ...ev });
+                });
             }
         });
 
-        // 2. Render Tables
         Object.keys(grouped).forEach(type => {
             const box = document.createElement("div"); box.className = "category-box";
             const header = document.createElement("div"); header.className = "category-header";
@@ -810,11 +817,14 @@ document.addEventListener('DOMContentLoaded', () => {
             box.appendChild(header);
 
             const table = document.createElement("table"); table.className = "compact-list";
-            table.innerHTML = `<thead><tr><th style="width:30px"></th><th>Date</th><th>Event</th><th>Time/Days</th></tr></thead>`;
+            table.innerHTML = `<thead><tr><th style="width:30px"></th><th>Date</th><th>Event</th><th>Time</th></tr></thead>`;
             const tbody = document.createElement("tbody");
 
             let list = grouped[type];
             if(list.length > 0) {
+                // Sort by date
+                list.sort((a,b) => a.dateObj - b.dateObj);
+                
                 let currentStart = list[0];
                 let currentEnd = list[0];
                 let count = 1;
@@ -823,20 +833,20 @@ document.addEventListener('DOMContentLoaded', () => {
                     const prev = list[i-1];
                     const curr = list[i];
                     
-                    const isConsecutive = (curr.dateObj - prev.dateObj) === 86400000; // 24hrs in ms
-                    const isSameEvent = curr.name === prev.name;
+                    const isConsecutive = (curr.dateObj - prev.dateObj) === 86400000;
+                    const isSameName = curr.name === prev.name;
 
-                    if (isConsecutive && isSameEvent) {
+                    if (isConsecutive && isSameName) {
                         currentEnd = curr;
                         count++;
                     } else {
-                        tbody.appendChild(createRow(currentStart, currentEnd, count));
+                        tbody.appendChild(createRow(currentStart, currentEnd, count, type));
                         currentStart = curr;
                         currentEnd = curr;
                         count = 1;
                     }
                 }
-                tbody.appendChild(createRow(currentStart, currentEnd, count));
+                tbody.appendChild(createRow(currentStart, currentEnd, count, type));
             }
 
             table.appendChild(tbody);
@@ -845,27 +855,23 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function createRow(startItem, endItem, count) {
+    function createRow(startItem, endItem, count, typeFilter) {
         const tr = document.createElement("tr");
 
-        // Delete Button Cell
         const tdDel = document.createElement("td");
         const btnDel = document.createElement("button");
         btnDel.className = "btn-list-del";
         btnDel.innerHTML = "×";
-        btnDel.title = "Delete Event";
+        btnDel.title = "Delete Event Series";
         btnDel.onclick = (e) => {
-            e.stopPropagation(); // Prevent row click
-            deleteRange(startItem.dateObj, endItem.dateObj);
+            e.stopPropagation(); 
+            deleteRange(startItem.dateObj, endItem.dateObj, typeFilter);
         };
         tdDel.appendChild(btnDel);
 
-        // Date Text
         let dateText = count > 1 ? `${formatDisplayDate(startItem.dateKey)} - ${formatDisplayDate(endItem.dateKey)}` : formatDisplayDate(startItem.dateKey);
-        // Time Text
         let timeText = count > 1 ? `<b>${count} Days</b>` : startItem.time;
 
-        // Inner HTML without the delete button (we appended it)
         const tdDate = document.createElement("td"); tdDate.innerHTML = dateText;
         const tdName = document.createElement("td"); tdName.innerHTML = startItem.name;
         const tdTime = document.createElement("td"); tdTime.innerHTML = timeText;
@@ -874,19 +880,21 @@ document.addEventListener('DOMContentLoaded', () => {
         tr.appendChild(tdDate);
         tr.appendChild(tdName);
         tr.appendChild(tdTime);
-        
         tr.onclick = () => selectDate(startItem.dateKey);
-        
         return tr;
     }
 
-    function deleteRange(startDateObj, endDateObj) {
-        if(!confirm("Delete this event/range?")) return;
+    function deleteRange(startDateObj, endDateObj, typeFilter) {
+        if(!confirm(`Delete "${typeFilter}" events in this range?`)) return;
         
         let curr = new Date(startDateObj);
         while(curr <= endDateObj) {
             const k = formatDateKey(curr);
-            delete calendarData.events[k];
+            if (calendarData.events[k]) {
+                // Only remove events matching the type
+                calendarData.events[k] = calendarData.events[k].filter(e => e.type !== typeFilter);
+                if(calendarData.events[k].length === 0) delete calendarData.events[k];
+            }
             curr.setDate(curr.getDate() + 1);
         }
         saveLocalData();
@@ -896,27 +904,60 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function selectDate(dateKey) {
         selectedDateKey = dateKey;
+        editingEventIndex = -1; // Reset editing mode
+        
         document.querySelectorAll(".selected").forEach(e=>e.classList.remove("selected"));
         const cell = document.querySelector(`td[data-date="${dateKey}"]`);
-        if(cell) { 
-            cell.classList.add("selected"); 
-            // Optional: scroll into view logic, can be annoying if auto triggered
-            // cell.scrollIntoView({behavior:"smooth", block:"center", inline:"center"}); 
-        }
+        if(cell) cell.classList.add("selected");
 
         calInputStartDate.value = dateKey;
         calInputEndDate.value = ""; 
         
-        if(calendarData.events[dateKey]) {
-            calEventName.value = calendarData.events[dateKey].name;
-            calEventTime.value = calendarData.events[dateKey].time;
-            calEventType.value = calendarData.events[dateKey].type || "Holiday";
-            calEventHighlight.checked = calendarData.events[dateKey].highlight;
-        } else {
+        // Reset Inputs
+        calEventName.value = "";
+        calEventTime.value = "0:00";
+        calEventHighlight.checked = true;
+
+        renderDayEventsList(dateKey);
+    }
+    
+    function renderDayEventsList(dateKey) {
+        const container = document.getElementById("day-events-list");
+        if(!container) return;
+        container.innerHTML = "";
+        
+        const eventsArr = calendarData.events[dateKey] || [];
+        
+        // "New Event" pill
+        const newPill = document.createElement("div");
+        newPill.className = `event-pill ${editingEventIndex === -1 ? 'active' : ''}`;
+        newPill.innerHTML = `<span>+ New Event</span>`;
+        newPill.onclick = () => {
+            editingEventIndex = -1;
             calEventName.value = "";
             calEventTime.value = "0:00";
             calEventHighlight.checked = true;
-        }
+            renderDayEventsList(dateKey);
+        };
+        container.appendChild(newPill);
+
+        // Existing Events pills
+        eventsArr.forEach((ev, idx) => {
+            const pill = document.createElement("div");
+            pill.className = `event-pill ${editingEventIndex === idx ? 'active' : ''}`;
+            const color = getCalendarCategoryColor(ev.type);
+            pill.innerHTML = `<span class="pill-color" style="background:${color}"></span> <span>${ev.name}</span>`;
+            
+            pill.onclick = () => {
+                editingEventIndex = idx;
+                calEventName.value = ev.name;
+                calEventTime.value = ev.time;
+                calEventType.value = ev.type;
+                calEventHighlight.checked = ev.highlight;
+                renderDayEventsList(dateKey); // Re-render to highlight active pill
+            };
+            container.appendChild(pill);
+        });
     }
 
     function saveEvent() {
@@ -929,18 +970,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if(!startVal || !name) return alert("Start Date and Name required");
 
+        const newEventObj = { name, time, type, highlight };
+
         if (!endVal || endVal === startVal) {
-            calendarData.events[startVal] = { name, time, type, highlight };
-            selectedDateKey = startVal;
+            // Single Day
+            if (!calendarData.events[startVal]) calendarData.events[startVal] = [];
+            
+            if (editingEventIndex > -1) {
+                // Update existing
+                calendarData.events[startVal][editingEventIndex] = newEventObj;
+            } else {
+                // Add new
+                calendarData.events[startVal].push(newEventObj);
+            }
+            selectDate(startVal); // Refresh view
         } else {
+            // Range
             const sDate = new Date(startVal);
             const eDate = new Date(endVal);
             if(eDate < sDate) return alert("End date error");
+            
             let curr = new Date(sDate);
             while (curr <= eDate) {
-                calendarData.events[formatDateKey(curr)] = { name, time, type, highlight };
+                const k = formatDateKey(curr);
+                if (!calendarData.events[k]) calendarData.events[k] = [];
+                // For ranges, we always append (Add) currently, as matching indices across days is complex
+                calendarData.events[k].push({ ...newEventObj }); 
                 curr.setDate(curr.getDate() + 1);
             }
+            selectDate(startVal);
         }
         
         saveLocalData();
@@ -949,10 +1007,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function deleteEvent() {
-        const startVal = calInputStartDate.value;
-        if(startVal && calendarData.events[startVal]) {
-            delete calendarData.events[startVal];
-            calEventName.value = "";
+        const dateKey = calInputStartDate.value;
+        if(dateKey && calendarData.events[dateKey]) {
+            if (editingEventIndex > -1) {
+                // Delete specific sub-event
+                calendarData.events[dateKey].splice(editingEventIndex, 1);
+                if (calendarData.events[dateKey].length === 0) delete calendarData.events[dateKey];
+                selectDate(dateKey); // Reset
+            } else {
+                alert("Please select a specific event from the list below to delete it.");
+            }
             saveLocalData();
             renderCalendarAll(); 
             updateSmartHeader();
@@ -966,21 +1030,26 @@ document.addEventListener('DOMContentLoaded', () => {
         if(!targetYearStr) return alert("Enter target year");
         if(currentYearStr === targetYearStr) return alert("Target year must be different");
 
-        if(!confirm(`Copy all events from ${currentYearStr} to ${targetYearStr}? (This copies same Day/Month)`)) return;
+        if(!confirm(`Copy all events from ${currentYearStr} to ${targetYearStr}?`)) return;
 
         let count = 0;
         Object.keys(calendarData.events).forEach(key => {
             if(key.startsWith(currentYearStr)) {
-                const ev = calendarData.events[key];
-                const parts = key.split("-"); // [YYYY, MM, DD]
+                const parts = key.split("-");
                 const newKey = `${targetYearStr}-${parts[1]}-${parts[2]}`;
-                calendarData.events[newKey] = { ...ev };
+                
+                if(!calendarData.events[newKey]) calendarData.events[newKey] = [];
+                
+                // Copy all events from source day to target day
+                calendarData.events[key].forEach(ev => {
+                    calendarData.events[newKey].push({ ...ev });
+                });
                 count++;
             }
         });
 
         saveLocalData();
-        alert(`Copied ${count} days to ${targetYearStr}.`);
+        alert(`Copied events from ${count} days to ${targetYearStr}.`);
     }
 
     // --- CALENDAR CATEGORIES ---
@@ -999,11 +1068,9 @@ document.addEventListener('DOMContentLoaded', () => {
             tag.className = "cat-tag"; 
             tag.style.borderLeft = `5px solid ${c.color}`;
             tag.innerHTML = `${c.name}`;
-            
             const closeSpan = document.createElement("span");
             closeSpan.innerHTML = "&times;";
             closeSpan.onclick = () => removeCalendarCategory(index);
-            
             tag.appendChild(closeSpan);
             div.appendChild(tag);
         });
@@ -1038,7 +1105,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function formatDateKey(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
     function formatDisplayDate(s) { const d = new Date(s); const m = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]; return `${d.getDate()}-${m[d.getMonth()]}`; }
-
 
     // --- EVENT LISTENERS ---
     function attachEventListeners() {
