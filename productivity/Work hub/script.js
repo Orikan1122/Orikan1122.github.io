@@ -33,8 +33,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const MONTHS_TOP = ["January", "February", "March", "April", "May", "June"];
     const MONTHS_BOTTOM = ["July", "August", "September", "October", "November", "December"];
     let monthCols = {
-        "January": 5, "February": 4, "March": 4, "April": 5, "May": 4, "June": 4,
-        "July": 5, "August": 4, "September": 4, "October": 5, "November": 4, "December": 6
+        "January": 5, "February": 4, "March": 5, "April": 4, "May": 4, "June": 5,
+        "July": 4, "August": 4, "September": 5, "October": 4, "November": 4, "December": 5
     };
     let anchorDate = null;
     let selectedDateKey = null;
