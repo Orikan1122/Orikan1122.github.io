@@ -81,7 +81,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const confIdInput = document.getElementById('conf-id');
     const confPwInput = document.getElementById('conf-pw');
     const saveConfigBtn = document.getElementById('save-config-btn');
-
+    const vaultUser = document.getElementById('vault-user');
+    const vaultPass = document.getElementById('vault-pass');
+    const vaultLoginBtn = document.getElementById('vault-login-btn');
     // Calendar Inputs
     const calConfigYear = document.getElementById('config-year');
     const calWJan = document.getElementById('w-jan');
@@ -219,7 +221,48 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- GOOGLE DRIVE BRIDGE FUNCTIONS ---
+// --- UPDATED: VAULT LOGIN & CLOUD BRIDGE ---
+    const VAULT_URL = "https://script.google.com/macros/s/AKfycbxsM9fmYDvprjDea64dg8DYv5OUq_MmkHVXu0zbxqiGqmrQId_QyXummxb2r6JLZYmbKg/exec"
+
+    async function handleVaultLogin() {
+        console.log("Login button clicked..."); // Debug 1
+        
+        const u = vaultUser.value.trim();
+        const p = vaultPass.value.trim();
+
+        if (!u || !p) {
+            alert("Please enter both Username and Password.");
+            return;
+        }
+
+        showCloudStatus("Connecting to Vault...", 'loading', 0);
+
+        try {
+            console.log("Fetching from Vault URL:", VAULT_URL); // Debug 2
+            const response = await fetch(`${VAULT_URL}?u=${encodeURIComponent(u)}&p=${encodeURIComponent(p)}`);
+            const result = await response.json();
+            console.log("Vault Response:", result); // Debug 3
+
+            if (result.success) {
+                // Set values to hidden fields
+                confUrlInput.value = result.config.cfgUrl;
+                confIdInput.value = result.config.cfgId;
+                confPwInput.value = result.config.cfgPw;
+                
+                saveConfig();
+                showCloudStatus("Vault Synced!", 'success');
+                
+                // Immediately try to load data
+                loadFromCloud();
+            } else {
+                showCloudStatus("Login Failed: Incorrect credentials", 'error');
+            }
+        } catch (error) {
+            showCloudStatus("Connection Error", 'error');
+            console.error("Critical Vault Error:", error);
+        }
+    }
+
     function getDriveConfig() {
         return {
             url: confUrlInput.value.trim(),
@@ -231,7 +274,6 @@ document.addEventListener('DOMContentLoaded', () => {
     function saveConfig() {
         const config = getDriveConfig();
         localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
-        showCloudStatus("Configuration saved locally.", 'success');
     }
 
     function loadConfig() {
@@ -246,45 +288,38 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function saveToCloud() {
         const cfg = getDriveConfig();
-        if (!cfg.url || !cfg.id || !cfg.pw) {
-            showCloudStatus("Missing configuration.", 'error');
+        if (!cfg.url || !cfg.id) {
+            showCloudStatus("No config. Please Login to Vault.", 'error');
             return;
         }
 
-        showCloudStatus("Saving to Google Drive...", 'loading', 0);
-        // Add calendarData to payload
+        showCloudStatus("Saving...", 'loading', 0);
         const dataToSave = { tools, categories, todos, calendarData };
-        const endpoint = `${cfg.url}?id=${cfg.id}&pw=${cfg.pw}`;
-
+        
         try {
-            const response = await fetch(endpoint, {
+            const response = await fetch(`${cfg.url}?id=${cfg.id}&pw=${cfg.pw}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                 body: JSON.stringify(dataToSave)
             });
             const result = await response.json();
             if (result.error) throw new Error(result.error);
-            showCloudStatus("Saved to Drive successfully!", 'success');
+            showCloudStatus("Cloud Sync Complete!", 'success');
         } catch (error) {
-            console.error("Save Error:", error);
-            showCloudStatus(`Error: ${error.message}`, 'error', 0);
+            showCloudStatus(`Save Failed: ${error.message}`, 'error', 0);
         }
     }
 
     async function loadFromCloud() {
         const cfg = getDriveConfig();
-        if (!cfg.url || !cfg.id || !cfg.pw) {
-            showCloudStatus("Missing configuration.", 'error');
+        if (!cfg.url || !cfg.id) {
+            showCloudStatus("No config. Please Login to Vault.", 'error');
             return;
         }
 
-        if (!confirm("Overwrite local data with data from Drive?")) return;
-
-        showCloudStatus("Loading from Google Drive...", 'loading', 0);
-        const endpoint = `${cfg.url}?id=${cfg.id}&pw=${cfg.pw}&t=${Date.now()}`;
-
+        showCloudStatus("Loading...", 'loading', 0);
         try {
-            const response = await fetch(endpoint);
+            const response = await fetch(`${cfg.url}?id=${cfg.id}&pw=${cfg.pw}&t=${Date.now()}`);
             const data = await response.json();
 
             if (data.error) throw new Error(data.error);
@@ -292,24 +327,16 @@ document.addEventListener('DOMContentLoaded', () => {
             if (data.tools) tools = data.tools;
             if (data.categories) categories = data.categories;
             if (data.todos) todos = data.todos;
-            // Load Calendar Data
-            if (data.calendarData) {
-                calendarData = data.calendarData;
-                // Safe check for config properties
-                if (!calendarData.config) calendarData.config = { year: 2026, janWeeks: 5, decWeeks: 6, weekPattern: [] };
-            }
+            if (data.calendarData) calendarData = data.calendarData;
 
             saveLocalData(); 
             renderHub();
             initCalendar();
-            showCloudStatus("Loaded from Drive successfully!", 'success');
-
+            showCloudStatus("Data Restored from Cloud", 'success');
         } catch (error) {
-            console.error("Load Error:", error);
-            showCloudStatus(`Error: ${error.message}`, 'error', 0);
+            showCloudStatus(`Load Failed: ${error.message}`, 'error', 0);
         }
     }
-
     // --- DATA HELPERS (WorkHub) ---
     function showCloudStatus(message, type = 'loading', duration = 3000) {
         if (!cloudStatusEl) return;
@@ -1113,10 +1140,11 @@ document.addEventListener('DOMContentLoaded', () => {
         themeToggleBtn?.addEventListener('click', toggleTheme);
 
         // Cloud Actions
-        saveConfigBtn?.addEventListener('click', saveConfig);
+        document.getElementById('vault-login-btn')?.addEventListener('click', handleVaultLogin);
         saveToCloudBtn?.addEventListener('click', saveToCloud);
         loadFromCloudBtn?.addEventListener('click', loadFromCloud);
-        
+        // Correct listener for the Vault button
+        vaultLoginBtn?.addEventListener('click', handleVaultLogin);
         // WorkHub Search and Filters
         toolSearchInput?.addEventListener('input', e => { toolSearchTerm = e.target.value; renderTools(); });
         todoSearchInput?.addEventListener('input', e => { todoSearchTerm = e.target.value; renderTodos(); });

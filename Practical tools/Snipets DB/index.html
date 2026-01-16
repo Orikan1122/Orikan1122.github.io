@@ -37,20 +37,17 @@
 
     <div id="loginOverlay">
         <div class="login-box">
-            <h2>Setup / Login</h2>
-            <p style="font-size:13px; color:#aaa;">Ihre Daten werden nur lokal im Browser gespeichert.</p>
+            <h2>Cloud Login</h2>
+            <p style="font-size:13px; color:#aaa;">Enter your Master credentials to sync config.</p>
             
-            <label>Google Script Web App URL</label>
-            <input type="text" id="cfgUrl" placeholder="https://script.google.com/macros/s/..." >
+            <label>Username</label>
+            <input type="text" id="masterUser" placeholder="e.g. admin">
             
-            <label>Data File ID (Google Drive)</label>
-            <input type="text" id="cfgId" placeholder="1ySDPNPo8..." >
+            <label>Password</label>
+            <input type="password" id="masterPass" placeholder="••••••••">
             
-            <label>Zugriffspasswort</label>
-            <input type="password" id="cfgPw" placeholder="Ihr geheimes Passwort">
-            
-            <button onclick="saveConfigAndLogin()">Verbinden</button>
-        </div>
+            <button onclick="fetchConfigFromVault()">Login & Sync</button>
+</div>
     </div>
 
     <div class="sidebar">
@@ -121,7 +118,37 @@
                 document.getElementById('loginOverlay').style.display = 'flex'; // Show login again on error
             }
         }
+        const VAULT_URL = "https://script.google.com/macros/s/AKfycbzr3S0rh7lg_KQVBk-Dim6YrqrmWMgsfqC5QNz3LnsdoTWpQ8l2FleZPQNkeAofqFHLog/exec";
 
+        async function fetchConfigFromVault() {
+            const u = document.getElementById('masterUser').value;
+            const p = document.getElementById('masterPass').value;
+            
+            try {
+                const response = await fetch(`${VAULT_URL}?u=${u}&p=${p}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Map the vault data to your app's config format
+                    config = { 
+                        url: result.config.cfgUrl, 
+                        id: result.config.cfgId, 
+                        pw: result.config.cfgPw 
+                    };
+                    
+                    // Save to local storage so you stay logged in on THIS machine
+                    localStorage.setItem("ps_manager_config", JSON.stringify(config));
+                    
+                    // Hide login and load data
+                    document.getElementById('loginOverlay').style.display = 'none';
+                    loadData();
+                } else {
+                    alert("Wrong Username or Password!");
+                }
+            } catch (err) {
+                alert("Error connecting to Vault: " + err);
+            }
+        }
         async function saveData() {
             if (!currentId) return;
             updateLocalEntry();

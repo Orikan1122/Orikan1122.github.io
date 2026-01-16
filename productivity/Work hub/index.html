@@ -23,20 +23,24 @@
             
             <div class="data-actions">
                 <div id="drive-config-section">
-                    <h3>Cloud Setup (Google Drive)</h3>
-                    <div class="form-group">
-                        <label for="conf-url">Web App URL</label>
-                        <input type="password" id="conf-url" placeholder="https://script.google.com/..." class="small-input">
+                    <h3>Vault Login</h3>
+                    <div id="vault-login-fields">
+                        <div class="form-group">
+                            <label for="vault-user">Username</label>
+                            <input type="text" id="vault-user" placeholder="e.g. admin" class="small-input">
+                        </div>
+                        <div class="form-group">
+                            <label for="vault-pass">Vault Password</label>
+                            <input type="password" id="vault-pass" placeholder="••••••••" class="small-input">
+                        </div>
+                        <button id="vault-login-btn" class="btn btn-secondary btn-small" style="width:100%">Login & Sync</button>
                     </div>
-                    <div class="form-group">
-                        <label for="conf-id">File ID</label>
-                        <input type="password" id="conf-id" placeholder="Google Drive File ID" class="small-input">
+
+                    <div id="hidden-config" style="display:none;">
+                        <input type="password" id="conf-url">
+                        <input type="password" id="conf-id">
+                        <input type="password" id="conf-pw">
                     </div>
-                    <div class="form-group">
-                        <label for="conf-pw">Access Password</label>
-                        <input type="password" id="conf-pw" placeholder="Secret Password" class="small-input">
-                    </div>
-                    <button id="save-config-btn" class="btn btn-secondary btn-small" style="width:100%">Save Config</button>
                 </div>
 
                 <div id="cloud-status" class="cloud-status-indicator"></div>
