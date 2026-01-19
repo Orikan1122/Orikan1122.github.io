@@ -125,8 +125,17 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!response.ok) throw new Error('Failed to fetch credits.');
 
             const { data } = await response.json();
-            const credits = data.limit || 0;
-            creditsText.textContent = `$${credits.toFixed(4)}`;
+            
+            // --- FIX START ---
+            // Old incorrect code: const credits = data.limit || 0;
+            
+            // Corrected calculation:
+            const totalCredits = data.total_credits || 0;
+            const totalUsage = data.total_usage || 0;
+            const balance = totalCredits - totalUsage;
+            
+            creditsText.textContent = `$${balance.toFixed(4)}`;
+            // --- FIX END ---
 
         } catch (error) {
             console.error('Error fetching credits:', error);
@@ -175,6 +184,9 @@ document.addEventListener('DOMContentLoaded', () => {
             renderMessage('assistant', botReply);
             conversationHistory.push({ role: 'assistant', content: botReply });
             saveData();
+            
+            // Refresh credits after a message is sent to show updated cost
+            fetchCredits(); 
 
         } catch (error) {
             console.error('Error sending message:', error);
