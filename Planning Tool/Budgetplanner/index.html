@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BudgetPlanner Pro 202X</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="style.css">
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+
+    <div class="hidden-config">
+        <input type="hidden" id="conf-url">
+        <input type="hidden" id="conf-id">
+        <input type="hidden" id="conf-pw">
+    </div>
+
+    <header>
+        <div class="header-title">
+            BudgetPlanner <span style="font-weight:300">Hub</span>
+            <span id="display-current-year" class="year-badge">2026</span>
+        </div>
+        
+        <div class="header-controls">
+            <div class="year-control">
+                <label>Plan Year:</label>
+                <input type="number" id="global-year" value="2026" onchange="changeYear()">
+                <button class="btn-sm" onclick="copyDataToNextYear()" title="Copy One-Time events">Copy &rarr;</button>
+            </div>
+
+            <div class="auth-controls">
+                <span id="user-display" class="user-badge"></span>
+                <button class="btn-login" onclick="openLogin()">Vault Login</button>
+                <div class="btn-group">
+                    <button class="btn-sync load" onclick="loadData()">Load</button>
+                    <button class="btn-sync save" onclick="saveData()">Save</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="main-container" id="main-layout">
+
+        <!-- 1. LEFT: SETUP -->
+        <div class="panel col-setup" style="width: 280px; flex:none;">
+            <div class="panel-header">
+                Financial Setup
+                <button class="btn-sm" onclick="clearForm()" title="Clear Form"><i class="fas fa-plus"></i> New</button>
+            </div>
+            <div class="panel-content">
+                
+                <div class="input-card blue-card">
+                    <label>Start Balance (Jan 1st)</label>
+                    <input type="number" id="inp-start-balance" value="0" onchange="updateStartBalance()">
+                </div>
+
+                <div class="input-card gray-card" id="editor-card">
+                    <!-- Hidden ID for Editing -->
+                    <input type="hidden" id="inp-id">
+
+                    <div class="form-group">
+                        <label>Category</label>
+                        <select id="inp-type">
+                            <option value="income">Income / Salary</option>
+                            <option value="fixed">Fixed Cost (Rent/Bills)</option>
+                            <option value="variable">Variable (Living)</option>
+                            <option value="pension">Pension / Säule 3a</option>
+                            <option value="goal">Purchase Goal</option>
+                            <option value="debt">Debt Payment</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Name</label>
+                        <input type="text" id="inp-name" placeholder="e.g. Salary">
+                    </div>
+                    <div class="row-group">
+                        <div style="flex:1">
+                            <label>Amount</label>
+                            <input type="number" id="inp-amount" placeholder="0.00">
+                        </div>
+                        <div style="flex:1">
+                            <label title="Yearly adjustment for long term outlook">Growth %</label>
+                            <input type="number" id="inp-growth" placeholder="0%" value="0" step="0.1">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                         <label>Frequency</label>
+                         <select id="inp-freq">
+                             <option value="monthly">Monthly</option>
+                             <option value="yearly">Yearly</option>
+                             <option value="once">One-Time</option>
+                         </select>
+                    </div>
+                    <div class="row-group">
+                        <div style="flex:1;">
+                            <label>Start Date</label>
+                            <input type="date" id="inp-date">
+                        </div>
+                        <div style="flex:1;">
+                            <label>End Date (Opt)</label>
+                            <input type="date" id="inp-end-date">
+                        </div>
+                    </div>
+                    <button id="btn-save-entry" class="btn-action full-width" onclick="saveEntry()">Add Entry</button>
+                </div>
+
+                <div class="item-list" id="setup-list"></div>
+            </div>
+        </div>
+
+        <!-- RESIZER 1 -->
+        <div class="resizer" id="drag-1"></div>
+
+        <!-- 2. MIDDLE: CALENDAR -->
+        <div class="panel col-calendar" style="flex:1;">
+            <div class="panel-header">
+                <span>Year Grid View</span>
+                <div style="font-size:10px; color:#666;">
+                    <span class="legend-dot income"></span> In
+                    <span class="legend-dot expense"></span> Out
+                </div>
+            </div>
+            
+            <div class="cal-wrapper">
+                <div class="cal-grid-area" id="calendar-container"></div>
+                <div class="cal-detail-area" id="day-detail-panel">
+                    <div class="empty-state">Select a date in the grid to view details.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RESIZER 2 -->
+        <div class="resizer" id="drag-2"></div>
+
+        <!-- 3. RIGHT: ANALYTICS -->
+        <div class="panel col-analytics" style="width: 320px; flex:none;">
+            <div class="panel-header">Financial Outlook</div>
+            <div class="panel-content">
+                
+                <!-- Main Stats -->
+                <div class="stat-card">
+                    <div class="stat-row"><span>Total Income:</span> <span class="stat-val val-pos" id="stat-inc">0</span></div>
+                    <div class="stat-row"><span>Total Expenses:</span> <span class="stat-val val-neg" id="stat-exp">0</span></div>
+                    <div class="divider"></div>
+                    <div class="stat-row lg-text"><span>Projected End:</span> <span class="stat-val" id="stat-bal">0</span></div>
+                    <div class="stat-row" style="margin-top:5px; background:#eee; padding:2px;">
+                        <span>Balance Today (<span id="lbl-today"></span>):</span> 
+                        <span class="stat-val" id="stat-today" style="color:#333">0</span>
+                    </div>
+                </div>
+
+                <!-- Quarterly Table -->
+                <div class="stat-card">
+                    <div class="alert-header">QUARTERLY OVERVIEW</div>
+                    <table class="q-table" id="q-table"></table>
+                </div>
+
+                <!-- 3a Tracker -->
+                <div class="stat-card pension-card">
+                    <div class="stat-row"><strong>Säule 3a / Pension</strong></div>
+                    <div class="progress-bg"><div class="progress-fill" id="pension-bar"></div></div>
+                    <div class="sm-text" style="display:flex; justify-content:space-between;">
+                        <span id="stat-pension">0</span>
+                        <span>Max: 7'056</span>
+                    </div>
+                </div>
+
+                <!-- Multi-Year Chart -->
+                <div class="chart-wrapper">
+                    <div class="chart-controls">
+                        <button class="btn-xs active" onclick="toggleChart(1)">1Y</button>
+                        <button class="btn-xs" onclick="toggleChart(5)">5Y</button>
+                        <button class="btn-xs" onclick="toggleChart(10)">10Y</button>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="financeChart"></canvas>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+
+    <!-- LOGIN MODAL -->
+    <div id="login-modal">
+        <div class="modal-box">
+            <h3>Vault Login</h3>
+            <div class="form-group"><input type="text" id="vault-user" placeholder="Username"></div>
+            <div class="form-group"><input type="password" id="vault-pass" placeholder="Password"></div>
+            <div class="modal-actions">
+                <button onclick="document.getElementById('login-modal').style.display='none'" class="btn-gray">Cancel</button>
+                <button class="btn-action" onclick="performVaultLogin()">Connect</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
