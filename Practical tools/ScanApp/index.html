@@ -95,7 +95,6 @@
         .form-group label { display: block; margin-bottom: 0.5rem; font-weight: 500; font-size: 0.9rem; }
         .form-group input { width: 100%; padding: 0.8rem; border: 1px solid var(--border); border-radius: 6px; }
         
-        /* Validierungs-Nachricht im Modal */
         #settings-msg {
             margin-bottom: 15px; font-size: 0.9rem; text-align: center; min-height: 1.2em;
         }
@@ -161,20 +160,18 @@
 
     <div class="modal" id="settings-modal">
         <div class="modal-content">
-            <h2>Einstellungen</h2>
-            <div id="settings-msg"></div> <div class="form-group">
-                <label>Script URL</label>
-                <input type="url" id="conf-url" value="https://script.google.com/macros/s/AKfycbzn5YqQubDs5Z0oBrCQE0S_JplZfoS5Nmo3ualmQSfsPy7N46NCfU1ZJryZ8MunQejr/exec" />
-            </div>
+            <h2>Anmeldung</h2>
+            <div id="settings-msg"></div>
+            
             <div class="form-group">
                 <label>Benutzer</label>
-                <input type="text" id="conf-user" placeholder="admin" />
+                <input type="text" id="conf-user" placeholder="Dein Benutzername" />
             </div>
             <div class="form-group">
                 <label>Passwort</label>
-                <input type="password" id="conf-pass" placeholder="Geheim" />
+                <input type="password" id="conf-pass" placeholder="Dein Passwort" />
             </div>
-            <button class="btn-primary" id="save-settings">Verbindung prüfen & Speichern</button>
+            <button class="btn-primary" id="save-settings">Prüfen & Speichern</button>
             <button class="btn-secondary" id="close-settings" style="margin-top: 10px;">Schließen</button>
         </div>
     </div>
@@ -182,7 +179,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
     
     <script>
-        const HARDCODED_URL = "https://script.google.com/macros/s/AKfycbzn5YqQubDs5Z0oBrCQE0S_JplZfoS5Nmo3ualmQSfsPy7N46NCfU1ZJryZ8MunQejr/exec";
+        // --- FESTE URL ---
+        const APP_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxMYcrX0XCTmtUckzxGgDHk2kIuBbNmt0-uDVsiMD5UrqFpHofzJ907qKeVmdq37cpv/exec";
 
         // Elements
         const scanBtn = document.getElementById('scan-btn');
@@ -204,19 +202,13 @@
         const closeSettingsBtn = document.getElementById('close-settings');
         const settingsMsg = document.getElementById('settings-msg');
         
-        const confUrl = document.getElementById('conf-url');
         const confUser = document.getElementById('conf-user');
         const confPass = document.getElementById('conf-pass');
 
         let cropper = null;
 
+        // Beim Starten gespeicherte Zugangsdaten laden
         window.onload = () => {
-            const storedUrl = localStorage.getItem('scan_url');
-            if (storedUrl && storedUrl.length > 5) {
-                confUrl.value = storedUrl;
-            } else {
-                confUrl.value = HARDCODED_URL;
-            }
             confUser.value = localStorage.getItem('scan_user') || '';
             confPass.value = localStorage.getItem('scan_pass') || '';
         };
@@ -239,14 +231,13 @@
 
         retakeBtn.addEventListener('click', resetApp);
 
-        // Upload mit Bild
+        // Upload
         uploadBtn.addEventListener('click', () => {
-            const url = confUrl.value.trim();
             const user = confUser.value.trim();
             const pass = confPass.value.trim();
 
-            if(!url || !user || !pass) {
-                showToast("⚠️ Bitte User/Passwort eingeben!");
+            if(!user || !pass) {
+                showToast("⚠️ Bitte anmelden!");
                 openSettings();
                 return;
             }
@@ -261,9 +252,9 @@
                 reader.readAsDataURL(blob);
                 reader.onloadend = () => {
                     const base64data = reader.result;
-                    fetch(url, {
+                    fetch(APP_SCRIPT_URL, {
                         method: 'POST',
-                        body: JSON.stringify({ user: user, pass: pass, image: base64data }) // Kein action: check
+                        body: JSON.stringify({ user: user, pass: pass, image: base64data }) 
                     })
                     .then(res => res.json())
                     .then(data => {
@@ -287,31 +278,28 @@
         settingsBtn.addEventListener('click', openSettings);
         closeSettingsBtn.addEventListener('click', () => settingsModal.classList.remove('open'));
         
-        // --- NEU: SPEICHERN MIT PRÜFUNG ---
+        // Login Prüfung
         saveSettingsBtn.addEventListener('click', () => {
-            const url = confUrl.value.trim();
             const user = confUser.value.trim();
             const pass = confPass.value.trim();
 
-            if (!url || !user || !pass) {
+            if (!user || !pass) {
                 settingsMsg.className = "msg-error";
-                settingsMsg.innerText = "Bitte alle Felder ausfüllen.";
+                settingsMsg.innerText = "Bitte User & Passwort eingeben.";
                 return;
             }
 
-            // Button UI anpassen
             const originalBtnText = saveSettingsBtn.innerText;
             saveSettingsBtn.innerText = "Prüfe Verbindung...";
             saveSettingsBtn.disabled = true;
             settingsMsg.innerText = "";
 
-            // Auth-Check Request senden
-            fetch(url, {
+            fetch(APP_SCRIPT_URL, {
                 method: 'POST',
                 body: JSON.stringify({ 
                     user: user, 
                     pass: pass, 
-                    action: "check" // Signal an Script: Nur testen!
+                    action: "check"
                 })
             })
             .then(res => res.json())
@@ -320,29 +308,26 @@
                 saveSettingsBtn.innerText = originalBtnText;
 
                 if (data.result === 'success') {
-                    // Erfolgreich: Speichern
-                    localStorage.setItem('scan_url', url);
                     localStorage.setItem('scan_user', user);
                     localStorage.setItem('scan_pass', pass);
                     
                     settingsMsg.className = "msg-success";
-                    settingsMsg.innerText = "✅ Verbindung OK! Gespeichert.";
+                    settingsMsg.innerText = "✅ Erfolgreich angemeldet!";
                     
                     setTimeout(() => {
                         settingsModal.classList.remove('open');
                         settingsMsg.innerText = "";
-                    }, 1500);
+                    }, 1000);
                 } else {
-                    // Script erreichbar, aber Passwort falsch
                     settingsMsg.className = "msg-error";
-                    settingsMsg.innerText = "❌ Zugang verweigert: " + data.message;
+                    settingsMsg.innerText = "❌ Falsche Zugangsdaten!";
                 }
             })
             .catch(err => {
                 saveSettingsBtn.disabled = false;
                 saveSettingsBtn.innerText = originalBtnText;
                 settingsMsg.className = "msg-error";
-                settingsMsg.innerText = "❌ Server nicht erreichbar (URL prüfen?)";
+                settingsMsg.innerText = "❌ Verbindungsfehler.";
                 console.error(err);
             });
         });
