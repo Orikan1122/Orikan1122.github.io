@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>DocScanner Pro</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css"/>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --bg: #f8fafc;
+            --surface: #ffffff;
+            --text: #1e293b;
+            --border: #e2e8f0;
+        }
+
+        * { box-sizing: border-box; touch-action: manipulation; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0; padding: 0;
+            display: flex; flex-direction: column;
+            height: 100vh; overflow: hidden;
+        }
+
+        /* HEADER */
+        header {
+            background: var(--surface); padding: 1rem;
+            display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 1px solid var(--border);
+            height: 60px; z-index: 10;
+        }
+        h1 { margin: 0; font-size: 1.2rem; }
+        .icon-btn { background: none; border: none; font-size: 1.5rem; cursor: pointer; }
+
+        /* MAIN AREA */
+        main {
+            flex: 1; position: relative;
+            background: #334155; /* Dunkler Hintergrund für Kontrast */
+            overflow: hidden;
+            display: flex; justify-content: center; align-items: center;
+        }
+
+        /* Container für das Bild */
+        #image-container {
+            max-width: 100%; max-height: 100%;
+            display: none; /* Erst unsichtbar */
+        }
+        
+        img#image-preview {
+            display: block; max-width: 100%;
+        }
+
+        /* Placeholder Text wenn leer */
+        .placeholder {
+            color: #94a3b8; text-align: center; padding: 20px;
+        }
+
+        /* CONTROLS (Unten) */
+        .controls {
+            background: var(--surface); padding: 1rem;
+            display: flex; gap: 1rem; justify-content: center;
+            border-top: 1px solid var(--border);
+            height: 80px;
+        }
+
+        button {
+            border: none; border-radius: 8px; font-size: 1rem; font-weight: 600;
+            cursor: pointer; padding: 0 1.5rem; flex: 1; max-width: 200px;
+        }
+        
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-secondary { background: white; color: var(--text); border: 1px solid var(--border); }
+
+        /* MODAL (Einstellungen) */
+        .modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); z-index: 100;
+            justify-content: center; align-items: center; padding: 1rem;
+        }
+        .modal.open { display: flex; }
+        .modal-content {
+            background: var(--surface); padding: 2rem; border-radius: 12px;
+            width: 100%; max-width: 400px;
+        }
+        .form-group { margin-bottom: 1rem; }
+        .form-group label { display: block; margin-bottom: 0.5rem; font-weight: 500; font-size: 0.9rem; }
+        .form-group input { width: 100%; padding: 0.8rem; border: 1px solid var(--border); border-radius: 6px; }
+
+        /* TOAST & LOADER */
+        #toast {
+            position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%);
+            background: #333; color: white; padding: 10px 20px; border-radius: 20px;
+            opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 50;
+        }
+        #toast.show { opacity: 1; }
+
+        .spinner-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); z-index: 20;
+            display: none; justify-content: center; align-items: center; flex-direction: column; color: white;
+        }
+        .spinner {
+            border: 4px solid rgba(255,255,255,0.3); border-radius: 50%;
+            border-top: 4px solid var(--primary); width: 40px; height: 40px;
+            animation: spin 1s linear infinite; margin-bottom: 10px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Hidden Input */
+        #camera-input { display: none; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>DocScanner</h1>
+        <button class="icon-btn" id="settings-btn">⚙️</button>
+    </header>
+
+    <main>
+        <div class="placeholder" id="placeholder-text">
+            Klicke auf "Kamera",<br>um ein Dokument zu scannen.
+        </div>
+        
+        <div id="image-container">
+            <img id="image-preview" src="">
+        </div>
+
+        <div class="spinner-overlay" id="loader">
+            <div class="spinner"></div>
+            <div id="loader-text">Wird verarbeitet...</div>
+        </div>
+
+        <div id="toast">Nachricht</div>
+    </main>
+
+    <div class="controls">
+        <button class="btn-secondary" id="retake-btn" style="display: none;">Zurück</button>
+        <button class="btn-primary" id="scan-btn">📷 Kamera</button>
+        <button class="btn-primary" id="upload-btn" style="display: none;">☁️ Senden</button>
+    </div>
+
+    <input type="file" id="camera-input" accept="image/*" capture="environment">
+
+    <div class="modal" id="settings-modal">
+        <div class="modal-content">
+            <h2>Einstellungen</h2>
+            <div class="form-group">
+                <label>Script URL</label>
+                <input type="url" id="conf-url" value="https://script.google.com/macros/s/AKfycbxMYcrX0XCTmtUckzxGgDHk2kIuBbNmt0-uDVsiMD5UrqFpHofzJ907qKeVmdq37cpv/exec" />
+            </div>
+            <div class="form-group">
+                <label>Benutzer</label>
+                <input type="text" id="conf-user" placeholder="admin" />
+            </div>
+            <div class="form-group">
+                <label>Passwort</label>
+                <input type="password" id="conf-pass" placeholder="Geheim" />
+            </div>
+            <button class="btn-primary" id="save-settings">Speichern</button>
+            <button class="btn-secondary" id="close-settings" style="margin-top: 10px;">Schließen</button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+    
+    <script>
+        // --- KONFIGURATION ---
+        // Die URL ist hier fest hinterlegt als Fallback, falls LocalStorage leer ist.
+        const HARDCODED_URL = "https://script.google.com/macros/s/AKfycbxMYcrX0XCTmtUckzxGgDHk2kIuBbNmt0-uDVsiMD5UrqFpHofzJ907qKeVmdq37cpv/exec";
+
+        // DOM Elements
+        const scanBtn = document.getElementById('scan-btn');
+        const uploadBtn = document.getElementById('upload-btn');
+        const retakeBtn = document.getElementById('retake-btn');
+        const cameraInput = document.getElementById('camera-input');
+        const imagePreview = document.getElementById('image-preview');
+        const imageContainer = document.getElementById('image-container');
+        const placeholder = document.getElementById('placeholder-text');
+        const loader = document.getElementById('loader');
+        const loaderText = document.getElementById('loader-text');
+        
+        // Settings Elements
+        const settingsBtn = document.getElementById('settings-btn');
+        const settingsModal = document.getElementById('settings-modal');
+        const saveSettingsBtn = document.getElementById('save-settings');
+        const closeSettingsBtn = document.getElementById('close-settings');
+        const confUrl = document.getElementById('conf-url');
+        const confUser = document.getElementById('conf-user');
+        const confPass = document.getElementById('conf-pass');
+
+        // State
+        let cropper = null;
+
+        // Load Settings on Start
+        window.onload = () => {
+            // Wir prüfen, ob im Speicher schon was anderes steht. Wenn nicht, nehmen wir die fest eingebaute URL.
+            const storedUrl = localStorage.getItem('scan_url');
+            if (storedUrl && storedUrl.length > 5) {
+                confUrl.value = storedUrl;
+            } else {
+                confUrl.value = HARDCODED_URL;
+            }
+            
+            confUser.value = localStorage.getItem('scan_user') || '';
+            confPass.value = localStorage.getItem('scan_pass') || '';
+        };
+
+        // Event Listeners
+        scanBtn.addEventListener('click', () => cameraInput.click());
+        
+        cameraInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (evt) => {
+                    startCropper(evt.target.result);
+                };
+                reader.readAsDataURL(file);
+                e.target.value = ''; // Reset input
+            }
+        });
+
+        retakeBtn.addEventListener('click', resetApp);
+
+        // Upload Logic
+        uploadBtn.addEventListener('click', () => {
+            const url = confUrl.value.trim();
+            const user = confUser.value.trim();
+            const pass = confPass.value.trim();
+
+            if(!url || !user || !pass) {
+                showToast("⚠️ Bitte User/Passwort in den Einstellungen eingeben!");
+                settingsModal.classList.add('open');
+                return;
+            }
+
+            // UI sperren
+            loader.style.display = 'flex';
+            loaderText.innerText = "Zuschneiden & Hochladen...";
+
+            // Bild zuschneiden (Cropper.js erledigt die Magie)
+            cropper.getCroppedCanvas({
+                maxWidth: 1600,
+                maxHeight: 1600,
+                imageSmoothingQuality: 'high'
+            }).toBlob((blob) => {
+                
+                // Blob zu Base64 für den Transfer
+                const reader = new FileReader();
+                reader.readAsDataURL(blob);
+                reader.onloadend = () => {
+                    const base64data = reader.result;
+
+                    // An Google senden
+                    fetch(url, {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            user: user,
+                            pass: pass,
+                            image: base64data
+                        })
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        loader.style.display = 'none';
+                        if(data.result === 'success') {
+                            showToast("✅ Scan gespeichert!");
+                            setTimeout(resetApp, 2000);
+                        } else {
+                            showToast("❌ Fehler: " + data.message);
+                        }
+                    })
+                    .catch(err => {
+                        loader.style.display = 'none';
+                        console.error(err);
+                        showToast("❌ Netzwerkfehler");
+                    });
+                }
+            }, 'image/jpeg', 0.8);
+        });
+
+        // Settings Logic
+        settingsBtn.addEventListener('click', () => settingsModal.classList.add('open'));
+        closeSettingsBtn.addEventListener('click', () => settingsModal.classList.remove('open'));
+        
+        saveSettingsBtn.addEventListener('click', () => {
+            localStorage.setItem('scan_url', confUrl.value.trim());
+            localStorage.setItem('scan_user', confUser.value.trim());
+            localStorage.setItem('scan_pass', confPass.value.trim());
+            settingsModal.classList.remove('open');
+            showToast("Einstellungen gespeichert");
+        });
+
+        // Helper Functions
+        function startCropper(imageSrc) {
+            placeholder.style.display = 'none';
+            imageContainer.style.display = 'block';
+            imagePreview.src = imageSrc;
+
+            // Buttons umschalten
+            scanBtn.style.display = 'none';
+            uploadBtn.style.display = 'block';
+            retakeBtn.style.display = 'block';
+
+            // Cropper starten
+            if(cropper) cropper.destroy();
+            
+            cropper = new Cropper(imagePreview, {
+                viewMode: 1, 
+                dragMode: 'move', 
+                autoCropArea: 0.85,
+                background: false,
+                rotatable: true,
+                scalable: true,
+                zoomable: true
+            });
+        }
+
+        function resetApp() {
+            if(cropper) cropper.destroy();
+            cropper = null;
+            imagePreview.src = '';
+            imageContainer.style.display = 'none';
+            placeholder.style.display = 'block';
+            
+            scanBtn.style.display = 'block';
+            uploadBtn.style.display = 'none';
+            retakeBtn.style.display = 'none';
+            loader.style.display = 'none';
+        }
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.innerText = msg;
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 3000);
+        }
+    </script>
+</body>
+</html>
