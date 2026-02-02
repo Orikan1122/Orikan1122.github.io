@@ -12,9 +12,11 @@
             --surface: #ffffff;
             --text: #1e293b;
             --border: #e2e8f0;
+            --footer-height: 70px;
+            --header-height: 60px;
         }
 
-        * { box-sizing: border-box; touch-action: manipulation; }
+        * { box-sizing: border-box; }
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
@@ -22,63 +24,66 @@
             color: var(--text);
             margin: 0; padding: 0;
             display: flex; flex-direction: column;
-            height: 100vh; overflow: hidden;
+            height: 100dvh;
+            overflow: hidden;
         }
 
         /* HEADER */
         header {
-            background: var(--surface); padding: 1rem;
+            background: var(--surface); padding: 0 1rem;
             display: flex; justify-content: space-between; align-items: center;
             border-bottom: 1px solid var(--border);
-            height: 60px; z-index: 10;
+            height: var(--header-height); 
+            flex-shrink: 0;
+            z-index: 10;
         }
         h1 { margin: 0; font-size: 1.2rem; }
-        .icon-btn { background: none; border: none; font-size: 1.5rem; cursor: pointer; }
+        .icon-btn { background: none; border: none; font-size: 1.5rem; cursor: pointer; padding: 5px;}
 
         /* MAIN AREA */
         main {
-            flex: 1; position: relative;
-            background: #334155; /* Dunkler Hintergrund für Kontrast */
+            position: relative;
+            background: #334155;
+            width: 100%;
+            height: calc(100dvh - var(--header-height) - var(--footer-height));
             overflow: hidden;
             display: flex; justify-content: center; align-items: center;
         }
 
-        /* Container für das Bild */
-        #image-container {
-            max-width: 100%; max-height: 100%;
-            display: none; /* Erst unsichtbar */
-        }
-        
-        img#image-preview {
-            display: block; max-width: 100%;
-        }
+        #image-container { width: 100%; height: 100%; display: none; }
+        img#image-preview { display: block; max-width: 100%; }
+        .placeholder { color: #94a3b8; text-align: center; padding: 20px; }
 
-        /* Placeholder Text wenn leer */
-        .placeholder {
-            color: #94a3b8; text-align: center; padding: 20px;
-        }
-
-        /* CONTROLS (Unten) */
+        /* CONTROLS */
         .controls {
-            background: var(--surface); padding: 1rem;
-            display: flex; gap: 1rem; justify-content: center;
+            position: fixed; bottom: 0; left: 0; width: 100%;
+            height: var(--footer-height);
+            background: var(--surface); 
+            padding: 0.5rem;
+            display: flex; gap: 0.5rem;
+            justify-content: center; align-items: center;
             border-top: 1px solid var(--border);
-            height: 80px;
+            z-index: 100;
+            padding-bottom: env(safe-area-inset-bottom);
         }
 
         button {
-            border: none; border-radius: 8px; font-size: 1rem; font-weight: 600;
-            cursor: pointer; padding: 0 1.5rem; flex: 1; max-width: 200px;
+            border: none; border-radius: 8px; font-size: 0.9rem; font-weight: 600;
+            cursor: pointer; padding: 0 0.5rem; height: 44px; flex: 1;
+            display: flex; align-items: center; justify-content: center;
+            white-space: nowrap; transition: opacity 0.2s;
         }
+        
+        button:disabled { opacity: 0.6; cursor: not-allowed; }
         
         .btn-primary { background: var(--primary); color: white; }
         .btn-secondary { background: white; color: var(--text); border: 1px solid var(--border); }
-        .btn-danger { background: #ef4444; color: white; display: none; }
+        .btn-icon { font-size: 1.4rem; max-width: 50px; padding: 0; }
 
-        /* MODAL (Einstellungen) */
+        /* MODAL */
         .modal {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.5); z-index: 100;
+            background: rgba(0,0,0,0.5); z-index: 200;
             justify-content: center; align-items: center; padding: 1rem;
         }
         .modal.open { display: flex; }
@@ -89,18 +94,25 @@
         .form-group { margin-bottom: 1rem; }
         .form-group label { display: block; margin-bottom: 0.5rem; font-weight: 500; font-size: 0.9rem; }
         .form-group input { width: 100%; padding: 0.8rem; border: 1px solid var(--border); border-radius: 6px; }
+        
+        /* Validierungs-Nachricht im Modal */
+        #settings-msg {
+            margin-bottom: 15px; font-size: 0.9rem; text-align: center; min-height: 1.2em;
+        }
+        .msg-error { color: #dc2626; }
+        .msg-success { color: #16a34a; }
 
         /* TOAST & LOADER */
         #toast {
             position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%);
             background: #333; color: white; padding: 10px 20px; border-radius: 20px;
-            opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 50;
+            opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 300;
         }
         #toast.show { opacity: 1; }
 
         .spinner-overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.7); z-index: 20;
+            background: rgba(0,0,0,0.7); z-index: 50;
             display: none; justify-content: center; align-items: center; flex-direction: column; color: white;
         }
         .spinner {
@@ -110,7 +122,6 @@
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        /* Hidden Input */
         #camera-input { display: none; }
     </style>
 </head>
@@ -140,6 +151,8 @@
 
     <div class="controls">
         <button class="btn-secondary" id="retake-btn" style="display: none;">Zurück</button>
+        <button class="btn-secondary btn-icon" id="rotate-left-btn" style="display: none;">⟲</button>
+        <button class="btn-secondary btn-icon" id="rotate-right-btn" style="display: none;">⟳</button>
         <button class="btn-primary" id="scan-btn">📷 Kamera</button>
         <button class="btn-primary" id="upload-btn" style="display: none;">☁️ Senden</button>
     </div>
@@ -149,9 +162,9 @@
     <div class="modal" id="settings-modal">
         <div class="modal-content">
             <h2>Einstellungen</h2>
-            <div class="form-group">
+            <div id="settings-msg"></div> <div class="form-group">
                 <label>Script URL</label>
-                <input type="url" id="conf-url" placeholder="https://script.google.com/macros/s/AKfycbzk35wDwbS63Wb8NW49iMrSUEI91pN3ZQONxneJq9aN7ZSLJB1eWXVBJBCoBH5OlHU/exec" />
+                <input type="url" id="conf-url" value="https://script.google.com/macros/s/AKfycbzn5YqQubDs5Z0oBrCQE0S_JplZfoS5Nmo3ualmQSfsPy7N46NCfU1ZJryZ8MunQejr/exec" />
             </div>
             <div class="form-group">
                 <label>Benutzer</label>
@@ -161,7 +174,7 @@
                 <label>Passwort</label>
                 <input type="password" id="conf-pass" placeholder="Geheim" />
             </div>
-            <button class="btn-primary" id="save-settings">Speichern</button>
+            <button class="btn-primary" id="save-settings">Verbindung prüfen & Speichern</button>
             <button class="btn-secondary" id="close-settings" style="margin-top: 10px;">Schließen</button>
         </div>
     </div>
@@ -169,10 +182,15 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
     
     <script>
-        // DOM Elements
+        const HARDCODED_URL = "https://script.google.com/macros/s/AKfycbzn5YqQubDs5Z0oBrCQE0S_JplZfoS5Nmo3ualmQSfsPy7N46NCfU1ZJryZ8MunQejr/exec";
+
+        // Elements
         const scanBtn = document.getElementById('scan-btn');
         const uploadBtn = document.getElementById('upload-btn');
         const retakeBtn = document.getElementById('retake-btn');
+        const rotateLeftBtn = document.getElementById('rotate-left-btn');
+        const rotateRightBtn = document.getElementById('rotate-right-btn');
+
         const cameraInput = document.getElementById('camera-input');
         const imagePreview = document.getElementById('image-preview');
         const imageContainer = document.getElementById('image-container');
@@ -180,79 +198,72 @@
         const loader = document.getElementById('loader');
         const loaderText = document.getElementById('loader-text');
         
-        // Settings Elements
         const settingsBtn = document.getElementById('settings-btn');
         const settingsModal = document.getElementById('settings-modal');
         const saveSettingsBtn = document.getElementById('save-settings');
         const closeSettingsBtn = document.getElementById('close-settings');
+        const settingsMsg = document.getElementById('settings-msg');
+        
         const confUrl = document.getElementById('conf-url');
         const confUser = document.getElementById('conf-user');
         const confPass = document.getElementById('conf-pass');
 
-        // State
         let cropper = null;
 
-        // Load Settings on Start
         window.onload = () => {
-            confUrl.value = localStorage.getItem('scan_url') || '';
+            const storedUrl = localStorage.getItem('scan_url');
+            if (storedUrl && storedUrl.length > 5) {
+                confUrl.value = storedUrl;
+            } else {
+                confUrl.value = HARDCODED_URL;
+            }
             confUser.value = localStorage.getItem('scan_user') || '';
             confPass.value = localStorage.getItem('scan_pass') || '';
         };
 
-        // Event Listeners
+        // --- EVENT LISTENERS ---
+        rotateLeftBtn.addEventListener('click', () => { if(cropper) cropper.rotate(-90); });
+        rotateRightBtn.addEventListener('click', () => { if(cropper) cropper.rotate(90); });
+
         scanBtn.addEventListener('click', () => cameraInput.click());
         
         cameraInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (file) {
                 const reader = new FileReader();
-                reader.onload = (evt) => {
-                    startCropper(evt.target.result);
-                };
+                reader.onload = (evt) => { startCropper(evt.target.result); };
                 reader.readAsDataURL(file);
-                e.target.value = ''; // Reset input
+                e.target.value = '';
             }
         });
 
         retakeBtn.addEventListener('click', resetApp);
 
-        // Upload Logic
+        // Upload mit Bild
         uploadBtn.addEventListener('click', () => {
             const url = confUrl.value.trim();
             const user = confUser.value.trim();
             const pass = confPass.value.trim();
 
             if(!url || !user || !pass) {
-                showToast("⚠️ Bitte zuerst Einstellungen prüfen!");
-                settingsModal.classList.add('open');
+                showToast("⚠️ Bitte User/Passwort eingeben!");
+                openSettings();
                 return;
             }
 
-            // UI sperren
             loader.style.display = 'flex';
             loaderText.innerText = "Zuschneiden & Hochladen...";
 
-            // Bild zuschneiden (Cropper.js erledigt die Magie)
             cropper.getCroppedCanvas({
-                maxWidth: 1600,
-                maxHeight: 1600,
-                imageSmoothingQuality: 'high'
+                maxWidth: 1600, maxHeight: 1600, imageSmoothingQuality: 'high'
             }).toBlob((blob) => {
-                
-                // Blob zu Base64 für den Transfer
                 const reader = new FileReader();
                 reader.readAsDataURL(blob);
                 reader.onloadend = () => {
                     const base64data = reader.result;
-
-                    // An Google senden
                     fetch(url, {
                         method: 'POST',
-                        body: JSON.stringify({
-                            user: user,
-                            pass: pass,
-                            image: base64data
-                        })
+                        body: JSON.stringify({ user: user, pass: pass, image: base64data }) // Kein action: check
                     })
                     .then(res => res.json())
                     .then(data => {
@@ -266,49 +277,96 @@
                     })
                     .catch(err => {
                         loader.style.display = 'none';
-                        console.error(err);
                         showToast("❌ Netzwerkfehler");
                     });
                 }
             }, 'image/jpeg', 0.8);
         });
 
-        // Settings Logic
-        settingsBtn.addEventListener('click', () => settingsModal.classList.add('open'));
+        // Settings Handling
+        settingsBtn.addEventListener('click', openSettings);
         closeSettingsBtn.addEventListener('click', () => settingsModal.classList.remove('open'));
+        
+        // --- NEU: SPEICHERN MIT PRÜFUNG ---
         saveSettingsBtn.addEventListener('click', () => {
-            localStorage.setItem('scan_url', confUrl.value.trim());
-            localStorage.setItem('scan_user', confUser.value.trim());
-            localStorage.setItem('scan_pass', confPass.value.trim());
-            settingsModal.classList.remove('open');
-            showToast("Einstellungen gespeichert");
+            const url = confUrl.value.trim();
+            const user = confUser.value.trim();
+            const pass = confPass.value.trim();
+
+            if (!url || !user || !pass) {
+                settingsMsg.className = "msg-error";
+                settingsMsg.innerText = "Bitte alle Felder ausfüllen.";
+                return;
+            }
+
+            // Button UI anpassen
+            const originalBtnText = saveSettingsBtn.innerText;
+            saveSettingsBtn.innerText = "Prüfe Verbindung...";
+            saveSettingsBtn.disabled = true;
+            settingsMsg.innerText = "";
+
+            // Auth-Check Request senden
+            fetch(url, {
+                method: 'POST',
+                body: JSON.stringify({ 
+                    user: user, 
+                    pass: pass, 
+                    action: "check" // Signal an Script: Nur testen!
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                saveSettingsBtn.disabled = false;
+                saveSettingsBtn.innerText = originalBtnText;
+
+                if (data.result === 'success') {
+                    // Erfolgreich: Speichern
+                    localStorage.setItem('scan_url', url);
+                    localStorage.setItem('scan_user', user);
+                    localStorage.setItem('scan_pass', pass);
+                    
+                    settingsMsg.className = "msg-success";
+                    settingsMsg.innerText = "✅ Verbindung OK! Gespeichert.";
+                    
+                    setTimeout(() => {
+                        settingsModal.classList.remove('open');
+                        settingsMsg.innerText = "";
+                    }, 1500);
+                } else {
+                    // Script erreichbar, aber Passwort falsch
+                    settingsMsg.className = "msg-error";
+                    settingsMsg.innerText = "❌ Zugang verweigert: " + data.message;
+                }
+            })
+            .catch(err => {
+                saveSettingsBtn.disabled = false;
+                saveSettingsBtn.innerText = originalBtnText;
+                settingsMsg.className = "msg-error";
+                settingsMsg.innerText = "❌ Server nicht erreichbar (URL prüfen?)";
+                console.error(err);
+            });
         });
 
         // Helper Functions
+        function openSettings() {
+            settingsModal.classList.add('open');
+            settingsMsg.innerText = "";
+        }
+
         function startCropper(imageSrc) {
             placeholder.style.display = 'none';
             imageContainer.style.display = 'block';
             imagePreview.src = imageSrc;
-
-            // Buttons umschalten
             scanBtn.style.display = 'none';
-            uploadBtn.style.display = 'block';
-            retakeBtn.style.display = 'block';
+            uploadBtn.style.display = 'flex'; 
+            retakeBtn.style.display = 'flex';
+            rotateLeftBtn.style.display = 'flex'; 
+            rotateRightBtn.style.display = 'flex'; 
 
-            // Cropper starten
             if(cropper) cropper.destroy();
-            
             cropper = new Cropper(imagePreview, {
-                viewMode: 1, // Restrict crop box to canvas
-                dragMode: 'move', // Bild bewegen
-                autoCropArea: 0.85,
-                background: false,
-                rotatable: true,
-                scalable: true,
-                zoomable: true,
-                ready() {
-                    // Wenn geladen
-                }
+                viewMode: 1, dragMode: 'move', autoCropArea: 0.85,
+                background: false, rotatable: true, scalable: true, zoomable: true
             });
         }
 
@@ -319,9 +377,11 @@
             imageContainer.style.display = 'none';
             placeholder.style.display = 'block';
             
-            scanBtn.style.display = 'block';
+            scanBtn.style.display = 'flex';
             uploadBtn.style.display = 'none';
             retakeBtn.style.display = 'none';
+            rotateLeftBtn.style.display = 'none';
+            rotateRightBtn.style.display = 'none';
             loader.style.display = 'none';
         }
 
