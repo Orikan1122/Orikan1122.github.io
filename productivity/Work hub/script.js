@@ -29,7 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
     
-    // Calendar Runtime Variables (Not saved directly, calculated)
+    // Calendar Runtime Variables
     const MONTHS_TOP = ["January", "February", "March", "April", "May", "June"];
     const MONTHS_BOTTOM = ["July", "August", "September", "October", "November", "December"];
     let monthCols = {
@@ -40,7 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let selectedDateKey = null;
 
     // Storage Keys
-    const STORAGE_KEY = 'workHubDataV11'; // Incremented version
+    const STORAGE_KEY = 'workHubDataV11';
     const CONFIG_KEY = 'workHubDriveConfig';
     const THEME_KEY = 'workHubTheme';
 
@@ -80,7 +80,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const confUrlInput = document.getElementById('conf-url');
     const confIdInput = document.getElementById('conf-id');
     const confPwInput = document.getElementById('conf-pw');
-    const saveConfigBtn = document.getElementById('save-config-btn');
     const vaultUser = document.getElementById('vault-user');
     const vaultPass = document.getElementById('vault-pass');
     const vaultLoginBtn = document.getElementById('vault-login-btn');
@@ -99,6 +98,44 @@ document.addEventListener('DOMContentLoaded', () => {
     const calEventTime = document.getElementById('event-time');
     const calEventHighlight = document.getElementById('event-highlight');
 
+    // --- CONSOLE & UI HELPERS ---
+    const systemConsole = document.getElementById('system-console');
+    
+    function logToConsole(message, type = 'info') {
+        if (!systemConsole) return;
+        
+        const now = new Date();
+        const timeStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+        
+        const entry = document.createElement('div');
+        entry.className = `log-entry log-${type}`;
+        entry.innerHTML = `<span class="log-time">[${timeStr}]</span> ${message}`;
+        
+        systemConsole.appendChild(entry);
+        systemConsole.scrollTop = systemConsole.scrollHeight; // Auto-scroll to bottom
+    }
+
+    function setButtonLoading(btnId, isLoading, originalText = "") {
+        const btn = document.getElementById(btnId);
+        if (!btn) return;
+        
+        if (isLoading) {
+            btn.dataset.originalText = btn.textContent; // Save text
+            btn.textContent = "Processing...";
+            btn.classList.add('processing');
+            btn.disabled = true;
+        } else {
+            btn.textContent = originalText || btn.dataset.originalText || "Action";
+            btn.classList.remove('processing');
+            btn.disabled = false;
+        }
+    }
+
+    // Attach Clear Listener
+    document.getElementById('clear-console-btn')?.addEventListener('click', () => {
+        if(systemConsole) systemConsole.innerHTML = '<div class="log-entry"><span class="log-time">System:</span> Log cleared.</div>';
+    });
+
     // --- INITIALIZATION ---
     function initializeApp() {
         loadTheme();
@@ -107,12 +144,10 @@ document.addEventListener('DOMContentLoaded', () => {
         attachEventListeners();
         setupSplitScreen();
         
-        // Render WorkHub
         renderHub();
-        // Render Calendar
         initCalendar();
         
-        console.log("App initialized.");
+        logToConsole("App initialized and ready.", "info");
     }
 
     initializeApp();
@@ -165,9 +200,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Initialize Gutters
         updateGutters();
 
-        // Drag Logic for Gutter 1 (Between Tools and Calendar)
         setupDrag(gutter1, toolsPane, calendarPane);
-        // Drag Logic for Gutter 2 (Between Calendar and Todos)
         setupDrag(gutter2, calendarPane, todosPane);
     }
 
@@ -176,14 +209,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const cHidden = calendarPane.classList.contains('hidden');
         const tdHidden = todosPane.classList.contains('hidden');
 
-        // Gutter 1 is visible if Tools is visible AND (Calendar OR Todos) is visible
         if (!tHidden && (!cHidden || !tdHidden)) {
             gutter1.classList.remove('hidden');
         } else {
             gutter1.classList.add('hidden');
         }
 
-        // Gutter 2 is visible if Calendar is visible AND Todos is visible
         if (!cHidden && !tdHidden) {
             gutter2.classList.remove('hidden');
         } else {
@@ -202,12 +233,8 @@ document.addEventListener('DOMContentLoaded', () => {
         document.addEventListener('mousemove', (e) => {
             if (!isDragging) return;
             const containerRect = mainContent.getBoundingClientRect();
-            // Simple flex-basis adjustment based on mouse position relative to container
-            // This is a simplified split logic for 3 panes
             const pointerX = e.clientX - containerRect.left;
             const percent = (pointerX / containerRect.width) * 100;
-            
-            // Apply size preference to left element
             leftEl.style.flexBasis = `${percent}%`;
             leftEl.style.flexGrow = '0';
         });
@@ -221,12 +248,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-// --- UPDATED: VAULT LOGIN & CLOUD BRIDGE ---
+    // --- UPDATED: VAULT LOGIN & CLOUD BRIDGE ---
     const VAULT_URL = "https://script.google.com/macros/s/AKfycbxsM9fmYDvprjDea64dg8DYv5OUq_MmkHVXu0zbxqiGqmrQId_QyXummxb2r6JLZYmbKg/exec"
 
     async function handleVaultLogin() {
-        console.log("Login button clicked..."); // Debug 1
-        
         const u = vaultUser.value.trim();
         const p = vaultPass.value.trim();
 
@@ -235,31 +260,35 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        showCloudStatus("Connecting to Vault...", 'loading', 0);
+        logToConsole("Initiating Vault Login...", "loading");
+        setButtonLoading('vault-login-btn', true);
 
         try {
-            console.log("Fetching from Vault URL:", VAULT_URL); // Debug 2
+            logToConsole(`Connecting to Vault...`, "info");
+            
             const response = await fetch(`${VAULT_URL}?u=${encodeURIComponent(u)}&p=${encodeURIComponent(p)}`);
             const result = await response.json();
-            console.log("Vault Response:", result); // Debug 3
 
             if (result.success) {
-                // Set values to hidden fields
                 confUrlInput.value = result.config.cfgUrl;
                 confIdInput.value = result.config.cfgId;
                 confPwInput.value = result.config.cfgPw;
                 
                 saveConfig();
-                showCloudStatus("Vault Synced!", 'success');
+                
+                logToConsole("Vault Login Successful!", "success");
+                logToConsole("Credentials saved.", "success");
                 
                 // Immediately try to load data
-                loadFromCloud();
+                await loadFromCloud();
             } else {
-                showCloudStatus("Login Failed: Incorrect credentials", 'error');
+                logToConsole("Login Failed: Incorrect credentials.", "error");
             }
         } catch (error) {
-            showCloudStatus("Connection Error", 'error');
+            logToConsole(`Connection Error: ${error.message}`, "error");
             console.error("Critical Vault Error:", error);
+        } finally {
+            setButtonLoading('vault-login-btn', false);
         }
     }
 
@@ -289,11 +318,13 @@ document.addEventListener('DOMContentLoaded', () => {
     async function saveToCloud() {
         const cfg = getDriveConfig();
         if (!cfg.url || !cfg.id) {
-            showCloudStatus("No config. Please Login to Vault.", 'error');
+            logToConsole("Cannot Save: Missing Vault configuration. Please login.", "error");
             return;
         }
 
-        showCloudStatus("Saving...", 'loading', 0);
+        logToConsole("Starting Cloud Backup...", "loading");
+        setButtonLoading('save-to-cloud-btn', true);
+
         const dataToSave = { tools, categories, todos, calendarData };
         
         try {
@@ -303,49 +334,48 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify(dataToSave)
             });
             const result = await response.json();
+            
             if (result.error) throw new Error(result.error);
-            showCloudStatus("Cloud Sync Complete!", 'success');
+            
+            logToConsole("Cloud Sync Complete: Data saved successfully.", "success");
         } catch (error) {
-            showCloudStatus(`Save Failed: ${error.message}`, 'error', 0);
+            logToConsole(`Save Failed: ${error.message}`, "error");
+        } finally {
+            setButtonLoading('save-to-cloud-btn', false);
         }
     }
 
     async function loadFromCloud() {
         const cfg = getDriveConfig();
         if (!cfg.url || !cfg.id) {
-            showCloudStatus("No config. Please Login to Vault.", 'error');
+            logToConsole("Cannot Load: Missing Vault configuration.", "error");
             return;
         }
 
-        showCloudStatus("Loading...", 'loading', 0);
+        logToConsole("Fetching data from Cloud...", "loading");
+        setButtonLoading('load-from-cloud-btn', true);
+
         try {
             const response = await fetch(`${cfg.url}?id=${cfg.id}&pw=${cfg.pw}&t=${Date.now()}`);
             const data = await response.json();
 
             if (data.error) throw new Error(data.error);
             
-            if (data.tools) tools = data.tools;
+            let itemsCount = 0;
+            if (data.tools) { tools = data.tools; itemsCount += tools.length; }
             if (data.categories) categories = data.categories;
-            if (data.todos) todos = data.todos;
+            if (data.todos) { todos = data.todos; itemsCount += todos.length; }
             if (data.calendarData) calendarData = data.calendarData;
 
             saveLocalData(); 
             renderHub();
             initCalendar();
-            showCloudStatus("Data Restored from Cloud", 'success');
+            
+            logToConsole(`Data Restored: ${itemsCount} items loaded.`, "success");
         } catch (error) {
-            showCloudStatus(`Load Failed: ${error.message}`, 'error', 0);
-        }
-    }
-    // --- DATA HELPERS (WorkHub) ---
-    function showCloudStatus(message, type = 'loading', duration = 3000) {
-        if (!cloudStatusEl) return;
-        cloudStatusEl.textContent = message;
-        cloudStatusEl.className = `cloud-status-indicator ${type}`;
-        if (duration > 0) {
-            setTimeout(() => {
-                cloudStatusEl.className = 'cloud-status-indicator';
-            }, duration);
+            logToConsole(`Load Failed: ${error.message}`, "error");
+        } finally {
+            setButtonLoading('load-from-cloud-btn', false);
         }
     }
 
@@ -622,21 +652,18 @@ document.addEventListener('DOMContentLoaded', () => {
         renderHub();
     }
     
-    // --- CALENDAR FUNCTIONS (Ported & Integrated) ---
-// --- CALENDAR FUNCTIONS (Updated for Multi-Event Support) ---
+    // --- CALENDAR FUNCTIONS ---
     function initCalendar() {
         if (!calendarData.config) {
              calendarData.config = { year: 2026, janWeeks: 5, decWeeks: 6, weekPattern: [] };
         }
         
-        // MIGRATION: Convert old single-object events to Arrays
         Object.keys(calendarData.events).forEach(key => {
             if (!Array.isArray(calendarData.events[key])) {
                 calendarData.events[key] = [calendarData.events[key]];
             }
         });
 
-        // Populate inputs
         calConfigYear.value = calendarData.config.year;
         calWJan.value = calendarData.config.janWeeks;
         calWDec.value = calendarData.config.decWeeks;
@@ -650,7 +677,7 @@ document.addEventListener('DOMContentLoaded', () => {
         setInterval(updateSmartHeader, 60000);
     }
 
-    let editingEventIndex = -1; // Track which sub-event we are editing
+    let editingEventIndex = -1;
 
     function updateSmartHeader() {
         const now = new Date(); 
@@ -669,7 +696,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const tmr = new Date(now); tmr.setDate(now.getDate()+1);
         const keyTmr = formatDateKey(tmr);
 
-        // Helper to get names from array
         const getNames = (k) => {
             if(!calendarData.events[k]) return "No events";
             return calendarData.events[k].map(e => e.name).join(", ");
@@ -789,13 +815,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         
                         const eventsArr = calendarData.events[dateKey];
                         if (eventsArr && eventsArr.length > 0) {
-                            // Find primary event to color (first highlighted, or just first)
                             const primary = eventsArr.find(e => e.highlight) || eventsArr[0];
                             if(primary.highlight) {
                                 td.style.backgroundColor = getCalendarCategoryColor(primary.type);
                                 td.style.fontWeight = "bold";
                             }
-                            // Add dot if multiple events
                             if (eventsArr.length > 1) {
                                 const dot = document.createElement('div');
                                 dot.className = 'multi-event-dot';
@@ -820,11 +844,9 @@ document.addEventListener('DOMContentLoaded', () => {
         container.innerHTML = "";
         filterYear = String(filterYear);
 
-        // Group by type
         let grouped = {};
         Object.keys(calendarData.events).sort().forEach(dateKey => {
             if(dateKey.startsWith(filterYear)) {
-                // Loop through all events on this day
                 const evList = calendarData.events[dateKey];
                 evList.forEach(ev => {
                     const type = ev.type || "Other";
@@ -849,7 +871,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             let list = grouped[type];
             if(list.length > 0) {
-                // Sort by date
                 list.sort((a,b) => a.dateObj - b.dateObj);
                 
                 let currentStart = list[0];
@@ -918,7 +939,6 @@ document.addEventListener('DOMContentLoaded', () => {
         while(curr <= endDateObj) {
             const k = formatDateKey(curr);
             if (calendarData.events[k]) {
-                // Only remove events matching the type
                 calendarData.events[k] = calendarData.events[k].filter(e => e.type !== typeFilter);
                 if(calendarData.events[k].length === 0) delete calendarData.events[k];
             }
@@ -931,7 +951,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function selectDate(dateKey) {
         selectedDateKey = dateKey;
-        editingEventIndex = -1; // Reset editing mode
+        editingEventIndex = -1; 
         
         document.querySelectorAll(".selected").forEach(e=>e.classList.remove("selected"));
         const cell = document.querySelector(`td[data-date="${dateKey}"]`);
@@ -940,7 +960,6 @@ document.addEventListener('DOMContentLoaded', () => {
         calInputStartDate.value = dateKey;
         calInputEndDate.value = ""; 
         
-        // Reset Inputs
         calEventName.value = "";
         calEventTime.value = "0:00";
         calEventHighlight.checked = true;
@@ -955,7 +974,6 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const eventsArr = calendarData.events[dateKey] || [];
         
-        // "New Event" pill
         const newPill = document.createElement("div");
         newPill.className = `event-pill ${editingEventIndex === -1 ? 'active' : ''}`;
         newPill.innerHTML = `<span>+ New Event</span>`;
@@ -968,7 +986,6 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         container.appendChild(newPill);
 
-        // Existing Events pills
         eventsArr.forEach((ev, idx) => {
             const pill = document.createElement("div");
             pill.className = `event-pill ${editingEventIndex === idx ? 'active' : ''}`;
@@ -981,7 +998,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 calEventTime.value = ev.time;
                 calEventType.value = ev.type;
                 calEventHighlight.checked = ev.highlight;
-                renderDayEventsList(dateKey); // Re-render to highlight active pill
+                renderDayEventsList(dateKey);
             };
             container.appendChild(pill);
         });
@@ -1000,19 +1017,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const newEventObj = { name, time, type, highlight };
 
         if (!endVal || endVal === startVal) {
-            // Single Day
             if (!calendarData.events[startVal]) calendarData.events[startVal] = [];
             
             if (editingEventIndex > -1) {
-                // Update existing
                 calendarData.events[startVal][editingEventIndex] = newEventObj;
             } else {
-                // Add new
                 calendarData.events[startVal].push(newEventObj);
             }
-            selectDate(startVal); // Refresh view
+            selectDate(startVal);
         } else {
-            // Range
             const sDate = new Date(startVal);
             const eDate = new Date(endVal);
             if(eDate < sDate) return alert("End date error");
@@ -1021,7 +1034,6 @@ document.addEventListener('DOMContentLoaded', () => {
             while (curr <= eDate) {
                 const k = formatDateKey(curr);
                 if (!calendarData.events[k]) calendarData.events[k] = [];
-                // For ranges, we always append (Add) currently, as matching indices across days is complex
                 calendarData.events[k].push({ ...newEventObj }); 
                 curr.setDate(curr.getDate() + 1);
             }
@@ -1037,10 +1049,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const dateKey = calInputStartDate.value;
         if(dateKey && calendarData.events[dateKey]) {
             if (editingEventIndex > -1) {
-                // Delete specific sub-event
                 calendarData.events[dateKey].splice(editingEventIndex, 1);
                 if (calendarData.events[dateKey].length === 0) delete calendarData.events[dateKey];
-                selectDate(dateKey); // Reset
+                selectDate(dateKey);
             } else {
                 alert("Please select a specific event from the list below to delete it.");
             }
@@ -1067,7 +1078,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 if(!calendarData.events[newKey]) calendarData.events[newKey] = [];
                 
-                // Copy all events from source day to target day
                 calendarData.events[key].forEach(ev => {
                     calendarData.events[newKey].push({ ...ev });
                 });
@@ -1079,7 +1089,6 @@ document.addEventListener('DOMContentLoaded', () => {
         alert(`Copied events from ${count} days to ${targetYearStr}.`);
     }
 
-    // --- CALENDAR CATEGORIES ---
     function updateCategoryDropdown() {
         calEventType.innerHTML = "";
         calendarData.categories.forEach(c => {

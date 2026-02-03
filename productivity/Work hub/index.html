@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Work Hub</title>
-    <!-- Add this line to silence the favicon error -->
     <link rel="icon" href="data:,"> 
     <link rel="stylesheet" href="style.css">
 </head>
@@ -22,6 +21,7 @@
             <h2>Actions</h2>
             
             <div class="data-actions">
+                <!-- 1. Vault Login -->
                 <div id="drive-config-section">
                     <h3>Vault Login</h3>
                     <div id="vault-login-fields">
@@ -43,14 +43,25 @@
                     </div>
                 </div>
 
+                <!-- 2. System Console (New) -->
+                <h3 style="margin-top: 20px;">System Console</h3>
+                <div class="console-wrapper">
+                    <div id="system-console" class="console-box">
+                        <div class="log-entry"><span class="log-time">System:</span> Ready.</div>
+                    </div>
+                    <button id="clear-console-btn" class="btn btn-secondary btn-small" style="width:100%; margin-top:5px;">Clear Log</button>
+                </div>
+
                 <div id="cloud-status" class="cloud-status-indicator"></div>
                 
+                <!-- 3. Cloud Buttons -->
                 <h3 style="margin-top: 20px;">Cloud Sync</h3>
                 <div class="data-actions-row">
                     <button id="save-to-cloud-btn" class="btn">Save to Drive</button>
                     <button id="load-from-cloud-btn" class="btn">Load from Drive</button>
                 </div>
                 
+                <!-- 4. Local Data -->
                 <h3 style="margin-top: 20px;">Local Data</h3>
                 <div class="data-actions-row">
                     <button id="export-btn" class="btn">Export Data</button>
@@ -160,9 +171,7 @@
                 </div>
 
                 <!-- Settings Panel -->
-                <!-- REPLACE THE EXISTING <div class="settings-panel"> BLOCK WITH THIS: -->
                 <div class="settings-panel">
-                    <!-- New Header for Toggling -->
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; padding-bottom:5px; border-bottom:1px solid #ccc;">
                         <span style="font-weight:bold; color:#000080; font-size:14px;">Configuration & Categories</span>
                         <button id="toggle-cal-settings-btn" class="btn btn-secondary btn-small" style="font-size:11px; padding:2px 8px;">_</button>
