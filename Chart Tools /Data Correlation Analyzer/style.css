@@ -6,6 +6,7 @@
     --text-muted-color: #818384;
     --accent-color: #4f80e2;
     --accent-hover-color: #6c99f0;
+    --secondary-color: #434345;
     --danger-color: #e24f4f;
     --font-family: 'Inter', sans-serif;
 }
@@ -97,11 +98,9 @@ textarea:focus, input[type="number"]:focus {
     box-shadow: 0 0 0 3px rgba(79, 128, 226, 0.3);
 }
 
-button#process-button {
+button {
     width: 100%;
     padding: 0.8rem 1rem;
-    background-color: var(--accent-color);
-    color: white;
     border: none;
     border-radius: 8px;
     font-size: 1rem;
@@ -110,11 +109,25 @@ button#process-button {
     transition: background-color 0.2s;
 }
 
+button#process-button {
+    background-color: var(--accent-color);
+    color: white;
+}
+
 button#process-button:hover {
     background-color: var(--accent-hover-color);
 }
 
-/* ADDED STYLE for side-by-side min/max inputs */
+.secondary-btn {
+    background-color: var(--secondary-color);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+.secondary-btn:hover {
+    background-color: #555557;
+}
+
 .range-filter-inputs {
     display: flex;
     gap: 1rem;
@@ -209,7 +222,6 @@ button#process-button:hover {
 #chart-placeholder svg {
     stroke: var(--text-muted-color);
 }
-
 
 /* Responsive Design */
 @media (max-width: 1200px) {
