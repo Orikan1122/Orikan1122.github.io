@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interaktive Map - Editor (JSON Export/Import)</title>
+    
+    <script src="https://cdn.amcharts.com/lib/4/core.js"></script>
+    <script src="https://cdn.amcharts.com/lib/4/maps.js"></script>
+    <script src="https://cdn.amcharts.com/lib/4/geodata/worldHigh.js"></script>
+    <script src="https://cdn.amcharts.com/lib/4/themes/animated.js"></script>
+
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f2f5;
+            display: flex;
+            height: 100vh;
+            box-sizing: border-box;
+            gap: 20px;
+        }
+        .map-container {
+            flex: 1;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            position: relative;
+            overflow: hidden;
+        }
+        #chartdiv {
+            width: 100%;
+            height: 100%;
+            background-color: #e3f2fd;
+        }
+        .sidebar {
+            width: 360px;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+        .categories-container {
+            flex: 1;
+            overflow-y: auto;
+            margin-bottom: 15px;
+            padding-right: 5px;
+        }
+        h2 {
+            margin-top: 0;
+            font-size: 20px;
+            color: #333;
+        }
+        p {
+            font-size: 13px;
+            color: #666;
+            line-height: 1.4;
+            margin-bottom: 15px;
+        }
+        
+        /* Button Styles */
+        button {
+            cursor: pointer;
+            font-weight: bold;
+            border: none;
+            border-radius: 6px;
+            transition: background 0.2s;
+        }
+        .btn-add {
+            width: 100%;
+            padding: 10px;
+            background-color: #28a745;
+            color: white;
+            margin-bottom: 10px;
+        }
+        .btn-add:hover { background-color: #218838; }
+        
+        .io-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 15px;
+        }
+        .btn-export {
+            flex: 1;
+            padding: 8px;
+            background-color: #007bff;
+            color: white;
+            font-size: 13px;
+        }
+        .btn-export:hover { background-color: #0056b3; }
+        
+        .btn-import {
+            flex: 1;
+            padding: 8px;
+            background-color: #6c757d;
+            color: white;
+            font-size: 13px;
+        }
+        .btn-import:hover { background-color: #5a6268; }
+
+        .category-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px;
+            margin-bottom: 8px;
+            border: 2px solid transparent;
+            border-radius: 6px;
+            cursor: pointer;
+            background-color: #f8f9fa;
+            transition: all 0.2s;
+        }
+        .category-row:hover { background-color: #e9ecef; }
+        .category-row.active {
+            border-color: #007bff;
+            background-color: #e2e8f0;
+        }
+        input[type="color"] {
+            width: 32px;
+            height: 32px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            padding: 0;
+            background: none;
+        }
+        input[type="text"] {
+            flex: 1;
+            padding: 6px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+        .btn-delete {
+            background: none;
+            color: #dc3545;
+            font-size: 16px;
+            padding: 4px;
+        }
+        .btn-delete:hover { background: #ffe6e6; }
+        
+        .eraser-row {
+            justify-content: center;
+            font-weight: bold;
+            color: #555;
+            margin-top: 10px;
+            padding: 12px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="map-container">
+        <div id="chartdiv"></div>
+    </div>
+
+    <div class="sidebar">
+        <h2>Karten-Editor</h2>
+        <p>Erstelle Kategorien, färbe Länder ein und speichere dein fertiges Schema als Datei ab.</p>
+        
+        <div class="io-buttons">
+            <button class="btn-export" onclick="exportJSON()">💾 Speichern (.json)</button>
+            <button class="btn-import" onclick="document.getElementById('importFile').click()">📂 Laden (.json)</button>
+            <input type="file" id="importFile" style="display:none" accept=".json" onchange="importJSON(event)">
+        </div>
+
+        <button class="btn-add" onclick="addCategory()">+ Neue Kategorie hinzufügen</button>
+
+        <div class="categories-container" id="categoryList">
+            </div>
+
+        <div class="category-row eraser-row active" onclick="setActiveCategory(0)" id="row0">
+            🗑️ Land zurücksetzen (Radiergummi)
+        </div>
+    </div>
+
+    <script>
+        am4core.useTheme(am4themes_animated);
+
+        // --- LEERER START-ZUSTAND ---
+        let activeCategory = 0; // Startet mit dem Radiergummi, nichts ist ausgewählt
+        let nextCategoryId = 1; 
+        
+        let categories = {}; // Komplett leer
+        let countryAssignments = {}; // Komplett leer
+
+        // --- KARTEN-INITIALISIERUNG ---
+        let chart = am4core.create("chartdiv", am4maps.MapChart);
+        chart.geodata = am4geodata_worldHigh;
+        chart.projection = new am4maps.projections.Miller();
+        
+        chart.zoomControl = new am4maps.ZoomControl();
+        chart.zoomControl.slider.height = 100;
+        chart.zoomStep = 1.25; // Feiner Zoom
+
+        let polygonSeries = chart.series.push(new am4maps.MapPolygonSeries());
+        polygonSeries.useGeodata = true;
+        polygonSeries.exclude = ["AQ"]; 
+
+        let polygonTemplate = polygonSeries.mapPolygons.template;
+        polygonTemplate.tooltipText = "{name}";
+        polygonTemplate.fill = am4core.color("#cccccc"); 
+        polygonTemplate.stroke = am4core.color("#ffffff");
+        polygonTemplate.strokeWidth = 0.3; 
+        polygonTemplate.cursorOverStyle = am4core.MouseCursorStyle.pointer;
+
+        let hs = polygonTemplate.states.create("hover");
+        hs.properties.fillOpacity = 0.8;
+
+        // Klick auf ein Land
+        polygonTemplate.events.on("hit", function(ev) {
+            let countryId = ev.target.dataItem.dataContext.id;
+            if (activeCategory === 0) {
+                delete countryAssignments[countryId];
+                ev.target.fill = am4core.color("#cccccc");
+            } else {
+                countryAssignments[countryId] = activeCategory;
+                ev.target.fill = am4core.color(categories[activeCategory].color);
+            }
+        });
+
+        chart.events.on("ready", function() {
+            renderMapColors();
+            // Optional: Startet jetzt mit Ansicht auf die ganze Welt statt Afrika/Europa
+            // chart.goHome(); 
+            chart.zoomToRectangle(chart.width, chart.height, -20, 60, 60, -40);
+        });
+
+
+        // --- JSON EXPORT & IMPORT ---
+        
+        function exportJSON() {
+            // Wir packen Kategorien und Länder-Zuordnungen in ein Paket
+            const exportData = {
+                categories: categories,
+                assignments: countryAssignments
+            };
+            
+            // In einen Text (String) umwandeln
+            const dataStr = JSON.stringify(exportData, null, 2);
+            
+            // Einen virtuellen Download-Link erstellen
+            const blob = new Blob([dataStr], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "karten-schema.json"; // Name der Datei
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function importJSON(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    
+                    if (importedData.categories && importedData.assignments) {
+                        // Daten überschreiben
+                        categories = importedData.categories;
+                        countryAssignments = importedData.assignments;
+                        
+                        // nextCategoryId anpassen, damit neue Kategorien nicht überschreiben
+                        let maxId = 0;
+                        for (let id in categories) {
+                            maxId = Math.max(maxId, parseInt(id));
+                        }
+                        nextCategoryId = maxId + 1;
+                        
+                        // UI aktualisieren
+                        setActiveCategory(0); // Radiergummi aktivieren
+                        renderLegend();
+                        renderMapColors();
+                    } else {
+                        alert("Die ausgewählte JSON-Datei hat nicht das richtige Format.");
+                    }
+                } catch (err) {
+                    alert("Fehler beim Lesen der Datei. Ist es eine gültige JSON?");
+                }
+            };
+            reader.readAsText(file);
+            
+            // Input zurücksetzen, damit man dieselbe Datei nochmal laden kann
+            event.target.value = '';
+        }
+
+
+        // --- UI & LOGIK FUNKTIONEN ---
+
+        function renderMapColors() {
+            polygonSeries.mapPolygons.each(function(polygon) {
+                let countryId = polygon.dataItem.dataContext.id;
+                if (countryAssignments[countryId] && categories[countryAssignments[countryId]]) {
+                    let catId = countryAssignments[countryId];
+                    polygon.fill = am4core.color(categories[catId].color);
+                } else {
+                    polygon.fill = am4core.color("#cccccc");
+                }
+            });
+        }
+
+        function renderLegend() {
+            const container = document.getElementById('categoryList');
+            container.innerHTML = ''; 
+
+            for (let id in categories) {
+                let cat = categories[id];
+                let row = document.createElement('div');
+                row.className = `category-row ${activeCategory == id ? 'active' : ''}`;
+                row.id = `row${id}`;
+                row.onclick = (e) => { 
+                    if(e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON') {
+                        setActiveCategory(Number(id)); 
+                    }
+                };
+
+                row.innerHTML = `
+                    <input type="color" value="${cat.color}" onchange="updateCategory(${id}, 'color', this.value)" title="Farbe ändern">
+                    <input type="text" value="${cat.name}" onchange="updateCategory(${id}, 'name', this.value)" onfocus="setActiveCategory(${id})">
+                    <button class="btn-delete" onclick="deleteCategory(${id}, event)" title="Kategorie löschen">✖</button>
+                `;
+                container.appendChild(row);
+            }
+        }
+
+        function setActiveCategory(categoryId) {
+            activeCategory = categoryId;
+            document.querySelectorAll('.category-row').forEach(el => el.classList.remove('active'));
+            if(document.getElementById('row' + categoryId)) {
+                document.getElementById('row' + categoryId).classList.add('active');
+            }
+        }
+
+        function updateCategory(id, field, value) {
+            categories[id][field] = value;
+            if (field === 'color') {
+                renderMapColors(); 
+            }
+        }
+
+        function addCategory() {
+            let randomColor = '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
+            categories[nextCategoryId] = { color: randomColor, name: "Neue Kategorie" };
+            setActiveCategory(nextCategoryId);
+            nextCategoryId++;
+            renderLegend();
+        }
+
+        function deleteCategory(id, event) {
+            event.stopPropagation(); 
+            if (confirm("Kategorie wirklich löschen? Zugeordnete Länder werden wieder grau.")) {
+                delete categories[id];
+                for (let country in countryAssignments) {
+                    if (countryAssignments[country] == id) {
+                        delete countryAssignments[country];
+                    }
+                }
+                if (activeCategory == id) {
+                    setActiveCategory(0);
+                }
+                renderLegend();
+                renderMapColors();
+            }
+        }
+
+        // Initiale Render-Befehle
+        renderLegend();
+    </script>
+</body>
+</html>
