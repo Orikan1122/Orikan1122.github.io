@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Browser/System Audio Recorder</title>
+    <style>
+        :root {
+            --primary-color: #673AB7; /* Changed to purple for system audio */
+            --danger-color: #f44336;
+            --bg-color: #f4f7f6;
+            --card-bg: #ffffff;
+            --text-color: #333;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .recorder-card {
+            background-color: var(--card-bg);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+            text-align: center;
+            width: 100%;
+            max-width: 450px;
+        }
+
+        h1 {
+            margin-top: 0;
+            font-size: 24px;
+            color: #222;
+        }
+        
+        p.instructions {
+            font-size: 13px;
+            color: #555;
+            background: #fff3cd;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #ffeeba;
+            text-align: left;
+        }
+
+        .status {
+            margin: 15px 0;
+            font-size: 14px;
+            font-weight: bold;
+            color: #666;
+            height: 20px;
+        }
+
+        .recording-pulse {
+            color: var(--danger-color);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        button {
+            border: none;
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.3s, opacity 0.3s;
+            color: white;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        #recordBtn {
+            background-color: var(--primary-color);
+        }
+
+        #recordBtn:hover:not(:disabled) {
+            background-color: #512da8;
+        }
+
+        #stopBtn {
+            background-color: var(--danger-color);
+        }
+
+        #stopBtn:hover:not(:disabled) {
+            background-color: #da190b;
+        }
+
+        .playback-zone {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+
+        audio {
+            width: 100%;
+            outline: none;
+        }
+
+        .download-btn {
+            background-color: #2196F3;
+            color: white;
+            text-decoration: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+
+        .download-btn:hover {
+            background-color: #0b7dda;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="recorder-card">
+        <h1>Browser Audio Recorder</h1>
+        <p class="instructions">
+            <b>Important:</b> When prompted, select a Browser Tab or your Screen, and make sure to toggle <b>"Share tab audio"</b> or <b>"Share system audio"</b> before clicking Share.
+        </p>
+
+        <div id="status" class="status">Ready to record</div>
+        
+        <div class="controls">
+            <button id="recordBtn">🎧 Start Recording</button>
+            <button id="stopBtn" disabled>⏹ Stop</button>
+        </div>
+
+        <div class="playback-zone">
+            <audio id="audioPlayback" controls class="hidden"></audio>
+            <a id="downloadBtn" class="download-btn hidden" download="system_audio.webm">⬇️ Download Audio</a>
+        </div>
+    </div>
+
+    <script>
+        let mediaRecorder;
+        let audioChunks =[];
+        let captureStream; // Holds the screen/audio stream
+
+        // Grab DOM Elements
+        const recordBtn = document.getElementById('recordBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const statusText = document.getElementById('status');
+        const audioPlayback = document.getElementById('audioPlayback');
+        const downloadBtn = document.getElementById('downloadBtn');
+
+        recordBtn.addEventListener('click', async () => {
+            try {
+                // To get system/tab audio, we must use getDisplayMedia. 
+                // Browsers usually require video: true to trigger the screen share popup.
+                captureStream = await navigator.mediaDevices.getDisplayMedia({ 
+                    video: true, 
+                    audio: true 
+                });
+                
+                // Check if the user actually shared audio
+                const audioTracks = captureStream.getAudioTracks();
+                if (audioTracks.length === 0) {
+                    // If no audio track exists, stop the stream and alert the user
+                    captureStream.getTracks().forEach(track => track.stop());
+                    alert("No audio captured! Please make sure to check 'Share tab audio' or 'Share system audio' in the popup.");
+                    return;
+                }
+
+                // Create a new stream using ONLY the audio track so we don't record a video file
+                const audioOnlyStream = new MediaStream([audioTracks[0]]);
+                
+                // Initialize Media Recorder with the audio-only stream
+                mediaRecorder = new MediaRecorder(audioOnlyStream);
+                
+                // Collect audio data chunks
+                mediaRecorder.ondataavailable = event => {
+                    if (event.data.size > 0) {
+                        audioChunks.push(event.data);
+                    }
+                };
+
+                // What to do when recording stops
+                mediaRecorder.onstop = () => {
+                    // Create audio blob
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    const audioUrl = URL.createObjectURL(audioBlob);
+                    
+                    // Setup audio element for playback
+                    audioPlayback.src = audioUrl;
+                    audioPlayback.classList.remove('hidden');
+
+                    // Setup download button
+                    downloadBtn.href = audioUrl;
+                    downloadBtn.download = `browser_audio_${new Date().getTime()}.webm`;
+                    downloadBtn.classList.remove('hidden');
+
+                    // Clear chunks for next time
+                    audioChunks =[];
+
+                    // Stop ALL tracks (video and audio) to end the browser screen sharing session fully
+                    captureStream.getTracks().forEach(track => track.stop());
+                    
+                    // Update UI
+                    recordBtn.disabled = false;
+                    stopBtn.disabled = true;
+                    statusText.innerText = "Recording saved. Ready to play or download.";
+                    statusText.classList.remove('recording-pulse');
+                };
+
+                // Detect if the user clicks "Stop sharing" via the browser's built-in banner
+                captureStream.getVideoTracks()[0].onended = () => {
+                     if (mediaRecorder.state !== 'inactive') {
+                         mediaRecorder.stop();
+                     }
+                };
+
+                // Start recording
+                mediaRecorder.start();
+
+                // Update UI for recording state
+                recordBtn.disabled = true;
+                stopBtn.disabled = false;
+                statusText.innerText = "🔴 Recording Browser Audio...";
+                statusText.classList.add('recording-pulse');
+
+                audioPlayback.classList.add('hidden');
+                downloadBtn.classList.add('hidden');
+
+            } catch (error) {
+                console.error("Error capturing audio:", error);
+                statusText.innerText = "Error: Screen/Audio capture cancelled.";
+                statusText.style.color = "var(--danger-color)";
+            }
+        });
+
+        // Event Listener for Manual Stop
+        stopBtn.addEventListener('click', () => {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+            }
+        });
+    </script>
+</body>
+</html>
