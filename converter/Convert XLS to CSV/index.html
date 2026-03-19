@@ -2,126 +2,147 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>MHTML Excel to CSV Converter</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Universal Excel Converter</title>
+    <!-- SheetJS for standard binary support -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
-        body { font-family: sans-serif; background: #f4f7f6; display: flex; justify-content: center; padding: 40px; }
-        .card { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); width: 100%; max-width: 600px; text-align: center; }
-        .drop-zone { border: 2px dashed #27ae60; padding: 40px; border-radius: 8px; cursor: pointer; background: #fafafa; margin-bottom: 20px; transition: 0.3s; }
-        .drop-zone:hover { background: #f0fff4; }
-        #status { margin-top: 15px; color: #666; font-size: 0.9em; }
-        button { background: #27ae60; color: white; border: none; padding: 12px 24px; border-radius: 4px; cursor: pointer; font-weight: bold; display: none; margin: 0 auto; }
-        button:hover { background: #219150; }
+        :root { --primary: #2563eb; --success: #059669; --bg: #f8fafc; }
+        body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .container { background: white; padding: 2.5rem; border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); width: 100%; max-width: 500px; text-align: center; }
+        .drop-zone { border: 2px dashed #cbd5e1; padding: 3rem 1rem; border-radius: 8px; cursor: pointer; margin: 1.5rem 0; transition: all 0.2s; background: #fff; }
+        .drop-zone:hover { border-color: var(--primary); background: #eff6ff; }
+        .file-card { display: none; background: #f1f5f9; padding: 1rem; border-radius: 8px; text-align: left; margin-bottom: 1rem; }
+        .badge { font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; background: #334155; color: white; margin-left: 8px; text-transform: uppercase; }
+        button { background: var(--success); color: white; border: none; width: 100%; padding: 0.8rem; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 1rem; display: none; }
+        button:hover { background: #047857; }
+        #status { font-size: 0.9rem; color: #64748b; margin-top: 1rem; }
     </style>
 </head>
 <body>
 
-<div class="card">
-    <h2>MHTML Data Extractor</h2>
-    <p>Upload the .xls (MHTML) file to extract the data tables.</p>
-    
+<div class="container">
+    <h2 style="margin-top:0">Smart XLS Converter</h2>
+    <p style="color: #64748b;">Supports standard binary & MHTML exports</p>
+
     <div class="drop-zone" id="dropZone">
-        <strong>Drag & Drop file here</strong><br>or click to browse
-        <input type="file" id="fileInput" accept=".xls" style="display:none">
+        <p id="prompt"><strong>Click to upload</strong> or drag .xls here</p>
+        <input type="file" id="fileInput" accept=".xls,.xlsx" style="display:none" />
     </div>
 
+    <div class="file-card" id="fileCard">
+        <div style="font-weight: 600; margin-bottom: 4px;">File: <span id="name"></span> <span id="typeBadge" class="badge"></span></div>
+        <div style="font-size: 0.85rem; color: #475569;" id="detail"></div>
+    </div>
+
+    <button id="dlBtn">Download as CSV</button>
     <div id="status"></div>
-    <button id="downloadBtn">Download Extracted CSV</button>
 </div>
 
 <script>
     const fileInput = document.getElementById('fileInput');
     const dropZone = document.getElementById('dropZone');
-    const downloadBtn = document.getElementById('downloadBtn');
+    const dlBtn = document.getElementById('dlBtn');
+    const fileCard = document.getElementById('fileCard');
     const status = document.getElementById('status');
 
-    let csvContent = "";
-    let fileName = "converted_data.csv";
+    let processedWorkbook = null;
+    let fileName = "";
 
     dropZone.onclick = () => fileInput.click();
-    fileInput.onchange = (e) => processFile(e.target.files[0]);
+    fileInput.onchange = (e) => handleFile(e.target.files[0]);
+    
+    // Drag & Drop
+    dropZone.ondragover = (e) => { e.preventDefault(); dropZone.style.borderColor = "#2563eb"; };
+    dropZone.ondragleave = () => { dropZone.style.borderColor = "#cbd5e1"; };
+    dropZone.ondrop = (e) => { e.preventDefault(); handleFile(e.dataTransfer.files[0]); };
 
-    dropZone.ondragover = (e) => { e.preventDefault(); dropZone.style.borderColor = "#000"; };
-    dropZone.ondragleave = () => { dropZone.style.borderColor = "#27ae60"; };
-    dropZone.ondrop = (e) => { e.preventDefault(); processFile(e.dataTransfer.files[0]); };
-
-    function processFile(file) {
+    async function handleFile(file) {
         if (!file) return;
-        fileName = file.name.replace(".xls", ".csv");
-        const reader = new FileReader();
-
-        reader.onload = function(e) {
-            const rawText = e.target.result;
-            
-            // 1. Decode Quoted-Printable encoding (=3D, soft breaks)
-            const decodedHtml = decodeQuotedPrintable(rawText);
-            
-            // 2. Parse the HTML
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(decodedHtml, 'text/html');
-            
-            // 3. Extract all tables and convert to CSV
-            const tables = doc.querySelectorAll('table');
-            if (tables.length === 0) {
-                status.innerHTML = "❌ No tables found in file.";
-                return;
+        fileName = file.name.replace(/\.[^/.]+$/, "");
+        document.getElementById('name').textContent = file.name;
+        status.textContent = "Analyzing file...";
+        
+        const arrayBuffer = await file.arrayBuffer();
+        const uint8 = new Uint8Array(arrayBuffer);
+        
+        // --- REACTIVE RECOGNITION ---
+        // We peek at the first few bytes to see what it really is
+        const header = new TextDecoder().decode(uint8.slice(0, 1000));
+        
+        try {
+            if (header.includes("MIME-Version") || header.includes("<html")) {
+                // IT'S MHTML / HTML
+                document.getElementById('typeBadge').textContent = "Legacy Web Export";
+                processMhtml(new TextDecoder().decode(uint8));
+            } else {
+                // IT'S BINARY (Standard XLS or XLSX)
+                document.getElementById('typeBadge').textContent = "Standard Excel";
+                processBinary(uint8);
             }
-
-            let rows = [];
-            tables.forEach(table => {
-                const trs = table.querySelectorAll('tr');
-                trs.forEach(tr => {
-                    let rowData = [];
-                    const cells = tr.querySelectorAll('td, th');
-                    
-                    cells.forEach(cell => {
-                        // Clean up text: remove newlines, decode entities, trim
-                        let content = cell.innerText || cell.textContent || "";
-                        content = content.replace(/\s+/g, ' ').trim();
-                        
-                        // Escape quotes for CSV
-                        content = '"' + content.replace(/"/g, '""') + '"';
-                        rowData.push(content);
-
-                        // Handle Colspan (important for your file!)
-                        let colspan = cell.getAttribute('colspan');
-                        if (colspan) {
-                            for (let i = 1; i < parseInt(colspan); i++) {
-                                rowData.push('""');
-                            }
-                        }
-                    });
-                    if (rowData.length > 0) rows.push(rowData.join(','));
-                });
-                // Add an empty line between tables
-                rows.push(""); 
-            });
-
-            csvContent = rows.join('\n');
-            status.innerHTML = `✅ Successfully extracted ${rows.length} lines.`;
-            downloadBtn.style.display = 'block';
-        };
-
-        reader.readAsText(file);
+        } catch (err) {
+            status.textContent = "❌ Error: " + err.message;
+        }
     }
 
-    // Helper: Fixes the =3D and soft line breaks common in MHTML
-    function decodeQuotedPrintable(str) {
-        return str
-            .replace(/=\r?\n/g, "") // Remove soft line breaks
-            .replace(/=[0-9A-F]{2}/gi, (match) => {
-                return String.fromCharCode(parseInt(match.slice(1), 16));
-            });
+    function processBinary(data) {
+        processedWorkbook = XLSX.read(data, {type: 'array'});
+        showSuccess(`Standard Excel detected. Found ${processedWorkbook.SheetNames.length} sheet(s).`);
     }
 
-    downloadBtn.onclick = () => {
-        // Add UTF-8 BOM so Excel opens it with correct characters/German accents
-        const blob = new Blob(["\ufeff" + csvContent], { type: 'text/csv;charset=utf-8;' });
+    function processMhtml(text) {
+        // 1. Decode Quoted-Printable symbols (=3D, soft breaks)
+        const cleanHtml = text
+            .replace(/=\r?\n/g, "") // remove soft line breaks
+            .replace(/=[0-9A-F]{2}/gi, match => String.fromCharCode(parseInt(match.slice(1), 16)));
+        
+        // 2. Extract tables
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(cleanHtml, 'text/html');
+        const tables = doc.querySelectorAll('table');
+        
+        if (tables.length === 0) throw new Error("No data tables found in file.");
+
+        // 3. Merge tables into one sheet using SheetJS
+        // We iterate all tables and append them to a single worksheet
+        const masterSheet = XLSX.utils.table_to_sheet(tables[0]);
+        
+        for (let i = 1; i < tables.length; i++) {
+            // Add a spacer row between tables
+            const range = XLSX.utils.decode_range(masterSheet['!ref']);
+            const nextRow = range.e.r + 2; 
+            XLSX.utils.sheet_add_dom(masterSheet, tables[i], {origin: nextRow});
+        }
+
+        processedWorkbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(processedWorkbook, masterSheet, "Extracted Data");
+        
+        showSuccess(`MHTML format detected. ${tables.length} tables merged.`);
+    }
+
+    function showSuccess(msg) {
+        fileCard.style.display = "block";
+        dlBtn.style.display = "block";
+        document.getElementById('detail').textContent = msg;
+        status.textContent = "Ready for conversion.";
+    }
+
+    dlBtn.onclick = () => {
+        if (!processedWorkbook) return;
+        
+        // Export the first sheet
+        const firstSheetName = processedWorkbook.SheetNames[0];
+        const worksheet = processedWorkbook.Sheets[firstSheetName];
+        const csv = XLSX.utils.sheet_to_csv(worksheet);
+        
+        // Add UTF-8 BOM for Excel compatibility
+        const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = fileName;
+        a.download = `${fileName}_converted.csv`;
         a.click();
-        URL.revokeObjectURL(url);
+        status.textContent = "✅ Conversion Complete!";
     };
 </script>
 
