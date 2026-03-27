@@ -717,7 +717,11 @@
 
     <header>
         <h1>Water Treatment Audit Tool</h1>
-        <div class="header-actions">
+        <div class="header-actions" style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+            
+            <!-- NEW BUTTON HERE -->
+            <button onclick="window.open('https://orikan1122.github.io/Engineering%20Tools/WT%20Audit%20Tool/Aggregator.html', '_blank')" style="background-color: var(--info-color); color: white;">Go to Aggregator</button>
+
             <!-- Hidden file input for Import -->
             <input type="file" id="import-file" accept=".json" style="display: none;" onchange="importJSON(event)">
             
@@ -725,6 +729,7 @@
             <button onclick="exportJSON()" style="color: var(--success-color);">Export JSON</button>
             <button onclick="saveData(true)">Save Progress</button>
             <button onclick="clearData()" style="color: var(--danger-color);">Reset Audit</button>
+            <button onclick="sendToPowerAutomate()" style="background-color: #0078d4; color: white;">Save to SharePoint</button>
         </div>
     </header>
 
@@ -1947,6 +1952,58 @@
         function closeModal() {
             document.getElementById('imageModal').style.display = "none";
         }
+        // ---------------------------------------------------------
+        // POWER AUTOMATE (SHAREPOINT) EXPORT LOGIC
+        // ---------------------------------------------------------
+        async function sendToPowerAutomate() {
+            // 1. Ensure metadata is up-to-date
+            auditMeta.location = document.getElementById('meta-location').value;
+            auditMeta.date = document.getElementById('meta-date').value;
+            auditMeta.team = document.getElementById('meta-team').value;
+            
+            // 2. Prepare the data payload
+            const exportData = {
+                metadata: auditMeta,
+                results: auditResults,
+                exportDate: new Date().toISOString()
+            };
+            
+            // 3. Generate a dynamic filename
+            const locName = auditMeta.location ? auditMeta.location.replace(/[^a-z0-9]/gi, '_').toLowerCase() : 'audit';
+            const fileName = `water_treatment_audit_${locName}_${auditMeta.date}.json`;
+
+            // 4. Wrap it in a structure Power Automate easily understands
+            const payload = {
+                fileName: fileName,
+                fileContent: exportData
+            };
+
+            // 5. Your Power Automate HTTP URL
+            const powerAutomateUrl = "https://default7a67a0708ce94692b1afbf788306bc.66.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/e81664bc83c9439ab58d0a8416f5e4a1/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=-wL3JWELXa9nQGwoB8355Agjm8WlKdWCJTZBidaNwLc";
+
+            // 6. Send to Power Automate via POST request
+            try {
+                showToast("Sending to SharePoint... Please wait.");
+                
+                const response = await fetch(powerAutomateUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.ok || response.status === 202) {
+                    showToast("Audit successfully saved to SharePoint!");
+                } else {
+                    alert("Error: Power Automate responded with status " + response.status);
+                }
+            } catch (error) {
+                console.error("Error sending to Power Automate:", error);
+                alert("Network error. Could not connect to Power Automate.");
+            }
+        }
+
     </script>
     <!-- Image Enlarge Modal -->
     <div id="imageModal" class="modal" onclick="closeModal()">
