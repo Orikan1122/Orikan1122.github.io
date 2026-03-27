@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Water Treatment Multi-Audit Aggregator</title>
+    <style>
+        :root {
+            --primary-color: #0056b3;
+            --secondary-color: #f8f9fa;
+            --text-color: #333;
+            --border-color: #dee2e6;
+            --success-color: #28a745;
+            --danger-color: #dc3545;
+            --warning-color: #ffc107;
+            --info-color: #17a2b8;
+            --bg-color: #eef2f5;
+            
+            --risk-low: #8cc63f;
+            --risk-med: #f7931e;
+            --risk-high: #ff0000;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+        }
+
+        header {
+            background-color: #003366;
+            color: white;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        button {
+            background-color: white;
+            color: var(--primary-color);
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.2s, opacity 0.2s;
+        }
+
+        button:hover { background-color: #e2e6ea; }
+        button.primary-btn { background-color: var(--primary-color); color: white; }
+        button.primary-btn:hover { background-color: #004494; }
+        button.danger-btn { background-color: var(--danger-color); color: white; }
+        button.danger-btn:hover { background-color: #c82333; }
+        button.success-btn { background-color: var(--success-color); color: white; }
+        button.success-btn:hover { background-color: #218838; }
+
+        .container {
+            max-width: 1400px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+
+        /* Dashboard Stats Grid */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            text-align: center;
+            border-bottom: 4px solid var(--primary-color);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .stat-card.radar-card { grid-column: span 2; }
+        .stat-card h4 { color: #6c757d; font-size: 0.9rem; margin-bottom: 0.5rem; text-transform: uppercase; }
+        .stat-card .value { font-size: 2.5rem; font-weight: bold; }
+
+        /* Filters Panel */
+        .filters-panel {
+            background: white;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+            border-left: 5px solid var(--info-color);
+        }
+        .filters-panel input, .filters-panel select {
+            padding: 0.5rem;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 0.95rem;
+            min-width: 200px;
+        }
+
+        /* Upload Area */
+        .upload-area {
+            background: white;
+            border: 2px dashed var(--primary-color);
+            padding: 3rem;
+            text-align: center;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .upload-area:hover, .upload-area.dragover { background: #e6f0fa; }
+
+        /* Layout Grid for Main Content */
+        .content-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 2rem;
+        }
+
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            border-top: 4px solid var(--primary-color);
+        }
+
+        .card h3 {
+            color: var(--primary-color);
+            margin-bottom: 1.5rem;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* Interactive Comparison Charts */
+        .chart-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1rem;
+            cursor: pointer;
+            transition: transform 0.2s, background 0.2s;
+            padding: 0.5rem;
+            border-radius: 6px;
+        }
+        .chart-row:hover {
+            background: #f1f3f5;
+            transform: translateX(5px);
+        }
+        .chart-label { width: 150px; font-weight: bold; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 10px; }
+        .chart-bar-bg { flex-grow: 1; background: #e9ecef; height: 16px; border-radius: 8px; overflow: hidden; display: flex; }
+        .chart-bar-fill { height: 100%; transition: width 0.5s; }
+        .chart-score { width: 50px; text-align: right; font-weight: bold; font-size: 0.9rem; padding-left: 10px;}
+
+        /* Stacked Bar Classes */
+        .fill-building { background: #007bff; }
+        .fill-equipment { background: #fd7e14; }
+        .fill-operational { background: #20c997; }
+
+        /* Tables */
+        .table-responsive { width: 100%; overflow-x: auto; }
+        table { width: 100%; min-width: 900px; border-collapse: collapse; }
+        th, td { padding: 1rem; text-align: left; border-bottom: 1px solid var(--border-color); font-size: 0.95rem; vertical-align: middle; }
+        th { background-color: var(--secondary-color); font-weight: 600; color: #495057; cursor: pointer; user-select: none; }
+        th:hover { background-color: #e2e6ea; }
+        tr:hover { background-color: #f8f9fa; }
+
+        .badge { padding: 0.35rem 0.6rem; border-radius: 12px; font-size: 0.8rem; font-weight: bold; color: white; display: inline-block; text-align: center; }
+        .badge-risk-low { background-color: var(--risk-low); color: white; }
+        .badge-risk-med { background-color: var(--risk-med); color: white; }
+        .badge-risk-high { background-color: var(--risk-high); color: white; }
+        
+        .cat-scores { display: flex; gap: 10px; font-size: 0.85rem; }
+        .cat-scores div { background: #e9ecef; padding: 2px 6px; border-radius: 4px; }
+
+        /* Detail Modal & Lightbox */
+        .modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); justify-content: center; align-items: center; }
+        .modal-content { background-color: white; width: 95%; max-width: 1200px; height: 90vh; border-radius: 8px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.2); }
+        .modal-header { padding: 1.5rem; background: var(--primary-color); color: white; display: flex; justify-content: space-between; align-items: center; }
+        .modal-body { padding: 1.5rem; overflow-y: auto; flex-grow: 1; }
+        .close-btn { font-size: 1.5rem; cursor: pointer; background: none; border: none; color: white; }
+
+        .photo-thumbnail { width: 80px; height: 60px; object-fit: cover; border-radius: 4px; border: 1px solid #ccc; cursor: pointer; transition: transform 0.2s; }
+        .photo-thumbnail:hover { transform: scale(1.1); box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
+        .photo-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 5px; }
+
+        #lightbox { display: none; position: fixed; z-index: 3000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.85); justify-content: center; align-items: center; flex-direction: column; }
+        .lightbox-content { max-width: 90%; max-height: 80vh; border-radius: 4px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); object-fit: contain; }
+        #lightboxCaption { margin-top: 15px; color: white; font-size: 1.2rem; font-weight: bold; text-align: center; }
+        .lightbox-close { position: absolute; top: 20px; right: 30px; color: white; font-size: 40px; font-weight: bold; cursor: pointer; }
+
+        /* Trends List Details styling */
+        details { transition: all 0.3s ease; }
+        summary { outline: none; user-select: none; transition: color 0.2s; }
+        summary:hover { color: #004494 !important; }
+
+        @media (min-width: 1200px) {
+            .content-grid { grid-template-columns: 1fr 1fr; }
+            .full-width { grid-column: 1 / -1; }
+        }
+        @media (max-width: 992px) { .stat-card.radar-card { grid-column: span 1; } }
+        @media (max-width: 768px) {
+            header { flex-direction: column; gap: 1rem; text-align: center; }
+            .header-actions { justify-content: center; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Multi-Audit Aggregator</h1>
+        <div class="header-actions">
+            <button class="primary-btn" onclick="document.getElementById('file-input').click()">+ Add JSON Files</button>
+            <button class="success-btn" onclick="exportToCSV()" id="export-btn" style="display:none;">Export Summary CSV</button>
+            <button class="danger-btn" onclick="clearAll()" id="clear-btn" style="display:none;">Clear All</button>
+            <input type="file" id="file-input" multiple accept=".json" style="display: none;" onchange="handleFiles(this.files)">
+        </div>
+    </header>
+
+    <div class="container">
+        
+        <div id="upload-zone" class="upload-area" onclick="document.getElementById('file-input').click()" ondrop="dropHandler(event)" ondragover="dragOverHandler(event)" ondragleave="dragLeaveHandler(event)">
+            <svg width="64" height="64" fill="var(--primary-color)" viewBox="0 0 16 16" style="margin-bottom: 1rem;">
+                <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
+                <path d="M7.646 1.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 2.707V11.5a.5.5 0 0 1-1 0V2.707L5.354 4.854a.5.5 0 1 1-.708-.708l3-3z"/>
+            </svg>
+            <h2>Drag & Drop Multiple Audit JSON files here</h2>
+            <p style="color: #6c757d; margin-top: 0.5rem; font-size: 1.1rem;">Or click to browse files from your computer.</p>
+        </div>
+
+        <!-- Filters Panel -->
+        <div class="filters-panel" id="filters-panel" style="display:none;">
+            <strong>Filter Audits:</strong>
+            <input type="text" id="filter-text" placeholder="Search Plant Location or Team..." oninput="applyFilters()">
+            
+            <select id="filter-score" onchange="applyFilters()">
+                <option value="all">All Scores</option>
+                <option value="<100">Less than 100%</option>
+                <option value="<90">Less than 90%</option>
+                <option value="<80">Less than 80%</option>
+                <option value="100">Perfect Score (100%)</option>
+            </select>
+
+            <select id="filter-risk" onchange="applyFilters()">
+                <option value="all">All Risk Levels</option>
+                <option value="high">Has High Risk Findings</option>
+                <option value="med">Has Medium/High Risks</option>
+            </select>
+            
+            <button onclick="resetFilters()" style="color: var(--danger-color); margin-left: auto;">Clear Filters</button>
+        </div>
+
+        <!-- Dashboard KPIs -->
+        <div class="dashboard-grid" id="kpi-grid" style="display: none;">
+            <div class="stat-card" style="border-bottom-color: var(--info-color);">
+                <h4>Filtered Audits</h4>
+                <div class="value" id="kpi-total-audits" style="color: var(--info-color);">0</div>
+            </div>
+            <div class="stat-card" style="border-bottom-color: var(--primary-color);">
+                <h4>Avg. Compliance</h4>
+                <div class="value" id="kpi-avg-score">0%</div>
+            </div>
+            <div class="stat-card" style="border-bottom-color: var(--danger-color);">
+                <h4>Total Failed Checks</h4>
+                <div class="value" id="kpi-total-fails" style="color: var(--danger-color);">0</div>
+            </div>
+            <div class="stat-card radar-card" style="border-bottom-color: var(--warning-color);">
+                <h4>Global Section Compliance</h4>
+                <div id="radar-chart-container" style="display: flex; justify-content: center; align-items: center; width: 100%; height: 160px; overflow: visible;"></div>
+            </div>
+        </div>
+
+        <div id="main-content" class="content-grid" style="display: none;">
+            
+            <!-- Comparison Leaderboard -->
+            <div class="card">
+                <h3 style="border-bottom-color: var(--primary-color);">
+                    Plant Leaderboard (Overall Score)
+                    <small style="font-size: 0.8rem; color: #6c757d; font-weight: normal; cursor: pointer;" onclick="toggleSortOrder('score')">Sort ↕</small>
+                </h3>
+                <p style="font-size: 0.85rem; color: #6c757d; margin-bottom: 1rem;">Click any bar to drill down into the audit details and photos.</p>
+                <div id="leaderboard-container" style="max-height: 400px; overflow-y: auto; padding-right: 10px;">
+                    <!-- Populated via JS -->
+                </div>
+            </div>
+
+            <!-- Category Breakdown Comparison -->
+            <div class="card">
+                <h3 style="border-bottom-color: #17a2b8;">
+                    Section Breakdown Comparison
+                </h3>
+                <div style="display: flex; gap: 1rem; margin-bottom: 1rem; font-size: 0.85rem; justify-content: center;">
+                    <span style="display: flex; align-items: center; gap: 5px;"><div style="width:12px;height:12px;background:#007bff;border-radius:2px;"></div> Building</span>
+                    <span style="display: flex; align-items: center; gap: 5px;"><div style="width:12px;height:12px;background:#fd7e14;border-radius:2px;"></div> Equipment</span>
+                    <span style="display: flex; align-items: center; gap: 5px;"><div style="width:12px;height:12px;background:#20c997;border-radius:2px;"></div> Operational</span>
+                </div>
+                <div id="breakdown-container" style="max-height: 400px; overflow-y: auto; padding-right: 10px;">
+                    <!-- Populated via JS -->
+                </div>
+            </div>
+
+            <!-- Trends / Top Fails -->
+            <div class="card full-width" style="border-top-color: var(--danger-color);">
+                <h3 style="color: var(--danger-color); border-bottom-color: var(--danger-color);">Trend Analysis: Most Frequently Failed Items</h3>
+                <p style="font-size: 0.9rem; color: #6c757d; margin-bottom: 1rem;">Expand any trend below to see exactly which filtered plants failed it, who the auditor was, and any photo evidence they attached.</p>
+                <div id="trends-container">
+                    <!-- Populated via JS -->
+                </div>
+            </div>
+
+            <!-- Audits Table -->
+            <div class="card full-width">
+                <h3>Detailed Audit List</h3>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th onclick="sortTable('location')">Location / Plant ↕</th>
+                                <th onclick="sortTable('date')">Date / Team ↕</th>
+                                <th onclick="sortTable('score')">Score ↕</th>
+                                <th>Section Breakdown</th>
+                                <th onclick="sortTable('risks')">Risks ↕</th>
+                                <th onclick="sortTable('photos')">Photos ↕</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="audits-table-body">
+                            <!-- Populated via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Details Modal (Action Plans & Photos) -->
+    <div id="detailModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-title">Audit Details</h2>
+                <button class="close-btn" onclick="closeModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="table-responsive">
+                    <table style="min-width: 1000px;">
+                        <thead>
+                            <tr>
+                                <th width="5%">Q#</th>
+                                <th width="25%">Section & Failed Items</th>
+                                <th width="10%">Risk Score</th>
+                                <th width="25%">Action Plan / Comments</th>
+                                <th width="35%">Evidence / Photos</th>
+                            </tr>
+                        </thead>
+                        <tbody id="modal-table-body">
+                            <!-- Populated via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Image Lightbox Modal -->
+    <div id="lightbox" onclick="closeLightbox()">
+        <span class="lightbox-close" onclick="closeLightbox()">&times;</span>
+        <img class="lightbox-content" id="lightboxImage">
+        <div id="lightboxCaption"></div>
+    </div>
+
+    <script>
+        // Reference data required to decode the questions
+        const auditData =[
+            { id: 1, title: "General building H&S requirements", category: "Building", checks:["Check safe access to ladders, check handrails of working platforms.","Check for non slippery surfaces.","Check gaps between tanks and handrails such that fingers limbs cannot be trapped or trip hazard occur.","Check automatic shower and eye wash in place.","Check that noise level is less than 85dBA.","Check containment tanks for chemicals with 110% volume allowance.","Check if appropriate equipment is installed to work on height or in case of anchor points are in place.","Check that all corners that can cause injury is rounded or otherwise protected.","Check all equipment is earthed.","Check if pipe unions are not installed over doors, electrical boards or any other sensitive areas which may cause damage or personnel injuries.","Check if boots, gloves and protective eye glasses are available and accessible to the area.","Check if electrical cables are properly installed, and not damaged."]},
+            { id: 2, title: "Ceiling, Wall and Floor", category: "Building", checks:["Check if walls are either tiled, or stainless steel panels with rockwool core.","Check if ceilings are made of smooth stainless steel panels.","Check if safe access to ceiling exists, where possible, it is recommended to have walk-on ceiling.","Check if floors are made of epoxy Ucrete UD200 or Flowcrete (thickness min 9mm) or acid resistant tiles (e.g. Buchtal).","Check if floor slope is 1-2% (able to sufficiently remove regular operation and cleaning/sanitizing activities liquids)."]},
+            { id: 3, title: "Access and GMP", category: "Building", checks:["Check if doors/entrances have sanitary junctions/pre-chambers, with hand & shoe washing/disinfection stations.","Check controlled access to the area and self closing doors using authorized badge or code control.","Check if windows exist, if yes, then only glazed (air/humidity tight with sealing)."]},
+            { id: 4, title: "Raw Water Storage - Material & Design (1)", category: "Equipment", checks:["Check if tank(s) are of SS 316L material or mild steel with food grade epoxy coating or concrete epoxy coating, absolutely leakage free (sealed from surface water contamination).","Check if tank(s) have sloped bottom for complete drainage through a valve and have adequate connections and spray balls for the standard CIP process to be performed.","Check also if manhole at the top is available with raised vertical wall (20cm).","Tank Venting: Check if storage tanks shall be placed away from possible sources of air contamination.","Check if storage tank headspace has venting connection through a vertical pipe (150 - 200 mm diam. minimum), having its end formed in an inverse U shape at a height of 2m. The air entering the tank must be filtered."]},
+            { id: 5, title: "Raw Water Storage - Flow & Access (2)", category: "Equipment", checks:["Check if water inlet is at top and outlet at bottom, on the opposite side, to keep a continuous renewal of the water and an adequate chlorine contact time (baffling effect). If two or more tanks are used, they must properly interconnected to ensure the above requirements.","Check if a properly sized overflow pipe is installed, which has gravity closed cover at the end to protect from contamination/infestation. The overflow pipe must not be connected directly or into a drain. It should end 0.5 m above the drain collector, which should be funnel type.","Check if tanks for raw water have sanitary type micro sampling valve with Tri-clamp connection at the discharge pipe.","Check if tanks have easy and safe access to its top for inspection or maintenance and replacement. There are peripheral safety rails.","Check if tanks have level measuring system with control system with dry run protection and low level notification."]},
+            { id: 6, title: "Raw Water Storage - Initial Chlorination", category: "Equipment", checks:["Check if there is automatic system for chlorinating the raw water on plant infeed to ensure stable chlorination level at 0.5ppm min.","Check if chlorine solution tank has level indicators, low level alarm and chlorinator discharge flow alarm.","Check if there is free chlorine monitoring system in the tank with low concentration alarm.","If the same tank(s) are used for raw water storage and firefighting purposes, Prerequisite: Check if pipes and pumps used for the raw water consumption are entirely separate from the fire-service pipes and pumping station and shall extend to an elevation inside the tank above that required for fire protection.","Check if level of the water cannot fall below that specified by the sprinklers/hydrants study, meaning water infeed flow should be higher than raw water flow.","Check if a drain valve is present before the WT plant infeed valve and able to handle 120% of regular infeed flow."]},
+            { id: 7, title: "Pipings and Distribution Equipment - Generic Piping", category: "Equipment", checks:["Check if all piping systems are marked with adhesive labels all along their length in order to be readily identified.","Check if all pipes in contact with water (from raw to treated) are food-grade and sanitation-resistant. Dead pipe legs are not permitted. The length of a pipe dead end should not exceed 1.5 times the diameter of the smaller pipe.","Check if longitudinal expansion of pipes due to temperature changes is compensated by fittings such as full loop, omega shape or horseshoe loop or sliding joints and bellows.","Pumps: Check if pumps are of centrifugal type and designed according to food industry standards.","Valves: Check if valves are of hygienic types: butterfly or diaphragm only, in stainless steel 316L."]},
+            { id: 8, title: "Pipings and Distribution Equipment - Sampling & Inst.", category: "Equipment", checks:["Microbiological sampling points: Check if micro sampling valves are of hygienic type and can be sanitized either by hot water at 90°C or by flame.","Check if micro sampling valves are accessible, and placed at a minimum of 300 mm from the floor.","Instrumentation: Check if flowmeters (instantaneous and cumulative flow rate) are avalaible on the water infeed into both pre or main water treatment system and also at all outlets of the main water treatment system.","Check if manometers are installed through a three-way cock or are of membrane type, fitted on the upper side of the pipes.","Check if membrane manometers (hygienic type) are used after carbon filters. Manometer liquid should be certified as food grade from manufacturer."]},
+            { id: 9, title: "Pipings and Distribution Equipment - Treated Water", category: "Equipment", checks:["Check if pipes have 1% slope in the direction of flow for self draining. Chech for any trap, siphon or dead end.","Check if pipes and sealings are made of food contact approved materials.","Check if pipes body, and other metallic parts in contact with water are made of SS 316L with hugienic surface finishing Ra < 0.8 µm (or N6 ISO or Ra<32μ inch).","Check if weldings are free of the following: metal allowances or welding fillers, penetration, undercuts, sink holes, clusters or linear porosity, porosity to carbon monoxide.","Check if welds have been passivated and brushed.","Connection points (swing plates, manifolds, valve clusters): All infeed pipes and distribution (outgoing) pipes shall be clearly marked.","Check if distribution panel is made of SS with no dead legs and valves to isolate each stream when necessary. Alternatively, automatic valve cluster with mixproof valve of a similar design may be used.","Check if chlorinated water supply or CIP supply is available on the distribution panel for the chlorination of pipes and objects."]},
+            { id: 10, title: "Piping Sanitation", category: "Operational", checks:["Check if the entire treated water piping, from the swing panel (or alternatively automatic valve cluster with mixproof valves) after the polishing filter to the end of all branches or last swing panel must be cleanable and sanitizable in place with hot water[90C] and/or chemicals.","Check if each TW line is able to be filled with chlorinated water 1-3 ppm when not in use.","Check if sanitation of polishing filters is done with hot water or steam in combination with the carbon filters."]},
+            { id: 11, title: "Disinfection - Chlorination (Calcium Hypochlorite)", category: "Operational", checks:["Check if construction materials for direct contact with concentrated chlorine solutions (>50 ppm) e.g calcium hypochlorite storage tanks are compatible with highly oxidizing agents. SS 316 is compatible with lighter chlorine solutions.","Check if the only chemical used is Calcium Hypochlorite.","Check hypochlorite injection system to be in line with specifications.","Check if min chlorine contact time (TCCC minimum required = 6mg*min/L -> e.g. 0,2ppm for 30mins) is applied.","If traditional Lime Coagulation system is used, min contact time is already over-achieved in Reaction Tanks (approx 2 hrs @ selected concentration).","Check 'Set alarms' for high/ low chlorination and cut off automation of water supply for both cases."]},
+            { id: 12, title: "Disinfection - UV (Combination of Technologies)", category: "Operational", checks:["Check If UV is applied as only disinfection method, then supplier manufacture should present a Declaration of Compliance with Coca-Cola’s BP-RQ-180.","Check if combination of disinfection methods is applied.","Check If ozonation of water is part of the treatment, then UV system has to be installed before ozone generator."]},
+            { id: 13, title: "Disinfection - UV (Combinations w. & w/o Chlorination)", category: "Operational", checks:["When chlorination step is NOT applied along with UV: If UV and Conventional Treatment OR In-Line Flocculation with direct filtration are combined: Check if unit is 3rd party validated (requirement), and has Reduction Equivalent Dose (RED) of 120mJ/cm2 for MP lamp OR 186mJ/cm2 for LPHO lamp.","If UV and Microfiltration or Ultrafiltration are combined: Check if unit is 3rd party validated (recommendation), and has RED of 100mJ/cm2 for MP lamp OR 100mJ/cm2 for LPHO lamp.","If UV and Nanofiltration are combined: Check if unit is 3rd party validated (recommendation), and has RED of 60mJ/cm2 for MP lamp OR 60mJ/cm2 for LPHO lamp.","When chlorination step IS applied along with UV: Check if unit is Certified DVGW, öNorm Validated OR 3rd party validated (recommendation), then it can have RED of down to 40mJ/cm2"]},
+            { id: 14, title: "Disinfection - UV Unit Installation", category: "Operational", checks:["Check if UV unit is installed: Indoors with environmental temperatures between 4oC and 35oC.","As close to the final consumption as possible, since UV has no residual effect.","In isolation from undue vibration (eg caused by proximity to heavy equipment, poorly connected attachment piping, improper pumps etc).","Check if the piping system is subject to hydraulic shocks. If yes, a buffer tank or other means must be in place to remove that condition.","Check if unit has sufficient service access area.","Check for horizontal units, if water inlet is downwards and outlet upwards.","Check if Hygienic type sampling valves are installed before and after the unit to allow micro sampling.","Check if prerequisites are installed & operating : i) UV sensors to detect any drop in UV lamp output density ii) Alarms and shut down systems in case of leakage, overheating, wiper failure or quartz damage iii) Automatic cleaning system (wipers).","Check if lamps are enclosed in quartz jackets to achieve minimum intensity reduction - teflon jackets should be avoided.","Check if drainage valve or mechanism is present to avoid stagnant water when system is not operating."]},
+            { id: 15, title: "Disinfection - Ozonation", category: "Operational", checks:["Check if Micro filters or other means of water disinfection are placed before the ozone treatment.","Check if Ozone generator is installed: Indoors with environmental temperatures between 4oC and 30oC.","As close to the injection point as possible.","Check if all parts and compounds made of materials resistant to ozone deterioration: SS304/316, EPDM, Teflon, Silicon, Viton.","Check if Valve is present to prevent water back-flow into the ozone generator - best option is combination of non return valve + automatic electromagnetic valve opened only during operation and controlled by ozone control system."]},
+            { id: 16, title: "Disinfection - Ozonation Environment & Monitoring", category: "Operational", checks:["Check if generator room with continuous gas detection system. The room must be normally unoccupied, with external warning sign.","Check if Generator room has mechanical ventilation with an interlock system so if fans stop Ozone generator automatically shuts down.","Check if Ventilation system exhausts to the open air - not inside a building, and not near building opening windows or doorways.","Check if controls are present to ensure that the ozone concentration of the ventilation exhaust, at the point of discharge to atmosphere, is less than 2.5 ppm.","Check if system vents and exhausts are fitted with Ozone destruction technology such as UV lamps etc.","Check if air preparation system that lowers the dew point of feeding air to -60 oC, & filters to withhold particles is used.","Check in in case a compressor is used for air feeding, then it has to be oil-free.","Check if Ozone monitoring equipment includes: a) ozone detectors in the producing area and at the end use area b) ozone measurement equipment on the water line.","Check if there is available sampling valve to allow offline measurement of ozone concentration, placed as close as possible after the injector point.","Check if a buffer tank is used for temporary storage of ozonized water, then materials used in sealing and valves have to be ozone resistant.","Check if Contact Time is calculated on the maximum capacity of the ozonation system, contact time of ozonized water should be at least 4 mins."]},
+            { id: 17, title: "Traditional lime coagulation system", category: "Operational", checks:["Check if source water is identified as Non-Potable, then a water pre-treatment system is necessary to produce Potable Water for the infeed of the traditional lime coagulation system. (QFS-RQ-180).","Check if Reaction tanks are made of proper material (mild steel coated with food grade epoxy paint).","Check if the bottom of the tank shall is conical.","Check if Dosing pumps are operating proportionally to raw water inlet flow.","Check for chemicals: Flow control system shall be in place to supervise the flow of the dosing chemicals and shuts-down the system with alarm in case of chemical shortage or non-discharge flow.","Recommendations for improved hygiene: Check if a separate room within the water treatment area, for chemicals dissolving stations is in place.","Check if the room is ventilated with 6 air changes per hour and negative pressure, so that any dust from the chemicals does not spread outside the room.","Check if the room has easy access for the replenishment of chemicals and appropriate drainage for the cleaning."]},
+            { id: 18, title: "Traditional lime coagulation system - Reaction Tanks", category: "Operational", checks:["Check if Reactor contact times, are respected: min two hours at maximum flow.","Check if flow from all points into the collector (weirs or holes) is the same.","Check if sampling points (minimum 3) are in place to monitor process & active percentage of sludge. Location of points should ensure that it is possible to maintain a sludge blanket of 15% to 20% (per active liquid height) to ensure multiple barrier (filtration) effect.","Check if automatic system to monitor flocculants dosing is in place.","Check If vertical agitator with gear motor is fitted, then it must have an oil collection pan to prevent oil drip in the tank.","Check if Reaction tanks have safe access to the top for inspection and maintenance. The tank must have its top floored by steel sheets, having openings with removable covers for inspection and peripheral safety rails in all top area used by the operator.","Check if Lime is dissolved in separate dissolving tank and then pumped into lime dosing tank via a strainer.","Check if flushing system of delivery hoses is available and operational to prevent clogging.","Check if the water feeding chemicals systems and flushing system derives from a point before carbon filters."]},
+            { id: 19, title: "In-Line Flocculation", category: "Operational", checks:["Check if Dosing pumps are operating proportionally to raw water inlet flow.","Check if Manual or Automatic check of flocculants dosing rate is present.","Check if Static mixer for fast mixing of the dosed chemical agent with water is in place.","Check for chemicals: Flow control system shall be in place to supervise the flow of the dosing chemicals and shuts-down the system with alarm in case of chemical shortage or non-discharge flow."]},
+            { id: 20, title: "Alkalinity Reduction - Ion Exchange (IE)", category: "Operational", checks:["Check if an efficient enhanced filtration system is installed upstream of the IE (prerequisite to operate ion exchange systems).","For vessels check Lifting rings are minimum 3, two inspection sight glasses on its upper part (check that are pressure resistant) and three manholes.","Check that unit can withstand hot CIP.","Check IE system capability of backwashing with treated water received from the outlet of sand filters.","Check for a non-return valve and a flow meter at the outlet pipeline of the ion exchange system and also pH and conductivity online monitoring installed on the IE outfeed immediatelly after the blending point with proper delay, alarm and shut down the system if pH or conductivity is out of the set range.","Same system should be installed in each vessel separately for regeneration purposes.","Check that system must has automatic regeneration process with frequency adjusted according to the data."]},
+            { id: 21, title: "Reverse Osmosis", category: "Operational", checks:["Check if RO system (pressure vessels and all pipes w/o membranes per se) is hot CIP-able.","Membranes should be subjected to treatment as per OEM guidelines.","Check if RO system has an overall water efficiency >75%.","Check if RO Element Housings (Elements should have end caps held in place with stainless steel bands) and pumps steel casing, shaft, impellers, and pipings are of SS316 (pipings class 2B).","Check that system inlet has Automatic Shut Off Valve (gate valve to avoid hammering).","Check that pipings and tanks can be completely drainned.","Check that each permeate stage has sanitary sampling valves.","Check if flow meters, conductivity sensors, pressure sensors, pH sensors, sanitary sampling valves, inline Chlorine measurement are installed before and after water inlet and outlet of each membrane filtration housing.","Check that monitoring records are recorded online & if any deviations occur from set Limits, alarm and notification activated.","Check that dosing of pre-chlorination, of chlorine removal chemical agent, of antiscaling chemical agent have also alarm system, in case breakdown/problem/low level/no flow etc."]},
+            { id: 22, title: "RO water storage tank", category: "Equipment", checks:["Check that tank has conical bottom and top, made of SS 316 and both cones have an angle of 15 degrees (slope 24%).","Check that tank has properly sized overflow pipe, nr and size of sprayballs.","Check that UV lamp is installed in buffer tank headspace. UV lamp should provide intensity >60mJ/Cm2 (acc. CCH specs in case of low-pressure systems).","Check that UV unit has lamp efficiency monitoring system and alarm in case of efficiency drop or another malfunction."]},
+            { id: 23, title: "Sand & Multimedia filters", category: "Equipment", checks:["Check that Filter medium/sand bed has a depth of min 2.1m.","Check that bottom design has min 65 nozzles/m2.","Check that there is 50% of bed height freeboard above the medium/sand bed.","Check that filter bed material(s) (natural silica sand, combination of two media or three media or glass beads) are food grade quality.","Check that flow rates are respected (Gravity filter: <8.5m3/hr/m2, Pressure filter with conventional chemical coagulation/flocculation: <4.8m3/hr/m2, Pressure filter with in-line flocculation: within the range of 4.8m3/hr/m2 and 8.5m3/hr/m2).","Check that vessel is equipped with a flow limiting valve against excessive flow and shut-off valves in inlet and outlet.","Check automatic headspace venting system, a pressure relief auto valve and a manual one as well.","Check 2x sightglasses on top for inspection.","Check that filter infeed and outfeed are be equipped with sanitary type pressure measurement (digital recommended).","Check that each filters outlet is equipped with turbidity monitoring system with alarm function.","Check that oil free air blower to scavenge the sand prior to backwash is available (1.2 Nm3/min per m2 of filter cross section).","Check that block and bleed valve system exists to prevent leakage of turbid infeed water to the outlet."]},
+            { id: 24, title: "Activated Carbon (AC) Filters", category: "Equipment", checks:["Check that Carbon filters have a total capacity higher to the system capacity by 15-20% to compensate peak demands.","Check that flow rate respects max 8.4m3/h per m3 of carbon bed (min flow should specified by supplier to prevent from channeling).","Check that min depth is 1.5m, and freeboard above bed is 50% of bed’s depth.","Check that flow meter at each carbon filter and a flow limiting valve exist. Flow demand on AC filters should be requested through pressure sensor after the polishing filters.","Check that block and bleed valve system exists to prevent leakage of chlorinated infeed water to the TW at the outlet.","Check that lowest point of filter body bottom and has a thermometer (scale 0-120oC).","Check automatic headspace venting system, a pressure relief auto valve and a manual one as well, and 2x sightglasses on top for inspection.","Check that Pressure Shock absorber (as part of common distribution panel) exists.","Check that Total residual chlorine monitoring system on AC filters outlet."]},
+            { id: 25, title: "Polishing Filters", category: "Equipment", checks:["Check that pore size is 5 to 20µm and are made in stainless steel 316 L (both housing and cartridges).","Check that polishing filter is backwashable and can be sterilized with hot water 90 deg C or steam (both housing and cartridges), together with the carbon filter.","Check that there are membrane pressure gauges and sanitary type micro sampling valves on filter infeed and outfeed."]},
+            { id: 26, title: "Water Saving - Rinsing water", category: "Operational", checks:["Check that Rinser Water is reused with one of the following ways: i) collected and is sent back to a Collecting tank, where it will be stored chlorinated to 0.1-0.5ppm. OR ii) rinser is split into two sections. Last section is fed with fresh water and after being used is sent to beginning section through a small buffer tank, pump and filter.","Check that Total Water collected is sent back to the inlet of the WT at ratio of max 15% of main flow from the source supply."]},
+            { id: 27, title: "Water Saving - Cooling water & Backwashes", category: "Operational", checks:["Recovery of cooling water: Check that cooling water collected from different equipment (pumps, tunnel pasteurizers, warmers or coolers) is sent to feed the inlet of Water Treatment (WT) system.","Check that stored water is chlorinated at least to 0.1-0.5ppm.","Recovery of Sand, carbon & polisher filters backwash: Check that first 5min permeate (approx) is be drained and rest is stored chlorinated at least to 0.1-0.5ppm.","Check that Total Water collected is sent back to the inlet of the WT at ratio of max 15% of main flow from the source supply."]},
+            { id: 28, title: "Questions in ARCA", category: "Operational", checks:["Does non-potable water have a separate supply system that is: labelled, not connected to the potable water system, and prevented from refluxing into the potable system?","Ozone: Does operation do bromate monitoring for waters that are treated with ozone?","Does the operation use for polishing filtration one of the following filters located immediately after the Granular Activated Carbon Treatment: 1) 1 - 20 μm absolute filter; 2) 1 - 5 μm nominal filter to remove 3-log (99.9%) of carbon fines particulates sized 30 μm and larger?"]}
+        ];
+
+        let uploadedAudits = [];
+        let displayedAudits =[];
+        let filteredAudits =[];       // NEW: Keeps track of dropdown filters for the charts
+        let selectedAuditIndex = null; // NEW: Keeps track of which audit you clicked on
+        let sortConfig = { key: 'score', desc: true };
+
+        // --- Drag and Drop Logic ---
+        function dragOverHandler(ev) { ev.preventDefault(); document.getElementById('upload-zone').classList.add('dragover'); }
+        function dragLeaveHandler(ev) { ev.preventDefault(); document.getElementById('upload-zone').classList.remove('dragover'); }
+        function dropHandler(ev) { ev.preventDefault(); document.getElementById('upload-zone').classList.remove('dragover'); if (ev.dataTransfer.files) handleFiles(ev.dataTransfer.files); }
+
+        function handleFiles(files) {
+            Array.from(files).forEach(file => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const parsed = JSON.parse(e.target.result);
+                        if(parsed.metadata && parsed.results) processAuditData(parsed, file.name);
+                    } catch(err) { alert(`File ${file.name} is not a valid Audit JSON.`); }
+                };
+                reader.readAsText(file);
+            });
+            document.getElementById('file-input').value = '';
+        }
+
+        function processAuditData(jsonObj, filename) {
+            let pass = 0, fail = 0;
+            let risks = { high: 0, med: 0, low: 0 };
+            let failedItems =[], photoCount = 0;
+            let catStats = { 'Building': { p:0, t:0 }, 'Equipment': { p:0, t:0 }, 'Operational': { p:0, t:0 } };
+
+            Object.keys(jsonObj.results).forEach(qIdStr => {
+                let qId = parseInt(qIdStr);
+                let ans = jsonObj.results[qIdStr];
+                if (ans.photos && ans.photos.length > 0) photoCount += ans.photos.length;
+                if (ans.sectionNA) return;
+
+                let l = parseInt(ans.likelihood || 0), i = parseInt(ans.impact || 0), score = l * i;
+                if (score > 0) {
+                    if (score <= 2) risks.low++; else if (score <= 4) risks.med++; else risks.high++;
+                }
+
+                let qDef = auditData.find(q => q.id === qId);
+                if(qDef) {
+                    qDef.checks.forEach((chkText, idx) => {
+                        let val = ans.subChecks[idx];
+                        if (val === 'Pass') pass++;
+                        if (val === 'Fail') {
+                            fail++;
+                            failedItems.push({ qId, checkIdx: idx, text: chkText, title: qDef.title });
+                        }
+                        if (val === 'Pass' || val === 'Fail') {
+                            catStats[qDef.category].t++;
+                            if (val === 'Pass') catStats[qDef.category].p++;
+                        }
+                    });
+                }
+            });
+
+            let scorable = pass + fail;
+            let scorePct = scorable === 0 ? 0 : Math.round((pass / scorable) * 100);
+            let catPct = {
+                'Building': catStats['Building'].t === 0 ? 0 : Math.round((catStats['Building'].p / catStats['Building'].t) * 100),
+                'Equipment': catStats['Equipment'].t === 0 ? 0 : Math.round((catStats['Equipment'].p / catStats['Equipment'].t) * 100),
+                'Operational': catStats['Operational'].t === 0 ? 0 : Math.round((catStats['Operational'].p / catStats['Operational'].t) * 100),
+            };
+
+            uploadedAudits.push({
+                originalIndex: uploadedAudits.length, // Immutable reference
+                filename: filename,
+                location: jsonObj.metadata.location || 'Unknown',
+                date: jsonObj.metadata.date || 'Unknown',
+                team: jsonObj.metadata.team || 'Unknown',
+                score: scorePct,
+                totalScorable: scorable,
+                fails: fail,
+                risks: risks,
+                photoCount: photoCount,
+                catPct: catPct,
+                failedItems: failedItems,
+                rawResults: jsonObj.results
+            });
+
+            applyFilters();
+        }
+
+        // --- FILTERING & SORTING ---
+        function applyFilters() {
+            const fText = document.getElementById('filter-text').value.toLowerCase();
+            const fScore = document.getElementById('filter-score').value;
+            const fRisk = document.getElementById('filter-risk').value;
+
+            // 1. Base Filter (Dropdowns & Search text)
+            filteredAudits = uploadedAudits.filter(a => {
+                let matchText = a.location.toLowerCase().includes(fText) || a.team.toLowerCase().includes(fText);
+                let matchScore = true;
+                if(fScore === '<100') matchScore = a.score < 100;
+                if(fScore === '<90') matchScore = a.score < 90;
+                if(fScore === '<80') matchScore = a.score < 80;
+                if(fScore === '100') matchScore = a.score === 100;
+
+                let matchRisk = true;
+                if(fRisk === 'high') matchRisk = a.risks.high > 0;
+                if(fRisk === 'med') matchRisk = (a.risks.high > 0 || a.risks.med > 0);
+
+                return matchText && matchScore && matchRisk;
+            });
+
+            // 2. Click-to-Select Filter (Drill-down from charts)
+            displayedAudits = filteredAudits.filter(a => {
+                if (selectedAuditIndex !== null && a.originalIndex !== selectedAuditIndex) return false;
+                return true;
+            });
+
+            executeSort();
+            renderDashboard();
+        }
+
+        function resetFilters() {
+            document.getElementById('filter-text').value = '';
+            document.getElementById('filter-score').value = 'all';
+            document.getElementById('filter-risk').value = 'all';
+            selectedAuditIndex = null; // Unselect clicked audit
+            applyFilters();
+        }
+        function sortTable(key) {
+            if (sortConfig.key === key) {
+                sortConfig.desc = !sortConfig.desc;
+            } else {
+                sortConfig.key = key;
+                sortConfig.desc = true;
+            }
+            executeSort();
+            renderDashboard();
+        }
+        
+        function toggleSortOrder(key) {
+            sortTable(key);
+        }
+
+        function executeSort() {
+            const sortLogic = (a, b) => {
+                let valA, valB;
+                if (sortConfig.key === 'location') { valA = a.location.toLowerCase(); valB = b.location.toLowerCase(); }
+                else if (sortConfig.key === 'date') { valA = a.date; valB = b.date; }
+                else if (sortConfig.key === 'score') { valA = a.score; valB = b.score; }
+                else if (sortConfig.key === 'risks') { valA = (a.risks.high*100) + (a.risks.med*10) + a.risks.low; valB = (b.risks.high*100) + (b.risks.med*10) + b.risks.low; }
+                else if (sortConfig.key === 'photos') { valA = a.photoCount; valB = b.photoCount; }
+
+                if (valA < valB) return sortConfig.desc ? 1 : -1;
+                if (valA > valB) return sortConfig.desc ? -1 : 1;
+                return 0;
+            };
+            
+            // Sort both arrays so charts and tables match
+            filteredAudits.sort(sortLogic);
+            displayedAudits.sort(sortLogic);
+        }
+
+        function toggleAuditSelection(origIndex) {
+            // If clicking the already selected audit, unselect it. Otherwise, select it.
+            if (selectedAuditIndex === origIndex) {
+                selectedAuditIndex = null;
+            } else {
+                selectedAuditIndex = origIndex;
+            }
+            applyFilters();
+        }
+
+        function removeAudit(origIndex) {
+            if(confirm("Remove this audit?")) {
+                uploadedAudits = uploadedAudits.filter(a => a.originalIndex !== origIndex);
+                applyFilters();
+            }
+        }
+
+        function clearAll() {
+            if(confirm("Remove all loaded audits?")) {
+                uploadedAudits =[];
+                applyFilters();
+            }
+        }
+
+        // --- RENDERING ---
+        function renderDashboard() {
+            const hasFiles = uploadedAudits.length > 0;
+            document.getElementById('upload-zone').style.display = hasFiles ? 'none' : 'block';
+            document.getElementById('filters-panel').style.display = hasFiles ? 'flex' : 'none';
+            document.getElementById('kpi-grid').style.display = hasFiles ? 'grid' : 'none';
+            document.getElementById('main-content').style.display = hasFiles ? 'grid' : 'none';
+            document.getElementById('export-btn').style.display = hasFiles ? 'inline-block' : 'none';
+            document.getElementById('clear-btn').style.display = hasFiles ? 'inline-block' : 'none';
+
+            if(!hasFiles) return;
+
+            // Stats
+            let totalScoreAcc = 0, totalFails = 0, globCatAccum = { 'Building': 0, 'Equipment': 0, 'Operational': 0 };
+            let failTrendMap = {}; 
+            
+            displayedAudits.forEach(a => {
+                totalScoreAcc += a.score;
+                totalFails += a.fails;
+                globCatAccum['Building'] += a.catPct['Building'];
+                globCatAccum['Equipment'] += a.catPct['Equipment'];
+                globCatAccum['Operational'] += a.catPct['Operational'];
+
+                a.failedItems.forEach(fi => {
+                    let key = `${fi.qId}|${fi.checkIdx}`;
+                    if(!failTrendMap[key]) failTrendMap[key] = { count: 0, text: fi.text, title: fi.title, qId: fi.qId, occurrences:[] };
+                    failTrendMap[key].count++;
+
+                    let ans = a.rawResults[fi.qId] || {};
+                    let relevantPhotos = (ans.photos ||[]).filter(p => {
+                        let pIdx = (typeof p === 'string') ? -1 : (p.subCheckIdx !== undefined ? p.subCheckIdx : -1);
+                        return pIdx === fi.checkIdx || pIdx === -1;
+                    });
+                    failTrendMap[key].occurrences.push({ origIdx: a.originalIndex, location: a.location, team: a.team, date: a.date, evidence: ans.evidence || '', photos: relevantPhotos });
+                });
+            });
+
+            document.getElementById('kpi-total-audits').innerText = displayedAudits.length;
+            document.getElementById('kpi-avg-score').innerText = displayedAudits.length ? Math.round(totalScoreAcc / displayedAudits.length) + '%' : '0%';
+            document.getElementById('kpi-total-fails').innerText = totalFails;
+
+            let gCatAvg = displayedAudits.length ? [
+                Math.round(globCatAccum['Building'] / displayedAudits.length),
+                Math.round(globCatAccum['Equipment'] / displayedAudits.length),
+                Math.round(globCatAccum['Operational'] / displayedAudits.length)
+            ] : [0,0,0];
+            document.getElementById('radar-chart-container').innerHTML = createRadarChartSVG(['Building', 'Equipment', 'Operational'], gCatAvg);
+
+            renderCharts();
+            renderTable();
+            renderTrends(failTrendMap);
+        }
+
+        function renderCharts() {
+            const lbContainer = document.getElementById('leaderboard-container');
+            const bdContainer = document.getElementById('breakdown-container');
+            lbContainer.innerHTML = '';
+            bdContainer.innerHTML = '';
+
+            if (filteredAudits.length === 0) {
+                lbContainer.innerHTML = '<p class="empty-state" style="padding:1rem;">No audits match your filters.</p>';
+                bdContainer.innerHTML = '<p class="empty-state" style="padding:1rem;">No audits match your filters.</p>';
+                return;
+            }
+
+            filteredAudits.forEach(a => {
+                let scoreColor = a.score >= 95 ? 'var(--success-color)' : (a.score >= 80 ? 'var(--warning-color)' : 'var(--danger-color)');
+                
+                // --- NEW HIGHLIGHT LOGIC ---
+                let isSelected = selectedAuditIndex === a.originalIndex;
+                let isOtherSelected = selectedAuditIndex !== null && !isSelected;
+                
+                // Add borders/highlight to selected, fade out the unselected ones
+                let rowStyle = isSelected ? 'border: 2px solid var(--primary-color); background: #e6f0fa; transform: translateX(5px);' : '';
+                let opacityStyle = isOtherSelected ? 'opacity: 0.3;' : 'opacity: 1;';
+                let titleText = isSelected ? 'Click to clear filter' : 'Click to filter list and trends down to this audit';
+                
+                // Overall Leaderboard Row
+                lbContainer.innerHTML += `
+                    <div class="chart-row" style="${rowStyle} ${opacityStyle}" onclick="toggleAuditSelection(${a.originalIndex})" title="${titleText}">
+                        <div class="chart-label">${a.location}</div>
+                        <div class="chart-bar-bg">
+                            <div class="chart-bar-fill" style="width: ${a.score}%; background: ${scoreColor};"></div>
+                        </div>
+                        <div class="chart-score">${a.score}%</div>
+                    </div>
+                `;
+
+                // Section Breakdown Row
+                let totalCatScore = a.catPct['Building'] + a.catPct['Equipment'] + a.catPct['Operational'];
+                let wB = totalCatScore > 0 ? (a.catPct['Building']/totalCatScore)*100 : 33.3;
+                let wE = totalCatScore > 0 ? (a.catPct['Equipment']/totalCatScore)*100 : 33.3;
+                let wO = totalCatScore > 0 ? (a.catPct['Operational']/totalCatScore)*100 : 33.3;
+
+                bdContainer.innerHTML += `
+                    <div class="chart-row" style="${rowStyle} ${opacityStyle}" onclick="toggleAuditSelection(${a.originalIndex})" title="${titleText}">
+                        <div class="chart-label">${a.location}</div>
+                        <div class="chart-bar-bg">
+                            <div class="chart-bar-fill fill-building" style="width: ${wB}%;" title="Building: ${a.catPct['Building']}%"></div>
+                            <div class="chart-bar-fill fill-equipment" style="width: ${wE}%;" title="Equipment: ${a.catPct['Equipment']}%"></div>
+                            <div class="chart-bar-fill fill-operational" style="width: ${wO}%;" title="Operational: ${a.catPct['Operational']}%"></div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('audits-table-body');
+            tbody.innerHTML = '';
+
+            if(displayedAudits.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No audits match your filters.</td></tr>';
+                return;
+            }
+
+            displayedAudits.forEach(a => {
+                let scoreColor = a.score >= 95 ? 'var(--success-color)' : (a.score >= 80 ? 'var(--warning-color)' : 'var(--danger-color)');
+                let photoColor = a.photoCount > 0 ? 'var(--info-color)' : '#6c757d';
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td><strong>${a.location}</strong><br><small style="color:#6c757d;">${a.filename}</small></td>
+                        <td>${a.date}<br><small>${a.team}</small></td>
+                        <td><strong style="color: ${scoreColor}; font-size: 1.2rem;">${a.score}%</strong><br><small>${a.fails} failed</small></td>
+                        <td>
+                            <div class="cat-scores">
+                                <div><strong>B:</strong> ${a.catPct['Building']}%</div>
+                                <div><strong>E:</strong> ${a.catPct['Equipment']}%</div>
+                                <div><strong>O:</strong> ${a.catPct['Operational']}%</div>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="badge badge-risk-high">${a.risks.high}</span>
+                            <span class="badge badge-risk-med">${a.risks.med}</span>
+                            <span class="badge badge-risk-low">${a.risks.low}</span>
+                        </td>
+                        <td style="color: ${photoColor}; font-weight:bold;">📷 ${a.photoCount}</td>
+                        <td>
+                            <button onclick="viewAuditDetails(${a.originalIndex})" style="font-size:0.8rem; margin-bottom: 4px;">Details</button>
+                            <button class="danger-btn" onclick="removeAudit(${a.originalIndex})" style="font-size:0.8rem;" title="Remove">×</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        function renderTrends(failTrendMap) {
+            const container = document.getElementById('trends-container');
+            container.innerHTML = '';
+
+            let trendArray = Object.values(failTrendMap).sort((a,b) => b.count - a.count);
+            let topTrends = trendArray.slice(0, 10); 
+
+            if(topTrends.length === 0) {
+                container.innerHTML = '<p style="color: var(--success-color); font-weight: bold; padding: 1rem 0;">No failed items detected across filtered audits!</p>';
+                return;
+            }
+
+            let maxCount = topTrends[0].count;
+            topTrends.forEach(trend => {
+                let barWidth = (trend.count / maxCount) * 100;
+                let occurrencesHtml = trend.occurrences.map(occ => {
+                    let photoHtml = occ.photos.length > 0 ? '<div class="photo-grid">' + occ.photos.map(p => {
+                        let src = typeof p === 'string' ? p : p.dataUrl;
+                        let escName = (typeof p === 'string' ? '' : (p.name || '')).replace(/'/g, "\\'").replace(/"/g, "&quot;");
+                        return `<img src="${src}" class="photo-thumbnail" onclick="openLightbox('${src}', '${escName}')">`;
+                    }).join('') + '</div>' : '<div style="font-size: 0.8rem; color: #888;"><em>No photos attached.</em></div>';
+
+                    return `
+                        <div style="border-left: 4px solid var(--danger-color); padding-left: 12px; margin-bottom: 15px; background: white; padding: 12px; border-radius: 6px;">
+                            <div style="display:flex; justify-content:space-between;">
+                                <div><strong>${occ.location}</strong> <span style="color:#6c757d; font-size: 0.85rem;">(${occ.date}) - Team: ${occ.team}</span></div>
+                                <button onclick="viewAuditDetails(${occ.origIdx})" style="font-size:0.75rem; padding: 2px 8px;">Full Audit</button>
+                            </div>
+                            ${occ.evidence ? `<div style="font-size: 0.85rem; margin: 8px 0; background: #f8f9fa; padding: 8px;"><strong>Comments:</strong><br>${occ.evidence}</div>` : ''}
+                            ${photoHtml}
+                        </div>
+                    `;
+                }).join('');
+
+                container.innerHTML += `
+                    <div class="trend-item" style="flex-direction: column; align-items: stretch; border: 1px solid #dee2e6; padding: 12px; border-radius: 8px; margin-bottom: 12px; background: #fafafa;">
+                        <div style="display: flex; align-items: center; width: 100%;">
+                            <div style="flex: 2; font-size: 0.95rem;"><strong>Q${trend.qId}: ${trend.title}</strong><br><span style="color:#495057;">${trend.text}</span></div>
+                            <div class="chart-bar-bg" style="flex: 1; margin: 0 1rem;"><div class="chart-bar-fill" style="width: ${barWidth}%; background: var(--danger-color);"></div></div>
+                            <div class="trend-count">${trend.count} plant(s)</div>
+                        </div>
+                        <details style="margin-top: 12px;">
+                            <summary style="cursor: pointer; font-size: 0.9rem; font-weight: bold; color: var(--primary-color);">View Occurrences & Photos (${trend.count})</summary>
+                            <div style="margin-top: 12px; padding-top: 12px; border-top: 1px dashed #ced4da;">${occurrencesHtml}</div>
+                        </details>
+                    </div>
+                `;
+            });
+        }
+
+        // --- SVG Radar Chart ---
+        function createRadarChartSVG(labels, data) {
+            const width = 360, height = 180, centerX = width / 2, centerY = height / 2, radius = 60;
+            let svg = `<svg style="width:100%; max-width:360px; height:auto; overflow:visible;" viewBox="0 0 ${width} ${height}">`;
+            for (let i = 1; i <= 4; i++) {
+                const r = radius * (i / 4); let points = "";
+                labels.forEach((_, j) => { const a = (Math.PI*2*j/labels.length)-(Math.PI/2); points += `${centerX+r*Math.cos(a)},${centerY+r*Math.sin(a)} `; });
+                svg += `<polygon points="${points}" fill="none" stroke="#e9ecef" stroke-width="1"/>`;
+            }
+            labels.forEach((label, j) => {
+                const a = (Math.PI*2*j/labels.length)-(Math.PI/2);
+                svg += `<line x1="${centerX}" y1="${centerY}" x2="${centerX+radius*Math.cos(a)}" y2="${centerY+radius*Math.sin(a)}" stroke="#ced4da" stroke-width="1"/>`;
+                const textAnchor = Math.cos(a) > 0.1 ? "start" : (Math.cos(a) < -0.1 ? "end" : "middle");
+                svg += `<text x="${centerX+(radius+25)*Math.cos(a)}" y="${centerY+(radius+15)*Math.sin(a)}" font-size="11" font-weight="bold" fill="#495057" text-anchor="${textAnchor}" dominant-baseline="middle">${label}\n(${data[j]}%)</text>`;
+            });
+            let dataPoints = "";
+            labels.forEach((_, j) => { const a = (Math.PI*2*j/labels.length)-(Math.PI/2); dataPoints += `${centerX+(radius*(data[j]/100))*Math.cos(a)},${centerY+(radius*(data[j]/100))*Math.sin(a)} `; });
+            svg += `<polygon points="${dataPoints}" fill="rgba(0, 86, 179, 0.4)" stroke="var(--primary-color)" stroke-width="2"/></svg>`;
+            return svg;
+        }
+        function getRiskBadgeHtml(score) {
+            if (score === 0) return '';
+            if (score <= 2) return '<span class="badge badge-risk-low">L</span>';
+            if (score <= 4) return '<span class="badge badge-risk-med">M</span>';
+            return '<span class="badge badge-risk-high">H</span>';
+        }
+        // --- Detail Modal ---
+        function viewAuditDetails(origIndex) {
+            // Find the specific audit no matter how the lists are filtered
+            const audit = uploadedAudits.find(a => a.originalIndex === origIndex);
+            if(!audit) return;
+
+            document.getElementById('modal-title').innerText = `Full Details & Photos - ${audit.location} (${audit.date})`;
+            const tbody = document.getElementById('modal-table-body');
+            tbody.innerHTML = '';
+            let hasFindings = false;
+
+            auditData.forEach(q => {
+                const ans = audit.rawResults[q.id];
+                if (!ans || ans.sectionNA) return;
+
+                let l = parseInt(ans.likelihood || 0), i = parseInt(ans.impact || 0), score = l * i;
+                let sectionHasFails = false;
+                let failList = '<ul style="margin-left: 1.2rem; color: var(--danger-color); font-size: 0.85rem; margin-top:0.5rem;">';
+                
+                q.checks.forEach((chk, idx) => { 
+                    if (ans.subChecks && ans.subChecks[idx] === 'Fail') { 
+                        sectionHasFails = true; 
+                        failList += `<li>${chk}</li>`; 
+                    } 
+                });
+                failList += '</ul>';
+
+                let photosHtml = '';
+                if (ans.photos && ans.photos.length > 0) {
+                    photosHtml = '<div class="photo-grid">' + ans.photos.map(p => {
+                        let src = typeof p === 'string' ? p : p.dataUrl;
+                        let escName = (typeof p === 'string' ? '' : (p.name || '')).replace(/'/g, "\\'").replace(/"/g, "&quot;");
+                        return `<img src="${src}" class="photo-thumbnail" onclick="openLightbox('${src}', '${escName}')">`;
+                    }).join('') + '</div>';
+                }
+
+                if (sectionHasFails || score > 0 || photosHtml !== '' || (ans.evidence && ans.evidence.trim() !== '')) {
+                    hasFindings = true;
+                    tbody.innerHTML += `
+                        <tr>
+                            <td><strong>${q.id}</strong></td>
+                            <td><strong>${q.title}</strong><br>${sectionHasFails ? failList : '<em style="font-size:0.85rem; color:#666;">No specific item marked Fail.</em>'}</td>
+                            <td><div style="font-size:1.2rem; font-weight:bold;">${score||'0'} ${getRiskBadgeHtml(score)}</div></td>
+                            <td>
+                                <div style="font-size:0.9rem; margin-bottom: 0.5rem;"><strong>Action Plan:</strong><br>${ans.actionPlan || '-'}</div>
+                                ${(ans.responsible || ans.date) ? `<div style="font-size:0.85rem; color:#555;"><strong>By:</strong> ${ans.responsible || 'TBD'} | <strong>Due:</strong> ${ans.date || 'TBD'}</div>` : ''}
+                            </td>
+                            <td>
+                                <div style="font-size:0.9rem; margin-bottom: 0.5rem; white-space: pre-wrap;"><strong>Comments:</strong><br>${ans.evidence || '-'}</div>
+                                ${photosHtml}
+                            </td>
+                        </tr>
+                    `;
+                }
+            });
+            
+            if(!hasFindings) {
+                tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No failures, risks, or photos recorded.</td></tr>';
+            }
+            
+            document.getElementById('detailModal').style.display = 'flex';
+        }
+
+        function closeModal() { document.getElementById('detailModal').style.display = 'none'; }
+        function openLightbox(src, cap) { document.getElementById('lightboxImage').src = src; document.getElementById('lightboxCaption').innerHTML = cap; document.getElementById('lightbox').style.display = "flex"; }
+        function closeLightbox() { document.getElementById('lightbox').style.display = "none"; }
+        window.onclick = function(e) { if(e.target == document.getElementById('detailModal')) closeModal(); if(e.target == document.getElementById('lightbox')) closeLightbox(); }
+
+        // --- Export CSV Logic ---
+        function exportToCSV() {
+            if(displayedAudits.length === 0) return;
+            let csv = "data:text/csv;charset=utf-8,Filename,Location/Plant,Audit Date,Auditing Team,Compliance Score (%),Building %,Equipment %,Operational %,Total Failed Items,High Risks,Medium Risks,Low Risks,Photos Attached\n";
+            displayedAudits.forEach(a => {
+                let l = `"${(a.location || '').replace(/"/g, '""')}"`, t = `"${(a.team || '').replace(/"/g, '""')}"`, f = `"${(a.filename || '').replace(/"/g, '""')}"`;
+                csv += `${f},${l},${a.date},${t},${a.score},${a.catPct['Building']},${a.catPct['Equipment']},${a.catPct['Operational']},${a.fails},${a.risks.high},${a.risks.med},${a.risks.low},${a.photoCount}\n`;
+            });
+            const link = document.createElement("a"); link.setAttribute("href", encodeURI(csv)); link.setAttribute("download", `Multi_Audit_Summary_${new Date().toISOString().split('T')[0]}.csv`);
+            document.body.appendChild(link); link.click(); document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>
