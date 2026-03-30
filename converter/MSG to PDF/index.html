@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MSG zu PDF Konverter</title>
+    
+    <style>
+        /* --- Basis-Styling für den Bildschirm --- */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 { color: #2c3e50; text-align: center; }
+        
+        /* Drag & Drop Box */
+        .upload-area {
+            border: 2px dashed #3498db;
+            padding: 3rem;
+            text-align: center;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-bottom: 1rem;
+            transition: background 0.3s, border-color 0.3s;
+            background: #fafafa;
+        }
+        .upload-area.dragover {
+            background: #ebf5fb;
+            border-color: #2980b9;
+        }
+        
+        #fileList { margin-bottom: 1rem; font-size: 0.9rem; color: #7f8c8d; text-align: center;}
+        
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: #27ae60;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            display: none;
+        }
+        button:disabled { background-color: #95a5a6; cursor: not-allowed; }
+        
+        #status { margin-top: 15px; text-align: center; font-weight: bold; color: #e74c3c; }
+
+        /* --- Styling für die E-Mails --- */
+        #email-preview { margin-top: 2rem; }
+        .email-page {
+            background: white;
+            padding: 20px;
+            margin-bottom: 30px;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            border: 1px solid #ddd;
+        }
+        .email-header {
+            background: #f9f9f9;
+            padding: 15px;
+            border-left: 4px solid #3498db;
+            margin-bottom: 20px;
+            font-size: 0.95rem;
+        }
+        .email-body {
+            font-size: 1rem;
+            line-height: 1.5;
+            overflow-wrap: break-word;
+        }
+
+        /* --- Druck-Einstellungen (Generiert das perfekte PDF) --- */
+        @media print {
+            body { background-color: white; padding: 0; }
+            .container { box-shadow: none; padding: 0; max-width: 100%; }
+            
+            /* Verstecke UI-Elemente wie Buttons und Drop-Zone beim Drucken */
+            .upload-area, #fileList, button, h1, #status { display: none !important; }
+            
+            .email-page {
+                box-shadow: none;
+                border: none;
+                margin-bottom: 0;
+                padding: 0;
+                page-break-after: always; /* Jede E-Mail auf eine neue Seite */
+            }
+            .email-page:last-child { page-break-after: auto; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>MSG → PDF Konverter</h1>
+    
+    <!-- Drag & Drop Bereich -->
+    <div class="upload-area" id="dropZone">
+        <strong>Klicken oder Dateien hierher ziehen (.msg)</strong><br>
+        <small style="color:#999; margin-top:10px; display:block;">(Du kannst mehrere Dateien markieren und reinziehen)</small>
+        <input type="file" id="fileInput" multiple accept=".msg" style="display:none">
+    </div>
+
+    <div id="fileList">Keine Dateien ausgewählt</div>
+    
+    <button id="convertBtn">Dateien verarbeiten & als PDF speichern</button>
+    
+    <div id="status"></div>
+
+    <div id="email-preview"></div>
+</div>
+
+<script type="module">
+    // Wir nutzen jetzt esm.sh anstelle von skypack oder cdnjs. 
+    // Das löst das Absturz-Problem mit dem "Buffer" und umgeht die Tracking-Warnungen.
+    import DOMPurify from 'https://esm.sh/dompurify@3.0.9';
+    import MsgReader from 'https://esm.sh/@kenjiuno/msgreader@1.28.0';
+
+    const fileInput = document.getElementById('fileInput');
+    const dropZone = document.getElementById('dropZone');
+    const fileListDisplay = document.getElementById('fileList');
+    const convertBtn = document.getElementById('convertBtn');
+    const status = document.getElementById('status');
+    const previewContainer = document.getElementById('email-preview');
+
+    let selectedFiles =[];
+
+    // ==========================================
+    // 1. DRAG & DROP LOGIK
+    // ==========================================
+    
+    dropZone.addEventListener('click', () => fileInput.click());['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, preventDefaults, false);
+        document.body.addEventListener(eventName, preventDefaults, false);
+    });
+
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropZone.addEventListener(eventName, () => dropZone.classList.add('dragover'), false);
+    });['dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, () => dropZone.classList.remove('dragover'), false);
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        handleFiles(e.dataTransfer.files);
+    });
+
+    fileInput.addEventListener('change', (e) => {
+        handleFiles(e.target.files);
+    });
+
+    function handleFiles(files) {
+        selectedFiles = Array.from(files).filter(f => f.name.toLowerCase().endsWith('.msg'));
+        
+        if (selectedFiles.length > 0) {
+            fileListDisplay.innerHTML = `<strong>Gewählt: ${selectedFiles.length} Datei(en)</strong><br>` + 
+                                        selectedFiles.map(f => f.name).join('<br>');
+            convertBtn.style.display = 'block';
+            status.innerText = "";
+        } else {
+            fileListDisplay.innerHTML = "Bitte nur .msg Dateien auswählen.";
+            convertBtn.style.display = 'none';
+        }
+    }
+
+    // ==========================================
+    // 2. KONSOLIDIERUNG & PDF EXPORT
+    // ==========================================
+
+    convertBtn.addEventListener('click', async () => {
+        status.innerText = "Verarbeite Dateien, bitte warten...";
+        status.style.color = "#2980b9";
+        convertBtn.disabled = true;
+        previewContainer.innerHTML = ''; 
+
+        try {
+            for (const file of selectedFiles) {
+                const arrayBuffer = await file.arrayBuffer();
+                
+                // MSG Reader initialisieren
+                const msgReader = new MsgReader(arrayBuffer);
+                const msgData = msgReader.getFileData();
+
+                if (!msgData || msgData.error) {
+                    console.error("Fehler beim Lesen:", file.name);
+                    continue;
+                }
+
+                const emailDiv = document.createElement('div');
+                emailDiv.className = 'email-page';
+
+                let recipientsString = '';
+                if (msgData.recipients && msgData.recipients.length > 0) {
+                    recipientsString = msgData.recipients.map(r => r.name || r.email).join(', ');
+                }
+
+                const headerHtml = `
+                    <div class="email-header">
+                        <strong>Von:</strong> ${msgData.senderName || 'Unbekannt'} ${msgData.senderEmail ? `&lt;${msgData.senderEmail}&gt;` : ''}<br>
+                        <strong>An:</strong> ${recipientsString}<br>
+                        <strong>Datum:</strong> ${msgData.creationTime ? new Date(msgData.creationTime).toLocaleString('de-DE') : ''}<br>
+                        <strong>Betreff:</strong> ${msgData.subject || '(Kein Betreff)'}
+                    </div>
+                `;
+
+                let bodyHtml = "";
+                if (msgData.bodyHTML) {
+                    bodyHtml = DOMPurify.sanitize(msgData.bodyHTML);
+                } else if (msgData.body) {
+                    bodyHtml = `<pre style="white-space: pre-wrap; font-family: inherit;">${DOMPurify.sanitize(msgData.body)}</pre>`;
+                } else {
+                    bodyHtml = "<em>(Kein E-Mail-Text gefunden)</em>";
+                }
+
+                emailDiv.innerHTML = headerHtml + `<div class="email-body">${bodyHtml}</div>`;
+                previewContainer.appendChild(emailDiv);
+            }
+
+            status.innerText = "Fertig! Der Druck-Dialog öffnet sich. Bitte als Ziel 'Als PDF speichern' wählen.";
+            status.style.color = "#27ae60";
+            
+            // Startet den nativen Druck-Dialog
+            setTimeout(() => {
+                window.print();
+                convertBtn.disabled = false;
+            }, 600);
+
+        } catch (error) {
+            console.error(error);
+            status.innerText = "Ein Fehler ist aufgetreten (siehe Konsole).";
+            status.style.color = "#e74c3c";
+            convertBtn.disabled = false;
+        }
+    });
+</script>
+
+</body>
+</html>
