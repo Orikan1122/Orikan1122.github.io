@@ -6,7 +6,6 @@
     <title>MSG zu PDF Konverter</title>
     
     <style>
-        /* --- Basis-Styling für den Bildschirm --- */
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: #f4f7f6;
@@ -19,12 +18,11 @@
             padding: 2rem;
             border-radius: 8px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            max-width: 800px;
+            max-width: 900px;
             margin: 0 auto;
         }
         h1 { color: #2c3e50; text-align: center; }
         
-        /* Drag & Drop Box */
         .upload-area {
             border: 2px dashed #3498db;
             padding: 3rem;
@@ -57,7 +55,6 @@
         
         #status { margin-top: 15px; text-align: center; font-weight: bold; color: #e74c3c; }
 
-        /* --- Styling für die E-Mails --- */
         #email-preview { margin-top: 2rem; }
         .email-page {
             background: white;
@@ -80,20 +77,16 @@
             overflow-wrap: break-word;
         }
 
-        /* --- Druck-Einstellungen (Generiert das perfekte PDF) --- */
         @media print {
             body { background-color: white; padding: 0; }
             .container { box-shadow: none; padding: 0; max-width: 100%; }
-            
-            /* Verstecke UI-Elemente wie Buttons und Drop-Zone beim Drucken */
             .upload-area, #fileList, button, h1, #status { display: none !important; }
-            
             .email-page {
                 box-shadow: none;
                 border: none;
                 margin-bottom: 0;
                 padding: 0;
-                page-break-after: always; /* Jede E-Mail auf eine neue Seite */
+                page-break-after: always;
             }
             .email-page:last-child { page-break-after: auto; }
         }
@@ -104,27 +97,27 @@
 <div class="container">
     <h1>MSG → PDF Konverter</h1>
     
-    <!-- Drag & Drop Bereich -->
     <div class="upload-area" id="dropZone">
         <strong>Klicken oder Dateien hierher ziehen (.msg)</strong><br>
-        <small style="color:#999; margin-top:10px; display:block;">(Du kannst mehrere Dateien markieren und reinziehen)</small>
+        <small style="color:#999; margin-top:10px; display:block;">(Unterstützt Outlook Exchange & RTF-Tabellen)</small>
         <input type="file" id="fileInput" multiple accept=".msg" style="display:none">
     </div>
 
     <div id="fileList">Keine Dateien ausgewählt</div>
-    
     <button id="convertBtn">Dateien verarbeiten & als PDF speichern</button>
-    
     <div id="status"></div>
-
     <div id="email-preview"></div>
 </div>
 
 <script type="module">
-    // Wir nutzen jetzt esm.sh anstelle von skypack oder cdnjs. 
-    // Das löst das Absturz-Problem mit dem "Buffer" und umgeht die Tracking-Warnungen.
+    import { Buffer } from 'https://esm.sh/buffer@6.0.3';
+    window.Buffer = window.Buffer || Buffer;
+    window.process = window.process || { env: {} };
+
     import DOMPurify from 'https://esm.sh/dompurify@3.0.9';
     import MsgReader from 'https://esm.sh/@kenjiuno/msgreader@1.28.0';
+    import { decompressRTF } from 'https://esm.sh/@kenjiuno/decompressrtf@0.1.4';
+    import { deEncapsulateSync } from 'https://esm.sh/rtf-stream-parser@3.8.1';
 
     const fileInput = document.getElementById('fileInput');
     const dropZone = document.getElementById('dropZone');
@@ -135,37 +128,20 @@
 
     let selectedFiles =[];
 
-    // ==========================================
-    // 1. DRAG & DROP LOGIK
-    // ==========================================
-    
     dropZone.addEventListener('click', () => fileInput.click());['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-        dropZone.addEventListener(eventName, preventDefaults, false);
-        document.body.addEventListener(eventName, preventDefaults, false);
-    });
-
-    function preventDefaults(e) {
-        e.preventDefault();
-        e.stopPropagation();
-    }
-
-    ['dragenter', 'dragover'].forEach(eventName => {
+        dropZone.addEventListener(eventName, e => { e.preventDefault(); e.stopPropagation(); }, false);
+        document.body.addEventListener(eventName, e => { e.preventDefault(); e.stopPropagation(); }, false);
+    });['dragenter', 'dragover'].forEach(eventName => {
         dropZone.addEventListener(eventName, () => dropZone.classList.add('dragover'), false);
     });['dragleave', 'drop'].forEach(eventName => {
         dropZone.addEventListener(eventName, () => dropZone.classList.remove('dragover'), false);
     });
 
-    dropZone.addEventListener('drop', (e) => {
-        handleFiles(e.dataTransfer.files);
-    });
-
-    fileInput.addEventListener('change', (e) => {
-        handleFiles(e.target.files);
-    });
+    dropZone.addEventListener('drop', (e) => handleFiles(e.dataTransfer.files));
+    fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
 
     function handleFiles(files) {
         selectedFiles = Array.from(files).filter(f => f.name.toLowerCase().endsWith('.msg'));
-        
         if (selectedFiles.length > 0) {
             fileListDisplay.innerHTML = `<strong>Gewählt: ${selectedFiles.length} Datei(en)</strong><br>` + 
                                         selectedFiles.map(f => f.name).join('<br>');
@@ -177,12 +153,8 @@
         }
     }
 
-    // ==========================================
-    // 2. KONSOLIDIERUNG & PDF EXPORT
-    // ==========================================
-
     convertBtn.addEventListener('click', async () => {
-        status.innerText = "Verarbeite Dateien, bitte warten...";
+        status.innerText = "Entpacke E-Mails und suche nach Tabellen...";
         status.style.color = "#2980b9";
         convertBtn.disabled = true;
         previewContainer.innerHTML = ''; 
@@ -191,7 +163,6 @@
             for (const file of selectedFiles) {
                 const arrayBuffer = await file.arrayBuffer();
                 
-                // MSG Reader initialisieren
                 const msgReader = new MsgReader(arrayBuffer);
                 const msgData = msgReader.getFileData();
 
@@ -218,22 +189,77 @@
                 `;
 
                 let bodyHtml = "";
-                if (msgData.bodyHTML) {
-                    bodyHtml = DOMPurify.sanitize(msgData.bodyHTML);
+                let isHTML = false;
+
+                if (msgData.bodyHtml && msgData.bodyHtml.trim().length > 0) {
+                    bodyHtml = DOMPurify.sanitize(msgData.bodyHtml, { ADD_TAGS:['style'], WHOLE_DOCUMENT: true });
+                    isHTML = true;
+                } else if (msgData.compressedRtf) {
+                    try {
+                        // A) RTF Entzippen und in ein NATIVES Browser-Format zwingen
+                        const decompressed = decompressRTF(msgData.compressedRtf);
+                        const rtfString = new TextDecoder('ascii').decode(new Uint8Array(decompressed));
+                        
+                        // B) HTML Struktur aus dem RTF extrahieren
+                        const result = deEncapsulateSync(rtfString, {
+                            decode: (buf) => {
+                                // DIE LÖSUNG DES FEHLERS: buf wird in ein Uint8Array gewandelt
+                                const safeBuf = new Uint8Array(buf);
+                                try { return new TextDecoder('utf-8', { fatal: true }).decode(safeBuf); } 
+                                catch(e) { return new TextDecoder('windows-1252').decode(safeBuf); }
+                            }
+                        });
+
+                        // DIE LÖSUNG DES FEHLERS TEIL 2: Auch das Resultat absichern
+                        let extractedText = typeof result.text === 'string' 
+                                            ? result.text 
+                                            : new TextDecoder('utf-8').decode(new Uint8Array(result.text));
+
+                        if (result.mode === 'html') {
+                            bodyHtml = DOMPurify.sanitize(extractedText, { ADD_TAGS: ['style'], WHOLE_DOCUMENT: true });
+                            isHTML = true;
+                        } else {
+                            bodyHtml = `<pre style="white-space: pre-wrap; font-family: inherit;">${DOMPurify.sanitize(extractedText)}</pre>`;
+                        }
+                    } catch (err) {
+                        console.warn("RTF Extraktion fehlgeschlagen:", err);
+                        if (msgData.body) {
+                            bodyHtml = `<pre style="white-space: pre-wrap; font-family: inherit;">${DOMPurify.sanitize(msgData.body)}</pre>`;
+                        }
+                    }
                 } else if (msgData.body) {
                     bodyHtml = `<pre style="white-space: pre-wrap; font-family: inherit;">${DOMPurify.sanitize(msgData.body)}</pre>`;
                 } else {
                     bodyHtml = "<em>(Kein E-Mail-Text gefunden)</em>";
                 }
 
-                emailDiv.innerHTML = headerHtml + `<div class="email-body">${bodyHtml}</div>`;
+                emailDiv.innerHTML = headerHtml;
+
+                const bodyDiv = document.createElement('div');
+                bodyDiv.className = 'email-body';
+
+                if (isHTML) {
+                    const shadow = bodyDiv.attachShadow({ mode: 'open' });
+                    // Design an das von dir gepostete Bild "Deviation Report" angepasst
+                    const defaultStyles = `
+                        <style>
+                            table { border-collapse: collapse; width: 100%; font-family: 'Segoe UI', Tahoma, sans-serif; font-size: 14px; margin-top: 15px; } 
+                            th, td { border: 1px solid #d3d3d3; padding: 8px 12px; text-align: left; } 
+                            th { background-color: #f2f2f2; font-weight: bold; color: #333; }
+                        </style>
+                    `;
+                    shadow.innerHTML = defaultStyles + bodyHtml;
+                } else {
+                    bodyDiv.innerHTML = bodyHtml;
+                }
+
+                emailDiv.appendChild(bodyDiv);
                 previewContainer.appendChild(emailDiv);
             }
 
-            status.innerText = "Fertig! Der Druck-Dialog öffnet sich. Bitte als Ziel 'Als PDF speichern' wählen.";
+            status.innerText = "Fertig! Bitte auf 'Als PDF speichern' klicken.";
             status.style.color = "#27ae60";
             
-            // Startet den nativen Druck-Dialog
             setTimeout(() => {
                 window.print();
                 convertBtn.disabled = false;
