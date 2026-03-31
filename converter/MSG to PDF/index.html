@@ -29,7 +29,7 @@
             text-align: center;
             border-radius: 5px;
             cursor: pointer;
-            margin-bottom: 1rem;
+            margin-bottom: 1.5rem;
             transition: background 0.3s, border-color 0.3s;
             background: #fafafa;
         }
@@ -37,8 +37,40 @@
             background: #ebf5fb;
             border-color: #2980b9;
         }
+
+        /* --- Neues Einstellungs-Panel --- */
+        .settings-panel {
+            background: #fdfdfd;
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 1.5rem;
+        }
+        .settings-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #2c3e50;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+        }
+        .checkbox-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            font-size: 0.95rem;
+            user-select: none;
+        }
+        .checkbox-label input {
+            margin-right: 8px;
+            cursor: pointer;
+        }
         
-        #fileList { margin-bottom: 1rem; font-size: 0.9rem; color: #7f8c8d; text-align: center;}
+        #fileList { margin-bottom: 1.5rem; font-size: 0.9rem; color: #7f8c8d; text-align: center; line-height: 1.4; }
         
         button {
             width: 100%;
@@ -50,7 +82,9 @@
             font-size: 1.1rem;
             cursor: pointer;
             display: none;
+            transition: background 0.3s;
         }
+        button:hover { background-color: #219a52; }
         button:disabled { background-color: #95a5a6; cursor: not-allowed; }
         
         #status { margin-top: 15px; text-align: center; font-weight: bold; color: #e74c3c; }
@@ -70,6 +104,7 @@
             border-left: 4px solid #3498db;
             margin-bottom: 20px;
             font-size: 0.95rem;
+            line-height: 1.6;
         }
         .email-body {
             font-size: 1rem;
@@ -77,10 +112,11 @@
             overflow-wrap: break-word;
         }
 
+        /* Verstecke UI-Elemente beim Drucken */
         @media print {
             body { background-color: white; padding: 0; }
             .container { box-shadow: none; padding: 0; max-width: 100%; }
-            .upload-area, #fileList, button, h1, #status { display: none !important; }
+            .upload-area, .settings-panel, #fileList, button, h1, #status { display: none !important; }
             .email-page {
                 box-shadow: none;
                 border: none;
@@ -101,6 +137,32 @@
         <strong>Klicken oder Dateien hierher ziehen (.msg)</strong><br>
         <small style="color:#999; margin-top:10px; display:block;">(Unterstützt Outlook Exchange & RTF-Tabellen)</small>
         <input type="file" id="fileInput" multiple accept=".msg" style="display:none">
+    </div>
+
+    <!-- EINSTELLUNGEN -->
+    <div class="settings-panel">
+        <div class="settings-title">Verarbeitungs-Optionen</div>
+        <div class="checkbox-group">
+            <label class="checkbox-label">
+                <input type="checkbox" id="cbSortFiles" checked> Dateien nach Namen sortieren
+            </label>
+        </div>
+        
+        <div class="settings-title" style="margin-top: 15px;">Im PDF anzeigen:</div>
+        <div class="checkbox-group">
+            <label class="checkbox-label">
+                <input type="checkbox" id="cbShowFrom" checked> Von (Absender)
+            </label>
+            <label class="checkbox-label">
+                <input type="checkbox" id="cbShowTo" checked> An (Empfänger)
+            </label>
+            <label class="checkbox-label">
+                <input type="checkbox" id="cbShowDate" checked> Datum
+            </label>
+            <label class="checkbox-label">
+                <input type="checkbox" id="cbShowSubject" checked> Betreff
+            </label>
+        </div>
     </div>
 
     <div id="fileList">Keine Dateien ausgewählt</div>
@@ -126,8 +188,16 @@
     const status = document.getElementById('status');
     const previewContainer = document.getElementById('email-preview');
 
+    // Checkboxen referenzieren
+    const cbSortFiles = document.getElementById('cbSortFiles');
+    const cbShowFrom = document.getElementById('cbShowFrom');
+    const cbShowTo = document.getElementById('cbShowTo');
+    const cbShowDate = document.getElementById('cbShowDate');
+    const cbShowSubject = document.getElementById('cbShowSubject');
+
     let selectedFiles =[];
 
+    // Drag & Drop
     dropZone.addEventListener('click', () => fileInput.click());['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
         dropZone.addEventListener(eventName, e => { e.preventDefault(); e.stopPropagation(); }, false);
         document.body.addEventListener(eventName, e => { e.preventDefault(); e.stopPropagation(); }, false);
@@ -137,24 +207,38 @@
         dropZone.addEventListener(eventName, () => dropZone.classList.remove('dragover'), false);
     });
 
-    dropZone.addEventListener('drop', (e) => handleFiles(e.dataTransfer.files));
-    fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
+    dropZone.addEventListener('drop', (e) => processSelectedFiles(e.dataTransfer.files));
+    fileInput.addEventListener('change', (e) => processSelectedFiles(e.target.files));
 
-    function handleFiles(files) {
-        selectedFiles = Array.from(files).filter(f => f.name.toLowerCase().endsWith('.msg'));
-        if (selectedFiles.length > 0) {
-            fileListDisplay.innerHTML = `<strong>Gewählt: ${selectedFiles.length} Datei(en)</strong><br>` + 
-                                        selectedFiles.map(f => f.name).join('<br>');
-            convertBtn.style.display = 'block';
-            status.innerText = "";
-        } else {
-            fileListDisplay.innerHTML = "Bitte nur .msg Dateien auswählen.";
+    // Aktualisiert die Dateiliste und sortiert, falls gewünscht
+    function updateFileListUI() {
+        if (selectedFiles.length === 0) {
+            fileListDisplay.innerHTML = "Keine Dateien ausgewählt";
             convertBtn.style.display = 'none';
+            return;
         }
+
+        // Dateien sortieren (Natürliche Sortierung: Datei 2 kommt vor Datei 10)
+        if (cbSortFiles.checked) {
+            selectedFiles.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+        }
+
+        fileListDisplay.innerHTML = `<strong>Gewählt: ${selectedFiles.length} Datei(en)</strong><br>` + 
+                                    selectedFiles.map(f => f.name).join('<br>');
+        convertBtn.style.display = 'block';
+        status.innerText = "";
     }
 
+    function processSelectedFiles(files) {
+        selectedFiles = Array.from(files).filter(f => f.name.toLowerCase().endsWith('.msg'));
+        updateFileListUI();
+    }
+
+    // Wenn die Sortier-Checkbox geändert wird, Liste sofort neu laden
+    cbSortFiles.addEventListener('change', updateFileListUI);
+
     convertBtn.addEventListener('click', async () => {
-        status.innerText = "Entpacke E-Mails und suche nach Tabellen...";
+        status.innerText = "Entpacke E-Mails und verarbeite Inhalt...";
         status.style.color = "#2980b9";
         convertBtn.disabled = true;
         previewContainer.innerHTML = ''; 
@@ -174,20 +258,36 @@
                 const emailDiv = document.createElement('div');
                 emailDiv.className = 'email-page';
 
-                let recipientsString = '';
-                if (msgData.recipients && msgData.recipients.length > 0) {
-                    recipientsString = msgData.recipients.map(r => r.name || r.email).join(', ');
+                // --- 1. DYNAMISCHER KOPFZEILEN-BEREICH (An/Aus je nach Checkbox) ---
+                let headerParts =[];
+                
+                if (cbShowFrom.checked) {
+                    headerParts.push(`<strong>Von:</strong> ${msgData.senderName || 'Unbekannt'} ${msgData.senderEmail ? `&lt;${msgData.senderEmail}&gt;` : ''}`);
+                }
+                
+                if (cbShowTo.checked) {
+                    let recipientsString = msgData.recipients && msgData.recipients.length > 0 
+                                           ? msgData.recipients.map(r => r.name || r.email).join(', ') 
+                                           : '';
+                    headerParts.push(`<strong>An:</strong> ${recipientsString}`);
+                }
+                
+                if (cbShowDate.checked) {
+                    let dateStr = msgData.creationTime ? new Date(msgData.creationTime).toLocaleString('de-DE') : '';
+                    headerParts.push(`<strong>Datum:</strong> ${dateStr}`);
+                }
+                
+                if (cbShowSubject.checked) {
+                    headerParts.push(`<strong>Betreff:</strong> ${msgData.subject || '(Kein Betreff)'}`);
                 }
 
-                const headerHtml = `
-                    <div class="email-header">
-                        <strong>Von:</strong> ${msgData.senderName || 'Unbekannt'} ${msgData.senderEmail ? `&lt;${msgData.senderEmail}&gt;` : ''}<br>
-                        <strong>An:</strong> ${recipientsString}<br>
-                        <strong>Datum:</strong> ${msgData.creationTime ? new Date(msgData.creationTime).toLocaleString('de-DE') : ''}<br>
-                        <strong>Betreff:</strong> ${msgData.subject || '(Kein Betreff)'}
-                    </div>
-                `;
+                let headerHtml = "";
+                // Nur wenn mindestens ein Element markiert wurde, bauen wir den grauen Kasten
+                if (headerParts.length > 0) {
+                    headerHtml = `<div class="email-header">${headerParts.join('<br>')}</div>`;
+                }
 
+                // --- 2. E-MAIL INHALT (HTML / RTF / Text) ---
                 let bodyHtml = "";
                 let isHTML = false;
 
@@ -196,21 +296,17 @@
                     isHTML = true;
                 } else if (msgData.compressedRtf) {
                     try {
-                        // A) RTF Entzippen und in ein NATIVES Browser-Format zwingen
                         const decompressed = decompressRTF(msgData.compressedRtf);
                         const rtfString = new TextDecoder('ascii').decode(new Uint8Array(decompressed));
                         
-                        // B) HTML Struktur aus dem RTF extrahieren
                         const result = deEncapsulateSync(rtfString, {
                             decode: (buf) => {
-                                // DIE LÖSUNG DES FEHLERS: buf wird in ein Uint8Array gewandelt
                                 const safeBuf = new Uint8Array(buf);
                                 try { return new TextDecoder('utf-8', { fatal: true }).decode(safeBuf); } 
                                 catch(e) { return new TextDecoder('windows-1252').decode(safeBuf); }
                             }
                         });
 
-                        // DIE LÖSUNG DES FEHLERS TEIL 2: Auch das Resultat absichern
                         let extractedText = typeof result.text === 'string' 
                                             ? result.text 
                                             : new TextDecoder('utf-8').decode(new Uint8Array(result.text));
@@ -233,6 +329,7 @@
                     bodyHtml = "<em>(Kein E-Mail-Text gefunden)</em>";
                 }
 
+                // --- 3. ZUSAMMENSETZEN ---
                 emailDiv.innerHTML = headerHtml;
 
                 const bodyDiv = document.createElement('div');
@@ -240,7 +337,6 @@
 
                 if (isHTML) {
                     const shadow = bodyDiv.attachShadow({ mode: 'open' });
-                    // Design an das von dir gepostete Bild "Deviation Report" angepasst
                     const defaultStyles = `
                         <style>
                             table { border-collapse: collapse; width: 100%; font-family: 'Segoe UI', Tahoma, sans-serif; font-size: 14px; margin-top: 15px; } 
