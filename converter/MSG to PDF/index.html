@@ -38,7 +38,6 @@
             border-color: #2980b9;
         }
 
-        /* --- Neues Einstellungs-Panel --- */
         .settings-panel {
             background: #fdfdfd;
             border: 1px solid #e0e0e0;
@@ -65,10 +64,7 @@
             font-size: 0.95rem;
             user-select: none;
         }
-        .checkbox-label input {
-            margin-right: 8px;
-            cursor: pointer;
-        }
+        .checkbox-label input { margin-right: 8px; cursor: pointer; }
         
         #fileList { margin-bottom: 1.5rem; font-size: 0.9rem; color: #7f8c8d; text-align: center; line-height: 1.4; }
         
@@ -112,18 +108,11 @@
             overflow-wrap: break-word;
         }
 
-        /* Verstecke UI-Elemente beim Drucken */
         @media print {
             body { background-color: white; padding: 0; }
             .container { box-shadow: none; padding: 0; max-width: 100%; }
             .upload-area, .settings-panel, #fileList, button, h1, #status { display: none !important; }
-            .email-page {
-                box-shadow: none;
-                border: none;
-                margin-bottom: 0;
-                padding: 0;
-                page-break-after: always;
-            }
+            .email-page { box-shadow: none; border: none; margin-bottom: 0; padding: 0; page-break-after: always; }
             .email-page:last-child { page-break-after: auto; }
         }
     </style>
@@ -135,7 +124,7 @@
     
     <div class="upload-area" id="dropZone">
         <strong>Klicken oder Dateien hierher ziehen (.msg)</strong><br>
-        <small style="color:#999; margin-top:10px; display:block;">(Unterstützt Outlook Exchange & RTF-Tabellen)</small>
+        <small style="color:#999; margin-top:10px; display:block;">(Unterstützt Outlook Exchange, Tabellen & Bilder)</small>
         <input type="file" id="fileInput" multiple accept=".msg" style="display:none">
     </div>
 
@@ -143,25 +132,15 @@
     <div class="settings-panel">
         <div class="settings-title">Verarbeitungs-Optionen</div>
         <div class="checkbox-group">
-            <label class="checkbox-label">
-                <input type="checkbox" id="cbSortFiles" checked> Dateien nach Namen sortieren
-            </label>
+            <label class="checkbox-label"><input type="checkbox" id="cbSortFiles" checked> Dateien nach Namen sortieren</label>
         </div>
         
         <div class="settings-title" style="margin-top: 15px;">Im PDF anzeigen:</div>
         <div class="checkbox-group">
-            <label class="checkbox-label">
-                <input type="checkbox" id="cbShowFrom" checked> Von (Absender)
-            </label>
-            <label class="checkbox-label">
-                <input type="checkbox" id="cbShowTo" checked> An (Empfänger)
-            </label>
-            <label class="checkbox-label">
-                <input type="checkbox" id="cbShowDate" checked> Datum
-            </label>
-            <label class="checkbox-label">
-                <input type="checkbox" id="cbShowSubject" checked> Betreff
-            </label>
+            <label class="checkbox-label"><input type="checkbox" id="cbShowFrom" checked> Von (Absender)</label>
+            <label class="checkbox-label"><input type="checkbox" id="cbShowTo" checked> An (Empfänger)</label>
+            <label class="checkbox-label"><input type="checkbox" id="cbShowDate" checked> Datum</label>
+            <label class="checkbox-label"><input type="checkbox" id="cbShowSubject" checked> Betreff</label>
         </div>
     </div>
 
@@ -188,7 +167,6 @@
     const status = document.getElementById('status');
     const previewContainer = document.getElementById('email-preview');
 
-    // Checkboxen referenzieren
     const cbSortFiles = document.getElementById('cbSortFiles');
     const cbShowFrom = document.getElementById('cbShowFrom');
     const cbShowTo = document.getElementById('cbShowTo');
@@ -210,21 +188,16 @@
     dropZone.addEventListener('drop', (e) => processSelectedFiles(e.dataTransfer.files));
     fileInput.addEventListener('change', (e) => processSelectedFiles(e.target.files));
 
-    // Aktualisiert die Dateiliste und sortiert, falls gewünscht
     function updateFileListUI() {
         if (selectedFiles.length === 0) {
             fileListDisplay.innerHTML = "Keine Dateien ausgewählt";
             convertBtn.style.display = 'none';
             return;
         }
-
-        // Dateien sortieren (Natürliche Sortierung: Datei 2 kommt vor Datei 10)
         if (cbSortFiles.checked) {
             selectedFiles.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
         }
-
-        fileListDisplay.innerHTML = `<strong>Gewählt: ${selectedFiles.length} Datei(en)</strong><br>` + 
-                                    selectedFiles.map(f => f.name).join('<br>');
+        fileListDisplay.innerHTML = `<strong>Gewählt: ${selectedFiles.length} Datei(en)</strong><br>` + selectedFiles.map(f => f.name).join('<br>');
         convertBtn.style.display = 'block';
         status.innerText = "";
     }
@@ -233,12 +206,10 @@
         selectedFiles = Array.from(files).filter(f => f.name.toLowerCase().endsWith('.msg'));
         updateFileListUI();
     }
-
-    // Wenn die Sortier-Checkbox geändert wird, Liste sofort neu laden
     cbSortFiles.addEventListener('change', updateFileListUI);
 
     convertBtn.addEventListener('click', async () => {
-        status.innerText = "Entpacke E-Mails und verarbeite Inhalt...";
+        status.innerText = "Entpacke E-Mails, Tabellen und Bilder...";
         status.style.color = "#2980b9";
         convertBtn.disabled = true;
         previewContainer.innerHTML = ''; 
@@ -246,53 +217,90 @@
         try {
             for (const file of selectedFiles) {
                 const arrayBuffer = await file.arrayBuffer();
-                
                 const msgReader = new MsgReader(arrayBuffer);
                 const msgData = msgReader.getFileData();
 
-                if (!msgData || msgData.error) {
-                    console.error("Fehler beim Lesen:", file.name);
-                    continue;
-                }
+                if (!msgData || msgData.error) continue;
 
                 const emailDiv = document.createElement('div');
                 emailDiv.className = 'email-page';
 
-                // --- 1. DYNAMISCHER KOPFZEILEN-BEREICH (An/Aus je nach Checkbox) ---
+                // --- 1. KOPFZEILE BAUEN ---
                 let headerParts =[];
-                
-                if (cbShowFrom.checked) {
-                    headerParts.push(`<strong>Von:</strong> ${msgData.senderName || 'Unbekannt'} ${msgData.senderEmail ? `&lt;${msgData.senderEmail}&gt;` : ''}`);
-                }
-                
+                if (cbShowFrom.checked) headerParts.push(`<strong>Von:</strong> ${msgData.senderName || 'Unbekannt'} ${msgData.senderEmail ? `&lt;${msgData.senderEmail}&gt;` : ''}`);
                 if (cbShowTo.checked) {
-                    let recipientsString = msgData.recipients && msgData.recipients.length > 0 
-                                           ? msgData.recipients.map(r => r.name || r.email).join(', ') 
-                                           : '';
+                    let recipientsString = msgData.recipients && msgData.recipients.length > 0 ? msgData.recipients.map(r => r.name || r.email).join(', ') : '';
                     headerParts.push(`<strong>An:</strong> ${recipientsString}`);
                 }
-                
-                if (cbShowDate.checked) {
-                    let dateStr = msgData.creationTime ? new Date(msgData.creationTime).toLocaleString('de-DE') : '';
-                    headerParts.push(`<strong>Datum:</strong> ${dateStr}`);
-                }
-                
-                if (cbShowSubject.checked) {
-                    headerParts.push(`<strong>Betreff:</strong> ${msgData.subject || '(Kein Betreff)'}`);
+                if (cbShowDate.checked) headerParts.push(`<strong>Datum:</strong> ${msgData.creationTime ? new Date(msgData.creationTime).toLocaleString('de-DE') : ''}`);
+                if (cbShowSubject.checked) headerParts.push(`<strong>Betreff:</strong> ${msgData.subject || '(Kein Betreff)'}`);
+
+                let headerHtml = headerParts.length > 0 ? `<div class="email-header">${headerParts.join('<br>')}</div>` : "";
+
+                // --- 2. BILDER & ANHÄNGE EXTRAHIEREN ---
+                const cidMap = {};
+                const allImageAttachments =[];
+
+                if (msgData.attachments) {
+                    msgData.attachments.forEach((att, index) => {
+                        try {
+                            const attachData = msgReader.getAttachment(index);
+                            if (!attachData || !attachData.content) return;
+                            
+                            const fileName = att.fileName || attachData.fileName || 'Bild.jpg';
+                            const extMatch = fileName.match(/\.([^.]+)$/);
+                            const ext = extMatch ? extMatch[1].toLowerCase() : 'jpeg';
+                            
+                            // Nur Bild-Formate verarbeiten
+                            if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(ext)) {
+                                let binary = '';
+                                const bytes = attachData.content;
+                                const len = bytes.byteLength || bytes.length;
+                                
+                                // Sichere und schnelle Binär-Konvertierung
+                                for (let i = 0; i < len; i++) {
+                                    binary += String.fromCharCode(bytes[i]);
+                                }
+                                
+                                const base64 = window.btoa(binary);
+                                const mime = ext === 'jpg' ? 'image/jpeg' : `image/${ext}`;
+                                const dataUri = `data:${mime};base64,${base64}`;
+                                
+                                const attachmentObj = { fileName, dataUri, used: false };
+                                allImageAttachments.push(attachmentObj);
+
+                                // Prüfen, ob Outlook das Bild als "Content-ID" (inline Platzhalter) gekennzeichnet hat
+                                let cid = att.pidContentId || att.contentId;
+                                if (cid) {
+                                    cid = cid.replace(/^<|>$/g, '');
+                                    cidMap[cid] = attachmentObj;
+                                }
+                            }
+                        } catch(e) { console.warn("Fehler bei Anhang:", e); }
+                    });
                 }
 
-                let headerHtml = "";
-                // Nur wenn mindestens ein Element markiert wurde, bauen wir den grauen Kasten
-                if (headerParts.length > 0) {
-                    headerHtml = `<div class="email-header">${headerParts.join('<br>')}</div>`;
+                // Hilfsfunktion: Sucht im HTML nach den Outlook-Platzhaltern und setzt die echten Bilder ein
+                function replaceCIDs(htmlString, cidMap) {
+                    let newHtml = htmlString;
+                    for (const [cid, obj] of Object.entries(cidMap)) {
+                        const safeCid = cid.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                        const regex = new RegExp(`cid:${safeCid}`, 'gi');
+                        if (regex.test(newHtml)) {
+                            newHtml = newHtml.replace(regex, obj.dataUri);
+                            obj.used = true; // Markieren, dass das Bild erfolgreich im Text eingebaut wurde
+                        }
+                    }
+                    return newHtml;
                 }
 
-                // --- 2. E-MAIL INHALT (HTML / RTF / Text) ---
+                // --- 3. INHALT VERARBEITEN (HTML / RTF / Plain) ---
                 let bodyHtml = "";
                 let isHTML = false;
 
                 if (msgData.bodyHtml && msgData.bodyHtml.trim().length > 0) {
-                    bodyHtml = DOMPurify.sanitize(msgData.bodyHtml, { ADD_TAGS:['style'], WHOLE_DOCUMENT: true });
+                    let rawHtml = replaceCIDs(msgData.bodyHtml, cidMap);
+                    bodyHtml = DOMPurify.sanitize(rawHtml, { ADD_TAGS:['style'], WHOLE_DOCUMENT: true });
                     isHTML = true;
                 } else if (msgData.compressedRtf) {
                     try {
@@ -307,21 +315,17 @@
                             }
                         });
 
-                        let extractedText = typeof result.text === 'string' 
-                                            ? result.text 
-                                            : new TextDecoder('utf-8').decode(new Uint8Array(result.text));
+                        let extractedText = typeof result.text === 'string' ? result.text : new TextDecoder('utf-8').decode(new Uint8Array(result.text));
 
                         if (result.mode === 'html') {
-                            bodyHtml = DOMPurify.sanitize(extractedText, { ADD_TAGS: ['style'], WHOLE_DOCUMENT: true });
+                            let rawHtml = replaceCIDs(extractedText, cidMap);
+                            bodyHtml = DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['style'], WHOLE_DOCUMENT: true });
                             isHTML = true;
                         } else {
                             bodyHtml = `<pre style="white-space: pre-wrap; font-family: inherit;">${DOMPurify.sanitize(extractedText)}</pre>`;
                         }
                     } catch (err) {
-                        console.warn("RTF Extraktion fehlgeschlagen:", err);
-                        if (msgData.body) {
-                            bodyHtml = `<pre style="white-space: pre-wrap; font-family: inherit;">${DOMPurify.sanitize(msgData.body)}</pre>`;
-                        }
+                        if (msgData.body) bodyHtml = `<pre style="white-space: pre-wrap; font-family: inherit;">${DOMPurify.sanitize(msgData.body)}</pre>`;
                     }
                 } else if (msgData.body) {
                     bodyHtml = `<pre style="white-space: pre-wrap; font-family: inherit;">${DOMPurify.sanitize(msgData.body)}</pre>`;
@@ -329,7 +333,21 @@
                     bodyHtml = "<em>(Kein E-Mail-Text gefunden)</em>";
                 }
 
-                // --- 3. ZUSAMMENSETZEN ---
+                // --- 4. UNGENUTZTE BILDER ALS ANHANG DRUNTER SETZEN ---
+                let imageAttachmentsHtml = "";
+                allImageAttachments.forEach(obj => {
+                    if (!obj.used) { // Wenn das Bild nicht inline im Text war, hängen wir es unten an!
+                        imageAttachmentsHtml += `
+                            <div style="margin-top: 25px; padding: 15px; background: #fdfdfd; border: 1px solid #e0e0e0; border-radius: 4px; font-family: 'Segoe UI', Tahoma, sans-serif; page-break-inside: avoid;">
+                                <strong style="color: #2c3e50; font-size: 14px;">Bild-Anhang:</strong> <span style="font-size: 14px; color: #7f8c8d;">${obj.fileName}</span><br>
+                                <img src="${obj.dataUri}" alt="${obj.fileName}" style="max-width: 100%; height: auto; margin-top: 10px; display: block; border: 1px solid #ddd; box-shadow: 0 1px 3px rgba(0,0,0,0.05);" />
+                            </div>`;
+                    }
+                });
+
+                bodyHtml += imageAttachmentsHtml; // Fügt die Anhänge ans Ende des Mail-Bodys
+
+                // --- 5. E-MAIL ZUSAMMENBAUEN ---
                 emailDiv.innerHTML = headerHtml;
 
                 const bodyDiv = document.createElement('div');
@@ -337,11 +355,13 @@
 
                 if (isHTML) {
                     const shadow = bodyDiv.attachShadow({ mode: 'open' });
+                    // Design: img { max-width: 100% } verhindert, dass große Bilder das PDF zerschießen!
                     const defaultStyles = `
                         <style>
                             table { border-collapse: collapse; width: 100%; font-family: 'Segoe UI', Tahoma, sans-serif; font-size: 14px; margin-top: 15px; } 
                             th, td { border: 1px solid #d3d3d3; padding: 8px 12px; text-align: left; } 
                             th { background-color: #f2f2f2; font-weight: bold; color: #333; }
+                            img { max-width: 100%; height: auto; }
                         </style>
                     `;
                     shadow.innerHTML = defaultStyles + bodyHtml;
