@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MSG zu PDF Konverter</title>
+    <title>MSG & EML zu PDF Konverter</title>
     
     <style>
         body {
@@ -68,6 +68,36 @@
         
         #fileList { margin-bottom: 1.5rem; font-size: 0.9rem; color: #7f8c8d; text-align: center; line-height: 1.4; }
         
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #fdfdfd;
+            border: 1px solid #e0e0e0;
+            padding: 8px 12px;
+            margin-top: 5px;
+            border-radius: 4px;
+            text-align: left;
+        }
+        .file-name {
+            overflow: hidden; 
+            text-overflow: ellipsis; 
+            white-space: nowrap; 
+            margin-right: 15px;
+        }
+        .remove-btn {
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            padding: 5px 10px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            width: auto;
+            display: inline-block;
+        }
+        .remove-btn:hover { background-color: #c0392b; }
+        
         button {
             width: 100%;
             padding: 12px;
@@ -120,12 +150,12 @@
 <body>
 
 <div class="container">
-    <h1>MSG → PDF Konverter</h1>
+    <h1>E-Mail → PDF Konverter</h1>
     
     <div class="upload-area" id="dropZone">
-        <strong>Klicken oder Dateien hierher ziehen (.msg)</strong><br>
-        <small style="color:#999; margin-top:10px; display:block;">(Unterstützt Outlook Exchange, Tabellen & Bilder)</small>
-        <input type="file" id="fileInput" multiple accept=".msg" style="display:none">
+        <strong>Klicken oder Dateien hierher ziehen (.msg oder .eml)</strong><br>
+        <small style="color:#999; margin-top:10px; display:block;">(Unterstützt Outlook Exchange, Apple Mail, Bilder & Tabellen)</small>
+        <input type="file" id="fileInput" multiple accept=".msg,.eml" style="display:none">
     </div>
 
     <!-- EINSTELLUNGEN -->
@@ -151,15 +181,21 @@
 </div>
 
 <script type="module">
+    // --- Polyfills ---
     import { Buffer } from 'https://esm.sh/buffer@6.0.3';
     window.Buffer = window.Buffer || Buffer;
     window.process = window.process || { env: {} };
 
+    // --- Bibliotheken laden ---
     import DOMPurify from 'https://esm.sh/dompurify@3.0.9';
     import MsgReader from 'https://esm.sh/@kenjiuno/msgreader@1.28.0';
     import { decompressRTF } from 'https://esm.sh/@kenjiuno/decompressrtf@0.1.4';
     import { deEncapsulateSync } from 'https://esm.sh/rtf-stream-parser@3.8.1';
+    
+    // NEU: Bibliotheken für das .eml Format
+    import PostalMime from 'https://cdn.jsdelivr.net/npm/postal-mime@2.1.2/+esm';
 
+    // --- UI Referenzen ---
     const fileInput = document.getElementById('fileInput');
     const dropZone = document.getElementById('dropZone');
     const fileListDisplay = document.getElementById('fileList');
@@ -175,7 +211,7 @@
 
     let selectedFiles =[];
 
-    // Drag & Drop
+    // --- Event Listeners für Drag & Drop ---
     dropZone.addEventListener('click', () => fileInput.click());['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
         dropZone.addEventListener(eventName, e => { e.preventDefault(); e.stopPropagation(); }, false);
         document.body.addEventListener(eventName, e => { e.preventDefault(); e.stopPropagation(); }, false);
@@ -197,17 +233,168 @@
         if (cbSortFiles.checked) {
             selectedFiles.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
         }
-        fileListDisplay.innerHTML = `<strong>Gewählt: ${selectedFiles.length} Datei(en)</strong><br>` + selectedFiles.map(f => f.name).join('<br>');
+        
+        // Liste mit Löschen-Buttons aufbauen
+        let listHtml = `<strong>Gewählt: ${selectedFiles.length} Datei(en)</strong><div style="margin-top: 10px;">`;
+        selectedFiles.forEach((f, index) => {
+            listHtml += `
+                <div class="file-item">
+                    <span class="file-name" title="${f.name}">${f.name}</span>
+                    <button class="remove-btn" onclick="removeFile(${index})" type="button">X</button>
+                </div>`;
+        });
+        listHtml += `</div>`;
+        
+        fileListDisplay.innerHTML = listHtml;
         convertBtn.style.display = 'block';
         status.innerText = "";
     }
 
     function processSelectedFiles(files) {
-        selectedFiles = Array.from(files).filter(f => f.name.toLowerCase().endsWith('.msg'));
+        // Neue Dateien filtern
+        const newFiles = Array.from(files).filter(f => {
+            const name = f.name.toLowerCase();
+            return name.endsWith('.msg') || name.endsWith('.eml');
+        });
+
+        // Nur an die Liste anhängen, wenn sie noch nicht drin sind (verhindert Duplikate)
+        newFiles.forEach(newFile => {
+            if (!selectedFiles.some(existingFile => existingFile.name === newFile.name)) {
+                selectedFiles.push(newFile);
+            }
+        });
+
         updateFileListUI();
     }
+    // Global verfügbar machen, damit der HTML-Button sie aufrufen kann
+    window.removeFile = function(index) {
+        selectedFiles.splice(index, 1); // Datei aus Array löschen
+        fileInput.value = ''; // Input zurücksetzen (wichtig, falls man dieselbe Datei danach nochmal hochladen will)
+        updateFileListUI(); // Liste neu zeichnen
+    };
     cbSortFiles.addEventListener('change', updateFileListUI);
 
+
+    // ==========================================
+    // PARSER 1: LOGIK FÜR .EML DATEIEN
+    // ==========================================
+    async function parseEmlFile(arrayBuffer) {
+        const parser = new PostalMime();
+        const parsed = await parser.parse(arrayBuffer);
+        
+        let images =[];
+        if (parsed.attachments) {
+            parsed.attachments.forEach(att => {
+                if (att.mimeType && att.mimeType.startsWith('image/')) {
+                    const bytes = att.content;
+                    let binary = '';
+                    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+                    const base64 = window.btoa(binary);
+                    
+                    images.push({
+                        fileName: att.filename || 'Bild',
+                        dataUri: `data:${att.mimeType};base64,${base64}`,
+                        cid: att.contentId ? att.contentId.replace(/^<|>$/g, '') : null,
+                        used: false
+                    });
+                }
+            });
+        }
+
+        let recipients =[];
+        if (parsed.to) {
+            recipients = parsed.to.map(t => t.name ? `${t.name} <${t.address}>` : t.address);
+        }
+
+        return {
+            senderName: parsed.from?.name || 'Unbekannt',
+            senderEmail: parsed.from?.address || '',
+            recipients: recipients.join(', '),
+            creationTime: parsed.date ? new Date(parsed.date).toLocaleString('de-DE') : '',
+            subject: parsed.subject || '(Kein Betreff)',
+            bodyHtml: parsed.html || "",
+            bodyText: parsed.text || "",
+            images: images
+        };
+    }
+
+    // ==========================================
+    // PARSER 2: LOGIK FÜR .MSG DATEIEN
+    // ==========================================
+    async function parseMsgFile(arrayBuffer) {
+        const msgReader = new MsgReader(arrayBuffer);
+        const msgData = msgReader.getFileData();
+        if (!msgData || msgData.error) throw new Error("MSG fehlerhaft");
+
+        let images =[];
+        if (msgData.attachments) {
+            msgData.attachments.forEach((att, index) => {
+                const attachData = msgReader.getAttachment(index);
+                if (!attachData || !attachData.content) return;
+                
+                const fileName = att.fileName || attachData.fileName || 'Bild.jpg';
+                const extMatch = fileName.match(/\.([^.]+)$/);
+                const ext = extMatch ? extMatch[1].toLowerCase() : 'jpeg';
+                
+                if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(ext)) {
+                    let binary = '';
+                    const bytes = attachData.content;
+                    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+                    const base64 = window.btoa(binary);
+                    const mime = ext === 'jpg' ? 'image/jpeg' : `image/${ext}`;
+                    
+                    images.push({
+                        fileName: fileName,
+                        dataUri: `data:${mime};base64,${base64}`,
+                        cid: (att.pidContentId || att.contentId) ? (att.pidContentId || att.contentId).replace(/^<|>$/g, '') : null,
+                        used: false
+                    });
+                }
+            });
+        }
+
+        let bodyHtml = "";
+        let bodyText = msgData.body || "";
+
+        if (msgData.bodyHtml && msgData.bodyHtml.trim().length > 0) {
+            bodyHtml = msgData.bodyHtml;
+        } else if (msgData.compressedRtf) {
+            try {
+                const decompressed = decompressRTF(msgData.compressedRtf);
+                const rtfString = new TextDecoder('ascii').decode(new Uint8Array(decompressed));
+                const result = deEncapsulateSync(rtfString, {
+                    decode: (buf) => {
+                        const safeBuf = new Uint8Array(buf);
+                        try { return new TextDecoder('utf-8', { fatal: true }).decode(safeBuf); } 
+                        catch(e) { return new TextDecoder('windows-1252').decode(safeBuf); }
+                    }
+                });
+                let extractedText = typeof result.text === 'string' ? result.text : new TextDecoder('utf-8').decode(new Uint8Array(result.text));
+                
+                if (result.mode === 'html') bodyHtml = extractedText;
+                else bodyText = extractedText;
+            } catch (err) {}
+        }
+
+        let recipientsString = msgData.recipients && msgData.recipients.length > 0 
+                               ? msgData.recipients.map(r => r.name || r.email).join(', ') 
+                               : '';
+
+        return {
+            senderName: msgData.senderName || 'Unbekannt',
+            senderEmail: msgData.senderEmail || '',
+            recipients: recipientsString,
+            creationTime: msgData.creationTime ? new Date(msgData.creationTime).toLocaleString('de-DE') : '',
+            subject: msgData.subject || '(Kein Betreff)',
+            bodyHtml: bodyHtml,
+            bodyText: bodyText,
+            images: images
+        };
+    }
+
+    // ==========================================
+    // HAUPT-VERARBEITUNG & RENDERING (Einheitlich)
+    // ==========================================
     convertBtn.addEventListener('click', async () => {
         status.innerText = "Entpacke E-Mails, Tabellen und Bilder...";
         status.style.color = "#2980b9";
@@ -217,137 +404,74 @@
         try {
             for (const file of selectedFiles) {
                 const arrayBuffer = await file.arrayBuffer();
-                const msgReader = new MsgReader(arrayBuffer);
-                const msgData = msgReader.getFileData();
+                let mail = null;
 
-                if (!msgData || msgData.error) continue;
+                // 1. Richtigen Parser anhand der Dateiendung auswählen
+                try {
+                    if (file.name.toLowerCase().endsWith('.eml')) {
+                        mail = await parseEmlFile(arrayBuffer);
+                    } else {
+                        mail = await parseMsgFile(arrayBuffer);
+                    }
+                } catch (e) {
+                    console.error(`Fehler beim Lesen von ${file.name}:`, e);
+                    continue;
+                }
+
+                if (!mail) continue;
 
                 const emailDiv = document.createElement('div');
                 emailDiv.className = 'email-page';
 
-                // --- 1. KOPFZEILE BAUEN ---
+                // 2. KOPFZEILE BAUEN
                 let headerParts =[];
-                if (cbShowFrom.checked) headerParts.push(`<strong>Von:</strong> ${msgData.senderName || 'Unbekannt'} ${msgData.senderEmail ? `&lt;${msgData.senderEmail}&gt;` : ''}`);
-                if (cbShowTo.checked) {
-                    let recipientsString = msgData.recipients && msgData.recipients.length > 0 ? msgData.recipients.map(r => r.name || r.email).join(', ') : '';
-                    headerParts.push(`<strong>An:</strong> ${recipientsString}`);
-                }
-                if (cbShowDate.checked) headerParts.push(`<strong>Datum:</strong> ${msgData.creationTime ? new Date(msgData.creationTime).toLocaleString('de-DE') : ''}`);
-                if (cbShowSubject.checked) headerParts.push(`<strong>Betreff:</strong> ${msgData.subject || '(Kein Betreff)'}`);
+                if (cbShowFrom.checked) headerParts.push(`<strong>Von:</strong> ${mail.senderName} ${mail.senderEmail ? `&lt;${mail.senderEmail}&gt;` : ''}`);
+                if (cbShowTo.checked)   headerParts.push(`<strong>An:</strong> ${mail.recipients}`);
+                if (cbShowDate.checked) headerParts.push(`<strong>Datum:</strong> ${mail.creationTime}`);
+                if (cbShowSubject.checked) headerParts.push(`<strong>Betreff:</strong> ${mail.subject}`);
 
                 let headerHtml = headerParts.length > 0 ? `<div class="email-header">${headerParts.join('<br>')}</div>` : "";
 
-                // --- 2. BILDER & ANHÄNGE EXTRAHIEREN ---
-                const cidMap = {};
-                const allImageAttachments =[];
-
-                if (msgData.attachments) {
-                    msgData.attachments.forEach((att, index) => {
-                        try {
-                            const attachData = msgReader.getAttachment(index);
-                            if (!attachData || !attachData.content) return;
-                            
-                            const fileName = att.fileName || attachData.fileName || 'Bild.jpg';
-                            const extMatch = fileName.match(/\.([^.]+)$/);
-                            const ext = extMatch ? extMatch[1].toLowerCase() : 'jpeg';
-                            
-                            // Nur Bild-Formate verarbeiten
-                            if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(ext)) {
-                                let binary = '';
-                                const bytes = attachData.content;
-                                const len = bytes.byteLength || bytes.length;
-                                
-                                // Sichere und schnelle Binär-Konvertierung
-                                for (let i = 0; i < len; i++) {
-                                    binary += String.fromCharCode(bytes[i]);
-                                }
-                                
-                                const base64 = window.btoa(binary);
-                                const mime = ext === 'jpg' ? 'image/jpeg' : `image/${ext}`;
-                                const dataUri = `data:${mime};base64,${base64}`;
-                                
-                                const attachmentObj = { fileName, dataUri, used: false };
-                                allImageAttachments.push(attachmentObj);
-
-                                // Prüfen, ob Outlook das Bild als "Content-ID" (inline Platzhalter) gekennzeichnet hat
-                                let cid = att.pidContentId || att.contentId;
-                                if (cid) {
-                                    cid = cid.replace(/^<|>$/g, '');
-                                    cidMap[cid] = attachmentObj;
-                                }
-                            }
-                        } catch(e) { console.warn("Fehler bei Anhang:", e); }
-                    });
-                }
-
-                // Hilfsfunktion: Sucht im HTML nach den Outlook-Platzhaltern und setzt die echten Bilder ein
-                function replaceCIDs(htmlString, cidMap) {
-                    let newHtml = htmlString;
-                    for (const [cid, obj] of Object.entries(cidMap)) {
-                        const safeCid = cid.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                        const regex = new RegExp(`cid:${safeCid}`, 'gi');
-                        if (regex.test(newHtml)) {
-                            newHtml = newHtml.replace(regex, obj.dataUri);
-                            obj.used = true; // Markieren, dass das Bild erfolgreich im Text eingebaut wurde
-                        }
-                    }
-                    return newHtml;
-                }
-
-                // --- 3. INHALT VERARBEITEN (HTML / RTF / Plain) ---
-                let bodyHtml = "";
+                // 3. INHALT VERARBEITEN & BILDER EINFÜGEN
+                let finalBodyHtml = "";
                 let isHTML = false;
 
-                if (msgData.bodyHtml && msgData.bodyHtml.trim().length > 0) {
-                    let rawHtml = replaceCIDs(msgData.bodyHtml, cidMap);
-                    bodyHtml = DOMPurify.sanitize(rawHtml, { ADD_TAGS:['style'], WHOLE_DOCUMENT: true });
-                    isHTML = true;
-                } else if (msgData.compressedRtf) {
-                    try {
-                        const decompressed = decompressRTF(msgData.compressedRtf);
-                        const rtfString = new TextDecoder('ascii').decode(new Uint8Array(decompressed));
-                        
-                        const result = deEncapsulateSync(rtfString, {
-                            decode: (buf) => {
-                                const safeBuf = new Uint8Array(buf);
-                                try { return new TextDecoder('utf-8', { fatal: true }).decode(safeBuf); } 
-                                catch(e) { return new TextDecoder('windows-1252').decode(safeBuf); }
+                if (mail.bodyHtml.trim().length > 0) {
+                    let rawHtml = mail.bodyHtml;
+                    // Bilder im HTML ersetzen
+                    mail.images.forEach(img => {
+                        if (img.cid) {
+                            const safeCid = img.cid.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                            const regex = new RegExp(`cid:${safeCid}`, 'gi');
+                            if (regex.test(rawHtml)) {
+                                rawHtml = rawHtml.replace(regex, img.dataUri);
+                                img.used = true;
                             }
-                        });
-
-                        let extractedText = typeof result.text === 'string' ? result.text : new TextDecoder('utf-8').decode(new Uint8Array(result.text));
-
-                        if (result.mode === 'html') {
-                            let rawHtml = replaceCIDs(extractedText, cidMap);
-                            bodyHtml = DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['style'], WHOLE_DOCUMENT: true });
-                            isHTML = true;
-                        } else {
-                            bodyHtml = `<pre style="white-space: pre-wrap; font-family: inherit;">${DOMPurify.sanitize(extractedText)}</pre>`;
                         }
-                    } catch (err) {
-                        if (msgData.body) bodyHtml = `<pre style="white-space: pre-wrap; font-family: inherit;">${DOMPurify.sanitize(msgData.body)}</pre>`;
-                    }
-                } else if (msgData.body) {
-                    bodyHtml = `<pre style="white-space: pre-wrap; font-family: inherit;">${DOMPurify.sanitize(msgData.body)}</pre>`;
+                    });
+                    finalBodyHtml = DOMPurify.sanitize(rawHtml, { ADD_TAGS:['style'], WHOLE_DOCUMENT: true });
+                    isHTML = true;
+                } else if (mail.bodyText.trim().length > 0) {
+                    finalBodyHtml = `<pre style="white-space: pre-wrap; font-family: inherit;">${DOMPurify.sanitize(mail.bodyText)}</pre>`;
                 } else {
-                    bodyHtml = "<em>(Kein E-Mail-Text gefunden)</em>";
+                    finalBodyHtml = "<em>(Kein E-Mail-Text gefunden)</em>";
                 }
 
-                // --- 4. UNGENUTZTE BILDER ALS ANHANG DRUNTER SETZEN ---
+                // 4. UNGENUTZTE BILDER ALS ANHANG DRUNTER SETZEN
                 let imageAttachmentsHtml = "";
-                allImageAttachments.forEach(obj => {
-                    if (!obj.used) { // Wenn das Bild nicht inline im Text war, hängen wir es unten an!
+                mail.images.forEach(img => {
+                    if (!img.used) {
                         imageAttachmentsHtml += `
                             <div style="margin-top: 25px; padding: 15px; background: #fdfdfd; border: 1px solid #e0e0e0; border-radius: 4px; font-family: 'Segoe UI', Tahoma, sans-serif; page-break-inside: avoid;">
-                                <strong style="color: #2c3e50; font-size: 14px;">Bild-Anhang:</strong> <span style="font-size: 14px; color: #7f8c8d;">${obj.fileName}</span><br>
-                                <img src="${obj.dataUri}" alt="${obj.fileName}" style="max-width: 100%; height: auto; margin-top: 10px; display: block; border: 1px solid #ddd; box-shadow: 0 1px 3px rgba(0,0,0,0.05);" />
+                                <strong style="color: #2c3e50; font-size: 14px;">Bild-Anhang:</strong> <span style="font-size: 14px; color: #7f8c8d;">${img.fileName}</span><br>
+                                <img src="${img.dataUri}" alt="${img.fileName}" style="max-width: 100%; height: auto; margin-top: 10px; display: block; border: 1px solid #ddd; box-shadow: 0 1px 3px rgba(0,0,0,0.05);" />
                             </div>`;
                     }
                 });
 
-                bodyHtml += imageAttachmentsHtml; // Fügt die Anhänge ans Ende des Mail-Bodys
+                finalBodyHtml += imageAttachmentsHtml;
 
-                // --- 5. E-MAIL ZUSAMMENBAUEN ---
+                // 5. E-MAIL ZUSAMMENBAUEN
                 emailDiv.innerHTML = headerHtml;
 
                 const bodyDiv = document.createElement('div');
@@ -355,7 +479,6 @@
 
                 if (isHTML) {
                     const shadow = bodyDiv.attachShadow({ mode: 'open' });
-                    // Design: img { max-width: 100% } verhindert, dass große Bilder das PDF zerschießen!
                     const defaultStyles = `
                         <style>
                             table { border-collapse: collapse; width: 100%; font-family: 'Segoe UI', Tahoma, sans-serif; font-size: 14px; margin-top: 15px; } 
@@ -364,9 +487,9 @@
                             img { max-width: 100%; height: auto; }
                         </style>
                     `;
-                    shadow.innerHTML = defaultStyles + bodyHtml;
+                    shadow.innerHTML = defaultStyles + finalBodyHtml;
                 } else {
-                    bodyDiv.innerHTML = bodyHtml;
+                    bodyDiv.innerHTML = finalBodyHtml;
                 }
 
                 emailDiv.appendChild(bodyDiv);
