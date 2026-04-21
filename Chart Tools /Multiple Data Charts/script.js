@@ -442,21 +442,25 @@ document.addEventListener('DOMContentLoaded', function () {
         const minI = u.valToIdx(u.scales.x.min);
         const maxI = u.valToIdx(u.scales.x.max);
         
-        if (minI == null || maxI == null || currentFilteredData.length === 0) { 
-            panel.innerHTML = "Keine Daten"; return; 
+        // SICHERHEITS-CHECK: Wenn keine Daten da sind oder uPlot noch nicht bereit ist, abbrechen
+        if (minI == null || maxI == null || !currentFilteredData || currentFilteredData.length === 0) { 
+            panel.innerHTML = "Keine Daten im sichtbaren Bereich"; 
+            return; 
         }
         
         let totalSeconds = 0;
-        const hideGaps = getEl('hideTimeGapsCheckbox')?.checked;
-        const isDuration = getEl('durationCurveCheckbox')?.checked;
+        const isDuration = getEl('durationCurveCheckbox') && getEl('durationCurveCheckbox').checked;
 
-        if (isDuration) {
-            // Bei der Dauerlinie macht ein Zeitraum keinen Sinn
-        } else {
-            // Wir summieren die Abstände zwischen allen sichtbaren Punkten
-            for (let j = minI + 1; j <= maxI; j++) {
-                const diff = currentFilteredData[j].timestamp - currentFilteredData[j-1].timestamp;
-                if (diff > 0) totalSeconds += diff;
+        if (!isDuration) {
+            // SICHERE BERECHNUNG der Zeitsumme
+            for (let j = minI; j < maxI; j++) {
+                const p1 = currentFilteredData[j];
+                const p2 = currentFilteredData[j+1];
+                
+                if (p1 && p2 && p1.timestamp && p2.timestamp) {
+                    const diff = p2.timestamp - p1.timestamp;
+                    if (diff > 0) totalSeconds += diff;
+                }
             }
         }
 
@@ -464,14 +468,13 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!isDuration) {
             html += `
                 <div class="stats-timeframe">
-                    <span>Zeitraum (aktiv):</span>
+                    <span>Auswertungszeitraum:</span>
                     <b>${formatDuration(totalSeconds)}</b>
                 </div>
                 <hr style="border:0; border-top:1px solid #eee; margin:10px 0;">
             `;
         }
 
-        // Statistiken für die einzelnen Linien
         for (let i = 1; i < u.series.length; i++) {
             if (!u.series[i].show) continue;
             const sData = u.data[i];
@@ -497,7 +500,6 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         panel.innerHTML = html || "Keine sichtbaren Daten";
     }
-
     // --- MAIN DRAW FUNCTION ---
     function drawCharts() {
         if (typeof uPlot === 'undefined') { console.error("uPlot fehlt!"); return; }
@@ -510,7 +512,6 @@ document.addEventListener('DOMContentLoaded', function () {
         const selDays = Array.from(document.querySelectorAll('.weekday-filter:checked')).map(c => parseInt(c.value));
         let data = parsedData.filter(p => selDays.includes(p.dayOfWeek));
         
-        // 1. Spalten-Spezifische Filter anwenden
         if (specificColFilters.length > 0) {
             data = data.filter(p => {
                 return specificColFilters.every(f => {
@@ -531,7 +532,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
         data = aggregateData(data);
 
-        // 2. Globale Max/Min Filter
         const maxOn = enableValueFilter && enableValueFilter.checked;
         const maxVal = parseFloat(valueThreshold ? valueThreshold.value : 0);
         const maxAct = filterAction ? filterAction.value : 'filter';
@@ -550,6 +550,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (data.length === 0) return;
 
+        // WICHTIG: Hier sofort die globalen Daten für UpdateStats und Tooltips speichern!
+        currentFilteredData = data;
+
         const isDuration = durationCurveCheckbox && durationCurveCheckbox.checked;
         const hideGaps = hideTimeGapsCheckbox && hideTimeGapsCheckbox.checked;
         const gridMode = vGridSelect ? vGridSelect.value : 'auto'; 
@@ -560,11 +563,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const sync = uPlot.sync("grp");
         const totalCols = maxColumnCount + formulaColumns.length;
-
-        // Zeit-Formatierung inklusive Sekunden erzwingen
         const dateOpts = { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' };
 
-        // Custom Plugin für vertikale Hilfslinien
         function vGridPlugin() {
             return {
                 hooks: {
@@ -579,6 +579,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
                         const minIdx = u.valToIdx(u.scales.x.min);
                         const maxIdx = u.valToIdx(u.scales.x.max);
+                        if(minIdx == null || maxIdx == null) return;
                         
                         let lastUnit = null;
                         for (let i = minIdx; i <= maxIdx; i++) {
@@ -624,12 +625,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     
                     let ts;
                     if (hideGaps) {
-                        // Falls Lücken ausgeblendet sind, ist v der Index (0, 1, 2...)
-                        // Wir holen uns den echten Zeitstempel aus dem entsprechenden Datenpunkt
-                        const point = data[Math.round(v)];
+                        const point = currentFilteredData[Math.round(v)];
                         ts = point ? point.timestamp : null;
                     } else {
-                        // Im normalen Modus ist v bereits der Zeitstempel
                         ts = v;
                     }
                     return ts ? new Date(ts * 1000).toLocaleString('de-DE', dateOpts) : "-";
@@ -651,20 +649,19 @@ document.addEventListener('DOMContentLoaded', function () {
                 xAxisConfig = { label: "% Zeit" };
             } else if (hideGaps) {
                 xAxisConfig = {
-                    // Formatiert die Achsenbeschriftung unten, wenn Lücken aus sind
+                    // SICHERHEITS-CHECK hier eingebaut
                     values: (u, splits) => splits.map(v => {
-                        const point = data[Math.round(v)];
-                        return point ? new Date(point.timestamp * 1000).toLocaleDateString('de-DE') : "";
+                        const point = currentFilteredData[Math.round(v)];
+                        return point && point.timestamp ? new Date(point.timestamp * 1000).toLocaleDateString('de-DE') : "";
                     })
                 };
             } else {
-                // Standard Zeit-Modus
                 xAxisConfig = {}; 
             }
 
             const opts = {
                 width: container.clientWidth,
-                height: 450, // Erhöht von 300 auf 450
+                height: 450, 
                 series: seriesConfig,
                 cursor: { sync: { key: sync } },
                 scales: { x: { time: !isDuration && !hideGaps } },
@@ -678,19 +675,21 @@ document.addEventListener('DOMContentLoaded', function () {
                             if (idx == null) { tooltipEl.style.display = 'none'; return; }
                             
                             const dPoint = currentFilteredData[idx]; 
-                            const dateOpts = { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' };
+                            // SICHERHEITS-CHECK für Tooltip
+                            if (!dPoint || !dPoint.timestamp) return;
+
                             let head = isDuration ? `${xVals[idx].toFixed(1)}%` : new Date(dPoint.timestamp*1000).toLocaleString('de-DE', dateOpts);
                             
-                            let tooltipHtml = `<b>${head}</b>`;
+                            let html = `<b>${head}</b>`;
                             u.series.forEach((s, si) => {
-                                if (si > 0) tooltipHtml += `<div>${s.label}: ${u.data[si][idx]?.toFixed(2)}</div>`;
+                                if (si>0) html += `<div>${s.label}: ${u.data[si][idx]?.toFixed(2)}</div>`;
                             });
                             
-                            tooltipEl.innerHTML = tooltipHtml;
+                            tooltipEl.innerHTML = html;
                             tooltipEl.style.display = 'block';
-
                             const rect = u.root.getBoundingClientRect();
-                            // NEU: Tooltip Position direkt unter dem Cursor (5px rechts, 15px unterhalb)
+                            
+                            // Tooltip Position: Direkt unter dem Cursor
                             tooltipEl.style.left = (rect.left + u.cursor.left + 5) + "px";
                             tooltipEl.style.top = (rect.top + u.cursor.top + 15) + "px";
                         }
