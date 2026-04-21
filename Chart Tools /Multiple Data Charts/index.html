@@ -14,16 +14,23 @@
         <div id="controls-panel">
             <h1>Dashboard-Steuerung</h1>
 
-            <div class="control-section">
-                <h2>1. Daten einfügen</h2>
-                <textarea id="dataInput" placeholder="TT.MM.JJJJ HH:mm&#9;Wert1&#9;Wert2..."></textarea>
-                <button id="generateChartBtn">Daten verarbeiten & Charts erstellen</button>
+           <div class="control-section">
+                <h2>1. Daten einfügen / CSV</h2>
+                <textarea id="dataInput" placeholder="TT.MM.JJJJ HH:mm:ss&#9;Wert1&#9;Wert2..."></textarea>
+                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                    <button id="generateChartBtn" style="flex: 2;">Text verarbeiten</button>
+                    <!-- Neu: CSV Buttons und verstecktes Input -->
+                    <input type="file" id="csvFileInput" accept=".csv,.txt" style="display: none;">
+                    <button id="importCsvBtn" style="flex: 1; background-color: #6c757d;">CSV Laden</button>
+                    <button id="exportCsvBtn" style="flex: 1; background-color: #28a745;">CSV Export</button>
+                </div>
             </div>
+            <!-- ENDE: GEÄNDERTE SEKTION 1 -->
 
+            <!-- START: GEÄNDERTE SEKTION 2 -->
             <div class="control-section">
                 <h2>2. Globale Chart-Optionen</h2>
                 
-                <!-- WICHTIG: Neue IDs für Aggregation und Methode -->
                 <div class="aggregation-control-container">
                     <label>Daten-Auflösung & Methode:</label>
                     <div style="display: flex; gap: 10px;">
@@ -38,9 +45,19 @@
                         </select>
                     </div>
                 </div>
+
+                <!-- Neu: Vertikale Hilfslinien -->
+                <div class="grid-control-container" style="margin-top: 10px;">
+                    <label>Vertikale Zeit-Hilfslinien:</label>
+                    <select id="vGridSelect" style="margin-top: 5px;">
+                        <option value="auto">Automatisch (Standard)</option>
+                        <option value="hour">Stündlich erzwingen</option>
+                        <option value="day">Täglich erzwingen</option>
+                        <option value="off">Ausblenden</option>
+                    </select>
+                </div>
                 
-                <!-- WICHTIG: ID für Dauerlinie -->
-                <div class="mode-control-container">
+                <div class="mode-control-container" style="margin-top: 10px;">
                     <label style="font-weight: bold; color: #1565c0;">
                         <input type="checkbox" id="durationCurveCheckbox"> Als Jahresdauerlinie anzeigen (XY sortiert)
                     </label>
@@ -60,7 +77,30 @@
                 </div>
                 <button id="resetZoomBtn">Globalen Zoom zurücksetzen</button>
             </div>
+            <!-- ENDE: GEÄNDERTE SEKTION 2 -->
 
+            <!-- START: NEUE SEKTION (Füge dies VOR den Globalen Wertefiltern (Maximum) ein) -->
+            <div class="control-section">
+                <h2>Spalten-Spezifische Filter</h2>
+                <div class="filter-control-container">
+                    <div style="display: flex; gap: 5px; flex-wrap: wrap;">
+                        <select id="filterColSelect" style="flex: 2; min-width: 100px;">
+                            <option value="">(Bitte Daten laden)</option>
+                        </select>
+                        <select id="filterOpSelect" style="flex: 1; min-width: 50px;">
+                            <option value=">">&gt;</option>
+                            <option value="<">&lt;</option>
+                            <option value=">=">&gt;=</option>
+                            <option value="<=">&lt;=</option>
+                            <option value="==">==</option>
+                            <option value="!=">!=</option>
+                        </select>
+                        <input type="number" id="filterValInput" placeholder="Wert" style="flex: 2; min-width: 60px;">
+                        <button id="addColFilterBtn" style="flex: 1; min-width: 60px; margin-top: 0; padding: 5px;">Hinzufügen</button>
+                    </div>
+                    <div id="col-filters-list" style="margin-top: 10px;"></div>
+                </div>
+            </div>
             <div class="control-section">
                 <h2>3. Wertefilter (Maximum)</h2>
                 <div class="filter-control-container">
@@ -116,31 +156,43 @@
                 <button id="importSetupBtn">Layout importieren</button>
             </div>
             
+            <div class="control-section">
+                <h2>8. Chart-Titel anpassen</h2>
+                <div style="display: flex; flex-direction: column; gap: 5px;">
+                    <input type="text" id="titleInput1" placeholder="Titel Chart 1" value="Chart 1">
+                    <input type="text" id="titleInput2" placeholder="Titel Chart 2" value="Chart 2">
+                    <input type="text" id="titleInput3" placeholder="Titel Chart 3" value="Chart 3">
+                </div>
+            </div>
+
             <div id="status" class="status-panel">Bereit.</div>
         </div>
 
+        <!-- Suchen Sie den #charts-area Block und ersetzen Sie ihn hiermit: -->
         <div id="charts-area">
             <div id="chart-wrapper-1" class="chart-wrapper">
                 <div class="chart-main">
-                    <h3>Chart 1</h3>
+                    <h3 id="chartHeader1">Chart 1</h3>
                     <div id="chartContainer1" class="chart-container"></div>
                 </div>
                 <div id="stats-panel-1" class="stats-panel">
                     <p class="placeholder">Keine Daten</p>
                 </div>
             </div>
+
             <div id="chart-wrapper-2" class="chart-wrapper">
                 <div class="chart-main">
-                    <h3>Chart 2</h3>
+                    <h3 id="chartHeader2">Chart 2</h3> <!-- ID ergänzt -->
                     <div id="chartContainer2" class="chart-container"></div>
                 </div>
                 <div id="stats-panel-2" class="stats-panel">
                     <p class="placeholder">Keine Daten</p>
                 </div>
             </div>
+
             <div id="chart-wrapper-3" class="chart-wrapper">
-                 <div class="chart-main">
-                    <h3>Chart 3</h3>
+                <div class="chart-main">
+                    <h3 id="chartHeader3">Chart 3</h3> <!-- ID ergänzt -->
                     <div id="chartContainer3" class="chart-container"></div>
                 </div>
                 <div id="stats-panel-3" class="stats-panel">
