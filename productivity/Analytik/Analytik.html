@@ -309,7 +309,11 @@
                         <div class="radio-group"><label><input type="radio" name="laugenfrei" value="Ja"> Ja</label><label><input type="radio" name="laugenfrei" value="Nein"> Nein</label></div>
                     </div>
                     <div class="input-group"><label>Zucker freiheit bestätigt:</label>
-                        <div class="radio-group"><label><input type="radio" name="zuckerfrei" value="Ja"> Ja</label><label><input type="radio" name="zuckerfrei" value="Nein"> Nein</label></div>
+                        <div class="radio-group">
+                            <label><input type="radio" name="zuckerfrei" value="Ja"> Ja</label>
+                            <label><input type="radio" name="zuckerfrei" value="Nein"> Nein</label>
+                            <label><input type="radio" name="zuckerfrei" value="N/A"> N/A</label> <!-- NEU HINZUGEFÜGT -->
+                        </div>
                     </div>
                     <div class="input-group"><label>Kunden- und Geäteangaben im Handbuch korrekt:</label>
                         <div class="radio-group"><label><input type="radio" name="kundenangaben" value="Ja"> Ja</label><label><input type="radio" name="kundenangaben" value="Nein"> Nein</label></div>
@@ -461,7 +465,7 @@
                             </div>
                             <div class="input-group"><label>Total Count cfu/1ml:</label><input type="number" id="iw_water_total" oninput="checkWaterCount(this)"></div>
                             <div class="input-group"><label>Coliform count cfu/100ml:</label><input type="number" id="iw_water_coliform" oninput="checkWaterCount(this)"></div>
-                            <div class="input-group"><label>TDS ppm:</label><input type="number" step="0.1" id="iw_tds"></div>
+                            <div class="input-group"><label>TDS ppm:</label><input type="number" step="0.1" id="iw_tds" oninput="checkTdsValue(this)"></div>
                         </div>
                     </div>
 
@@ -874,23 +878,39 @@
 
     // Die ausgelagerte Render-Funktion
     function renderCustomerDetails(row, hLow) {
-        const grid = document.getElementById('customerDetailsGrid'); grid.innerHTML = '';
-        const felder = ["OM_No", "TradeChannal", "Kontaktperson", "Tel. no", "Ort", "Region"];
-        felder.forEach(feld => {
-            let idx = hLow.findIndex(h => h === feld.toLowerCase() || h.replace(/\s/g, '') === feld.toLowerCase());
-            if(idx !== -1) { grid.innerHTML += `<div class="detail-box"><span class="detail-label">${feld}</span><span class="detail-value">${row[idx]||'-'}</span></div>`; }
-        });
+        const grid = document.getElementById('customerDetailsGrid'); 
+        grid.innerHTML = '';
+        
+        // Diese Felder wollen wir im Grid ignorieren (werden für Map oder System genutzt)
+        const ignoreFields = ["breitengrad", "laengengrad", "lat", "lon", "latitude", "longitude", "besitzer"];
+
+        // Iteriere über alle vorhandenen Header in der Kundenliste
+        for(let i = 0; i < kundenHeaders.length; i++) {
+            let headerName = kundenHeaders[i];
+            let val = row[i];
+            let hL = headerName.toLowerCase().trim().replace(/\s/g, '');
+
+            // Wenn das Feld nicht ignoriert werden soll und der Header nicht leer ist, anzeigen
+            if(!ignoreFields.some(ign => hL.includes(ign)) && headerName.trim() !== "") {
+                grid.innerHTML += `<div class="detail-box"><span class="detail-label">${headerName}</span><span class="detail-value">${val || '-'}</span></div>`;
+            }
+        }
 
         let mapDiv = document.getElementById('mapContainer');
-        let idxLat = hLow.findIndex(h => h.includes("breitengrad") || h === "lat" || h === "latitude"); let idxLon = hLow.findIndex(h => h.includes("laengengrad") || h === "lon" || h === "longitude");
+        let idxLat = hLow.findIndex(h => h.includes("breitengrad") || h === "lat" || h === "latitude"); 
+        let idxLon = hLow.findIndex(h => h.includes("laengengrad") || h === "lon" || h === "longitude");
+        
         if(idxLat !== -1 && idxLon !== -1 && row[idxLat] && row[idxLon]) {
-            let lat = String(row[idxLat]).replace(',', '.').trim(); let lon = String(row[idxLon]).replace(',', '.').trim();
+            let lat = String(row[idxLat]).replace(',', '.').trim(); 
+            let lon = String(row[idxLon]).replace(',', '.').trim();
             if(!isNaN(parseFloat(lat)) && !isNaN(parseFloat(lon))) {
                 mapDiv.innerHTML = `<iframe width="100%" height="200" frameborder="0" scrolling="no" marginheight="0" marginwidth="0" src="https://maps.google.com/maps?q=${lat},${lon}&hl=de&z=15&output=embed"></iframe>`;
                 mapDiv.style.display = 'block';
             } else { mapDiv.style.display = 'none'; }
         } else { mapDiv.style.display = 'none'; }
-        document.getElementById('selectedCustomerDetails').style.display = 'block'; document.getElementById('step2Card').style.display = 'block';
+        
+        document.getElementById('selectedCustomerDetails').style.display = 'block'; 
+        document.getElementById('step2Card').style.display = 'block';
         ladeZugeordnetesEquipment();
     }
 
@@ -999,7 +1019,7 @@
                 let btnText = existingRow ? "✏️ Audit bearbeiten" : "Audit starten ➔";
 
                 container.innerHTML += `
-                    <div class="${itemClass}">
+                    <div class="${itemClass}" id="eq_ui_box_${eqRowId}">
                         <div style="flex:1;">
                             <div style="display:flex; align-items:center; gap:10px;">
                                 <strong>🔧 ${techId}</strong>
@@ -1078,8 +1098,11 @@
 
     function oeffneEquipmentFormular(rowIndex) {
         const eqDaten = getSheetData("EquipmentListe");
-        aktuellesEditEquipmentRow = [...eqDaten[rowIndex]]; aktuellesEditEquipmentIndex = rowIndex;
-        const headers = eqDaten[0]; const container = document.getElementById('dynamicEqFormFields'); container.innerHTML = "";
+        aktuellesEditEquipmentRow = [...eqDaten[rowIndex]]; 
+        aktuellesEditEquipmentIndex = rowIndex;
+        const headers = eqDaten[0]; 
+        const container = document.getElementById('dynamicEqFormFields'); 
+        container.innerHTML = "";
 
         const kundenDaten = getSheetData("KundenListe"); let kundenOptions = [];
         if(kundenDaten.length > 1) {
@@ -1110,14 +1133,21 @@
         const readonlyDisplayFields = ["tech ident no", "besitzer"];
 
         for(let i = 0; i < headers.length; i++) {
-            let headerName = headers[i]; let value = aktuellesEditEquipmentRow[i] || ""; let hLow = headerName.toLowerCase().trim();
+            let headerName = headers[i]; 
+            let value = aktuellesEditEquipmentRow[i] || ""; 
+            let hLow = headerName.toLowerCase().trim();
             
             let isEditField = allowedEditFields.some(f => hLow.includes(f)) && !hLow.includes("valve");
             let isReadonlyField = readonlyDisplayFields.some(f => hLow === f || hLow.includes(f));
 
+            // Versteckte Felder beibehalten, damit sie nicht überschrieben werden
             if (!isEditField && !isReadonlyField) {
-                let hiddenInput = document.createElement('input'); hiddenInput.type = "hidden"; hiddenInput.id = `edit_eq_field_${i}`; hiddenInput.value = value;
-                container.appendChild(hiddenInput); continue; 
+                let hiddenInput = document.createElement('input'); 
+                hiddenInput.type = "hidden"; 
+                hiddenInput.id = `edit_eq_field_${i}`; 
+                hiddenInput.value = value;
+                container.appendChild(hiddenInput); 
+                continue; 
             }
 
             let div = document.createElement('div'); div.className = "input-group";
@@ -1128,25 +1158,64 @@
             } 
             else if (hLow === "om_no" || hLow.includes("om_no")) {
                 let opts = `<option value="">-- Kein Kunde (Unassigned) --</option>`;
-                kundenOptions.forEach(opt => opts += `<option value="${opt.om}" ${(opt.om == value) ? "selected" : ""}>${opt.om} - ${opt.name}</option>`);
+                let foundMatch = false;
+                
+                kundenOptions.forEach(opt => {
+                    let isSelected = String(opt.om).trim() === String(value).trim();
+                    if(isSelected) foundMatch = true;
+                    opts += `<option value="${opt.om}" ${isSelected ? "selected" : ""}>${opt.om} - ${opt.name}</option>`;
+                });
+                
+                // SICHERHEITSNETZ: Wenn der Kunde aus Excel nicht in der Liste gefunden wird, darf er nicht leer werden!
+                if(String(value).trim() !== "" && !foundMatch) {
+                    opts += `<option value="${value}" selected>${value} - (Unbekannter Kunde)</option>`;
+                }
+                
                 div.innerHTML = `<label>🏢 ${headerName} (Umbuchen)</label><select id="edit_eq_field_${i}">${opts}</select>`;
             }
             else if (hLow.includes("refrig")) {
-                let opts = `<option value="">-- Bitte wählen --</option>`; refOptions.forEach(opt => opts += `<option value="${opt.bez}" ${(opt.bez === value) ? "selected" : ""}>${opt.bez}</option>`);
+                let opts = `<option value="">-- Bitte wählen --</option>`; 
+                let foundMatch = false;
+                refOptions.forEach(opt => {
+                    let isSelected = String(opt.bez).trim() === String(value).trim();
+                    if(isSelected) foundMatch = true;
+                    opts += `<option value="${opt.bez}" ${isSelected ? "selected" : ""}>${opt.bez}</option>`;
+                });
+                // SICHERHEITSNETZ
+                if(String(value).trim() !== "" && !foundMatch) opts += `<option value="${value}" selected>${value}</option>`;
                 div.innerHTML = `<label>${headerName}</label><select id="edit_eq_field_${i}">${opts}</select>`;
             }
             else if (hLow.includes("model")) {
-                let opts = `<option value="">-- Bitte wählen --</option>`; modelOptions.forEach(opt => opts += `<option value="${opt.bez}" ${(opt.bez === value) ? "selected" : ""}>${opt.bez}</option>`);
+                let opts = `<option value="">-- Bitte wählen --</option>`; 
+                let foundMatch = false;
+                modelOptions.forEach(opt => {
+                    let isSelected = String(opt.bez).trim() === String(value).trim();
+                    if(isSelected) foundMatch = true;
+                    opts += `<option value="${opt.bez}" ${isSelected ? "selected" : ""}>${opt.bez}</option>`;
+                });
+                // SICHERHEITSNETZ
+                if(String(value).trim() !== "" && !foundMatch) opts += `<option value="${value}" selected>${value}</option>`;
                 div.innerHTML = `<label>${headerName}</label><select id="edit_eq_field_${i}">${opts}</select>`;
             }
             else if (hLow.includes("manufacturer")) {
-                let opts = `<option value="">-- Bitte wählen --</option>`; manOptions.forEach(opt => opts += `<option value="${opt.bez}" ${(opt.bez === value) ? "selected" : ""}>${opt.bez}</option>`);
+                let opts = `<option value="">-- Bitte wählen --</option>`; 
+                let foundMatch = false;
+                manOptions.forEach(opt => {
+                    let isSelected = String(opt.bez).trim() === String(value).trim();
+                    if(isSelected) foundMatch = true;
+                    opts += `<option value="${opt.bez}" ${isSelected ? "selected" : ""}>${opt.bez}</option>`;
+                });
+                // SICHERHEITSNETZ
+                if(String(value).trim() !== "" && !foundMatch) opts += `<option value="${value}" selected>${value}</option>`;
                 div.innerHTML = `<label>${headerName}</label><select id="edit_eq_field_${i}">${opts}</select>`;
             }
             else if (hLow.includes("kommentar")) {
-                div.style.gridColumn = "1 / -1"; div.innerHTML = `<label>${headerName}</label><textarea id="edit_eq_field_${i}">${value}</textarea>`;
+                div.style.gridColumn = "1 / -1"; 
+                div.innerHTML = `<label>${headerName}</label><textarea id="edit_eq_field_${i}">${value}</textarea>`;
             }
-            else { div.innerHTML = `<label>${headerName}</label><input type="text" id="edit_eq_field_${i}" value="${value}">`; }
+            else { 
+                div.innerHTML = `<label>${headerName}</label><input type="text" id="edit_eq_field_${i}" value="${value}">`; 
+            }
             container.appendChild(div);
         }
         document.getElementById('editEquipmentModal').style.display = 'flex';
@@ -1162,13 +1231,21 @@
         document.getElementById('editEquipmentModal').style.display = 'none';
         
         let stat = document.getElementById('stammdatenStatus');
-        stat.innerHTML = "⏳ Speichere Equipment in Excel..."; 
+        stat.innerHTML = "⏳ Speichere Equipment..."; 
         stat.style.background = "#fff3cd"; stat.style.color = "#856404";
         
         let targetId = aktuellesEditEquipmentRow[0]; // EQ Nummer aus Spalte A
+        // NEU: Optisches Feedback am spezifischen Equipment (Ausgrauen & Sperren)
+        let uiBox = document.getElementById(`eq_ui_box_${targetId}`);
+        if (uiBox) {
+            uiBox.style.opacity = "0.5";
+            uiBox.style.pointerEvents = "none"; // Sperrt sofort alle Klicks in dieser Box
+            let btns = uiBox.querySelectorAll('button');
+            btns.forEach(b => b.innerText = "⏳ Lade...");
+        }
         
         try {
-            // 1. Daten an Excel senden
+            // 1. Daten an Excel senden (Fire and Forget)
             await fetch(URL_UPDATE, { 
                 method: "PATCH", 
                 headers: { "Content-Type": "application/json" }, 
@@ -1178,10 +1255,14 @@
                 }) 
             });
             
-            // 2. Stammdaten neu in den RAM laden
-            await ladeStammdatenImHintergrund(); 
+            // 2. NEU: Direkte Cache-Aktualisierung im RAM (verhindert das "Zurückspringen" durch Cloud-Delay)
+            let eqDaten = getSheetData("EquipmentListe");
+            let idx = eqDaten.findIndex(r => r[0] == targetId);
+            if(idx !== -1) {
+                eqDaten[idx] = newDataArray;
+            }
             
-            // 3. SMART-UX: Automatisch den neu zugewiesenen Kunden laden
+            // 3. SMART-UX: Automatisch den zugewiesenen Kunden aktualisieren
             const idxOmNo = headers.map(h => String(h).toLowerCase().trim()).indexOf("om_no");
             const neueOmNo = newDataArray[idxOmNo];
 
@@ -1191,7 +1272,6 @@
                 const kRow = kundenDaten.find(r => String(r[kHeaders.indexOf("om_no")]).trim() === String(neueOmNo).trim());
 
                 if (kRow) {
-                    // Lädt sofort den Kunden, blendet die Karte ein und zeigt das Equipment
                     waehleKundeAus(kRow, kundenDaten[0]);
                 } else {
                     ladeZugeordnetesEquipment();
@@ -1580,7 +1660,7 @@
                 eqAuditKey, eqSapNummer, aktuelleOmNo, findDate,
                 auditData.dispensers.map(d => `[${holeAbkuerzung("DispenserLocation", d.loc)}:]`).join(';'),
                 auditData.dispensers.map(d => `[${holeAbkuerzung("DispenserLocation", d.loc)}:${d.valves.map(v=>v.type).join('/')}]`).join(';'),
-                auditData.dispensers.map(d => `[${holeAbkuerzung("DispenserLocation", d.loc)}:${d.valves.map(v=>v.prod).join('/')}]`).join(';'),
+                auditData.dispensers.map(d => `[${holeAbkuerzung("DispenserLocation", d.loc)}:${d.valves.map(v=>v.inputs.isLeer ? v.prod + ' (leer)' : v.prod).join('/')}]`).join(';'),
                 baueIndexString('type'), baueIndexString('prod'),
                 baueIndexString('geschmackReason'), "",
                 baueIndexString('package'), baueIndexString('sauberkeit'), baueIndexString('geschmack'), baueIndexString('temp'), baueIndexString('water'), baueIndexString('syrup'), baueIndexString('ratio'), baueIndexString('co2'), baueIndexString('brix'), baueIndexString('restmenge'), baueIndexString('expireDate'),
@@ -1768,22 +1848,26 @@
         auditAktuellesEquipmentTechId = techId;
         auditData = { dispensers: [], inventory: [] }; 
         
+        // NEU: Felder aus Tab 4 (Ice & Water) radikal leeren, um alte Werte vom Vor-Kunden zu löschen
+        document.querySelectorAll('#tab4 input[type="radio"], #tab4 input[type="number"], #tab4 input[type="text"]').forEach(el => {
+            if(el.type === 'radio') el.checked = false;
+            else el.value = "";
+            el.className = ""; // Rote/Grüne Ränder entfernen
+        });
+        let tasteReason = document.getElementById('iw_carb_taste_reason');
+        if(tasteReason) { tasteReason.value = ""; tasteReason.style.display = 'none'; }
+        
         const tagesKey = generiereTagesAuditKey();
         
-        // 1. Lade Template-Konfiguration (Dispenser und Ventile generieren)
         ladeVorhandeneKonfiguration(techId); 
         await ladeTagesAuditDaten(tagesKey);  
 
-        // WICHTIG: UI ZUERST GENERIEREN!
-        // Wir müssen die Dropdowns und Checklisten erst ins HTML zeichnen, 
-        // bevor wir sie mit den geladenen Daten befüllen können.
         document.getElementById('appScreen').style.display = 'none';
         renderGeneralDetails(); 
         initDispenserTab();     
         initInventoryTab(); 
         document.getElementById('auditScreen').style.display = 'block';
 
-        // 2. JETZT prüfen wir auf bestehendes Equipment Assesment und füllen die Daten ein
         const assDaten = getSheetData("EquipmentAssesment");
         const currentAss = assDaten.find(r => r[0] === existingKey);
         
@@ -1792,7 +1876,6 @@
             fillAuditFromExisting(currentAss);
         }
         
-        // Tab Status prüfen, nachdem alles geladen ist
         setTimeout(() => { [1,2,3,4].forEach(i => checkTabCompletion('tab'+i, 'tabBtn'+i)); }, 500);
     }
     // Hilfsfunktion: Formatiert Standard-QA-Checks (0 bis 4)
@@ -1868,14 +1951,17 @@
                             let types = tMatch[1].split('/');
                             let prods = pMatch[1].split('/');
                             types.forEach((t, vIdx) => {
-                                let p = prods[vIdx];
-                                if (p) {
+                                let pRaw = prods[vIdx];
+                                if (pRaw) {
+                                    let isLeer = pRaw.includes(" (leer)");
+                                    let pClean = pRaw.replace(" (leer)", "").trim();
+
                                     newDisp.valves.push({
                                         id: "v_rec_" + i + "_" + vIdx,
-                                        prod: p,
+                                        prod: pClean, 
                                         type: t,
-                                        nav2: holeNav2FuerProdukt(p),
-                                        inputs: {}
+                                        nav2: holeNav2FuerProdukt(pClean),
+                                        inputs: { isLeer: isLeer } 
                                     });
                                 }
                             });
@@ -1884,9 +1970,31 @@
                     }
                 });
                 auditData.dispensers = geladeneDispensers;
-                renderDispenserList();
             }
         }
+
+        // --- NEUER FIX: "Leer" Haken wiederherstellen, auch wenn Dispenser aus Konfiguration geladen wurden ---
+        let savedProdStr = row[6] || "";
+        if (savedProdStr && auditData.dispensers && auditData.dispensers.length > 0) {
+            let prodParts = savedProdStr.split(';');
+            prodParts.forEach(pStr => {
+                let m = pStr.match(/\[(.*?):(.*?)\]/);
+                if (m) {
+                    let abk = m[1];
+                    let prods = m[2].split('/');
+                    let disp = auditData.dispensers.find(d => holeAbkuerzung("DispenserLocation", d.loc) === abk);
+                    if (disp) {
+                        prods.forEach((pRaw, vIdx) => {
+                            if (disp.valves[vIdx]) {
+                                // Setzt den Haken, wenn "(leer)" im gespeicherten String steht
+                                disp.valves[vIdx].inputs.isLeer = pRaw.includes(" (leer)");
+                            }
+                        });
+                    }
+                }
+            });
+        }
+        // -------------------------------------------------------------------------------------------------------
 
         document.getElementById('audit_techniker').value = row[29] || ""; 
         document.getElementById('audit_last_service').value = formatToCHDate(row[30] || ""); 
@@ -1976,9 +2084,8 @@
             });
         };
 
-        // Lese das globale Carb Taste Feld aus (Index 22) und befülle Tab 4 UI
         let carbTasteData = row[22] || "";
-        if(!carbTasteData.includes("[")) { // Verhindert Absturz bei alten Arrays
+        if(!carbTasteData.includes("[")) { 
             let parts = carbTasteData.split("::");
             setRadioValue("iw_carb_taste", parts[0]);
             if(parts[1]) document.getElementById('iw_carb_taste_reason').value = parts[1];
@@ -1988,7 +2095,6 @@
         if (auditData.dispensers) {
             auditData.dispensers.forEach(d => {
                 let abk = holeAbkuerzung("DispenserLocation", d.loc);
-                // qa_0, qa_3 und qa_4 werden übersprungen (gelöscht/Reserve)
                 revSpezial(row[23], "qa_1", abk);
                 revSpezial(row[24], "qa_2", abk);
                 revSpezial(row[27], "qa_ice", abk);
@@ -2077,6 +2183,7 @@
             if(document.getElementById('iw_water_total')) checkWaterCount(document.getElementById('iw_water_total'));
             if(document.getElementById('iw_carb_coliform')) checkWaterCount(document.getElementById('iw_carb_coliform'));
             if(document.getElementById('iw_carb_total')) checkWaterCount(document.getElementById('iw_carb_total'));
+            if(document.getElementById('iw_tds')) checkTdsValue(document.getElementById('iw_tds'));
             
             checkTabCompletion('tab4', 'tabBtn4');
             checkTabCompletion('tab3', 'tabBtn3');
@@ -2641,6 +2748,23 @@
             box.innerHTML += `<div class="valve-item ${activeValveId === v.id ? 'active' : ''}" onclick="selectValve('${v.id}')"><div><strong>${idx+1}.</strong> ${v.prod} <small style="color:#888;">(${v.type})</small></div><div class="valve-controls"><button onclick="moveValve(${idx}, -1)">↑</button><button onclick="moveValve(${idx}, 1)">↓</button><button class="btn-del" onclick="deleteValve(${idx})">✖</button></div></div>`;
         });
     }
+    window.toggleValveLeer = function(valveId, isChecked) {
+        let d = auditData.dispensers.find(x => x.id === activeDispId);
+        if(!d) return;
+        let v = d.valves.find(x => x.id === valveId);
+        if(!v) return;
+
+        v.inputs.isLeer = isChecked;
+        
+        // Wenn auf leer gesetzt, lösche alle bisherigen Fehleingaben, um Geisterdaten zu vermeiden
+        if(isChecked) {
+            for(let key in v.inputs) {
+                if(key !== 'isLeer') v.inputs[key] = "";
+            }
+        }
+        selectValve(valveId); // Formular neu zeichnen
+        checkTabCompletion('tab2', 'tabBtn2'); // Validierung neu triggern
+    };
 
     // NEU: HIER IST DAS KOMMENTAR-FELD DRIN
     function selectValve(valveId) {
@@ -2665,15 +2789,30 @@
         }
         
         formArea.style.display = 'block';
+        let html = "";
+
+        // NEU: Checkbox für "Produkt leer"
+        let isLeer = v.inputs.isLeer ? true : false;
+        html += `
+        <div class="input-group" style="background:#fff3cd; padding:10px; border-radius:6px; border: 1px solid #ffeeba; margin-bottom: 15px;">
+            <label style="cursor:pointer; display:flex; align-items:center; gap:8px; color:#856404; margin:0;">
+                <input type="checkbox" onchange="toggleValveLeer('${v.id}', this.checked)" ${isLeer ? 'checked' : ''} style="width:18px; height:18px;">
+                Produkt an Valve leer (Keine Messwerte erforderlich)
+            </label>
+        </div>`;
+
+        // Wenn das Ventil leer ist, zeichne den Rest des Formulars NICHT
+        if(isLeer) {
+            html += `<p style='color:var(--danger); font-weight:bold;'>Valve als "leer" markiert. Keine weiteren Eingaben nötig.</p>`;
+            fieldsBox.innerHTML = html;
+            return; 
+        }
 
         let buildInput = (label, idKey, type = "text", extra = "") => {
             let val = v.inputs[idKey] || ""; 
             return `<div class="input-group"><label>${label}</label><input type="${type}" id="vi_${idKey}" value="${val}" oninput="vInput('${idKey}', this.value, '${v.prod}')" ${extra}></div>`;
         };
 
-        let html = "";
-        
-        // --- 1. Package ---
         if(v.nav2 === "CCHBC") {
             let packOpts = `<option value="">-- Wählen --</option>`; 
             let currentPack = v.inputs.package ? String(v.inputs.package).trim() : "";
@@ -2684,15 +2823,12 @@
             html += `<div class="input-group"><label>Package</label><select onchange="vInput('package', this.value, '${v.prod}')">${packOpts}</select></div>`;
         }
 
-        // --- 2. Expire Date & 3. Remaining Quantity (Restmenge) ---
         if(v.nav2 === "CCHBC") {
             let expireVal = v.inputs.expireDate || "";
             let showRm = v.inputs.showRestmenge ? "flex" : "none";
             
             let restOpts = `<option value="">-- Bitte wählen --</option>`;
-            for(let i=10; i<=100; i+=10) {
-                restOpts += `<option value="${i}" ${v.inputs.restmenge == i ? "selected" : ""}>${i}%</option>`;
-            }
+            for(let i=10; i<=100; i+=10) { restOpts += `<option value="${i}" ${v.inputs.restmenge == i ? "selected" : ""}>${i}%</option>`; }
 
             html += `
                 <div class="input-group">
@@ -2704,34 +2840,20 @@
                 </div>
                 <div class="input-group" id="vi_restmenge_box" style="display:${showRm}; padding: 12px; border: 2px solid var(--danger); background: #fff5f5; border-radius: 8px;">
                     <label style="color: var(--danger); font-weight: bold; margin-bottom: 8px;">⚠️ Produkt abgelaufen! Restmenge erheben:</label>
-                    <select id="vi_restmenge" onchange="vInput('restmenge', this.value, '${v.prod}')" style="border-color: var(--danger);">
-                        ${restOpts}
-                    </select>
+                    <select id="vi_restmenge" onchange="vInput('restmenge', this.value, '${v.prod}')" style="border-color: var(--danger);">${restOpts}</select>
                 </div>`;
         }
 
-        // --- 4. Syrup Connection Identified & 5. Syrup Connection Condition ---
         let currentIdReason = v.inputs.syrupIdReason ? String(v.inputs.syrupIdReason).trim() : "";
         let sIdOpts = `<option value="">-- Grund --</option>`;
-        lookups.syrupId.forEach(o => {
-            let bez = String(o.bez).trim();
-            sIdOpts += `<option value="${bez}" ${currentIdReason === bez ? "selected" : ""}>${bez}</option>`;
-        });
+        lookups.syrupId.forEach(o => { sIdOpts += `<option value="${String(o.bez).trim()}" ${currentIdReason === String(o.bez).trim() ? "selected" : ""}>${String(o.bez).trim()}</option>`; });
 
         let currentCondReason = v.inputs.syrupCondReason ? String(v.inputs.syrupCondReason).trim() : "";
         let sCondOpts = `<option value="">-- Grund --</option>`;
-        lookups.syrupCond.forEach(o => {
-            let bez = String(o.bez).trim();
-            sCondOpts += `<option value="${bez}" ${currentCondReason === bez ? "selected" : ""}>${bez}</option>`;
-        });
+        lookups.syrupCond.forEach(o => { sCondOpts += `<option value="${String(o.bez).trim()}" ${currentCondReason === String(o.bez).trim() ? "selected" : ""}>${String(o.bez).trim()}</option>`; });
 
-        let isIdOk = v.inputs.syrupId === "OK" ? "checked" : "";
-        let isIdNok = v.inputs.syrupId === "NOK" ? "checked" : "";
-        let showIdReason = isIdNok ? "block" : "none";
-
-        let isCondOk = v.inputs.syrupCond === "OK" ? "checked" : "";
-        let isCondNok = v.inputs.syrupCond === "NOK" ? "checked" : "";
-        let showCondReason = isCondNok ? "block" : "none";
+        let isIdOk = v.inputs.syrupId === "OK" ? "checked" : ""; let isIdNok = v.inputs.syrupId === "NOK" ? "checked" : ""; let showIdReason = isIdNok ? "block" : "none";
+        let isCondOk = v.inputs.syrupCond === "OK" ? "checked" : ""; let isCondNok = v.inputs.syrupCond === "NOK" ? "checked" : ""; let showCondReason = isCondNok ? "block" : "none";
 
         html += `
         <div class="input-group" style="background:#f8f9fa; padding:12px; border-radius:6px; margin-top:5px; border: 1px solid #dee2e6;">
@@ -2752,66 +2874,31 @@
             <select id="vi_syrupCond_reason" style="display:${showCondReason}; border-color:#dc3545;" onchange="vInput('syrupCondReason', this.value, '${v.prod}')">${sCondOpts}</select>
         </div>`;
 
-        // --- 6. Valve Sanitation (Sauberkeit) ---
         if(v.nav2 === "CCHBC") {
-            // Abwärtskompatibilität für ältere Audits (Ja -> OK, Nein -> NOK)
             let currentSaub = v.inputs.sauberkeit;
-            if (currentSaub === "Ja") currentSaub = "OK";
-            if (currentSaub === "Nein") currentSaub = "NOK";
-
-            let isSaubOk = currentSaub === "OK" ? "checked" : ""; 
-            let isSaubNok = currentSaub === "NOK" ? "checked" : "";
-            
-            html += `
-            <div class="input-group">
-                <label>Valve Sanitation (Sauberkeit)</label>
-                <div class="radio-group">
-                    <label><input type="radio" name="vi_sauber" value="OK" ${isSaubOk} onchange="vInput('sauberkeit', 'OK', '${v.prod}')"> OK</label>
-                    <label><input type="radio" name="vi_sauber" value="NOK" ${isSaubNok} onchange="vInput('sauberkeit', 'NOK', '${v.prod}')"> NOK</label>
-                </div>
-            </div>`;
+            if (currentSaub === "Ja") currentSaub = "OK"; if (currentSaub === "Nein") currentSaub = "NOK";
+            let isSaubOk = currentSaub === "OK" ? "checked" : ""; let isSaubNok = currentSaub === "NOK" ? "checked" : "";
+            html += `<div class="input-group"><label>Valve Sanitation (Sauberkeit)</label><div class="radio-group"><label><input type="radio" name="vi_sauber" value="OK" ${isSaubOk} onchange="vInput('sauberkeit', 'OK', '${v.prod}')"> OK</label><label><input type="radio" name="vi_sauber" value="NOK" ${isSaubNok} onchange="vInput('sauberkeit', 'NOK', '${v.prod}')"> NOK</label></div></div>`;
         }
 
-        // --- 7. Beverage Temperature ---
         html += buildInput("Beverage Temperature C°", "temp", "number", `step="0.1"`);
 
-        // --- 8. Beverage Taste ---
         if(v.nav2 === "CCHBC") {
             let tasteOpts = `<option value="">-- Grund --</option>`; 
             let currentTaste = v.inputs.geschmackReason ? String(v.inputs.geschmackReason).trim() : "";
-            lookups.taste.forEach(t => { 
-                let tBez = String(t.bez).trim();
-                tasteOpts += `<option value="${tBez}" ${currentTaste === tBez ? "selected" : ""}>${tBez}</option>`; 
-            });
-            
-            let isT_Ok = v.inputs.geschmack === "OK" ? "checked" : ""; 
-            let isT_Nok = v.inputs.geschmack === "NOK" ? "checked" : ""; 
-            let showReason = isT_Nok ? "block" : "none";
-            
+            lookups.taste.forEach(t => { tasteOpts += `<option value="${String(t.bez).trim()}" ${currentTaste === String(t.bez).trim() ? "selected" : ""}>${String(t.bez).trim()}</option>`; });
+            let isT_Ok = v.inputs.geschmack === "OK" ? "checked" : ""; let isT_Nok = v.inputs.geschmack === "NOK" ? "checked" : ""; let showReason = isT_Nok ? "block" : "none";
             html += `<div class="input-group"><label>Beverage Taste</label><div class="radio-group" style="margin-bottom:5px;"><label><input type="radio" name="vi_taste" value="OK" ${isT_Ok} onchange="vTasteToggle('OK', '${v.prod}')"> OK</label><label><input type="radio" name="vi_taste" value="NOK" ${isT_Nok} onchange="vTasteToggle('NOK', '${v.prod}')"> NOK</label></div><select id="vi_taste_reason" style="display:${showReason}; border-color:#dc3545;" onchange="vInput('geschmackReason', this.value, '${v.prod}')">${tasteOpts}</select></div>`;
         }
 
-        // --- 9. Water ---
         html += buildInput("Water ml", "water", "number");
-
-        // --- 10. Syrup ---
         html += buildInput("Syrup ml", "syrup", "number");
-
-        // --- 11. Ratio ---
         html += buildInput("Ratio (Auto/Manuell)", "ratio", "number", `step="0.1"`);
-
-        // --- 12. Brix ---
         html += buildInput("Brix (%)", "brix", "number", `step="0.1"`);
-
-        // --- 13. CO2-Vol ---
         html += buildInput("CO2-Vol (Optional)", "co2", "number", `step="0.1" data-optional="true"`);
-
-        // --- Kommentar ---
         html += `<div class="input-group" style="border-top:1px solid #ddd; padding-top:10px;"><label>Kommentar</label><textarea id="vi_kommentar" oninput="vInput('kommentar', this.value, '${v.prod}')" placeholder="Optionale Bemerkungen...">${v.inputs.kommentar || ""}</textarea></div>`;
 
         fieldsBox.innerHTML = html;
-        
-        // Trigger dummy um Disabled-States für Ratio/Brix korrekt zu setzen
         vInput('dummy', '', v.prod); 
     }
 
@@ -2949,6 +3036,26 @@
             }
         }
     }
+    // Spezifische Validierung für TDS (Ice And Water)
+    function checkTdsValue(inputElement) {
+        const value = parseFloat(inputElement.value);
+        
+        // Wenn das Feld leer ist, Formatierung entfernen
+        if (isNaN(value)) {
+            inputElement.className = ""; 
+            inputElement.title = "";
+            return;
+        }
+        
+        // Prüfung für "TDS ppm" (Grenzwert: 500)
+        if (value > 500) {
+            inputElement.className = "val-nok";
+            inputElement.title = "Kritischer Wert: TDS darf nicht größer als 500 ppm sein!";
+        } else {
+            inputElement.className = "val-ok";
+            inputElement.title = "Wert im Normbereich (<= 500 ppm)";
+        }
+    }
     // Spezifische Validierung für Tab 4 (Ice And Water)
     function checkWaterCount(inputElement) {
         const value = parseFloat(inputElement.value);
@@ -3018,6 +3125,8 @@
     }
     // --- NEUE FUNKTION: Prüft, ob ein einzelnes Ventil komplett ist ---
     function isValveComplete(v) {
+        if (v.inputs.isLeer) return { isOK: true, fields: [] }; // NEU: Leere Valves sind sofort "OK"
+        
         if (!v.nav2 || v.nav2.trim() === "") {
             return { isOK: true, fields: [] };
         }
@@ -3037,10 +3146,8 @@
             if (!v.inputs.expireDate) missing.push("MHD / Expire Date");
         }
 
-        // NEU: Validierung für Syrup
         if (!v.inputs.syrupId) missing.push("Syrup Identification");
         if (v.inputs.syrupId === "NOK" && !v.inputs.syrupIdReason) missing.push("Grund für Syrup ID NOK");
-
         if (!v.inputs.syrupCond) missing.push("Syrup Condition");
         if (v.inputs.syrupCond === "NOK" && !v.inputs.syrupCondReason) missing.push("Grund für Syrup Cond NOK");
 
@@ -3894,12 +4001,12 @@
     // NEU: Berechnet die Scores anhand der gemessenen Ventile und der Grenzwerte (NUR FÜR CCHBC PRODUKTE)
     function berechneScores() {
         let scores = {
-            total_samples: 0, // NEU für Spalte BB: Zählt alle CCHBC Ventile
-            co2_samples: 0,   // Spalte BC
-            taste_ok: 0,      // Spalte BD
-            co2_ok: 0,        // Spalte BE
-            temp_ok: 0,       // Spalte BF
-            brix_ratio_ok: 0  // Spalte BG
+            total_samples: 0, 
+            co2_samples: 0,   
+            taste_ok: 0,      
+            co2_ok: 0,        
+            temp_ok: 0,       
+            brix_ratio_ok: 0  
         };
 
         if (!auditData.dispensers) return scores;
@@ -3907,17 +4014,18 @@
         auditData.dispensers.forEach(d => {
             d.valves.forEach(v => {
                 
+                // NEU: Wenn das Ventil als "leer" markiert ist, komplett überspringen!
+                if (v.inputs.isLeer) return; 
+                
                 // CCHBC Check
                 let isCchbc = v.nav2 ? String(v.nav2).toUpperCase().trim() : "";
                 if (isCchbc !== "CCHBC") return; 
 
-                // 1. Total Samples (Spalte BB): Jedes CCHBC Ventil erhöht diesen Zähler
+                // 1. Total Samples (Spalte BB)
                 scores.total_samples++;
 
                 // 2. Taste OK (Spalte BD)
-                if (v.inputs.geschmack === "OK") {
-                    scores.taste_ok++;
-                }
+                if (v.inputs.geschmack === "OK") scores.taste_ok++;
 
                 // 3. Temp OK (Spalte BF)
                 if (v.inputs.temp !== undefined && String(v.inputs.temp).trim() !== "") {
@@ -3926,10 +4034,8 @@
 
                 // 4. CO2 Samples (Spalte BC) & CO2 OK (Spalte BE)
                 if (v.inputs.co2 !== undefined && String(v.inputs.co2).trim() !== "") {
-                    scores.co2_samples++; // Wurde gemessen
-                    if (istWertImLimit(v.prod, 'CO2', v.inputs.co2)) {
-                        scores.co2_ok++; // Wert ist im Limit
-                    }
+                    scores.co2_samples++; 
+                    if (istWertImLimit(v.prod, 'CO2', v.inputs.co2)) scores.co2_ok++; 
                 }
 
                 // 5. Brix / Ratio OK (Spalte BG)
@@ -3956,6 +4062,15 @@
         // Das setzt alle JS-Variablen (currentUser, stammdatenSpeicher etc.) hart zurück
         location.reload();
     }
+    // ==========================================================
+    // --- SCROLL-SCHUTZ FÜR ZAHLEN-EINGABEN (WHEEL-PREVENT) ---
+    // ==========================================================
+    // Verhindert, dass das Maus-Scrollrad die Werte von Zahlenfeldern (wie Ratio/ml) versehentlich ändert.
+    document.addEventListener('wheel', function(event) {
+        if (document.activeElement && document.activeElement.type === 'number') {
+            document.activeElement.blur(); // Nimmt den Fokus aus dem Feld, sodass die normale Seite gescrollt wird
+        }
+    });
     // --- AUTO-LOGIN PRÜFUNG BEIM START ---
     window.addEventListener('DOMContentLoaded', (event) => {
         const savedUser = localStorage.getItem('qa_saved_user');
