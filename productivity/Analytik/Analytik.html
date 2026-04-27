@@ -189,10 +189,37 @@
     </div>
 
     <div id="appScreen">
-    <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 20px;">
-        <div id="stammdatenStatus" class="status-badge" style="margin-bottom: 0; flex: 1;">Warte auf Login...</div>
-        <button class="btn-danger" style="width: auto; padding: 8px 15px;" onclick="logout()">🚪 Abmelden</button>
-    </div>
+        
+        <!-- NEUER, AUFGERÄUMTER HEADER -->
+        <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: stretch; gap: 15px; margin-bottom: 20px; background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+            <div id="stammdatenStatus" class="status-badge" style="margin: 0; display: flex; align-items: center; justify-content: center; min-width: 200px; font-size: 1.1rem;">Warte auf Login...</div>
+            <div style="display: flex; gap: 10px; flex: 1; justify-content: flex-end;">
+                <button class="btn-main" id="btnMyAudits" style="background: #10b981; display: none; margin: 0; max-width: 300px; font-size: 1rem;" onclick="openMyAudits()">📂 Meine Audits</button>
+                <button class="btn-danger" style="margin: 0; display: flex; align-items: center; justify-content: center; padding: 10px 20px;" onclick="logout()">🚪 Abmelden</button>
+            </div>
+        </div>
+
+        <!-- NEUES MODAL: MEINE AUDITS LISTE MIT FILTER -->
+        <div id="myAuditsModal" class="modal-overlay">
+            <div class="modal-content" style="max-width: 900px; width: 95%;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom: 2px solid #eee; padding-bottom: 10px;">
+                    <h2 style="margin:0; color:var(--primary);">📂 Meine Audits</h2>
+                    
+                    <!-- NEUER MONATS-FILTER -->
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <label style="font-weight: bold; color: #555;">Monat:</label>
+                        <input type="month" id="auditMonthFilter" onchange="renderMyAuditsList()" style="padding: 8px; border: 1px solid var(--border); border-radius: 6px; font-family: inherit;">
+                    </div>
+
+                    <button class="btn-danger" style="width:auto;" onclick="document.getElementById('myAuditsModal').style.display='none'">✖ Schließen</button>
+                </div>
+                
+                <!-- HIER KOMMT DIE KOMPAKTE LISTE REIN -->
+                <div id="myAuditsList" style="max-height: 65vh; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;">
+                    <!-- Liste wird per JS befüllt -->
+                </div>
+            </div>
+        </div>
 
         <div class="card" id="step1Card">
             <h2>1. Audit starten (Suche)</h2>
@@ -679,6 +706,7 @@
         statusDiv.innerHTML = "✅ <b>System bereit.</b>";
         document.getElementById('customerSearchInput').disabled = false; 
         document.getElementById('eqStartSearchInput').disabled = false;
+        document.getElementById('btnMyAudits').style.display = 'block';
     }
     // --- SCHRITT 1: KUNDE ---
     function sucheKunde() {
@@ -4071,6 +4099,180 @@
             document.activeElement.blur(); // Nimmt den Fokus aus dem Feld, sodass die normale Seite gescrollt wird
         }
     });
+    // ==========================================================
+    // --- NEU: MEINE EIGENEN AUDITS ANZEIGEN UND LADEN       ---
+    // ==========================================================
+    
+    let loadedMyAudits = {}; // Globaler Zwischenspeicher für den Filter
+
+    function openMyAudits() {
+        const assDaten = getSheetData("EquipmentAssesment");
+        const kundenDaten = getSheetData("KundenListe");
+        const eqDaten = getSheetData("EquipmentListe");
+
+        if(assDaten.length < 2) {
+            alert("Noch keine Audits in der Datenbank vorhanden.");
+            return;
+        }
+
+        loadedMyAudits = {}; // Reset
+
+        // Finde die richtigen Spalten
+        const aHead = assDaten[0].map(h => String(h).toLowerCase().trim());
+        const iEqNum = aHead.indexOf("equipment_no") !== -1 ? aHead.indexOf("equipment_no") : 1;
+        const iOm = aHead.indexOf("om_no") !== -1 ? aHead.indexOf("om_no") : 2;
+        const iDate = aHead.indexOf("datum") !== -1 ? aHead.indexOf("datum") : 3;
+        const iBesitzer = aHead.indexOf("besitzer");
+
+        const kHead = kundenDaten[0].map(h => String(h).toLowerCase().trim());
+        const kIdxOm = kHead.findIndex(h => h === "om_no" || h === "om_nr." || h === "om_nr");
+        const kIdxName = kHead.indexOf("name");
+
+        const eqHead = eqDaten[0].map(h => String(h).toLowerCase().trim());
+        const eqIdxTech = eqHead.indexOf("tech ident no");
+
+        // Wir gehen die Liste rückwärts durch (alle Audits des Users sammeln)
+        for(let i = assDaten.length - 1; i >= 1; i--) {
+            let row = assDaten[i];
+            let owner = iBesitzer !== -1 ? String(row[iBesitzer]).trim().toLowerCase() : "";
+            
+            // Zeige Audits, wenn du der Besitzer bist
+            if(owner === currentUser.toLowerCase() || owner === "") {
+                let eqSap = row[iEqNum];
+                let om = row[iOm];
+                
+                // FIX: Übersetzt YYYYMMDD (z.B. 20260421) in DD.MM.YYYY (21.04.2026)
+                let rawDate = String(row[iDate]).trim();
+                let datum = rawDate;
+                if (rawDate.length === 8 && !isNaN(rawDate)) {
+                    let yyyy = rawDate.substring(0, 4);
+                    let mm = rawDate.substring(4, 6);
+                    let dd = rawDate.substring(6, 8);
+                    datum = `${dd}.${mm}.${yyyy}`;
+                } else {
+                    datum = formatToCHDate(rawDate); // Fallback falls es doch anders drinsteht
+                }
+
+                let groupKey = datum + "_" + om;
+
+                if (!loadedMyAudits[groupKey]) {
+                    let kName = "Unbekannter Kunde";
+                    if(kIdxOm !== -1 && kIdxName !== -1) {
+                        let kRow = kundenDaten.find(r => String(r[kIdxOm]).trim() === String(om).trim());
+                        if(kRow) kName = kRow[kIdxName];
+                    }
+                    loadedMyAudits[groupKey] = { datum: datum, om: om, kName: kName, equipments: [] };
+                }
+
+                let techId = eqSap;
+                if(eqIdxTech !== -1) {
+                    let eqRow = eqDaten.find(r => String(r[0]).trim() === String(eqSap).trim());
+                    if(eqRow) techId = eqRow[eqIdxTech];
+                }
+
+                if (!loadedMyAudits[groupKey].equipments.includes(techId)) {
+                    loadedMyAudits[groupKey].equipments.push(techId);
+                }
+            }
+        }
+
+        // Filterfeld zurücksetzen (damit standardmäßig alle gezeigt werden)
+        document.getElementById('auditMonthFilter').value = "";
+        
+        renderMyAuditsList(); 
+        document.getElementById('myAuditsModal').style.display = 'flex';
+    }
+
+    // Zeichnet die Liste neu, wenn man den Monat ändert oder das Fenster öffnet
+    function renderMyAuditsList() {
+        const listContainer = document.getElementById('myAuditsList');
+        listContainer.innerHTML = "";
+        
+        let filterVal = document.getElementById('auditMonthFilter').value; 
+        let fYear = null, fMonth = null;
+        if (filterVal) {
+            let parts = filterVal.split('-');
+            fYear = parts[0];
+            fMonth = parts[1];
+        }
+
+        let keys = Object.keys(loadedMyAudits);
+        let count = 0;
+
+        keys.forEach(key => {
+            let grp = loadedMyAudits[key];
+            let show = true;
+            
+            // Wenn ein Filter gesetzt ist, prüfe das Datum exakt
+            if (fYear && fMonth) {
+                let dParts = grp.datum.split('.'); 
+                if (dParts.length === 3) {
+                    let extMonth = dParts[1].padStart(2, '0');
+                    let extYear = dParts[2];
+                    if (extMonth !== fMonth || extYear !== fYear) {
+                        show = false; // Gehört nicht zu diesem Monat
+                    }
+                } else {
+                    show = false; 
+                }
+            }
+
+            // Wenn KEIN Filter gesetzt ist, limitieren wir die Liste auf die letzten 40
+            if (!fYear && count >= 40) {
+                show = false;
+            }
+
+            if (show) {
+                count++;
+                listContainer.innerHTML += `
+                    <div style="display:grid; grid-template-columns: 100px 1fr auto; gap: 15px; align-items: center; background:#fff; border:1px solid #cbd5e1; padding: 12px 15px; border-radius: 8px;">
+                        <div style="font-weight:bold; color:#0f172a; font-size: 1.1rem;">${grp.datum}</div>
+                        <div style="line-height: 1.4;">
+                            <span style="font-weight:bold; color:var(--primary); font-size:1.1rem;">${grp.om}</span> - <span style="font-weight:500; color:#334155;">${grp.kName}</span><br>
+                            <span style="color:#64748b; font-size: 0.85rem;">🔧 ${grp.equipments.length} Geräte: ${grp.equipments.join(', ')}</span>
+                        </div>
+                        <button class="btn-main" style="padding:10px 20px; font-size:0.95rem; border-radius: 6px;" onclick="resumeMyAudit('${grp.om}', '${grp.datum}')">➔ Laden</button>
+                    </div>
+                `;
+            }
+        });
+
+        if(count === 0) {
+            listContainer.innerHTML = `<p style='padding:20px; color:#666; text-align:center; font-size: 1.1rem; background: #f8f9fa; border-radius: 8px;'>Keine Audits für diese Auswahl gefunden.</p>`;
+        }
+    }
+
+    function resumeMyAudit(omNo, datum) {
+        document.getElementById('myAuditsModal').style.display = 'none';
+        blockUI("Lade Kunde...");
+        
+        // 1. Datum im Haupt-Formular eintragen (Direkt als String, da es jetzt DD.MM.YYYY ist)
+        let dateInput = document.getElementById('auditDateInput');
+        dateInput.value = datum;
+        
+        // Den unsichtbaren HTML-Kalender sicherheitshalber mitsynchronisieren
+        let dParts = datum.split('.');
+        if (dParts.length === 3) {
+            let hiddenCal = dateInput.nextElementSibling;
+            if(hiddenCal && hiddenCal.type === 'date') {
+                hiddenCal.value = `${dParts[2]}-${dParts[1]}-${dParts[0]}`;
+            }
+        }
+        
+        // 2. Finde und lade den Kunden
+        const kundenDaten = getSheetData("KundenListe");
+        const kHeaders = kundenDaten[0].map(h => String(h).toLowerCase().trim());
+        const idxOmNo = kHeaders.findIndex(h => h === "om_no" || h === "om_nr." || h === "om_nr");
+        
+        let kRow = kundenDaten.find(r => String(r[idxOmNo]).trim() === String(omNo).trim());
+        if(kRow) {
+            waehleKundeAus(kRow, kundenDaten[0]);
+            unblockUI();
+        } else {
+            unblockUI();
+            alert("Fehler: Dieser Kunde konnte in der aktuellen Datenbank nicht gefunden werden.");
+        }
+    }
     // --- AUTO-LOGIN PRÜFUNG BEIM START ---
     window.addEventListener('DOMContentLoaded', (event) => {
         const savedUser = localStorage.getItem('qa_saved_user');
