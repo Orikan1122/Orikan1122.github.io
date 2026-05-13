@@ -9606,31 +9606,35 @@ function updateCO2Dashboard() {
 function updateWasteDashboard() {
     if (!globalWasteData || globalWasteData.length === 0) return;
 
-    // --- NEU: Dynamisches Jahr einstellen (KORRIGIERT) ---
+    // --- NEU: Dynamische Suche nach dem Jahr und Monat ---
     const yearSel = document.getElementById('wasteYear');
-    let availableYears = [...new Set(globalWasteData.map(r => String(r.Year)).filter(Boolean))].sort((a,b) => b - a);
     
-    // Die Sperre wird JTEZT NUR gesetzt, wenn auch wirklich Daten gefunden wurden!
-    if (availableYears.length > 0 && !yearSel.dataset.loaded) {
+    // 1. Extrahiere alle Jahre aus den Daten
+    let availableYears = [...new Set(globalWasteData.map(r => String(r.Year || r.year)).filter(y => y && y !== 'undefined'))].sort((a,b) => b - a);
+    
+    // 2. Dropdown nur befüllen, wenn noch leer
+    if (yearSel.options.length === 0 && availableYears.length > 0) {
         yearSel.innerHTML = availableYears.map(y => `<option value="${y}">${y}</option>`).join('');
-        yearSel.value = availableYears[0]; // Das aktuellste vorhandene Jahr (z.B. 2025) auswählen
-        yearSel.dataset.loaded = "true";
     }
-    // -----------------------------------------------------------------------
+    
+    // Fallback falls immer noch kein Wert ausgewählt ist
+    if (!yearSel.value && availableYears.length > 0) {
+        yearSel.value = availableYears[0];
+    }
+    
+    const cy = yearSel.value;
+    if (!cy) return; // Wenn kein Jahr gewählt werden kann, abbrechen
 
-    // 1. Filter auslesen
-    const cy = document.getElementById('wasteYear').value;
     const py = (parseInt(cy) - 1).toString();
     const cutoffMonth = parseInt(document.getElementById('wasteMonth').value);
     
-    const metric = document.getElementById('wasteMetric').value; // 'Cost' oder 'Kg'
+    const metric = document.getElementById('wasteMetric').value; 
     const fGroup = document.getElementById('wasteProductGroup').value;
-    const fType = document.getElementById('wasteType').value; // 'All', 'Loss', 'Waste'
+    const fType = document.getElementById('wasteType').value;
 
-    // 2. Daten filtern
+    // Ab hier geht deine Filter-Logik weiter...
     const isMatch = (r, ignoreLossWasteFilter = false) => {
-        if (fGroup !== 'All' && r.ProductGroup !== fGroup) return false;
-        // WICHTIG: Die Taxonomie ignoriert den Loss/Waste Filter, damit sie nicht verschwindet!
+        let rYear = String(r.Year || r.year || ''); // Hier ebenfalls Year oder year prüfen
         if (!ignoreLossWasteFilter && fType !== 'All' && r.LossType !== fType) return false;
         return true;
     };
