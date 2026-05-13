@@ -251,63 +251,58 @@
 </div>
 
 <!-- ============================================================ -->
-<!-- TAB: DASHBOARD                                               -->
+<!-- TAB: MASTER DASHBOARD                                        -->
 <!-- ============================================================ -->
 <div class="tab-pane active" id="pDashboard">
   <div class="dash-layout">
-
+    
     <!-- LINKE SEITE: Filter -->
     <div class="dash-filters" style="width: 200px; min-width: 200px; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); position: sticky; top: 15px; max-height: 90vh; overflow-y: auto;">
-      <div class="filter-title">Loss & Waste Filter</div>
-      
+      <div class="filter-title">Master Filter</div>
       <div>
-        <label>Current Year (CY)</label>
-        <select id="wasteYear" onchange="updateWasteDashboard()">
-          <option value="2026" selected>2026</option>
-          <option value="2025">2025</option>
-        </select>
+        <label>Jahr</label>
+        <select id="chartYear" onchange="updateCharts(); renderExecutiveSummary();"></select>
       </div>
       <div style="margin-top: 10px;">
-        <label>Analysemonat (YTD Cutoff / MTD)</label>
-        <select id="wasteMonth" onchange="updateWasteDashboard()">
+        <label>Monat (Für Executive Summary)</label>
+        <select id="masterMonth" onchange="renderExecutiveSummary();">
           <option value="1">Januar</option><option value="2">Februar</option><option value="3">März</option>
-          <option value="4" selected>April</option><option value="5">Mai</option><option value="6">Juni</option>
+          <option value="4">April</option><option value="5">Mai</option><option value="6">Juni</option>
           <option value="7">Juli</option><option value="8">August</option><option value="9">September</option>
           <option value="10">Oktober</option><option value="11">November</option><option value="12">Dezember</option>
         </select>
       </div>
       <div style="margin-top: 10px;">
-        <label>Metrik Basis</label>
-        <select id="wasteMetric" onchange="updateWasteDashboard()">
-          <option value="Kg">Volume (Kg)</option>
-          <option value="Cost">Cost (CHF)</option>
-        </select>
-      </div>
-      <hr style="margin: 15px 0;">
-      <div>
-        <label>Category / Standort</label>
-        <select id="wasteProductGroup" onchange="updateWasteDashboard()">
-          <option value="All">Alle (National)</option>
-          <option disabled>── Standorte (Abfall & Loss) ──</option>
-          <option value="Dietlikon">Dietlikon</option>
-          <option value="Opfikon">Opfikon</option>
-          <option value="Rümlang">Rümlang</option>
-          <option value="Vals">Vals</option>
-          <option value="Zizers">Zizers</option>
-          <option disabled>── Product Categories (Nur Loss) ──</option>
-          <option value="Imports">Imports</option>
-          <option value="Monster">Monster</option>
-          <option value="Coffee">Coffee</option>
-          <option value="Alkohol">Alkohol</option>
-          <option value="Trade">Trade / Caotina / Tea</option>
+        <label>Werk / Plant</label>
+        <select id="chartPlant" onchange="updateLineDropdown(); updateBrandDropdown(); updateCharts(); renderExecutiveSummary();">
+          <option value="">National (Alle)</option>
+          <option value="5511">Dietlikon</option>
+          <option value="5501">Vals</option>
         </select>
       </div>
       <div style="margin-top: 10px;">
-        <label>Food Loss vs Waste</label>
-        <select id="wasteType" onchange="updateWasteDashboard()">
-          <option value="All">Beides (Total)</option>
-          <option value="Loss">Nur Food Loss (Internal)</option>
-          <option value="Waste">Nur Food Waste (Market Returns)</option>
+        <label>Linie</label>
+        <select id="chartLine" onchange="updateBrandDropdown(); updateCharts();"></select>
+      </div>
+      <div style="margin-top: 10px;">
+        <label>Brand</label>
+        <select id="chartBrand" onchange="updateCharts();"></select>
+      </div>
+      <hr style="margin: 15px 0;">
+      <div>
+        <label>Metrik (Main Chart)</label>
+        <select id="chartMetric" onchange="updateCharts();">
+          <option value="total_units">Total Units</option>
+          <option value="total Liters">Total Liters</option>
+          <option value="DPMO_Total">DPMO Total</option>
+        </select>
+      </div>
+      <div style="margin-top: 10px;">
+        <label>X-Achse</label>
+        <select id="chartXAxis" onchange="updateCharts();">
+          <option value="_fiscper_month">Monat</option>
+          <option value="cbrand_desc">Brand</option>
+          <option value="plant_workcenter_key">Linie</option>
         </select>
       </div>
     </div>
@@ -315,249 +310,68 @@
     <!-- RECHTE SEITE: Visuals -->
     <div class="dash-chart" style="flex:1; background: #e8eaed; padding: 15px; border-radius: 8px; min-width: 0; margin-left: 15px;">
       
-      <!-- TAXONOMY MATRIX -->
+      <!-- Executive Summary Tabelle -->
       <div style="background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px;">
-        <h3 id="taxTitle" style="font-size: 18px; margin-bottom: 15px; color:#1e1e1e; text-align:left; border-bottom: 2px solid #eee; padding-bottom:10px;">What are the Food Waste Categories (YTD % Split)</h3>
-        
-        <div style="display:flex; gap: 20px; align-items: stretch;">
-            <!-- FOOD LOSS SECTION -->
-            <div style="flex: 4;">
-                <div style="background:#f2c500; color:#000; font-weight:bold; padding:6px; border-radius:4px; margin-bottom:15px; text-align:center;">Food Loss</div>
-                
-                <div style="display:flex; gap: 15px; align-items:flex-start;">
-                    <!-- Col 1: Quality -->
-                    <div style="flex:1; display:flex; flex-direction:column; gap:10px;">
-                        <div style="background:#fde989; padding:8px; border-radius:3px; font-size:11px;"><b>3</b> Quality Issue <div id="tax_3" style="font-weight:bold; font-size:13px; color:#c00000; margin-top:3px;">0.0%</div></div>
-                        <div style="background:#fde989; padding:8px; border-radius:3px; font-size:11px;"><b>62</b> Quality Issue 3rd Party <div id="tax_62" style="font-weight:bold; font-size:13px; color:#c00000; margin-top:3px;">0.0%</div></div>
-                        <div style="margin-top:auto; font-weight:bold; color:#c00000; font-size:16px; padding-top:10px; border-top:1px solid #eee;" id="tax_col1">0%</div>
-                    </div>
-                    
-                    <!-- Col 2: Expired -->
-                    <div style="flex:1; display:flex; flex-direction:column; gap:10px;">
-                        <div style="background:#fde989; padding:8px; border-radius:3px; font-size:11px;"><b>10</b> Expired WH <div id="tax_10" style="font-weight:bold; font-size:13px; color:#c00000; margin-top:3px;">0.0%</div></div>
-                        <div style="background:#fde989; padding:8px; border-radius:3px; font-size:11px;"><b>43</b> Expired Forecasting Error <div id="tax_43" style="font-weight:bold; font-size:13px; color:#c00000; margin-top:3px;">0.0%</div></div>
-                        <div style="background:#fde989; padding:8px; border-radius:3px; font-size:11px;"><b>42</b> Expired Planning Error <div id="tax_42" style="font-weight:bold; font-size:13px; color:#c00000; margin-top:3px;">0.0%</div></div>
-                        <div style="background:#fde989; padding:8px; border-radius:3px; font-size:11px;"><b>44</b> Expired New Prod. Launches <div id="tax_44" style="font-weight:bold; font-size:13px; color:#c00000; margin-top:3px;">0.0%</div></div>
-                        <div style="background:#fde989; padding:8px; border-radius:3px; font-size:11px;"><b>45</b> Expired De-listed <div id="tax_45" style="font-weight:bold; font-size:13px; color:#c00000; margin-top:3px;">0.0%</div></div>
-                        <div style="background:#fde989; padding:8px; border-radius:3px; font-size:11px;"><b>53</b> Expired End of useful life <div id="tax_53" style="font-weight:bold; font-size:13px; color:#c00000; margin-top:3px;">0.0%</div></div>
-                        <div style="margin-top:auto; font-weight:bold; color:#c00000; font-size:16px; padding-top:10px; border-top:1px solid #eee;" id="tax_col2">0%</div>
-                    </div>
-                    
-                    <!-- Col 3: Damages WH -->
-                    <div style="flex:1; display:flex; flex-direction:column; gap:10px;">
-                        <div style="background:#fde989; padding:8px; border-radius:3px; font-size:11px;"><b>21</b> Damage in WH <div id="tax_21" style="font-weight:bold; font-size:13px; color:#c00000; margin-top:3px;">0.0%</div></div>
-                        <div style="background:#fde989; padding:8px; border-radius:3px; font-size:11px;"><b>22</b> Leakage in WH <div id="tax_22" style="font-weight:bold; font-size:13px; color:#c00000; margin-top:3px;">0.0%</div></div>
-                        <div style="background:#fde989; padding:8px; border-radius:3px; font-size:11px;"><b>23</b> Damages in prep. zone <div id="tax_23" style="font-weight:bold; font-size:13px; color:#c00000; margin-top:3px;">0.0%</div></div>
-                        <div style="background:#fde989; padding:8px; border-radius:3px; font-size:11px;"><b>31</b> Damages Truck Un/loading <div id="tax_31" style="font-weight:bold; font-size:13px; color:#c00000; margin-top:3px;">0.0%</div></div>
-                        <div style="background:#fde989; padding:8px; border-radius:3px; font-size:11px;"><b>51</b> Damages unloading prod. <div id="tax_51" style="font-weight:bold; font-size:13px; color:#c00000; margin-top:3px;">0.0%</div></div>
-                        <div style="margin-top:auto; font-weight:bold; color:#c00000; font-size:16px; padding-top:10px; border-top:1px solid #eee;" id="tax_col3">0%</div>
-                    </div>
-                    
-                    <!-- Col 4: Damages Ext -->
-                    <div style="flex:1; display:flex; flex-direction:column; gap:10px;">
-                        <div style="background:#fde989; padding:8px; border-radius:3px; font-size:11px;"><b>41</b> Damages Force Majeure <div id="tax_41" style="font-weight:bold; font-size:13px; color:#c00000; margin-top:3px;">0.0%</div></div>
-                        <div style="background:#fde989; padding:8px; border-radius:3px; font-size:11px;"><b>61</b> Damages 3rd party <div id="tax_61" style="font-weight:bold; font-size:13px; color:#c00000; margin-top:3px;">0.0%</div></div>
-                        <div style="background:#fde989; padding:8px; border-radius:3px; font-size:11px;"><b>63</b> Damages own drivers <div id="tax_63" style="font-weight:bold; font-size:13px; color:#c00000; margin-top:3px;">0.0%</div></div>
-                        <div style="background:#fde989; padding:8px; border-radius:3px; font-size:11px;"><b>64</b> Theft <div id="tax_64" style="font-weight:bold; font-size:13px; color:#c00000; margin-top:3px;">0.0%</div></div>
-                        <div style="margin-top:auto; font-weight:bold; color:#c00000; font-size:16px; padding-top:10px; border-top:1px solid #eee;" id="tax_col4">0%</div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- FOOD WASTE SECTION -->
-            <div style="flex: 1.5; border-left: 2px dashed #ccc; padding-left: 20px;">
-                <div style="background:#c00000; color:#fff; font-weight:bold; padding:6px; border-radius:4px; margin-bottom:15px; text-align:center;">Food Waste</div>
-                
-                <div style="display:flex; flex-direction:column; gap:10px;">
-                    <div style="border:1px solid #c00000; padding:8px; border-radius:3px; font-size:11px; background:#fff;"><b>11</b> Returned Short SLED <div id="tax_11" style="font-weight:bold; font-size:13px; color:#c00000; margin-top:3px;">0.0%</div></div>
-                    <div style="border:1px solid #c00000; padding:8px; border-radius:3px; font-size:11px; background:#fff;"><b>12</b> Returned Expired <div id="tax_12" style="font-weight:bold; font-size:13px; color:#c00000; margin-top:3px;">0.0%</div></div>
-                    <div style="font-weight:bold; color:#c00000; font-size:16px; padding-top:10px; border-top:1px solid #eee; margin-bottom: 10px;" id="tax_col5">0%</div>
-                    
-                    <!-- SUMMARY BOX MTD & YTD -->
-                    <div style="border:1px solid #c00000; padding:10px; border-radius:3px; font-size:12px; line-height: 1.6; background:#fef8f8;">
-                        <b style="font-size:14px;" id="sumTitleYTD">YTD Summary</b><br>
-                        Volume: <b id="sumYtdKg" style="float:right;">0 Kg</b><br>
-                        Cost: <b id="sumYtdChf" style="float:right;">0 CHF</b><br>
-                        <hr style="border:none; border-top:1px dashed #ccc; margin:5px 0;">
-                        <b style="font-size:14px;" id="sumTitleMTD">MTD Summary</b><br>
-                        Volume: <b id="sumMtdKg" style="float:right;">0 Kg</b><br>
-                        Cost: <b id="sumMtdChf" style="float:right;">0 CHF</b>
-                    </div>
-                </div>
-            </div>
-        </div>
-      </div>
-
-      <!-- YTD VERGLEICHS TABELLE -->
-      <div style="background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px;">
-        <h3 id="lblYtdTitle" style="font-size: 16px; margin-bottom: 10px; color:#1e1e1e;">YTD Comparison: CY vs PY</h3>
+        <h3 id="execTitle" style="font-size: 16px; margin-bottom: 15px; color:#003366;">📊 Executive Plant Summary</h3>
         <div style="overflow-x: auto;">
           <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
-            <thead style="background: #e3008c; color: white;">
+            <thead style="background: #e8e6e3; border-bottom: 2px solid #ccc;">
               <tr>
-                <th style="padding: 10px;">Product Category</th>
-                <th style="padding: 10px; text-align:right;" id="thYtdCy">YTD CY</th>
-                <th style="padding: 10px; text-align:right;" id="thYtdPy">YTD PY</th>
-                <th style="padding: 10px; text-align:right;">Difference (Abs)</th>
-                <th style="padding: 10px; text-align:right;">Difference (%)</th>
-                <th style="padding: 10px;">Main Drivers (Top Reasons CY)</th>
+                <th style="padding: 6px 8px;">Kategorie</th>
+                <th style="padding: 6px 8px;">KPI</th>
+                <th style="padding: 6px 8px; text-align:right;">Month Act</th>
+                <th style="padding: 6px 8px; text-align:right;">Month BP/PY</th>
+                <th style="padding: 6px 8px; text-align:right;">Δ Var</th>
+                <th style="padding: 6px 8px; text-align:right; border-left: 2px solid #ccc;">YTD Act</th>
+                <th style="padding: 6px 8px; text-align:right;">YTD BP/PY</th>
+                <th style="padding: 6px 8px; text-align:right;">Δ Var</th>
               </tr>
             </thead>
-            <tbody id="wasteYtdTableBody"></tbody>
+            <tbody id="execTableBody"></tbody>
+          </table>
+        </div>
+        
+        <h4 style="font-size: 14px; margin-top: 20px; margin-bottom: 10px; color:#333;">🚀 Projekte in Umsetzung (YTD)</h4>
+        <div style="overflow-x: auto;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 11.5px; text-align: left;">
+            <thead style="background: #f4f7f6;">
+              <tr>
+                <th style="padding: 6px;">Status</th>
+                <th style="padding: 6px;">Kategorie</th>
+                <th style="padding: 6px;">Projekttitel</th>
+                <th style="padding: 6px;">Standort</th>
+                <th style="padding: 6px;">Endtermin</th>
+              </tr>
+            </thead>
+            <tbody id="execProjBody"></tbody>
           </table>
         </div>
       </div>
 
-      <!-- ROW 3: PARETO & MONTHLY TREND -->
-      <div style="display:flex; gap: 20px; flex-wrap: wrap; margin-bottom: 20px;">
-        <!-- Pareto -->
-        <div style="flex: 1.5; min-width: 350px; background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; flex-direction: column;">
-          <h4 style="font-size: 14px; color: #333; margin-bottom: 10px;" id="titlePareto">Top 10 Products (Pareto)</h4>
-          <div style="height: 250px; position: relative; flex-shrink: 0;"><canvas id="wasteChartTopMat"></canvas></div>
-          <div style="overflow-y: auto; flex: 1; margin-top: 15px; border-top: 1px solid #eee; padding-top:10px;">
-            <table style="width: 100%; border-collapse: collapse; font-size: 11px; text-align: left;">
-              <thead style="background: #f4f7f6; position: sticky; top: 0;">
-                <tr style="border-bottom:1px solid #ccc;">
-                  <th style="padding:6px;">#</th><th style="padding:6px;">Material</th>
-                  <th style="padding:6px; text-align:right;" id="thParetoMetric">Wert</th>
-                  <th style="padding:6px; text-align:right;">% of Total</th>
-                </tr>
-              </thead>
-              <tbody id="wasteParetoTableBody"></tbody>
-            </table>
-          </div>
-        </div>
-        
-        <!-- Monthly -->
-        <div style="flex: 2; min-width: 400px; background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; flex-direction: column;">
-          <h4 id="titleMonthly" style="font-size: 14px; color: #333; margin-bottom: 10px;">Monthly Trend (Stacked by Main Reason)</h4>
-          <div style="height: 250px; position: relative; flex-shrink: 0;"><canvas id="wasteChartMonthly"></canvas></div>
-          <div style="overflow-y: auto; flex: 1; margin-top: 15px; border-top: 1px solid #eee; padding-top:10px;">
-            <table style="width: 100%; border-collapse: collapse; font-size: 11px; text-align: right;">
-              <thead style="background: #f4f7f6; position: sticky; top: 0;" id="wasteMonthlyHead"></thead>
-              <tbody id="wasteMonthlyTableBody"></tbody>
-            </table>
-          </div>
+      <!-- Main Master Chart -->
+      <div style="background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+        <h3 id="chartTitle" style="font-size: 16px; margin-bottom: 10px; color:#333;">Master Analytics Chart</h3>
+        <div style="height: 350px; position: relative;">
+          <canvas id="mainChart"></canvas>
         </div>
       </div>
 
-      <!-- ROW 4: PACKAGE TYPE & LONGTERM HISTORICAL TREND -->
-      <div style="display:flex; gap: 20px; flex-wrap: wrap; margin-bottom: 20px;">
-        <!-- Package Type -->
-        <div style="flex: 1.5; min-width: 350px; background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; flex-direction: column;">
-          <h4 id="titlePackage" style="font-size: 14px; color: #333; margin-bottom: 10px;">Package Type Distribution</h4>
-          <div style="height: 250px; position: relative; flex-shrink: 0;"><canvas id="wasteChartPackage"></canvas></div>
-          <div style="overflow-x: auto; flex: 1; margin-top: 15px; border-top: 1px solid #eee; padding-top:10px;">
-            <table style="width: 100%; border-collapse: collapse; font-size: 11px; text-align: right;">
-              <thead style="background: #f4f7f6; position: sticky; top: 0;" id="wastePackageHead"></thead>
-              <tbody id="wastePackageBody"></tbody>
+      <!-- Drilldown Table (Unsichtbar bis Klick auf Chart) -->
+      <div id="chartTableWrap" style="display:none; background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-top:20px;">
+          <div id="colPickerWrap" style="display:none; margin-bottom: 10px;">
+              <div id="colPickerButtons" style="display:flex; flex-wrap:wrap; gap:5px;"></div>
+          </div>
+          <div style="overflow-x: auto; max-height: 400px;">
+            <table style="width: 100%; border-collapse: collapse;">
+              <thead id="chartTableHead"></thead>
+              <tbody id="chartTableBody"></tbody>
             </table>
           </div>
-        </div>
-        
-        <!-- Longterm History -->
-        <div style="flex: 2; min-width: 400px; background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; flex-direction: column;">
-          <h4 id="wasteTitleHist" style="font-size: 14px; color: #333; margin-bottom: 10px;">Longterm Historical Trend (2017 - YTD)</h4>
-          <div style="height: 300px; position: relative; flex-shrink: 0;"><canvas id="wasteChartHist"></canvas></div>
-          <div style="overflow-x: auto; margin-top: 15px; border-top: 1px solid #eee; padding-top:10px;">
-            <table style="width: 100%; border-collapse: collapse; font-size: 11px; text-align: right;">
-              <thead style="background: #f4f7f6; position: sticky; top: 0;" id="wasteHistHead"></thead>
-              <tbody id="wasteHistTableBody"></tbody>
-            </table>
-          </div>
-        </div>
       </div>
 
-      <!-- ========================================================= -->
-      <!-- NEU: PHYSICAL WASTE & RECYCLING                           -->
-      <!-- ========================================================= -->
-      <hr style="border:none; border-top: 2px dashed #ccc; margin: 30px 0;">
-      <h3 style="font-size: 18px; margin-bottom: 15px; color:#1e1e1e;">&#9672; Physical Plant Waste & Recycling</h3>
-
-      <div style="display:flex; gap: 20px; flex-wrap: wrap; margin-bottom: 20px; align-items: flex-start;">
-        
-        <!-- Kategorien Doughnut (Switch MTD/YTD) + Tabelle -->
-        <div style="flex: 1; min-width: 350px; background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-          <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-              <h4 style="font-size: 14px; color: #333; margin: 0;">Waste by Category</h4>
-              <select id="abfallCatToggle" onchange="window.renderAbfallCatChart()" style="padding: 4px 8px; border-radius: 4px; border: 1px solid #0078d4; color: #0078d4; font-weight: bold; cursor: pointer; outline: none;">
-                  <option value="MTD">MTD</option>
-                  <option value="YTD" selected>YTD</option>
-              </select>
-          </div>
-          <div style="height: 250px; position: relative;"><canvas id="abfallChartCat"></canvas></div>
-          
-          <div style="overflow-x: auto; margin-top: 15px; border-top: 1px solid #eee; padding-top: 10px;">
-            <table style="width: 100%; border-collapse: collapse; font-size: 11px; text-align: right;">
-              <thead style="background: #f4f7f6;">
-                  <tr>
-                      <th style="padding: 6px; text-align: left;">Kategorie</th>
-                      <th style="padding: 6px;">PY</th>
-                      <th style="padding: 6px;">CY</th>
-                      <th style="padding: 6px;">Δ Abs</th>
-                      <th style="padding: 6px;">% Mix</th>
-                  </tr>
-              </thead>
-              <tbody id="abfallCatTableBody"></tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- Monatlicher Trend (Stacked) + Tabelle -->
-        <div style="flex: 2; min-width: 500px; background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-          <h4 style="font-size: 14px; color: #333; margin-bottom: 10px;">Monthly Waste Trend [Kg] (CY vs PY Total)</h4>
-          <div style="height: 250px; position: relative;"><canvas id="abfallChartMonthly"></canvas></div>
-          
-          <div style="overflow-x: auto; margin-top: 15px; border-top: 1px solid #eee; padding-top: 10px;">
-            <table style="width: 100%; border-collapse: collapse; font-size: 11px; text-align: right;">
-              <thead id="abfallMonthlyHead" style="background: #f4f7f6;"></thead>
-              <tbody id="abfallMonthlyBody"></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- Top Materialien Chart (Switch MTD/YTD) -->
-      <div style="background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px;">
-        <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-            <h4 style="font-size: 14px; color: #333; margin: 0;">Top 10 Materials (CY vs. PY) [Kg]</h4>
-            <select id="abfallTopMatToggle" onchange="window.renderAbfallTopChart()" style="padding: 4px 8px; border-radius: 4px; border: 1px solid #0078d4; color: #0078d4; font-weight: bold; cursor: pointer; outline: none;">
-                <option value="MTD">MTD</option>
-                <option value="YTD" selected>YTD</option>
-            </select>
-        </div>
-        <div style="height: 300px; position: relative;"><canvas id="abfallChartTopMat"></canvas></div>
-      </div>
-
-      <!-- Detail Tabelle MTD & YTD vs PY -->
-      <div style="background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px;">
-        <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-            <h4 style="font-size: 14px; color: #333; margin: 0;">Detailed Material Breakdown (Sortiert nach MTD CY) <span style="font-size:11px; font-weight:normal; color:#0078d4;">Hover über Zeile zeigt Entsorger</span></h4>
-        </div>
-        <div style="overflow-x: auto; max-height: 400px; border: 1px solid #eee;">
-          <table style="width: 100%; border-collapse: collapse; font-size: 11.5px; text-align: right;">
-            <thead style="background: #f4f7f6; position: sticky; top: 0; z-index: 2;">
-              <tr style="border-bottom: 1px solid #ccc;">
-                <th style="padding: 8px; text-align: left;">Standort</th>
-                <th style="padding: 8px; text-align: left;">Kategorie</th>
-                <th style="padding: 8px; text-align: left;">Material / Abfall Code</th>
-                <th style="padding: 8px; border-left: 2px solid #ddd; background:#fff;">MTD PY</th>
-                <th style="padding: 8px; font-weight:bold; color:#0078d4; background:#fff;">MTD CY ▼</th>
-                <th style="padding: 8px; background:#fff;">Δ MTD</th>
-                <th style="padding: 8px; border-left: 2px solid #ddd;">YTD PY</th>
-                <th style="padding: 8px;">YTD CY</th>
-                <th style="padding: 8px;">Δ YTD (Abs)</th>
-                <th style="padding: 8px;">Δ YTD (%)</th>
-              </tr>
-            </thead>
-            <tbody id="abfallTableBody"></tbody>
-          </table>
-        </div>
-      </div>
-
-    </div> <!-- Ende dash-chart -->
-  </div> <!-- Ende dash-layout -->
-</div> <!-- Ende tab-pane pWaste -->
+    </div>
+  </div>
+</div>
 <!-- ============================================================ -->
 <!-- TAB: VOLUMEN ANALYSE DASHBOARD                               -->
 <!-- ============================================================ -->
@@ -6127,7 +5941,7 @@ async function ladeWasteDaten() {
                 if (pkg === '' || pkg.toLowerCase() === 'undefined' || pkg.toLowerCase() === 'null') pkg = 'Unknown';
 
                 combinedData.push({
-                    Year: year, Month: parseInt(r['Month Nr.']) || parseInt(r['Monat']) || 0,
+                    Month: parseInt(r['Month Nr.']) || parseInt(r['Monat']) || parseInt(r['Month']) || 0,
                     ProductGroup: prodGroup, MaterialDesc: String(r['Material Description'] || 'Unknown').trim(),
                     PackageType: pkg, ReasonCode: rCode, ReasonDesc: rInfo.desc,
                     MainCategory: rInfo.mainCat, LossType: rInfo.type, Cost: cost, Kg: kg
@@ -9792,14 +9606,14 @@ function updateCO2Dashboard() {
 function updateWasteDashboard() {
     if (!globalWasteData || globalWasteData.length === 0) return;
 
-    // --- NEU: Dynamisches Jahr einstellen (verhindert "Keine Daten" Bug) ---
+    // --- NEU: Dynamisches Jahr einstellen (KORRIGIERT) ---
     const yearSel = document.getElementById('wasteYear');
-    if (!yearSel.dataset.loaded) {
-        let availableYears = [...new Set(globalWasteData.map(r => String(r.Year)).filter(Boolean))].sort((a,b) => b - a);
-        if (availableYears.length > 0) {
-            yearSel.innerHTML = availableYears.map(y => `<option value="${y}">${y}</option>`).join('');
-            yearSel.value = availableYears[0]; // Das aktuellste vorhandene Jahr automatisch auswählen!
-        }
+    let availableYears = [...new Set(globalWasteData.map(r => String(r.Year)).filter(Boolean))].sort((a,b) => b - a);
+    
+    // Die Sperre wird JTEZT NUR gesetzt, wenn auch wirklich Daten gefunden wurden!
+    if (availableYears.length > 0 && !yearSel.dataset.loaded) {
+        yearSel.innerHTML = availableYears.map(y => `<option value="${y}">${y}</option>`).join('');
+        yearSel.value = availableYears[0]; // Das aktuellste vorhandene Jahr (z.B. 2025) auswählen
         yearSel.dataset.loaded = "true";
     }
     // -----------------------------------------------------------------------
@@ -9967,7 +9781,9 @@ function updateWasteDashboard() {
     
     let topMat = Object.keys(matAgg).sort((a,b) => matAgg[b] - matAgg[a]).slice(0, 10); 
 
-    destroyChart('wasteChartTopMat');
+    // KORREKTUR: Chart über die Registry löschen!
+    if (wasteCharts['pareto']) wasteCharts['pareto'].destroy();
+    
     wasteCharts['pareto'] = new Chart(document.getElementById('wasteChartTopMat').getContext('2d'), {
         type: 'bar', plugins: [ChartDataLabels],
         data: {
@@ -10041,7 +9857,9 @@ function updateWasteDashboard() {
         datalabels: { display: false }
     }));
 
-    destroyChart('wasteChartMonthly');
+    // KORREKTUR: Chart über die Registry löschen!
+    if (wasteCharts['monthly']) wasteCharts['monthly'].destroy();
+    
     wasteCharts['monthly'] = new Chart(document.getElementById('wasteChartMonthly').getContext('2d'), {
         type: 'bar', plugins: [ChartDataLabels],
         data: { labels: ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'], datasets: monthlyDatasets },
@@ -10094,7 +9912,9 @@ function updateWasteDashboard() {
     
     let pkgKeys = Object.keys(pkgAgg).sort((a,b) => pkgAgg[b] - pkgAgg[a]).slice(0,8); 
 
-    destroyChart('wasteChartPackage');
+    // KORREKTUR: Chart über die Registry löschen!
+    if (wasteCharts['package']) wasteCharts['package'].destroy();
+    
     wasteCharts['package'] = new Chart(document.getElementById('wasteChartPackage').getContext('2d'), {
         type: 'doughnut', plugins: [ChartDataLabels],
         data: {
@@ -10114,15 +9934,14 @@ function updateWasteDashboard() {
         }
     });
 
-    // Package Matrix Tabelle (Alle Packages sortiert vs Kategorien in %)
     let catCols = Array.from(activeCats).sort();
     let pkgThHtml = `<tr style="border-bottom:1px solid #ccc;"><th style="padding:6px; text-align:left;">Package</th>` + 
                   catCols.map(c => `<th style="padding:6px;">${c}</th>`).join('') + 
                   `<th style="padding:6px; font-weight:bold;">Total</th></tr>`;
     document.getElementById('wastePackageHead').innerHTML = pkgThHtml;
 
-    let pkgTbHtml = ''; // KORRIGIERT: Neuer Name für die Variable!
-    let allPkgsSorted = Object.keys(pkgAgg).sort((a,b) => pkgAgg[b] - pkgAgg[a]); // Alle Packages für Tabelle
+    let pkgTbHtml = ''; 
+    let allPkgsSorted = Object.keys(pkgAgg).sort((a,b) => pkgAgg[b] - pkgAgg[a]); 
 
     allPkgsSorted.forEach(pkg => {
         let pTot = 0;
@@ -10131,7 +9950,6 @@ function updateWasteDashboard() {
             pTot += v;
             let pct = totalCY > 0 ? (v / totalCY) * 100 : 0;
             let disp = v > 0 ? `${pct.toFixed(1)}%` : '-';
-            // Hover zeigt Absolutwert
             return `<td style="padding:6px;" title="${Math.round(v).toLocaleString('de-CH')} ${metric === 'Cost' ? 'CHF' : 'Kg'}">${disp}</td>`;
         }).join('');
         
@@ -10146,9 +9964,7 @@ function updateWasteDashboard() {
     
     document.getElementById('wastePackageBody').innerHTML = pkgTbHtml || `<tr><td colspan="99">Keine Daten</td></tr>`;
 
-    // ==========================================
-    // LONGTERM HISTORICAL TREND (2017-YTD)
-    // ==========================================
+    // --- LONGTERM HISTORICAL TREND (2017-YTD) ---
     document.getElementById('wasteTitleHist').innerText = `Longterm Historical Trend 2017-YTD (${metric})`;
     let ltAgg = {};
     let ltYears = new Set();
@@ -10162,17 +9978,19 @@ function updateWasteDashboard() {
     });
 
     let yArr = Array.from(ltYears).sort();
-    let catColors = ['#107c41', '#0078d4', '#d83b01', '#5c2d91', '#ffb900', '#00bcf2', '#e3008c'];
+    let catColors2 = ['#107c41', '#0078d4', '#d83b01', '#5c2d91', '#ffb900', '#00bcf2', '#e3008c'];
     let ltCats = ['Dietlikon', 'Vals', 'Imports', 'Monster', 'Coffee', 'Alkohol', 'Trade'];
     
     let histDatasets = ltCats.map((c, i) => ({
         label: c,
         data: yArr.map(y => ltAgg[y] ? (ltAgg[y][c] || 0) : 0),
-        backgroundColor: catColors[i % catColors.length],
+        backgroundColor: catColors2[i % catColors2.length],
         datalabels: { display: false }
     })).filter(ds => ds.data.some(v => v > 0)); 
 
-    destroyChart('wasteChartHist');
+    // KORREKTUR: Chart über die Registry löschen!
+    if (wasteCharts['hist']) wasteCharts['hist'].destroy();
+    
     wasteCharts['hist'] = new Chart(document.getElementById('wasteChartHist').getContext('2d'), {
         type: 'bar', plugins: [ChartDataLabels],
         data: { labels: yArr, datasets: histDatasets },
@@ -10206,6 +10024,9 @@ function updateWasteDashboard() {
         }
     });
     document.getElementById('wasteHistTableBody').innerHTML = lTbHtml || `<tr><td colspan="99">Keine Daten</td></tr>`;
+
+    // Auch diese alte Funktion entfernen wir komplett, um Fehler zu vermeiden!
+    // const destroyChart = (canvasId) => { ... } <--- WURDE GESTRICHEN!
     // =========================================================
     // NEU: PHYSICAL WASTE & RECYCLING RENDER LOGIK
     // =========================================================
