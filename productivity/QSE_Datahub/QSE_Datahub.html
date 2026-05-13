@@ -9649,8 +9649,12 @@ function updateWasteDashboard() {
 
     // Ab hier geht deine Filter-Logik weiter...
     const isMatch = (r, ignoreLossWasteFilter = false) => {
-        let rYear = String(r.Year || r.year || ''); // Hier ebenfalls Year oder year prüfen
+        // 1. Werk/Kategorie Filter anwenden
+        if (fGroup !== 'All' && r.ProductGroup !== fGroup) return false;
+        
+        // 2. Loss/Waste Filter anwenden
         if (!ignoreLossWasteFilter && fType !== 'All' && r.LossType !== fType) return false;
+        
         return true;
     };
 
@@ -10561,10 +10565,10 @@ function renderExecutiveSummary() {
         const getWaste = (yr, isYtd, metricType) => {
             let sum = 0;
             globalWasteData.forEach(r => {
-                // Filter Werk
+                // Filter Werk (Achtung: Es heisst hier ProductGroup, nicht Plant)
                 let wMatch = true;
-                if (plantCode === '5511' && r.Plant !== 'Dietlikon') wMatch = false;
-                if (plantCode === '5501' && r.Plant !== 'Vals') wMatch = false;
+                if (plantCode === '5511' && r.ProductGroup !== 'Dietlikon') wMatch = false;
+                if (plantCode === '5501' && r.ProductGroup !== 'Vals') wMatch = false;
 
                 if (String(r.Year || r.year) === yr && wMatch) {
                     let rMonth = parseInt(r.Month || 0);
