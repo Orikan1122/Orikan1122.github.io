@@ -5868,6 +5868,7 @@ async function ladeWasteDaten() {
             fetchSmartsheet(S_ID_ABF25_DIET),
             fetchSmartsheet(S_ID_ABF25_VALS)
         ]);
+        
 
         const wo25 = parseSmartsheetData(rawWO25, false);
         const wo26 = parseSmartsheetData(rawWO26, false);
@@ -5941,6 +5942,7 @@ async function ladeWasteDaten() {
                 if (pkg === '' || pkg.toLowerCase() === 'undefined' || pkg.toLowerCase() === 'null') pkg = 'Unknown';
 
                 combinedData.push({
+                    Year: year, // <--- DAS HAT GEFEHLT!
                     Month: parseInt(r['Month Nr.']) || parseInt(r['Monat']) || parseInt(r['Month']) || 0,
                     ProductGroup: prodGroup, MaterialDesc: String(r['Material Description'] || 'Unknown').trim(),
                     PackageType: pkg, ReasonCode: rCode, ReasonDesc: rInfo.desc,
@@ -9604,7 +9606,20 @@ function updateCO2Dashboard() {
 
 }
 function updateWasteDashboard() {
-    if (!globalWasteData || globalWasteData.length === 0) return;
+    // 1. Prüfen, ob Daten da sind
+    if (!globalWasteData || globalWasteData.length === 0) {
+        console.warn("Waste Dashboard: Keine Daten im Speicher. Überspringe Rendering.");
+        // Optional: Hier eine "Keine Daten"-Meldung ins UI schreiben
+        return; 
+    }
+    
+    // 2. Bestehende Charts VOR dem Neuzeichnen zerstören (verhindert 'already in use' Fehler)
+    Object.keys(wasteCharts).forEach(key => {
+        if (wasteCharts[key]) {
+            wasteCharts[key].destroy();
+            wasteCharts[key] = null;
+        }
+    });
 
     // --- NEU: Dynamische Suche nach dem Jahr und Monat ---
     const yearSel = document.getElementById('wasteYear');
@@ -9649,11 +9664,11 @@ function updateWasteDashboard() {
         if (r.Month > 0 && r.Month <= cutoffMonth) {
             // Für Tabelle & Charts
             if (isMatch(r, false)) {
-                if (r.Year === cy) dataCY_YTD.push(r);
-                if (r.Year === py) dataPY_YTD.push(r);
+                if (String(r.Year) === String(cy)) dataCY_YTD.push(r);
+                if (String(r.Year) === String(py)) dataPY_YTD.push(r);
             }
             // Für Taxonomie & Summary (CY only)
-            if (r.Year === cy && isMatch(r, true)) {
+            if (String(r.Year) === String(cy) && isMatch(r, true)) {
                 taxonomyDataCY.push(r);
                 if (r.Month === cutoffMonth) taxonomyDataMTD.push(r);
             }
@@ -10039,7 +10054,7 @@ function updateWasteDashboard() {
         const isAbfallPlantMatch = (pStr) => {
             const standorte = ['Dietlikon', 'Vals', 'Opfikon', 'Rümlang', 'Zizers'];
             if (standorte.includes(fGroup)) return pStr === fGroup; 
-            return true; 
+            return pStr.toLowerCase().includes(fGroup.toLowerCase());; 
         };
 
         let abfDataCY = globalAbfallData.filter(r => r.Year === cy && isAbfallPlantMatch(r.Standort));
@@ -10297,6 +10312,8 @@ function updateWasteDashboard() {
 
         document.getElementById('abfallTableBody').innerHTML = abfTbHtml || `<tr><td colspan="10" style="text-align:center;">Keine Abfalldaten gefunden.</td></tr>`;
     }
+    console.log("dataCY_YTD Länge:", dataCY_YTD.length);
+    console.log("Physical Waste Daten Länge:", globalAbfallData.filter(r => String(r.Year) === String(cy)).length);
 }
 // ============================================================
 // EXECUTIVE SUMMARY LOGIK (Master Dashboard)
@@ -10541,9 +10558,10 @@ function renderExecutiveSummary() {
                 if (plantCode === '5511' && r.Plant !== 'Dietlikon') wMatch = false;
                 if (plantCode === '5501' && r.Plant !== 'Vals') wMatch = false;
 
-                if (String(r.Year) === yr && wMatch) {
-                    if (isYtd ? r.Month <= mNum : r.Month === mNum) {
-                        sum += r[metricType];
+                if (String(r.Year || r.year) === yr && wMatch) {
+                    let rMonth = parseInt(r.Month || 0);
+                    if (isYtd ? rMonth <= mNum : rMonth === mNum) {
+                        sum += (r[metricType] || 0);
                     }
                 }
             });
