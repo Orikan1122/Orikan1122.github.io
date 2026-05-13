@@ -10052,13 +10052,21 @@ function updateWasteDashboard() {
     if (typeof globalAbfallData !== 'undefined' && globalAbfallData.length > 0) {
         
         const isAbfallPlantMatch = (pStr) => {
+            // Wenn "Alle" im Dropdown gewählt ist, zeige alle Abfalldaten
+            if (!fGroup || fGroup === 'All') return true; 
+            
+            // Wenn ein spezifischer Standort gewählt wurde (z.B. Dietlikon)
             const standorte = ['Dietlikon', 'Vals', 'Opfikon', 'Rümlang', 'Zizers'];
-            if (standorte.includes(fGroup)) return pStr === fGroup; 
-            return pStr.toLowerCase().includes(fGroup.toLowerCase());; 
+            if (standorte.includes(fGroup)) {
+                return String(pStr).toLowerCase().includes(fGroup.toLowerCase());
+            }
+            
+            // Wenn eine Marke wie "Monster" gewählt ist, betrifft das den physischen Werks-Abfall nicht, zeige alles
+            return true; 
         };
 
-        let abfDataCY = globalAbfallData.filter(r => r.Year === cy && isAbfallPlantMatch(r.Standort));
-        let abfDataPY = globalAbfallData.filter(r => r.Year === py && isAbfallPlantMatch(r.Standort));
+        let abfDataCY = globalAbfallData.filter(r => String(r.Year) === String(cy) && isAbfallPlantMatch(r.Standort));
+        let abfDataPY = globalAbfallData.filter(r => String(r.Year) === String(py) && isAbfallPlantMatch(r.Standort));
         
         let catAggYTD = {}; let catAggYTD_PY = {};
         let catAggMTD = {}; let catAggMTD_PY = {};
