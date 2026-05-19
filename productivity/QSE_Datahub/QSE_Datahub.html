@@ -642,6 +642,19 @@
       </div>
       <!-- ================= ENDE EINFÜGEN ================= -->
 
+      <!-- NEU: KEG DIETLIKON SPEZIALANALYSE -->
+      <hr style="border:none; border-top: 2px dashed #ccc; margin: 30px 0;">
+      <h3 style="font-size: 16px; margin-bottom: 15px; color:#1e1e1e;">&#128722; KEG Dietlikon (Premix & Postmix) Analyse (CY)</h3>
+      <div style="background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px;">
+        <div style="overflow-x: auto;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 11.5px; text-align: right;">
+            <thead id="kegDietlikonHead" style="background: #f4f7f6; border-bottom: 2px solid #ccc;">
+            </thead>
+            <tbody id="kegDietlikonBody"></tbody>
+          </table>
+        </div>
+      </div>
+
     </div> <!-- Ende dash-chart -->
   </div> <!-- Ende dash-layout -->
 </div> <!-- Ende tab-pane pVolume -->
@@ -1105,7 +1118,7 @@
       <!-- TABELLE UNTEN INKL. EXPORT BUTTON & SPALTEN-AUSWAHL -->
       <div style="margin-top: 20px; background: white; padding: 15px; border-radius: 8px; border: 1px solid #e0e0e0; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
         <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-          <h3 style="font-size: 15px; margin: 0;">Übersicht Pro Material (Gefiltert nach Jahr & Monat)</h3>
+          <h3 id="cpmRawTableTitle" style="font-size: 15px; margin: 0;">Übersicht Pro Material (Gefiltert nach Jahr & Monat)</h3>
           <button onclick="exportCpmTable()" style="background:#107c41; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:12px;">&#128229; Excel Export</button>
         </div>
 
@@ -2381,7 +2394,16 @@ const MAT_JOIN_COLS = [
   'Thermal Ener. per Liter (MJ/Liter)',
   'Watercontent'
 ];
-
+// --- SECURITY HELPER ---
+function escapeHTML(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
 // ============================================================
 // STATE
 // ============================================================
@@ -2417,18 +2439,25 @@ const SUM_COLS = new Set([
 // ============================================================
 // LOGIN LOGIK & USER MANAGEMENT
 // ============================================================
-const LOGIN_SHEET_ID = "fM2GWm4H72jW28rR8r4rfp8VqWc44w5Gv8jpv671";
+const LOGIN_SHEET_ID = "fq3X7vVW29vJ77mwfgC9hH254pQQVJx27JP5Wgj1";
 let currentUser = null;
 
 // Beim Laden der Seite prüfen, ob ein Token im Local/Session Storage liegt
 window.addEventListener('DOMContentLoaded', () => {
-    const savedUser = localStorage.getItem('qse_user') || sessionStorage.getItem('qse_user');
-    if (savedUser) {
+    const savedToken = localStorage.getItem('qse_auth') || sessionStorage.getItem('qse_auth');
+    if (savedToken) {
         try {
-            currentUser = JSON.parse(savedUser);
+            // Entschlüsseln und prüfen
+            const decoded = JSON.parse(atob(savedToken));
+            const now = new Date().getTime();
+            // Prüfen ob Token älter als 12 Stunden (43200000 ms) ist
+            if (now - decoded.timestamp > 43200000) {
+                throw new Error("Session abgelaufen");
+            }
+            currentUser = decoded.user;
             showApp();
         } catch (e) {
-            console.error("Fehler beim Lesen des Logins", e);
+            console.warn("Session ungültig oder abgelaufen.");
             logout();
         }
     }
@@ -2465,18 +2494,24 @@ async function handleLogin() {
             // Finde die E-Mail, egal ob die Spalte "E-mail", "E-Mail", "Email" oder "Mail" heißt:
             const foundEmail = matchedUser['E-mail'] || matchedUser['E-Mail'] || matchedUser['Email'] || matchedUser['Mail'];
 
-            // Login erfolgreich - wir speichern NUR Email, Name und Rolle
+            // Login erfolgreich
             currentUser = {
-                username: matchedUser['User'],
-                email: foundEmail,
-                role: matchedUser['Role']
+                username: escapeHTML(matchedUser['User']),
+                email: escapeHTML(foundEmail),
+                role: escapeHTML(matchedUser['Role'])
             };
 
-            const storageString = JSON.stringify(currentUser);
+            // Payload mit Timestamp versehen und Base64 "verschleiern"
+            const payload = {
+                user: currentUser,
+                timestamp: new Date().getTime()
+            };
+            const storageString = btoa(JSON.stringify(payload)); // btoa = Base64 encoding
+
             if (remember) {
-                localStorage.setItem('qse_user', storageString); // Bleibt auch nach Neustart erhalten
+                localStorage.setItem('qse_auth', storageString);
             } else {
-                sessionStorage.setItem('qse_user', storageString); // Wird gelöscht, wenn Browser geschlossen wird
+                sessionStorage.setItem('qse_auth', storageString);
             }
 
             showApp();
@@ -2484,8 +2519,10 @@ async function handleLogin() {
             errorDiv.innerText = "Falscher Benutzername oder Passwort.";
         }
 
-        // Sicherheitsmaßnahme: Array mit den Passwörtern sofort aus dem RAM leeren
+        // Sicherheitsmaßnahme: Daten aggressiv aus dem RAM werfen
         usersData.length = 0;
+        rawSheet.rows = [];
+        rawSheet.columns = [];
 
     } catch (e) {
         errorDiv.innerText = "Fehler bei der Verbindung zum Server.";
@@ -2513,8 +2550,8 @@ function showApp() {
 }
 
 function logout() {
-    localStorage.removeItem('qse_user');
-    sessionStorage.removeItem('qse_user');
+    localStorage.removeItem('qse_auth');
+    sessionStorage.removeItem('qse_auth');
     currentUser = null;
     location.reload(); // Lädt die Seite neu, was sofort den Login-Screen wieder zeigt
 }
@@ -2777,7 +2814,7 @@ function formatCell(colName, val) {
   if (val === null || val === undefined) return '';
   if (colName === 'calday' && typeof val === 'number') return excelSerialToDate(val);
   if (typeof val === 'number') return +val.toFixed(4);
-  return val;
+  return escapeHTML(val);
 }
 
 // ============================================================
@@ -2924,7 +2961,7 @@ function renderExtraTable(headId, bodyId, dataArray) {
   
   let html = '';
   dataArray.forEach(row => {
-    html += '<tr style="border-bottom:1px solid #eee;">' + cols.map(c => `<td style="padding:6px 9px; white-space:nowrap;">${row[c] !== undefined && row[c] !== null ? row[c] : ''}</td>`).join('') + '</tr>';
+    html += '<tr style="border-bottom:1px solid #eee;">' + cols.map(c => `<td style="padding:6px 9px; white-space:nowrap;">${row[c] !== undefined && row[c] !== null ? escapeHTML(row[c]) : ''}</td>`).join('') + '</tr>';
   });
   document.getElementById(bodyId).innerHTML = html;
 }
@@ -4967,7 +5004,8 @@ function updateCPM() {
       'Vals': { yes: Array(12).fill(0), no: Array(12).fill(0), undef: Array(12).fill(0) }, 
       'Import': { yes: Array(12).fill(0), no: Array(12).fill(0), undef: Array(12).fill(0) } 
   };
-  let tableHtml = "";
+  window._cpmRawData = []; // NEU: Array für filterbare Tabelle
+  window._catMap = catMap; // NEU: Damit die externe Render-Funktion Zugriff hat
 
   globalConsumerData.forEach(row => {
     let brandRaw = String(row['Brand'] || '').trim();
@@ -5053,23 +5091,13 @@ function updateCPM() {
     if(!skuComp[displayKey]) skuComp[displayKey] = 0;
     skuComp[displayKey] += 1;
     
-    // TABELLE RENDERN (DYNAMISCH)
-    let trHtml = '<tr style="border-bottom:1px solid #eee;">';
-    activeColsArray.forEach(colName => {
-        let val = '';
-        if (colName === 'Kategorie (Mapped)') {
-            val = mapping ? mapping.cat : (catMap[displayKey] || '');
-        } else {
-            val = row[colName];
-            if (colName.includes('Date') || colName.includes('start')) val = getFormatDate(val);
-        }
-        trHtml += `<td style="padding:6px; white-space:nowrap;">${val !== null && val !== undefined ? val : ''}</td>`;
-    });
-    trHtml += '</tr>';
-    tableHtml += trHtml;
+    // NEU: Daten in das Array pushen statt HTML zu bauen
+    window._cpmRawData.push({ row, herkunft, displayKey, mapping });
   });
 
-  document.getElementById('cpmTableBody').innerHTML = tableHtml || `<tr><td colspan="${activeColsArray.length}">Keine Ergebnisse.</td></tr>`;
+  // Initiale Tabellendarstellung (Zustand bewahren, wenn die Seite sich aktualisiert)
+  if (!window.cpmActiveFilter) window.cpmActiveFilter = { plant: null, brand: null }; 
+  renderCpmRawTable();
 
   if(globalCustomerData) {
       globalCustomerData.forEach(row => {
@@ -5137,7 +5165,7 @@ function updateCPM() {
   document.getElementById('cpmValsKpi').innerText  = calcCPM(ytdData['Vals'].c, ytdData['Vals'].s).toFixed(3);
   document.getElementById('cpmImpKpi').innerText   = calcCPM(ytdData['Import'].c, ytdData['Import'].s).toFixed(3);
 
-  // --- MATRIX RENDER ---
+ // --- MATRIX RENDER ---
   let matrixHtml = '';
   let matTotS = 0, matTotC = 0;
   ['(Blank)', 'Dietlikon', 'Import', 'Vals'].forEach(p => {
@@ -5145,17 +5173,29 @@ function updateCPM() {
       if (!pData || (pData.s === 0 && pData.c === 0)) return;
       if (p !== '(Blank)') { matTotS += pData.s; matTotC += pData.c; }
       let pCpm = calcCPM(pData.c, pData.s);
+      let pId = p.replace(/[^a-zA-Z]/g,'');
       
-      // Ersetze Zeile ~2125
-      matrixHtml += `<tr style="border-bottom: 1px solid #ccc; background: #fdfcfb; font-weight: 600;"><td style="padding: 6px; text-align: left; cursor: pointer; color: #0078d4;" onclick="toggleCpmRow('${p.replace(/[^a-zA-Z]/g,'')}')"><span id="icon_${p.replace(/[^a-zA-Z]/g,'')}">&#43;</span> ${p}</td><td>${pCpm.toFixed(3)}</td><td>${pData.s.toLocaleString('de-CH', {minimumFractionDigits:2, maximumFractionDigits:2})}</td><td>${pData.c > 0 ? pData.c : ''}</td></tr>`;
+      let isActP = (window.cpmActiveFilter.plant === p && !window.cpmActiveFilter.brand);
+      matrixHtml += `<tr class="cpm-mat-row-plant" id="cpm_mat_p_${pId}" style="border-bottom: 1px solid #ccc; background: ${isActP ? '#e1f0ff' : '#fdfcfb'}; font-weight: 600;">
+          <td style="padding: 6px; text-align: left; cursor: pointer; color: #0078d4;" onclick="filterCpmTable('${p}', null); toggleCpmRow('${pId}')">
+              <span id="icon_${pId}">&#43;</span> ${p}
+          </td>
+          <td>${pCpm.toFixed(3)}</td><td>${pData.s.toLocaleString('de-CH', {minimumFractionDigits:2, maximumFractionDigits:2})}</td><td>${pData.c > 0 ? pData.c : ''}</td>
+      </tr>`;
       
       Object.keys(pData.brands).sort().forEach(b => {
           let bD = pData.brands[b];
           if(bD.s === 0 && bD.c === 0) return;
           let bCpm = calcCPM(bD.c, bD.s);
           let bLabel = b.includes("Unmapped") ? `<span style="color:#d83b01; font-weight:bold;">${b}</span>` : b;
-          // Ersetze Zeile ~2132
-          matrixHtml += `<tr class="child_${p.replace(/[^a-zA-Z]/g,'')}" style="display: none; border-bottom: 1px solid #eee;"><td style="padding: 6px; text-align: left; padding-left: 25px; color: #555;">${bLabel}</td><td>${bCpm.toFixed(3)}</td><td>${bD.s > 0 ? bD.s.toLocaleString('de-CH', {minimumFractionDigits:2, maximumFractionDigits:2}) : '0.00'}</td><td>${bD.c > 0 ? bD.c : ''}</td></tr>`;
+          let safeB = b.replace(/'/g, "\\'");
+          let bId = b.replace(/[^a-zA-Z0-9]/g,'');
+          
+          let isActB = (window.cpmActiveFilter.brand === b);
+          matrixHtml += `<tr class="child_${pId} cpm-mat-row-brand" id="cpm_mat_b_${bId}" style="display: none; border-bottom: 1px solid #eee; cursor: pointer; background: ${isActB ? '#e1f0ff' : 'transparent'};" onclick="filterCpmTable('${p}', '${safeB}')">
+              <td style="padding: 6px; text-align: left; padding-left: 25px; color: #555;">${bLabel}</td>
+              <td>${bCpm.toFixed(3)}</td><td>${bD.s > 0 ? bD.s.toLocaleString('de-CH', {minimumFractionDigits:2, maximumFractionDigits:2}) : '0.00'}</td><td>${bD.c > 0 ? bD.c : ''}</td>
+          </tr>`;
       });
   });
 
@@ -5330,6 +5370,74 @@ function updateCPM() {
 // ============================================================
 // CPM HILFSFUNKTIONEN (Matrix & Export & Spalten-Picker)
 // ============================================================
+window.cpmActiveFilter = { plant: null, brand: null };
+
+function filterCpmTable(plant, brand) {
+    // Wenn man auf das bereits ausgewählte klickt, Filter entfernen (Toggle-Effekt)
+    if (window.cpmActiveFilter.plant === plant && window.cpmActiveFilter.brand === brand) {
+        window.cpmActiveFilter = { plant: null, brand: null };
+    } else {
+        window.cpmActiveFilter = { plant: plant, brand: brand };
+    }
+
+    // Visuelles Highlighting zurücksetzen
+    document.querySelectorAll('.cpm-mat-row-plant').forEach(el => el.style.background = '#fdfcfb');
+    document.querySelectorAll('.cpm-mat-row-brand').forEach(el => el.style.background = 'transparent');
+
+    // Neues Highlighting in der Matrix setzen
+    if (window.cpmActiveFilter.plant && !window.cpmActiveFilter.brand) {
+        let pId = plant.replace(/[^a-zA-Z]/g,'');
+        let el = document.getElementById('cpm_mat_p_' + pId);
+        if (el) el.style.background = '#e1f0ff';
+    } else if (window.cpmActiveFilter.brand) {
+        let bId = brand.replace(/[^a-zA-Z0-9]/g,'');
+        let el = document.getElementById('cpm_mat_b_' + bId);
+        if (el) el.style.background = '#e1f0ff';
+    }
+
+    renderCpmRawTable(); // Tabelle aktualisieren
+}
+
+function renderCpmRawTable() {
+    if (!window._cpmRawData) return;
+    let tableHtml = '';
+    const activeColsArray = cpmAllCols.filter(c => cpmSelectedCols.has(c));
+    let filteredCount = 0;
+
+    window._cpmRawData.forEach(item => {
+        // Filter prüfen
+        if (window.cpmActiveFilter.plant && item.herkunft !== window.cpmActiveFilter.plant) return;
+        if (window.cpmActiveFilter.brand && item.displayKey !== window.cpmActiveFilter.brand) return;
+
+        filteredCount++;
+        let trHtml = '<tr style="border-bottom:1px solid #eee; transition:background 0.2s;" onmouseover="this.style.background=\'#f5f4f1\'" onmouseout="this.style.background=\'transparent\'">';
+        activeColsArray.forEach(colName => {
+            let val = '';
+            if (colName === 'Kategorie (Mapped)') {
+                val = item.mapping ? item.mapping.cat : (window._catMap[item.displayKey] || '');
+            } else {
+                val = item.row[colName];
+                if (colName.includes('Date') || colName.includes('start')) val = getFormatDate(val);
+            }
+            trHtml += `<td style="padding:6px; white-space:nowrap;">${val !== null && val !== undefined ? val : ''}</td>`;
+        });
+        trHtml += '</tr>';
+        tableHtml += trHtml;
+    });
+
+    document.getElementById('cpmTableBody').innerHTML = tableHtml || `<tr><td colspan="${activeColsArray.length}" style="text-align:center; padding:15px; color:#999;">Keine Ergebnisse für diesen Filter gefunden.</td></tr>`;
+    
+    // Titel dynamisch aktualisieren
+    let titleEl = document.getElementById('cpmRawTableTitle');
+    if (titleEl) {
+        let titleText = 'Übersicht Pro Material (Gefiltert nach Jahr & Monat)';
+        if (window.cpmActiveFilter.brand) titleText += ` > <span style="color:#d83b01;">${window.cpmActiveFilter.brand}</span>`;
+        else if (window.cpmActiveFilter.plant) titleText += ` > <span style="color:#d83b01;">${window.cpmActiveFilter.plant}</span>`;
+        titleText += ` <span style="font-size:11px; color:#555;">(${filteredCount} Reklamationen)</span>`;
+        titleEl.innerHTML = titleText;
+    }
+}
+
 function toggleCpmRow(plantId) {
   let rows = document.querySelectorAll('.child_' + plantId);
   let icon = document.getElementById('icon_' + plantId);
@@ -8237,6 +8345,119 @@ function updateVolumeAnalysis() {
           }
       }
   });
+
+  // ==========================================
+  // NEU: KEG DIETLIKON PREMIX / POSTMIX ANALYSE (NUR CY)
+  // ==========================================
+  const literIdx = globalColumns.findIndex(c => c.name === 'total Liters');
+  
+  if (literIdx > -1 && pIdx > -1 && lIdx > -1) {
+      const premixMats = ['326502', '424401', '645002', '645101', '645102', '1773301'];
+      const postmixFactors = {
+          '326701': 6.5, '326802': 6.5, '327401': 6.5, '328502': 5.4,
+          '329201': 5.4, '329202': 5.4, '1417802': 6.5, '1773401': 6.4
+      };
+      const pm10LMats = ['326701', '327401', '328502', '329201', '329202', '1417802', '1773401'];
+      const pm20LMats = ['326802'];
+
+      let sumPremix = Array(12).fill(0);
+      let sumPmSyrup = Array(12).fill(0);
+      let sumPmBev = Array(12).fill(0);
+      let sumPm10L = Array(12).fill(0);
+      let sumPm20L = Array(12).fill(0);
+      let sumUntracked = Array(12).fill(0); // NEU: Für nicht-getrackte Produkte
+      let untrackedMats = new Set();        // NEU: Welche Materialien das sind
+      let matDataDict = {};
+
+      // Dictionary initialisieren, um die Volumen pro Material einzeln anzuzeigen
+      Object.keys(postmixFactors).forEach(mat => {
+          matDataDict[mat] = Array(12).fill(0);
+      });
+
+      dataCY.forEach(r => {
+          let plantStr = String(r[pIdx]);
+          let lineStr = String(r[lIdx]);
+          
+          // Dietlikon = 5511, KEG Linie = 5511/0000952
+          if (plantStr !== '5511' || lineStr !== '5511/0000952') return;
+
+          let m = extractMonthIdx(r);
+          if (m < 0 || m > 11) return;
+
+          let rawMat = matIdx > -1 ? String(r[matIdx]) : '';
+          let matClean = rawMat.replace(/^0+/, ''); // Führende Nullen entfernen
+          let liters = parseFloat(r[literIdx]) || 0;
+
+          // 1. Premix
+          if (premixMats.includes(matClean)) {
+              sumPremix[m] += liters;
+          }
+          // 2. Postmix
+          else if (Object.keys(postmixFactors).includes(matClean)) {
+              let factor = postmixFactors[matClean];
+              sumPmSyrup[m] += liters;
+              sumPmBev[m] += (liters * factor);
+              matDataDict[matClean][m] += liters;
+
+              if (pm10LMats.includes(matClean)) sumPm10L[m] += liters;
+              if (pm20LMats.includes(matClean)) sumPm20L[m] += liters;
+          }
+          // 3. UNTRACKED (Andere Materialien auf dieser Linie)
+          else {
+              sumUntracked[m] += liters;
+              if (matClean) untrackedMats.add(matClean);
+          }
+      });
+
+      // Tabellen-Kopf generieren
+      let kHead = '<tr><th style="padding: 8px; text-align: left;">Kategorie / Material</th><th style="padding: 8px; text-align: center;">Faktor</th>';
+      MONTH_NAMES_SHORT.forEach(m => kHead += `<th style="padding: 8px;">${m}</th>`);
+      kHead += '<th style="padding: 8px; font-weight: bold; color: #0078d4; border-left: 2px solid #ccc;">Total CY</th></tr>';
+      document.getElementById('kegDietlikonHead').innerHTML = kHead;
+
+      // Hilfsfunktion zum Rendern der Zeilen
+      let kBody = '';
+      const buildKegRow = (label, factorStr, dataArr, isBold, color, bgColor) => {
+          let total = dataArr.reduce((a, b) => a + b, 0);
+          let rowHtml = `<tr style="border-bottom: 1px solid #eee; background: ${bgColor || 'transparent'}; ${isBold ? 'font-weight: bold;' : ''} color: ${color || '#333'};">
+              <td style="padding: 6px 8px; text-align: left;">${label}</td>
+              <td style="padding: 6px 8px; text-align: center; color: #777;">${factorStr}</td>`;
+          dataArr.forEach(val => {
+              rowHtml += `<td style="padding: 6px 8px;">${val > 0 ? Math.round(val).toLocaleString('de-CH') : '-'}</td>`;
+          });
+          rowHtml += `<td style="padding: 6px 8px; color: #0078d4; font-weight: bold; border-left: 2px solid #ccc;">${Math.round(total).toLocaleString('de-CH')}</td></tr>`;
+          return rowHtml;
+      };
+
+      // 1. Haupt-Metriken (Farbige Summenzeilen)
+      kBody += buildKegRow('Returnable/Refillable Premix Volume [L]', '-', sumPremix, true, '#107c41', '#f0fdf4');
+      kBody += buildKegRow('Returnable/Refillable Postmix Final Syrup Volume [L]', '-', sumPmSyrup, true, '#d83b01', '#fff4e5');
+      kBody += buildKegRow('Returnable/Refillable Postmix Final Beverage Volume [L]', '-', sumPmBev, true, '#5c2d91', '#f3e8fa');
+      
+      kBody += `<tr><td colspan="15" style="padding: 4px; background: #e8e6e3;"></td></tr>`; 
+      
+      // 2. Postmix Splits (10L / 20L)
+      kBody += buildKegRow('Postmix 10L (Syrup Volume)', '-', sumPm10L, true, '#333', '');
+      kBody += buildKegRow('Postmix 20L (Syrup Volume)', '-', sumPm20L, true, '#333', '');
+      
+      kBody += `<tr><td colspan="15" style="padding: 4px; background: #e8e6e3;"></td></tr>`; 
+      
+      // 3. Einzelne Materialien mit Faktor anzeigen
+      Object.keys(postmixFactors).forEach(mat => {
+          let factor = postmixFactors[mat];
+          kBody += buildKegRow(`Material ${mat} (Syrup)`, `x ${factor}`, matDataDict[mat], false, '#555', '');
+      });
+
+      // 4. NEU: Untracked (Nicht definierte Produkte auf der Linie)
+      let totalUntracked = sumUntracked.reduce((a, b) => a + b, 0);
+      if (totalUntracked > 0) {
+          kBody += `<tr><td colspan="15" style="padding: 4px; background: #e8e6e3;"></td></tr>`; 
+          let untrackedMatsStr = Array.from(untrackedMats).join(', ');
+          kBody += buildKegRow(`&#9888; Nicht getracktes Volumen [L] <span style="font-size:10px; color:#d83b01;">(Mats: ${untrackedMatsStr})</span>`, '-', sumUntracked, true, '#d83b01', '#fff0ee');
+      }
+
+      document.getElementById('kegDietlikonBody').innerHTML = kBody;
+  }
 } // <-- Ende der updateVolumeAnalysis Funktion
 // ==========================================
 // PDF EXPORT FUNKTION (Bulletproof Image Swap)
@@ -10622,6 +10843,19 @@ function renderExecutiveSummary() {
     
     document.getElementById('execProjBody').innerHTML = projHtml || '<tr><td colspan="5" style="text-align:center; padding:15px; color:#999;">Keine Projekte mit Status "In Arbeit" gefunden.</td></tr>';
 }
+// --- BASIC UI PROTECTION ---
+// Deaktiviert Rechtsklick
+document.addEventListener('contextmenu', event => event.preventDefault());
+
+// Deaktiviert typische Entwickler-Shortcuts (F12, Strg+Shift+I, Strg+U)
+document.addEventListener('keydown', function(e) {
+    if(e.keyCode === 123 || 
+      (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74)) || 
+      (e.ctrlKey && e.keyCode === 85)) {
+        e.preventDefault();
+        return false;
+    }
+});
 </script>
 <!-- DEVIATION EINGABE MODAL -->
 <div class="modal-overlay" id="deviationModal">
