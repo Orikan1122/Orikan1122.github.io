@@ -220,6 +220,7 @@
       <button id="btnEnv" onclick="ladeEnvDaten()" style="background:#107c41;">&#127757; Env.</button>
       <button id="btnWaste" onclick="ladeWasteDaten()" style="background:#5c2d91;">&#128465;&#65039; Waste</button>
       <button id="btnRisk" onclick="ladeRiskDaten()" style="background:#d83b01;">&#9888; Risk</button>
+      <button id="btnChem" onclick="ladeChemicals()" style="background:#4a9fd4; color:white;">☣️ Gefahrstoffe</button>
     </div>
 
     <label class="btn btn-import" title="Excel oder CSV importieren (ohne Sync)">
@@ -247,6 +248,7 @@
   <button class="tab-btn" onclick="showTab('pWaste',this); updateWasteDashboard();">&#128465;&#65039; Waste & Write-Offs</button>
   <button class="tab-btn" onclick="showTab('pProjects',this); updateProjectDash();">&#128640; Projekt Portfolio</button>
   <button class="tab-btn" onclick="showTab('pRisk',this); updateRiskDashboard();">&#127919; Risk Matrix</button>
+  <button class="tab-btn" onclick="showTab('pChemicals',this); updateChemicals();">☣️ Gefahrstoffe</button>
   <button class="tab-btn" onclick="showTab('pRohdaten',this)">&#128194; File Insights & Rohdaten</button>
 </div>
 
@@ -2031,6 +2033,116 @@
   </div>
 </div>
 <!-- ============================================================ -->
+<!-- TAB: GEFAHRSTOFFE DASHBOARD & SUCHE                          -->
+<!-- ============================================================ -->
+<div class="tab-pane" id="pChemicals">
+  <div class="dash-layout" style="flex-direction: row; align-items: flex-start;">
+    
+    <!-- Linkes Filterpanel -->
+    <div class="dash-filters" style="width: 220px; min-width: 220px; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); position: sticky; top: 15px; max-height: 90vh; overflow-y: auto;">
+      <div class="filter-title">Gefahrstoffe Filter</div>
+      <div>
+        <label>🔍 Name / Art. Nr. / Wirkstoff</label>
+        <input type="text" id="chemSearch" placeholder="Suchen..." oninput="updateChemicals()" style="width:100%; padding:6px 8px; border:1px solid #ccc; border-radius:4px; font-size:12px; margin-bottom:10px;">
+      </div>
+      <div>
+            <label>Standort-Fokus</label>
+            <select id="chemLoc" onchange="updateChemicals()">
+              <option value="All" selected>Alle Standorte</option>
+              <option value="dietlikon">Dietlikon</option>
+              <option value="vals">Vals</option>
+            </select>
+          </div>
+          <div style="margin-top: 10px;">
+            <label>Kategorie</label>
+        <select id="chemCategory" onchange="updateChemicals()"></select>
+      </div>
+      <div style="margin-top: 10px;">
+        <label>Status</label>
+        <select id="chemStatus" onchange="updateChemicals()"></select>
+      </div>
+    </div>
+
+    <!-- Rechte Visuals & Detailansicht -->
+    <div class="dash-chart" style="flex:1; background: #e8eaed; padding: 15px; border-radius: 8px; min-width: 0; margin-left: 15px;">
+      
+      <!-- Charts-Zeile (Semi-Doughnut wie im Screenshot) -->
+      <div style="display:flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 300px; background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+          <h4 style="font-size: 13px; color: #333; margin-bottom: 10px; font-weight: 600;" id="chemChartCatTitle">Anteil pro Kategorie</h4>
+          <div style="height: 180px; position: relative;"><canvas id="chemChartCat"></canvas></div>
+        </div>
+        <div style="flex: 1; min-width: 300px; background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+          <h4 style="font-size: 13px; color: #333; margin-bottom: 10px; font-weight: 600;" id="chemChartStatusTitle">Anteil nach Status</h4>
+          <div style="height: 180px; position: relative;"><canvas id="chemChartStatus"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Tabelle & Detailkarte nebeneinander -->
+      <div style="display:flex; gap: 15px; flex-wrap: wrap; align-items: flex-start;">
+        <!-- Chemikalien-Tabelle -->
+        <div style="flex: 1.5; min-width: 400px; background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+          <h4 style="font-size: 14px; margin-bottom: 10px;">Gefahrstoffkataster <span style="font-size:11px; color:#0078d4; font-weight:normal;">(Zeile anklicken für Details)</span></h4>
+          <div style="overflow-x: auto; max-height: 400px; border: 1px solid #eee;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 11.5px; text-align: left; cursor: pointer;">
+              <thead style="background: #f4f7f6; position: sticky; top: 0; z-index: 2;">
+                <tr style="border-bottom: 2px solid #ccc;">
+                  <th style="padding: 8px;">Handelsname</th>
+                  <th style="padding: 8px;">Art. Nr.</th>
+                  <th style="padding: 8px;">Kategorie</th>
+                  <th style="padding: 8px;">Status</th>
+                  <th style="padding: 8px;">SDB Check</th>
+                </tr>
+              </thead>
+              <tbody id="chemTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Detail-Karte -->
+        <div style="flex: 1; min-width: 300px; background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-left: 6px solid #e74c3c; display: none;" id="chemDetailCard">
+              <div style="border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 15px;">
+                <span style="font-size: 11px; font-weight: bold; color: #777; text-transform: uppercase;" id="chCategory">Kategorie</span>
+                <h3 style="font-size: 17px; color: #003366; margin: 5px 0;" id="chName">Produktname</h3>
+                <div style="font-size: 11.5px; color: #555; margin-bottom: 8px;">Art. Nr: <span id="chArtNr"></span> | UFI: <span id="chUfi"></span></div>
+                <div>
+                  <a id="chSmartsheetLink" href="#" target="_blank" style="font-size:11px; color:#0078d4; font-weight:bold; text-decoration:none; background:#e1f0ff; padding:4px 8px; border-radius:3px; display:inline-block;">🔗 In Smartsheet öffnen</a>
+                </div>
+              </div>
+          
+          <div style="display:flex; flex-direction:column; gap:12px; font-size:12px;">
+            <div>
+              <strong>⚠️ Gefahren-Spezifikationen:</strong>
+              <div id="chGhsSymbols" style="display: flex; gap: 5px; margin-top: 5px;"></div>
+              <div style="margin-top: 5px;"><b>Signalwort:</b> <span id="chSignalwort" style="font-weight: bold;"></span></div>
+            </div>
+            <div><b>H-Sätze:</b> <p id="chHSatz" style="background:#fff0ee; padding:6px; border-radius:4px; border-left:3px solid #dc2626; max-height:80px; overflow-y:auto; font-size:11px; white-space:pre-line;"></p></div>
+            <div><b>P-Sätze:</b> <p id="chPSatz" style="background:#f0f5fa; padding:6px; border-radius:4px; border-left:3px solid #2563eb; max-height:80px; overflow-y:auto; font-size:11px; white-space:pre-line;"></p></div>
+            <div><b>Inhaltsstoffe (CAS):</b> <p id="chInhaltsstoffe" style="font-size:11px; background:#f4f7f6; padding:6px; border-radius:4px;"></p></div>
+            
+            <div style="border-top:1px solid #eee; padding-top:10px;">
+              <b>Standortdaten (<span id="chLocTitle"></span>):</b>
+              <table style="width:100%; margin-top:5px; font-size:11px;">
+                <tr><td>Einsatzort:</td><td id="chEinsatzort" style="font-weight:600;"></td></tr>
+                <tr><td>Lagerort:</td><td id="chLagerort" style="font-weight:600;"></td></tr>
+                <tr><td>Kontaktperson:</td><td id="chKontakt" style="font-weight:600;"></td></tr>
+              </table>
+            </div>
+
+            <!-- Dokumenten-Anhänge (SDB Fetcher) -->
+            <div style="border-top:1px solid #eee; padding-top:10px; display:flex; flex-direction:column; gap:5px;">
+              <b>SDB & Dokumente:</b>
+              <button id="btnFetchAttachments" onclick="fetchChemicalAttachments()" style="width:100%; background:#107c41; color:white; border:none; padding:8px; border-radius:4px; font-weight:bold; cursor:pointer;">📥 SDB / Anhänge abrufen</button>
+              <div id="chAttachmentsArea" style="margin-top:5px; font-size:11px; display:flex; flex-direction:column; gap:4px;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+<!-- ============================================================ -->
 <!-- TAB: CO2 EMISSIONS DASHBOARD                                 -->
 <!-- ============================================================ -->
 <div class="tab-pane" id="pCO2">
@@ -2367,8 +2479,11 @@
 <!-- ============================================================ -->
 <script>
 // URL für die neuen Office-Scripts (Complaints & Sales)
+// URL für die neuen Office-Scripts (Complaints & Sales)
 const PA_EXTRA_URL = "https://default7a67a0708ce94692b1afbf788306bc.66.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/c3bcec36dc8a40789fa6a78a92f2ccf4/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=5Qdz4jpgxOdrbpb0YunHy1GlHjLSGgp62FsXPwNWu2Y";
 
+// Dedizierte URL für den Gefahrstoff-Anhänge-Abruf (SDB)
+const PA_ATTACHMENTS_URL = "https://default7a67a0708ce94692b1afbf788306bc.66.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/cbb876a9171a4c19a0168d60dbd67dce/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=AKL9FW7njF2R9be9xeY_UY27AfNk4UPsf1f08yaJE_g";
 // Globale Variablen für die neuen Datensätze
 let globalConsumerData = [];
 let globalCustomerData = [];
@@ -2426,6 +2541,7 @@ let currentPage    = 0;
 let chartVals      = null;
 let filterTimer    = null;
 let showOnlyUnmatched = false;
+let activeChemChartFilter = { category: null, status: null };
 // Nur diese Spalten werden als numerische Summe aggregiert
 const SUM_COLS = new Set([
   'CO2_Value_SPCCO202',
@@ -2610,6 +2726,7 @@ async function loadAppFromCache() {
         tsEnv    = await loadFromCache('lastSyncEnv')    || "Nie";
         tsWaste  = await loadFromCache('lastSyncWaste')  || "Nie";
         tsRisk   = await loadFromCache('lastSyncRisk')   || "Nie";
+        tsChemicals = await loadFromCache('lastSyncChemicals') || "Nie";
 
         // Prüfen, ob überhaupt irgendwelche Daten im Cache liegen
         if (tsMaster !== "Nie" || tsEnv !== "Nie" || tsWaste !== "Nie" || tsRisk !== "Nie") {
@@ -2635,6 +2752,8 @@ async function loadAppFromCache() {
             globalEnvKPI = await loadFromCache('envKpiData') || [];
             globalEnvHist = await loadFromCache('envHistData') || [];
             globalEnvDeviations = await loadFromCache('envDevData') || [];
+            globalChemicals = await loadFromCache('chemicalData') || [];
+            
 
             // 2. UMWELTDATEN VORBEREITEN (Extrem wichtig für das Master Summary!)
             if (globalEnvHist.length > 0) {
@@ -2666,6 +2785,9 @@ async function loadAppFromCache() {
                 renderExtraTable('envKpiHead', 'envKpiBody', globalEnvKPI);
                 renderExtraTable('envHistHead', 'envHistBody', globalEnvHist);
             }
+            if (globalChemicals.length > 0) {
+                  updateChemicals();
+              }
 
             // 4. ALLE DASHBOARDS ZUM SCHLUSS AKTUALISIEREN
             updateEnvDashboard();
@@ -2773,10 +2895,13 @@ function updateStatusForCurrentTab() {
         text = `Letzter Sync: ${tsWaste} | 🔄 Klicke auf "🗑️ Waste" für Update`;
     } else if (tabId === 'pRisk') {
         text = `Letzter Sync: ${tsRisk} | 🔄 Klicke auf "⚠️ Risk" für Update`;
+    } else if (tabId === 'pChemicals') {
+        text = `Letzter Sync: ${tsChemicals} | 🔄 Klicke auf "☣️ Gefahrstoffe" für Update`;
     } else {
         // Dashboard, DPMO, CPM, Volumen, Projekte, Rohdaten
         text = `Letzter Sync: ${tsMaster} | 🔄 Klicke auf "🔄 Master" für Update`;
     }
+    
 
     document.getElementById('status').innerText = text;
     document.getElementById('status').style.color = '#555'; // Leichtes Grau statt auffälligem Rot
@@ -5831,7 +5956,29 @@ const RISK_SHEETS = [
     { id: "9rfWPmwW8WXQ8c9fC685C7CP4mj5Rvp4QR5JHmP1", loc: "Vals", area: "Watersupply" },
     { id: "r97hr4x48CpvFcxwqhPf6vCc78JWJxH5J3GWJQ71", loc: "Fleet", area: "Fleet" }
 ];
+// ==========================================
+// GEFAHRSTOFFE / CHEMICALS CONFIG
+// ==========================================
+const CHEMICAL_SHEETS = [
+  { id: "WC89W44477HjwRhwxgq8q52C8rcp2qmqj963Ff71", category: "Konzentrate" },
+  { id: "574hvXWww3cjp6C6cWFf24cwW4HX2Ff39rWmhpP1", category: "Unterhalt Schmiermittel" },
+  { id: "vwwFqcjRm6WP4Q9V7JMMPfmfFrw27pM5p2cgpcF1", category: "QA Analytik" },
+  { id: "GfhchXfj6FWC3RwFxWHjJ2rHQfV65pQWhw7gjjq1", category: "Unterhalt Allg" },
+  { id: "ppw8wCw5rVV9CPcQ2c65Xr9Rqh4GHCqjh34h7hV1", category: "Produktion" },
+  { id: "Qc7fQPCRFvX6mcQHfr8P8X3357w6QW2VFgHq33h1", category: "Infra Hausdienst" },
+  { id: "q7JHVFQhcxJfH6PVxQGQCJR9frQR6f9FQ4v5GxQ1", category: "QA Mikrobiologie" },
+  { id: "JVrcC6QwjpxwqMVxFWjqXRmwRGm9RgMxPVVX87G1", category: "Schädlingsbekämpfung" },
+  { id: "CxVwMF9McFF4pvPjmfpv3PW6mxPxFQF34GQFcHq1", category: "Zusatzstoffe & Zutaten" },
+  { id: "8MfjFPGGmjfwQwJQHpFPPhJHH9cwx6RQgP7w3hJ1", category: "Feuerlöschmittel" },
+  { id: "Gwp7v6FpFjV9HF3HGQ4W8223r4rw8p6H6fGgWHg1", category: "Lager" },
+  { id: "9XG8mrpWgcrhVvwCC756jPPqpjMrq2M598Vj7VF1", category: "Kältemittel" },
+  { id: "WWjmWf4QCMVvff45GrCPFrrc4g8hWm8h69JppRx1", category: "Displayteam" },
+  { id: "F8jw7HxrcHV4jjV9r4vGJjxF4mHgpWVCc6rfmxx1", category: "Valserservice" }
+];
 
+let globalChemicals = [];
+let chemicalCharts = {};
+let tsChemicals = "Nie";
 // ==========================================
 // WASTE & WRITEOFFS SMARTSHEET CONFIG
 // ==========================================
@@ -10856,6 +11003,437 @@ document.addEventListener('keydown', function(e) {
         return false;
     }
 });
+// ============================================================
+// GEFAHRSTOFFE / CHEMICALS CONTROLLER & PARSER
+// ============================================================
+function normalizeChemicalRow(r, sheetId, category) {
+    const getField = (row, alternatives) => {
+        const keys = Object.keys(row);
+        for (let alt of alternatives) {
+            let match = keys.find(k => k.toLowerCase().replace(/[^a-z0-9]/g, '').includes(alt.toLowerCase().replace(/[^a-z0-9]/g, '')));
+            if (match && row[match] !== null && row[match] !== undefined) return String(row[match]).trim();
+        }
+        return '';
+    };
+
+    const getExactStatus = (row, site) => {
+        const keys = Object.keys(row);
+        
+        // 1. Suche nach standortspezifischem Status (z. B. "Dietlikon Status")
+        let siteStatusKey = keys.find(k => {
+            let kk = k.toLowerCase();
+            return kk.includes(site) && kk.includes('status');
+        });
+        if (siteStatusKey && row[siteStatusKey]) {
+            return String(row[siteStatusKey]).trim();
+        }
+        
+        // 2. Suche nach generischem Status (schließe "approval" und "sdb" aus, um Fehltreffer zu verhindern)
+        let genericStatusKey = keys.find(k => {
+            let kk = k.toLowerCase();
+            return kk.includes('status') && !kk.includes('approval') && !kk.includes('sdb') && !kk.includes('dietlikon') && !kk.includes('vals');
+        });
+        
+        let gStatus = (genericStatusKey && row[genericStatusKey]) ? String(row[genericStatusKey]).trim() : '';
+        
+        // 3. Prüfe, ob die Standort-Checkbox (z. B. Spalte "Dietlikon" = TRUE) gesetzt ist
+        let siteUseKey = keys.find(k => k.toLowerCase().trim() === site);
+        let usesSite = false;
+        if (siteUseKey && row[siteUseKey]) {
+            let val = String(row[siteUseKey]).toUpperCase().trim();
+            usesSite = (val === 'TRUE' || val === 'YES' || val === 'JA' || val === '1');
+        }
+        
+        if (usesSite) {
+            return gStatus || 'Aktuell';
+        }
+        return 'Keine Verwendung';
+    };
+
+    let dStatus = getExactStatus(r, 'dietlikon');
+    let vStatus = getExactStatus(r, 'vals');
+
+    let genericEinsatzort = getField(r, ['einsatzort']);
+    let genericLagerort = getField(r, ['lagerort']);
+    let genericKontakt = getField(r, ['display team kontakt', 'displayteam kontakt', 'kontakt']);
+
+    let dEinsatz = getField(r, ['dietlikon einsatzort', 'einsatzort dietlikon']) || genericEinsatzort;
+    let vEinsatz = getField(r, ['vals einsatzort', 'einsatzort vals']) || genericEinsatzort;
+
+    let dLager = getField(r, ['dietlikon lagerort', 'lagerort dietlikon']) || genericLagerort;
+    let vLager = getField(r, ['vals lagerort', 'lagerort vals']) || genericLagerort;
+
+    let dKontakt = getField(r, ['dietlikon kontakt', 'kontakt dietlikon']) || genericKontakt;
+    let vKontakt = getField(r, ['vals kontakt', 'kontakt vals']) || genericKontakt;
+
+    const ghsSymbols = [];
+    const keys = Object.keys(r);
+    for (let i = 1; i <= 9; i++) {
+        let symbolCode = `GHS0${i}`;
+        let matchKey = keys.find(k => k.toLowerCase().replace(/[^a-z0-9]/g, '').includes(`ghs0${i}`));
+        if (matchKey && r[matchKey]) {
+            let valStr = String(r[matchKey]).toLowerCase();
+            if (valStr !== '' && valStr !== 'false' && valStr !== '0' && valStr !== 'no' && valStr !== 'null') {
+                ghsSymbols.push(symbolCode);
+            }
+        }
+    }
+
+    let comboGhs = getField(r, ['ghs kombination', 'ghskombination']);
+    if (comboGhs) {
+        for (let i = 1; i <= 9; i++) {
+            let symbolCode = `GHS0${i}`;
+            if (comboGhs.toUpperCase().includes(symbolCode) && !ghsSymbols.includes(symbolCode)) {
+                ghsSymbols.push(symbolCode);
+            }
+        }
+    }
+
+    return {
+        rowId: r._rowId,
+        sheetId: sheetId,
+        category: category,
+        name: getField(r, ['1.1 handelsname', 'handelsname', 'handels name', 'handels-name']),
+        artNr: getField(r, ['artnr', 'art. nr.', 'artikelnummer', 'artikel nr']),
+        sdbDatum: getField(r, ['sdb datum', 'sdbdatum', 'sdb-datum']),
+        ufi: getField(r, ['ufi']),
+        inhaltsstoffe: getField(r, ['wirkstoff', 'inhaltsstoffe', '3.2 inhaltsstoffe', '3.2 inhaltsstoff']),
+        cas: getField(r, ['cas nr', '3.2 cas']),
+        hSatz: getField(r, ['h sätze', 'gefahrenhinweise', '2. gefahrenhinweise', 'h-sätze', 'h sätze']),
+        pSatz: getField(r, ['p sätze', 'sicherheitshinweise', '2. sicherheitshinweise', 'p-sätze', 'p sätze']),
+        signalwort: getField(r, ['signalwort']),
+        
+        dietlikonStatus: dStatus,
+        dietlikonEinsatzort: dEinsatz,
+        dietlikonLagerort: dLager,
+        dietlikonKontakt: dKontakt,
+        
+        valsStatus: vStatus,
+        valsEinsatzort: vEinsatz,
+        valsLagerort: vLager,
+        valsKontakt: vKontakt,
+        
+        ghs: ghsSymbols
+    };
+}
+
+async function ladeChemicals() {
+    const btn = document.getElementById('btnChem');
+    btn.disabled = true;
+    let oldText = btn.innerText;
+
+    try {
+        setStatus("Lade Gefahrstoffe...");
+        btn.innerText = "⏳ Lade Sheets...";
+        
+        let allChemicals = [];
+        
+        for (let i = 0; i < CHEMICAL_SHEETS.length; i++) {
+            const sheet = CHEMICAL_SHEETS[i];
+            setStatus(`Lade Gefahrstoffe (${i + 1}/${CHEMICAL_SHEETS.length}): ${sheet.category}...`);
+            
+            const rawData = await fetchSmartsheet(sheet.id);
+            const parsedRows = parseSmartsheetData(rawData, false);
+            const normalized = parsedRows.map(r => normalizeChemicalRow(r, rawData.id, sheet.category));
+            
+            allChemicals = allChemicals.concat(normalized.filter(c => c.name && c.name !== '-'));
+        }
+
+        globalChemicals = allChemicals;
+        
+        await saveToCache('chemicalData', globalChemicals);
+        let now = new Date().toLocaleString('de-CH');
+        await saveToCache('lastSyncChemicals', now);
+        tsChemicals = now;
+
+        updateChemicals();
+        updateStatusForCurrentTab();
+    } catch(e) {
+        setStatus('Fehler beim Gefahrstoff-Sync: ' + e.message);
+        console.error(e);
+    } finally {
+        btn.innerText = "☣️ Gefahrstoffe";
+        btn.disabled = false;
+    }
+}
+
+function updateChemicals() {
+    if (!globalChemicals || globalChemicals.length === 0) return;
+
+    const fillDropdown = (id, prop, prependAll) => {
+        const sel = document.getElementById(id);
+        if (sel.options.length > 1) return;
+        let vals = [...new Set(globalChemicals.map(r => r[prop]).filter(v => v && v.toLowerCase() !== 'keine verwendung'))].sort();
+        sel.innerHTML = `<option value="All">${prependAll}</option>` + vals.map(v => `<option value="${v}">${v}</option>`).join('');
+    };
+
+    fillDropdown('chemCategory', 'category', 'Alle Kategorien');
+
+    const search = document.getElementById('chemSearch').value.toLowerCase().trim();
+    const loc = document.getElementById('chemLoc').value;
+    const cat = document.getElementById('chemCategory').value;
+
+    const statusProp = loc === 'All' ? 'dietlikonStatus' : (loc === 'dietlikon' ? 'dietlikonStatus' : 'valsStatus');
+    fillDropdown('chemStatus', statusProp, 'Alle Status');
+    const stat = document.getElementById('chemStatus').value;
+
+    let filtered = globalChemicals.filter(r => {
+        if (cat !== 'All' && r.category !== cat) return false;
+        
+        if (stat !== 'All') {
+            if (loc === 'All') {
+                if (r.dietlikonStatus !== stat && r.valsStatus !== stat) return false;
+            } else {
+                if (r[statusProp] !== stat) return false;
+            }
+        }
+
+        if (activeChemChartFilter.category && r.category !== activeChemChartFilter.category) return false;
+        if (activeChemChartFilter.status) {
+            if (loc === 'All') {
+                if (r.dietlikonStatus !== activeChemChartFilter.status && r.valsStatus !== activeChemChartFilter.status) return false;
+            } else {
+                if (r[statusProp] !== activeChemChartFilter.status) return false;
+            }
+        }
+
+        if (loc === 'All') {
+            let dS = (r.dietlikonStatus || '').toLowerCase();
+            let vS = (r.valsStatus || '').toLowerCase();
+            if ((dS === '' || dS === 'keine verwendung') && (vS === '' || vS === 'keine verwendung')) return false;
+        } else {
+            const localStatus = (loc === 'dietlikon' ? r.dietlikonStatus : r.valsStatus || '').toLowerCase();
+            if (localStatus === 'keine verwendung' || localStatus === '') return false;
+        }
+
+        if (search) {
+            let txt = `${r.name} ${r.artNr} ${r.inhaltsstoffe} ${r.cas}`.toLowerCase();
+            if (!txt.includes(search)) return false;
+        }
+        return true;
+    });
+
+    let catCounts = {};
+    filtered.forEach(r => catCounts[r.category] = (catCounts[r.category] || 0) + 1);
+    let catLabels = Object.keys(catCounts).sort((a,b) => catCounts[b] - catCounts[a]);
+    let catData = catLabels.map(l => catCounts[l]);
+
+    const chartColors = ['#1f3a60', '#3b82f6', '#9333ea', '#f87171', '#fb923c', '#2dd4bf', '#4ade80', '#facc15', '#ca8a04', '#4b5563'];
+
+    if (chemicalCharts['cat']) chemicalCharts['cat'].destroy();
+    chemicalCharts['cat'] = new Chart(document.getElementById('chemChartCat').getContext('2d'), {
+        type: 'doughnut',
+        plugins: [ChartDataLabels],
+        data: {
+            labels: catLabels,
+            datasets: [{ data: catData, backgroundColor: chartColors }]
+        },
+        options: {
+            rotation: -90,
+            circumference: 180,
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'right', labels: { boxWidth: 10, font: { size: 9 } } },
+                datalabels: {
+                    color: '#fff',
+                    font: { weight: 'bold', size: 10 },
+                    formatter: (v, ctx) => {
+                        let total = ctx.dataset.data.reduce((a,b)=>a+b,0);
+                        let pct = (v/total)*100;
+                        return pct > 5 ? pct.toFixed(0) + '%' : '';
+                    }
+                }
+            },
+            onClick: (evt, elements) => {
+                if (elements.length > 0) {
+                    const idx = elements[0].index;
+                    const clickedLabel = catLabels[idx];
+                    activeChemChartFilter.category = (activeChemChartFilter.category === clickedLabel) ? null : clickedLabel;
+                } else {
+                    activeChemChartFilter.category = null;
+                }
+                updateChemicals();
+            }
+        }
+    });
+
+    let statCounts = {};
+    filtered.forEach(r => {
+        if (loc === 'All') {
+            if (r.dietlikonStatus) statCounts[r.dietlikonStatus] = (statCounts[r.dietlikonStatus] || 0) + 1;
+            if (r.valsStatus && r.valsStatus !== r.dietlikonStatus) statCounts[r.valsStatus] = (statCounts[r.valsStatus] || 0) + 1;
+        } else {
+            let s = r[statusProp] || 'Unbekannt';
+            statCounts[s] = (statCounts[s] || 0) + 1;
+        }
+    });
+    let statLabels = Object.keys(statCounts).sort((a,b) => statCounts[b] - statCounts[a]);
+    let statData = statLabels.map(l => statCounts[l]);
+
+    if (chemicalCharts['status']) chemicalCharts['status'].destroy();
+    chemicalCharts['status'] = new Chart(document.getElementById('chemChartStatus').getContext('2d'), {
+        type: 'doughnut',
+        plugins: [ChartDataLabels],
+        data: {
+            labels: statLabels,
+            datasets: [{ data: statData, backgroundColor: ['#3b82f6', '#94a3b8', '#ef4444', '#f97316'] }]
+        },
+        options: {
+            rotation: -90,
+            circumference: 180,
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'right', labels: { boxWidth: 10, font: { size: 9 } } },
+                datalabels: {
+                    color: '#fff',
+                    font: { weight: 'bold', size: 10 },
+                    formatter: (v, ctx) => {
+                        let total = ctx.dataset.data.reduce((a,b)=>a+b,0);
+                        let pct = (v/total)*100;
+                        return pct > 3 ? pct.toFixed(0) + '%' : '';
+                    }
+                }
+            },
+            onClick: (evt, elements) => {
+                if (elements.length > 0) {
+                    const idx = elements[0].index;
+                    const clickedLabel = statLabels[idx];
+                    activeChemChartFilter.status = (activeChemChartFilter.status === clickedLabel) ? null : clickedLabel;
+                } else {
+                    activeChemChartFilter.status = null;
+                }
+                updateChemicals();
+            }
+        }
+    });
+
+    let tblHtml = '';
+    filtered.forEach(r => {
+        let displayStatus = loc === 'All' 
+            ? `D: ${r.dietlikonStatus || '-'} | V: ${r.valsStatus || '-'}` 
+            : r[statusProp];
+            
+        tblHtml += `
+        <tr style="border-bottom: 1px solid #eee;" onclick="showChemicalCard('${r.rowId}')">
+            <td style="padding: 8px; font-weight: 600;">${escapeHTML(r.name)}</td>
+            <td style="padding: 8px; color: #555;">${escapeHTML(r.artNr || '-')}</td>
+            <td style="padding: 8px;">${escapeHTML(r.category)}</td>
+            <td style="padding: 8px;"><span class="badge" style="background:#e1f0ff; color:#0078d4; font-size:10px;">${escapeHTML(displayStatus)}</span></td>
+            <td style="padding: 8px; font-size:11px; color:#666;">${escapeHTML(r.sdbDatum || '-')}</td>
+        </tr>`;
+    });
+
+    document.getElementById('chemTableBody').innerHTML = tblHtml || `<tr><td colspan="5" style="text-align:center; padding:15px;">Keine Gefahrstoffe gefunden.</td></tr>`;
+    
+    let filterIndicator = '';
+    if (activeChemChartFilter.category) filterIndicator += ` [Kat: ${activeChemChartFilter.category}]`;
+    if (activeChemChartFilter.status) filterIndicator += ` [Status: ${activeChemChartFilter.status}]`;
+    document.getElementById('chemChartCatTitle').innerText = 'Anteil pro Kategorie' + filterIndicator;
+}
+
+function showChemicalCard(rowId) {
+    const r = globalChemicals.find(x => String(x.rowId) === String(rowId));
+    if (!r) return;
+
+    window._activeChemRow = r;
+
+    document.getElementById('chemDetailCard').style.display = 'block';
+    document.getElementById('chCategory').innerText = r.category;
+    document.getElementById('chName').innerText = r.name;
+    document.getElementById('chArtNr').innerText = r.artNr || 'Keine';
+    document.getElementById('chUfi').innerText = r.ufi || 'Keine';
+    document.getElementById('chSignalwort').innerText = r.signalwort || 'Keines';
+
+    const ssLink = document.getElementById('chSmartsheetLink');
+    if (ssLink && r.sheetId && r.rowId) {
+        ssLink.href = `https://app.smartsheet.eu/sheets/${r.sheetId}?rowId=${r.rowId}`;
+        ssLink.style.display = 'inline-block';
+    } else if (ssLink) {
+        ssLink.style.display = 'none';
+    }
+
+    let ghsHtml = '';
+    if (r.ghs && r.ghs.length > 0) {
+        ghsHtml = r.ghs.map(sym => {
+            return `<span style="background: #e74c3c; color: white; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 10px;">${sym}</span>`;
+        }).join(' ');
+    } else {
+        ghsHtml = '<span style="color:#888; font-size:11px;">Keine Einstufung</span>';
+    }
+    document.getElementById('chGhsSymbols').innerHTML = ghsHtml;
+
+    document.getElementById('chHSatz').innerText = r.hSatz || 'Keine H-Sätze definiert.';
+    document.getElementById('chPSatz').innerText = r.pSatz || 'Keine P-Sätze definiert.';
+    
+    let casStr = r.cas ? ` (CAS: ${r.cas})` : '';
+    document.getElementById('chInhaltsstoffe').innerText = (r.inhaltsstoffe || 'Keine Angabe') + casStr;
+
+    const loc = document.getElementById('chemLoc').value;
+    if (loc === 'All') {
+        document.getElementById('chLocTitle').innerText = "Dietlikon & Vals";
+        document.getElementById('chEinsatzort').innerHTML = `<b>D:</b> ${r.dietlikonEinsatzort || '-'} <br><b>V:</b> ${r.valsEinsatzort || '-'}`;
+        document.getElementById('chLagerort').innerHTML = `<b>D:</b> ${r.dietlikonLagerort || '-'} <br><b>V:</b> ${r.valsLagerort || '-'}`;
+        document.getElementById('chKontakt').innerHTML = `<b>D:</b> ${r.dietlikonKontakt || '-'} <br><b>V:</b> ${r.valsKontakt || '-'}`;
+    } else {
+        document.getElementById('chLocTitle').innerText = loc.toUpperCase();
+        if (loc === 'dietlikon') {
+            document.getElementById('chEinsatzort').innerText = r.dietlikonEinsatzort || '-';
+            document.getElementById('chLagerort').innerText = r.dietlikonLagerort || '-';
+            document.getElementById('chKontakt').innerText = r.dietlikonKontakt || '-';
+        } else {
+            document.getElementById('chEinsatzort').innerText = r.valsEinsatzort || '-';
+            document.getElementById('chLagerort').innerText = r.valsLagerort || '-';
+            document.getElementById('chKontakt').innerText = r.valsKontakt || '-';
+        }
+    }
+
+    document.getElementById('chAttachmentsArea').innerHTML = '';
+}
+
+async function fetchChemicalAttachments() {
+    const r = window._activeChemRow;
+    if (!r) return;
+
+    const btn = document.getElementById('btnFetchAttachments');
+    const oldText = btn.innerText;
+    btn.innerText = "⏳ Rufe Anhänge ab...";
+    btn.disabled = true;
+
+    try {
+        const response = await fetch(PA_ATTACHMENTS_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                sheetId: r.sheetId, 
+                rowId: r.rowId, 
+                action: "getAttachments"
+            })
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            const parsed = typeof data === 'string' ? JSON.parse(data) : data;
+            
+            if (parsed && Array.isArray(parsed) && parsed.length > 0) {
+                let html = parsed.map(att => {
+                    return `<a href="${att.url}" target="_blank" style="background:#eafaf1; color:#107c41; padding:6px; border-radius:4px; font-weight:bold; text-decoration:none; border:1px solid #c6e0b4;">📄 ${escapeHTML(att.name)}</a>`;
+                }).join('');
+                document.getElementById('chAttachmentsArea').innerHTML = html;
+            } else {
+                document.getElementById('chAttachmentsArea').innerHTML = '<span style="color:#d83b01;">⚠️ Keine Anhänge an dieser Zeile gefunden.</span>';
+            }
+        } else {
+            document.getElementById('chAttachmentsArea').innerHTML = '<span style="color:#d83b01;">Fehler beim Abruf (Flow-Anpassung nötig).</span>';
+        }
+    } catch(e) {
+        document.getElementById('chAttachmentsArea').innerHTML = '<span style="color:#d83b01;">Netzwerkfehler beim Abruf.</span>';
+    } finally {
+        btn.innerText = oldText;
+        btn.disabled = false;
+    }
+}
 </script>
 <!-- DEVIATION EINGABE MODAL -->
 <div class="modal-overlay" id="deviationModal">
