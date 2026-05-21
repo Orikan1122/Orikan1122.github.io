@@ -1811,15 +1811,26 @@
         </div>
       </div>
 
-      <!-- CHARTS -->
-      <div style="display:flex; gap: 20px; flex-wrap: wrap; margin-bottom: 20px;">
-        <div style="flex: 2; min-width: 300px; background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-          <h4 style="font-size: 14px; color: #333; margin-bottom: 10px;">Projekt Pipeline (Status)</h4>
-          <div style="height: 200px; position: relative;"><canvas id="projChartStatus"></canvas></div>
-        </div>
-        <div style="flex: 1; min-width: 250px; background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-          <h4 style="font-size: 14px; color: #333; margin-bottom: 10px;">Portfolio (Kategorie)</h4>
-          <div style="height: 200px; position: relative;"><canvas id="projChartCat"></canvas></div>
+      <!-- NEU: Projekt Portfolio Matrix Tabelle -->
+      <div style="background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px;">
+        <h4 style="font-size: 14px; color: #333; margin-bottom: 10px;">Projekt-Portfolio Matrix (Anzahl Projekte nach Kategorie & Status)</h4>
+        <div style="overflow-x: auto;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: right;">
+            <thead>
+              <tr style="background: #f4f7f6; border-bottom: 2px solid #ccc;">
+                <th style="padding: 10px; text-align: left;">Kategorie</th>
+                <th style="padding: 10px;">Geplant</th>
+                <th style="padding: 10px;">In Arbeit</th>
+                <th style="padding: 10px;">Umgesetzt / Abgeschlossen</th>
+                <th style="padding: 10px;">On Hold / Stopp</th>
+                <th style="padding: 10px;">Andere / N/A</th>
+                <th style="padding: 10px; font-weight: bold; border-left: 2px solid #ddd; background: #fafafa;">Total</th>
+              </tr>
+            </thead>
+            <tbody id="projMatrixTableBody">
+              <tr><td colspan="7" style="text-align:center; padding:15px; color:#999;">Keine Daten</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -1918,7 +1929,6 @@
           <option value="All">Alle Standorte</option>
           <option value="Dietlikon">Dietlikon</option>
           <option value="Vals">Vals</option>
-          <option value="Fleet">Fleet</option>
         </select>
       </div>
       
@@ -5993,7 +6003,7 @@ const RISK_SHEETS = [
     { id: "RrvQCmx6RXqh74gX7XmJmW6fQ6FwpqHpFPXQhr41", loc: "Vals", area: "Hazardous Materials" },
     { id: "F77JhfwxHrF4w9prmpVjf2XPjm5VPwH8CRhQrjf1", loc: "Vals", area: "Coolants" },
     { id: "9rfWPmwW8WXQ8c9fC685C7CP4mj5Rvp4QR5JHmP1", loc: "Vals", area: "Watersupply" },
-    { id: "r97hr4x48CpvFcxwqhPf6vCc78JWJxH5J3GWJQ71", loc: "Fleet", area: "Fleet" }
+    { id: "r97hr4x48CpvFcxwqhPf6vCc78JWJxH5J3GWJQ71", loc: "National", area: "Fleet" }
 ];
 // ==========================================
 // GEFAHRSTOFFE / CHEMICALS CONFIG
@@ -9533,31 +9543,75 @@ function updateProjectDash() {
     document.getElementById('kpiProjProg').innerText = totalProg;
     document.getElementById('kpiProjDone').innerText = totalDone;
 
-    // --- CHARTS ---
-    const drawChart = (ctxId, type, labels, data, colors) => {
-        if (projCharts[ctxId]) projCharts[ctxId].destroy();
-        projCharts[ctxId] = new Chart(document.getElementById(ctxId).getContext('2d'), {
-            type: type, plugins: [ChartDataLabels],
-            data: { labels: labels, datasets: [{ data: data, backgroundColor: colors, borderRadius: type==='bar'?4:0 }] },
-            options: {
-                responsive: true, maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: type === 'doughnut', position: 'right' },
-                    datalabels: { color: type==='doughnut'?'#fff':'#000', font:{weight:'bold'}, align: type==='bar'?'top':'center', anchor: type==='bar'?'end':'center' }
-                },
-                scales: type === 'doughnut' ? {} : { x: { grid: { display: false } }, y: { beginAtZero: true, display: false } }
-            }
-        });
+    // ==========================================
+    // NEU: MATRIX-BERECHNUNG FÜR PROJEKTE
+    // ==========================================
+    const getStatusBucket = (statusStr) => {
+        let s = String(statusStr || '').toLowerCase().trim();
+        if (s.includes('geplant') || s.includes('plan') || s.includes('bereit')) return 'Geplant';
+        if (s.includes('arbeit') || s.includes('progress') || s.includes('umsetzung')) return 'In Arbeit';
+        if (s.includes('umgesetzt') || s.includes('abgeschlossen') || s.includes('done') || s.includes('fertig')) return 'Umgesetzt';
+        if (s.includes('hold') || s.includes('stopp') || s.includes('onhold') || s.includes('pausiert')) return 'On Hold';
+        return 'Andere';
     };
 
-    let statLabels = Object.keys(statusCount).sort((a,b) => statusCount[b] - statusCount[a]);
-    let statData = statLabels.map(l => statusCount[l]);
-    drawChart('projChartStatus', 'bar', statLabels, statData, '#0078d4');
+    let projMatrix = {};
+    let colTotals = { geplant: 0, progress: 0, done: 0, hold: 0, other: 0, grandTotal: 0 };
 
-    let catLabels = Object.keys(catCount);
-    let catData = catLabels.map(l => catCount[l]);
-    let catColors = ['#107c41', '#d83b01', '#5c2d91', '#00bcf2', '#ffb900', '#e3008c'];
-    drawChart('projChartCat', 'doughnut', catLabels, catData, catColors);
+    filtered.forEach(p => {
+        let cat = p.category || 'Nicht definiert';
+        let stat = p.status || 'Nicht definiert';
+        let bucket = getStatusBucket(stat);
+
+        if (!projMatrix[cat]) {
+            projMatrix[cat] = { Geplant: 0, 'In Arbeit': 0, Umgesetzt: 0, 'On Hold': 0, Andere: 0, total: 0 };
+        }
+
+        projMatrix[cat][bucket]++;
+        projMatrix[cat].total++;
+
+        // Spaltensummen aggregieren
+        if (bucket === 'Geplant') colTotals.geplant++;
+        else if (bucket === 'In Arbeit') colTotals.progress++;
+        else if (bucket === 'Umgesetzt') colTotals.done++;
+        else if (bucket === 'On Hold') colTotals.hold++;
+        else colTotals.other++;
+        
+        colTotals.grandTotal++;
+    });
+
+    let matrixHtml = '';
+    let sortedCats = Object.keys(projMatrix).sort();
+    
+    sortedCats.forEach(cat => {
+        let r = projMatrix[cat];
+        matrixHtml += `
+        <tr style="border-bottom: 1px solid #eee; transition: background 0.2s;" onmouseover="this.style.background='#f5f4f1'" onmouseout="this.style.background='transparent'">
+            <td style="padding: 8px 10px; text-align: left; font-weight:600; color:#555;">${cat}</td>
+            <td style="padding: 8px 10px; font-weight:500;">${r.Geplant > 0 ? r.Geplant : '-'}</td>
+            <td style="padding: 8px 10px; color:#0078d4; font-weight:bold;">${r['In Arbeit'] > 0 ? r['In Arbeit'] : '-'}</td>
+            <td style="padding: 8px 10px; color:#107c41; font-weight:bold;">${r.Umgesetzt > 0 ? r.Umgesetzt : '-'}</td>
+            <td style="padding: 8px 10px; color:#d83b01;">${r['On Hold'] > 0 ? r['On Hold'] : '-'}</td>
+            <td style="padding: 8px 10px; color:#777;">${r.Andere > 0 ? r.Andere : '-'}</td>
+            <td style="padding: 8px 10px; font-weight: bold; background:#f9f9f9; border-left: 2px solid #ddd;">${r.total}</td>
+        </tr>`;
+    });
+
+    // Spalten-Summen Zeile (Total)
+    if (sortedCats.length > 0) {
+        matrixHtml += `
+        <tr style="background:#e8f0fe; font-weight:bold; border-top:2px solid #0078d4;">
+            <td style="padding: 10px; text-align: left;">Total</td>
+            <td style="padding: 10px;">${colTotals.geplant > 0 ? colTotals.geplant : '-'}</td>
+            <td style="padding: 10px; color:#0078d4;">${colTotals.progress > 0 ? colTotals.progress : '-'}</td>
+            <td style="padding: 10px; color:#107c41;">${colTotals.done > 0 ? colTotals.done : '-'}</td>
+            <td style="padding: 10px; color:#d83b01;">${colTotals.hold > 0 ? colTotals.hold : '-'}</td>
+            <td style="padding: 10px; color:#777;">${colTotals.other > 0 ? colTotals.other : '-'}</td>
+            <td style="padding: 10px; border-left: 2px solid #ccc; background:#e1effa;">${colTotals.grandTotal}</td>
+        </tr>`;
+    }
+    
+    document.getElementById('projMatrixTableBody').innerHTML = matrixHtml || '<tr><td colspan="7" style="text-align:center; padding:15px; color:#999;">Keine Projektdaten in dieser Ansicht vorhanden</td></tr>';
 
     // --- TABELLE RENDERN (Mit plantList) ---
     let tHtml = '';
@@ -11045,7 +11099,7 @@ document.addEventListener('keydown', function(e) {
 // ============================================================
 // GEFAHRSTOFFE / CHEMICALS CONTROLLER & PARSER
 // ============================================================
-function normalizeChemicalRow(r, sheetId, category) {
+function normalizeChemicalRow(r, sheetId, sheetHash, category) {
     const getField = (row, alternatives) => {
         const keys = Object.keys(row);
         for (let alt of alternatives) {
@@ -11131,6 +11185,7 @@ function normalizeChemicalRow(r, sheetId, category) {
     return {
         rowId: r._rowId || r.rowId || r.id,
         sheetId: sheetId,
+        sheetHash: sheetHash,
         category: category,
         name: getField(r, ['1.1 handelsname', 'handelsname', 'handels name', 'handels-name']),
         artNr: getField(r, ['artnr', 'art. nr.', 'artikelnummer', 'artikel nr']),
@@ -11176,7 +11231,7 @@ async function ladeChemicals() {
             
             const rawData = await fetchSmartsheet(sheet.id);
             const parsedRows = parseSmartsheetData(rawData, false);
-            const normalized = parsedRows.map(r => normalizeChemicalRow(r, rawData.id, sheet.category));
+            const normalized = parsedRows.map(r => normalizeChemicalRow(r, rawData.id, sheet.id, sheet.category));
             
             allChemicals = allChemicals.concat(normalized.filter(c => c.name && c.name !== '-'));
         }
@@ -11611,8 +11666,8 @@ function updateChemicals() {
         document.getElementById('chSignalwort').innerText = r.signalwort || 'Keines';
 
         const ssLink = document.getElementById('chSmartsheetLink');
-        if (ssLink && r.sheetId && r.rowId) {
-            ssLink.href = `https://app.smartsheet.eu/sheets/${r.sheetId}?rowId=${r.rowId}`;
+        if (ssLink && r.sheetHash && r.rowId) {
+            ssLink.href = `https://app.smartsheet.eu/sheets/${r.sheetHash}?rowId=${r.rowId}`;
             ssLink.style.display = 'inline-block';
         } else if (ssLink) {
             ssLink.style.display = 'none';
