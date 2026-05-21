@@ -2124,28 +2124,48 @@
         </div>
       </div>
 
-      <!-- NEU: Compliance Zeile 2 -->
-      <div style="display:flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;">
-        <div style="flex: 1; min-width: 300px; background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-          <h4 style="font-size: 13px; color: #333; margin-bottom: 10px; font-weight: 600;">Gesetzlicher Schutzbereich (REACH, VOC, Biozide etc.)</h4>
-          <div style="height: 180px; position: relative;"><canvas id="chemChartLaws"></canvas></div>
-        </div>
-        <div style="flex: 1; min-width: 300px; background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-          <h4 style="font-size: 13px; color: #333; margin-bottom: 10px; font-weight: 600;">GHS Gefahrenprofil nach Standort</h4>
-          <div style="height: 180px; overflow-y: auto;">
-            <table style="width: 100%; border-collapse: collapse; font-size: 11.5px; text-align: center;">
+      <!-- NEU: Großer gesetzlicher Schutzbereich mit integrierter Tabelle (Split-Panel) -->
+      <div style="background: white; border-radius: 8px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px;">
+        <h4 style="font-size: 14px; color: #333; margin-bottom: 15px; font-weight: 600;">Gesetzlicher Schutzbereich & Beurteilungen (Abdeckung)</h4>
+        <div style="display: flex; gap: 20px; flex-wrap: wrap; align-items: stretch;">
+          <!-- Linke Hälfte: Diagramm (Signifikant vergrössert!) -->
+          <div style="flex: 1.4; min-width: 350px; height: 350px; position: relative;">
+            <canvas id="chemChartLaws"></canvas>
+          </div>
+          <!-- Rechte Hälfte: Scrollbare Matrix-Tabelle -->
+          <div style="flex: 1; min-width: 300px; max-height: 350px; overflow-y: auto; border-left: 1px dashed #ccc; padding-left: 20px;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 11.5px; text-align: right;">
               <thead>
-                <tr style="background: #f4f7f6; position: sticky; top: 0; z-index:2;">
-                  <th style="padding: 6px; text-align: left;">Gefahrensymbol</th>
-                  <th style="padding: 6px;">Dietlikon</th>
-                  <th style="padding: 6px;">Vals</th>
+                <tr style="background: #f4f7f6; border-bottom: 2px solid #ccc; position: sticky; top: 0; z-index: 2;">
+                  <th style="padding: 8px; text-align: left;">Gesetz / Details (Beurteilung)</th>
+                  <th style="padding: 8px;">Stoffe</th>
+                  <th style="padding: 8px;">% Mix</th>
                 </tr>
               </thead>
-              <tbody id="chemGhsTableBody">
-                <tr><td colspan="3" style="padding:10px; color:#999;">Keine Daten</td></tr>
+              <tbody id="chemLawsTableBody">
+                <tr><td colspan="3" style="text-align:center; padding: 15px; color:#999;">Lade Daten...</td></tr>
               </tbody>
             </table>
           </div>
+        </div>
+      </div>
+
+      <!-- NEU: GHS Gefahrenprofil nach Standort (separat platziert) -->
+      <div style="background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px;">
+        <h4 style="font-size: 13px; color: #333; margin-bottom: 10px; font-weight: 600;">GHS Gefahrenprofil nach Standort</h4>
+        <div style="max-height: 250px; overflow-y: auto;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 11.5px; text-align: center;">
+            <thead>
+              <tr style="background: #f4f7f6; position: sticky; top: 0; z-index:2;">
+                <th style="padding: 6px; text-align: left;">Gefahrensymbol</th>
+                <th style="padding: 6px;">Dietlikon</th>
+                <th style="padding: 6px;">Vals</th>
+              </tr>
+            </thead>
+            <tbody id="chemGhsTableBody">
+              <tr><td colspan="3" style="padding:10px; color:#999;">Keine Daten</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -11235,6 +11255,7 @@ function normalizeChemicalRow(r, sheetId, sheetHash, category) {
         
         stfv: getField(r, ['mengenschwelle', 'stfv mengenschwelle kg', 'mengenschwelle kg']),
         laws: getField(r, ['betroffene gesetze', 'gesetze', 'affected laws']),
+        beurteilung: getField(r, ['beurteilung', 'beurteilungen', 'assessment', 'evaluation']),
         
         ghs: ghsSymbols
     };
@@ -11577,20 +11598,84 @@ function updateChemicals() {
     });
 
     // ==========================================
-    // NEU 3: GESETZLICHER SCHUTZBEREICH CHART (Horizontal Bar)
+    // NEU 3: GESETZLICHER SCHUTZBEREICH & BEURTEILUNGEN (Hierarchisches Mapping)
     // ==========================================
-    let lawCounts = { 'REACH': 0, 'VOCV': 0, 'VBP (Biozid)': 0, 'GSchV (Wasser)': 0, 'StFV (Störfall)': 0 };
+    let lawCounts = {
+        'REACH': 0,
+        'ChemV': 0,
+        'VBP (Biozide)': 0,
+        '  ↳ Zulassung befristet/Ablauf': 0, // Detail aus Beurteilung
+        'StFV (Störfall)': 0,
+        '  ↳ Mengenbegrenzt (StFV)': 0,     // Detail aus Beurteilung
+        'PRTR-V': 0,
+        'VOCV': 0,
+        '  ↳ VOC-Abgabepflichtig': 0,       // Detail aus Beurteilung
+        'GSchV': 0,
+        '  ↳ Gewässerschutz (Sparsam)': 0,   // Detail aus Beurteilung
+        'ChemRRV': 0,
+        'ChemPICV': 0,
+        'PSMV': 0,
+        'EU Dangerous Sub.': 0,
+        'EU Water Frame': 0,
+        'EU Priority Sub.': 0
+    };
+
     filtered.forEach(r => {
-        let l = String(r.laws || '').toUpperCase();
-        if (l.includes('REACH')) lawCounts['REACH']++;
-        if (l.includes('VOC')) lawCounts['VOCV']++;
-        if (l.includes('VBP') || l.includes('BIOZID')) lawCounts['VBP (Biozid)']++;
-        if (l.includes('GSCHV') || l.includes('GEWÄSSER') || l.includes('GEWAESSER')) lawCounts['GSchV (Wasser)']++;
-        if (l.includes('STFV') || l.includes('STÖRFALL') || l.includes('STOERFALL')) lawCounts['StFV (Störfall)']++;
+        let lawsText = String(r.laws || '').toUpperCase();
+        let evalText = String(r.beurteilung || '').toUpperCase();
+        let combinedText = (lawsText + ' ' + evalText);
+        
+        if (combinedText.includes('REACH')) lawCounts['REACH']++;
+        if (combinedText.includes('CHEMV')) lawCounts['ChemV']++;
+        
+        if (combinedText.includes('VBP') || combinedText.includes('BIOZID')) {
+            lawCounts['VBP (Biozide)']++;
+            // Parsing: Befristete Zulassung
+            if (evalText.includes('GENEHMIGT BIS') || evalText.includes('BEFRISTET') || evalText.includes('ABLAUF')) {
+                lawCounts['  ↳ Zulassung befristet/Ablauf']++;
+            }
+        }
+        
+        if (combinedText.includes('STFV') || combinedText.includes('STÖRFALL') || combinedText.includes('STOERFALL')) {
+            lawCounts['StFV (Störfall)']++;
+            // Parsing: Mengenbegrenzung
+            if (evalText.includes('MAX') || evalText.includes('LIMIT') || evalText.includes('MENGEN')) {
+                lawCounts['  ↳ Mengenbegrenzt (StFV)']++;
+            }
+        }
+        
+        if (combinedText.includes('PRTR')) lawCounts['PRTR-V']++;
+        
+        if (combinedText.includes('VOC')) {
+            lawCounts['VOCV']++;
+            // Parsing: Abgabepflichtig
+            if (evalText.includes('ABGABEPFLICHTIG') || evalText.includes('%')) {
+                lawCounts['  ↳ VOC-Abgabepflichtig']++;
+            }
+        }
+        
+        if (combinedText.includes('GSCHV') || combinedText.includes('GEWÄSSER') || combinedText.includes('GEWAESSER')) {
+            lawCounts['GSchV']++;
+            // Parsing: Gewässerschutz-Vorgaben
+            if (evalText.includes('SPARSAM') || evalText.includes('NICHT INS GEWÄSSER') || evalText.includes('GEWÄSSER')) {
+                lawCounts['  ↳ Gewässerschutz (Sparsam)']++;
+            }
+        }
+        
+        if (combinedText.includes('CHEMRRV')) lawCounts['ChemRRV']++;
+        if (combinedText.includes('PIC') || combinedText.includes('CHEMPICV')) lawCounts['ChemPICV']++;
+        if (combinedText.includes('PSMV')) lawCounts['PSMV']++;
+        if (combinedText.includes('11-2006') || combinedText.includes('DANGEROUS SUBSTANCES')) lawCounts['EU Dangerous Sub.']++;
+        if (combinedText.includes('WATER FRAME') || combinedText.includes('2000 MAIN POLLUTANTS')) lawCounts['EU Water Frame']++;
+        if (combinedText.includes('2455-2001-EC')) lawCounts['EU Priority Sub.']++;
     });
 
-    let lawLabels = Object.keys(lawCounts);
+    // Nur Zeilen anzeigen, die mindestens einmal vorkommen (verhindert leere Balken)
+    let lawLabels = Object.keys(lawCounts).filter(k => lawCounts[k] > 0);
     let lawData = lawLabels.map(l => lawCounts[l]);
+
+    // Farb-Kompensation: Hauptgesetze dunkelviolett (#5c2d91), Detailbalken hellviolett (#a29bfe)
+    let lawColors = lawLabels.map(l => l.includes('↳') ? '#a29bfe' : '#5c2d91');
 
     if (chemicalCharts['laws']) chemicalCharts['laws'].destroy();
     chemicalCharts['laws'] = new Chart(document.getElementById('chemChartLaws').getContext('2d'), {
@@ -11598,18 +11683,68 @@ function updateChemicals() {
         plugins: [ChartDataLabels],
         data: {
             labels: lawLabels,
-            datasets: [{ data: lawData, backgroundColor: '#5c2d91', borderRadius: 3 }]
+            datasets: [{ data: lawData, backgroundColor: lawColors, borderRadius: 3 }]
         },
         options: {
             indexAxis: 'y',
-            responsive: true, maintainAspectRatio: false,
+            responsive: true,
+            maintainAspectRatio: false,
+            layout: { 
+                padding: { 
+                    right: 45 // Platz für das kontraststarke Label rechts
+                } 
+            },
             plugins: {
                 legend: { display: false },
-                datalabels: { color: '#fff', anchor: 'end', align: 'start', font: { weight: 'bold', size: 11 } }
+                datalabels: { 
+                    color: '#000000',
+                    anchor: 'end',
+                    align: 'end',
+                    offset: 4,
+                    font: { weight: 'bold', size: 11 } 
+                }
             },
-            scales: { x: { display: false }, y: { grid: { display: false } } }
+            scales: { 
+                x: { 
+                    display: false, 
+                    grace: '15%' 
+                }, 
+                y: { 
+                    grid: { display: false },
+                    ticks: {
+                        font: { size: 10.5, weight: 'bold' }, // Etwas grössere Schrift für die Achsenbeschriftung
+                        autoSkip: false
+                    }
+                } 
+            }
         }
     });
+
+    // ==========================================
+    // NEU: GESETZES-MATRIX-TABELLE BEFÜLLEN
+    // ==========================================
+    let lawsTbodyHtml = '';
+    let totalChems = filtered.length;
+
+    lawLabels.forEach(label => {
+        let count = lawCounts[label];
+        let pct = totalChems > 0 ? ((count / totalChems) * 100).toFixed(1) : '0.0';
+        
+        let isSubRow = label.includes('↳');
+        let textStyle = isSubRow 
+            ? 'color: #666; padding-left: 20px; font-style: italic;' 
+            : 'font-weight: bold; color: #333;';
+        let bgStyle = isSubRow ? 'background: #fcfcfc;' : 'background: #f4f7f6;';
+
+        lawsTbodyHtml += `
+        <tr style="border-bottom: 1px solid #eee; ${bgStyle}">
+            <td style="padding: 6px 8px; text-align: left; ${textStyle}">${label}</td>
+            <td style="padding: 6px 8px; font-weight: bold; color: ${isSubRow ? '#a29bfe' : '#5c2d91'}">${count}</td>
+            <td style="padding: 6px 8px; color: #555; font-weight: bold;">${pct}%</td>
+        </tr>`;
+    });
+
+    document.getElementById('chemLawsTableBody').innerHTML = lawsTbodyHtml || '<tr><td colspan="3" style="text-align:center; padding:15px; color:#999;">Keine Gesetzesbezüge im aktiven Filter vorhanden</td></tr>';
 
     // ==========================================
     // NEU 4: GHS GEFAHRENPROFILE NACH STANDORT (Tabelle)
