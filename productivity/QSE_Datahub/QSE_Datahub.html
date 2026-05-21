@@ -213,8 +213,11 @@
   <div class="top-bar">
     <h1>&#128202; QSE Datahub</h1>
     
-    <!-- AUFGERÄUMTE SYNC BUTTONS -->
-    <div style="display:flex; gap:6px; align-items:center; background:#f0f5fa; padding:6px 12px; border-radius:6px; border:1px solid #cce3f5;">
+    <!-- TOGGLE BUTTON FÜR SYNC PANEL -->
+    <button id="toggleSyncBtn" onclick="toggleSyncPanel()" style="background:#0078d4; padding:8px 14px;">⚙️ Sync einblenden</button>
+
+    <!-- AUFGERÄUMTE SYNC BUTTONS (Standardmäßig ausgeblendet) -->
+    <div id="syncPanel" style="display:none; gap:6px; align-items:center; background:#f0f5fa; padding:6px 12px; border-radius:6px; border:1px solid #cce3f5;">
       <span style="font-size:11px; font-weight:bold; color:#0078d4; margin-right:5px; text-transform:uppercase;">Daten Sync:</span>
       <button id="btn" onclick="ladeDaten()">&#128260; Master</button>
       <button id="btnEnv" onclick="ladeEnvDaten()" style="background:#107c41;">&#127757; Env.</button>
@@ -229,7 +232,16 @@
     </label>
     <button id="exportBtn" class="btn-excel" onclick="exportiereExcel()" style="display:none">&#128229; Export</button>
     
-    <p id="status"></p>
+    <!-- AUFKLAPPBARES STATUS & SYNC LOG PANEL (ACCORDION) -->
+    <details id="syncLogPanel" style="background:#fff; padding:6px 12px; border-radius:6px; border:1px solid #ccc; font-size:11.5px; cursor:pointer; min-width: 260px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+      <summary style="font-weight:bold; color:#555; outline:none; user-select:none;">🕒 Sync- & Lade-Status</summary>
+      <div style="margin-top:6px; display:flex; flex-direction:column; gap:3px; color:#444;" id="syncLogDetails">
+         <!-- Wird dynamisch befüllt -->
+      </div>
+    </details>
+
+    <!-- Verstecktes Status-Element für alte Funktionsaufrufe zur Sicherheit -->
+    <p id="status" style="display:none;"></p>
     
     <!-- LOGOUT -->
     <button onclick="logout()" style="background:#d83b01; margin-left:auto;">&#128682; Logout</button>
@@ -1119,9 +1131,21 @@
       </div>
       <!-- TABELLE UNTEN INKL. EXPORT BUTTON & SPALTEN-AUSWAHL -->
       <div style="margin-top: 20px; background: white; padding: 15px; border-radius: 8px; border: 1px solid #e0e0e0; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-        <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap:wrap; gap:10px;">
           <h3 id="cpmRawTableTitle" style="font-size: 15px; margin: 0;">Übersicht Pro Material (Gefiltert nach Jahr & Monat)</h3>
-          <button onclick="exportCpmTable()" style="background:#107c41; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:12px;">&#128229; Excel Export</button>
+          
+          <div style="display:flex; gap:10px; align-items:center;">
+            <!-- NEU: Herkunft Dropdown-Filter -->
+            <label style="font-size:12px; font-weight:bold; color:#555;">Herkunft filtern:</label>
+            <select id="cpmOriginFilter" onchange="renderCpmRawTable()" style="padding:5px 8px; border-radius:4px; border:1px solid #ccc; font-size:12px; cursor:pointer; outline:none; background:white;">
+              <option value="All">Alle Herkünfte</option>
+              <option value="Dietlikon">Dietlikon</option>
+              <option value="Vals">Vals</option>
+              <option value="Import">Import</option>
+            </select>
+            
+            <button onclick="exportCpmTable()" style="background:#107c41; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:12px;">&#128229; Excel Export</button>
+          </div>
         </div>
 
         <!-- Spaltenauswahl für CPM Tabelle -->
@@ -2712,6 +2736,7 @@ function showApp() {
     }
     
     loadAppFromCache();
+    updateSyncLogDisplay(); // Initiale Befüllung nach dem Login
 }
 
 function logout() {
@@ -2849,6 +2874,7 @@ async function loadAppFromCache() {
             // 5. ABSCHLUSS & STATUS
             document.getElementById('exportBtn').style.display = 'inline-block';
             updateStatusForCurrentTab(); // Setzt den korrekten Status für den aktiven Tab
+            updateSyncLogDisplay(); // Befüllung mit den geladenen Cache-Stamps
 
         } else {
             setStatus('Keine lokalen Daten vorhanden. Bitte auf einen der Sync-Buttons klicken.');
@@ -2930,7 +2956,10 @@ function findMapping(bStr, pStr, isSales) {
 // ============================================================
 // HELPERS
 // ============================================================
-function setStatus(msg) { document.getElementById('status').innerText = msg; }
+function setStatus(msg) { 
+    document.getElementById('status').innerText = msg; 
+    updateSyncLogDisplay(msg); // Update des Logs bei jedem neuen Ladestatus
+}
 function updateStatusForCurrentTab() {
     const activeTab = document.querySelector('.tab-pane.active');
     if (!activeTab) return;
@@ -5578,10 +5607,18 @@ function renderCpmRawTable() {
     const activeColsArray = cpmAllCols.filter(c => cpmSelectedCols.has(c));
     let filteredCount = 0;
 
+    // Herkunft Dropdown-Filter auslesen
+    const originFilterVal = document.getElementById('cpmOriginFilter') ? document.getElementById('cpmOriginFilter').value : 'All';
+
     window._cpmRawData.forEach(item => {
-        // Filter prüfen
+        // 1. Matrix Plant Filter prüfen (Klick auf Matrix-Zeile)
         if (window.cpmActiveFilter.plant && item.herkunft !== window.cpmActiveFilter.plant) return;
+        
+        // 2. Matrix Brand Filter prüfen (Klick auf Matrix-Zeile)
         if (window.cpmActiveFilter.brand && item.displayKey !== window.cpmActiveFilter.brand) return;
+
+        // 3. NEU: Herkunft Dropdown-Filter prüfen
+        if (originFilterVal !== 'All' && item.herkunft !== originFilterVal) return;
 
         filteredCount++;
         let trHtml = '<tr style="border-bottom:1px solid #eee; transition:background 0.2s;" onmouseover="this.style.background=\'#f5f4f1\'" onmouseout="this.style.background=\'transparent\'">';
@@ -5605,6 +5642,7 @@ function renderCpmRawTable() {
     let titleEl = document.getElementById('cpmRawTableTitle');
     if (titleEl) {
         let titleText = 'Übersicht Pro Material (Gefiltert nach Jahr & Monat)';
+        if (originFilterVal !== 'All') titleText += ` [Herkunft: ${originFilterVal}]`;
         if (window.cpmActiveFilter.brand) titleText += ` > <span style="color:#d83b01;">${window.cpmActiveFilter.brand}</span>`;
         else if (window.cpmActiveFilter.plant) titleText += ` > <span style="color:#d83b01;">${window.cpmActiveFilter.plant}</span>`;
         titleText += ` <span style="font-size:11px; color:#555;">(${filteredCount} Reklamationen)</span>`;
@@ -11083,19 +11121,7 @@ function renderExecutiveSummary() {
     
     document.getElementById('execProjBody').innerHTML = projHtml || '<tr><td colspan="5" style="text-align:center; padding:15px; color:#999;">Keine Projekte mit Status "In Arbeit" gefunden.</td></tr>';
 }
-// --- BASIC UI PROTECTION ---
-// Deaktiviert Rechtsklick
-document.addEventListener('contextmenu', event => event.preventDefault());
 
-// Deaktiviert typische Entwickler-Shortcuts (F12, Strg+Shift+I, Strg+U)
-document.addEventListener('keydown', function(e) {
-    if(e.keyCode === 123 || 
-      (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74)) || 
-      (e.ctrlKey && e.keyCode === 85)) {
-        e.preventDefault();
-        return false;
-    }
-});
 // ============================================================
 // GEFAHRSTOFFE / CHEMICALS CONTROLLER & PARSER
 // ============================================================
@@ -11347,7 +11373,24 @@ function updateChemicals() {
     if (chemicalCharts['cat']) chemicalCharts['cat'].destroy();
     chemicalCharts['cat'] = new Chart(document.getElementById('chemChartCat').getContext('2d'), {
         type: 'doughnut',
-        plugins: [ChartDataLabels],
+        plugins: [
+            ChartDataLabels,
+            {
+                id: 'centerText',
+                afterDraw: function(chart) {
+                    const { ctx, chartArea } = chart;
+                    if (!chartArea) return;
+                    ctx.save();
+                    ctx.font = 'bold 15px sans-serif';
+                    ctx.fillStyle = '#003366'; // CCHBC Dunkelblau
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'bottom';
+                    // Zeichnet die genaue Anzahl gefilterter Stoffe mittig am unteren Rand des Bogens
+                    ctx.fillText(filtered.length + ' Stoffe', (chartArea.left + chartArea.right) / 2, chartArea.bottom - 4);
+                    ctx.restore();
+                }
+            }
+        ],
         data: {
             labels: catLabels,
             datasets: [{ data: catData, backgroundColor: chartColors }]
@@ -11752,6 +11795,40 @@ function updateChemicals() {
             btn.innerText = oldText;
             btn.disabled = false;
         }
+    };
+    // ============================================================
+    // NEU: HILFSFUNKTIONEN FÜR SYNC-PANEL-TOGGLE & AUFKLAPPBARES LOG
+    // ============================================================
+    window.toggleSyncPanel = function() {
+        const panel = document.getElementById('syncPanel');
+        const btn = document.getElementById('toggleSyncBtn');
+        if (panel.style.display === 'none') {
+            panel.style.display = 'flex';
+            btn.innerText = '⚙️ Sync ausblenden';
+            btn.style.background = '#888';
+        } else {
+            panel.style.display = 'none';
+            btn.innerText = '⚙️ Sync einblenden';
+            btn.style.background = '#0078d4';
+        }
+    };
+
+    window.updateSyncLogDisplay = function(currentLoadingMsg = "") {
+        const container = document.getElementById('syncLogDetails');
+        if (!container) return;
+        
+        let statusText = currentLoadingMsg 
+            ? `<div style="color:#d83b01; font-weight:bold; margin-bottom:5px; animation: pulse-btn 1.5s infinite;">⏳ Status: ${currentLoadingMsg}</div>` 
+            : `<div style="color:#107c41; font-weight:bold; margin-bottom:5px;">✓ System bereit (Ruhezustand)</div>`;
+        
+        container.innerHTML = `
+            ${statusText}
+            <div style="display:flex; justify-content:space-between; gap:15px; border-bottom:1px solid #eee; padding-bottom:2px;"><span>Master-Sync:</span><b style="color:#0078d4;">${tsMaster}</b></div>
+            <div style="display:flex; justify-content:space-between; gap:15px; border-bottom:1px solid #eee; padding-bottom:2px;"><span>Environment (Smartsheet):</span><b style="color:#107c41;">${tsEnv}</b></div>
+            <div style="display:flex; justify-content:space-between; gap:15px; border-bottom:1px solid #eee; padding-bottom:2px;"><span>Waste & Abfall (Smartsheet):</span><b style="color:#5c2d91;">${tsWaste}</b></div>
+            <div style="display:flex; justify-content:space-between; gap:15px; border-bottom:1px solid #eee; padding-bottom:2px;"><span>Risikomatrix (Smartsheet):</span><b style="color:#d83b01;">${tsRisk}</b></div>
+            <div style="display:flex; justify-content:space-between; gap:15px;"><span>Gefahrstoffe (Smartsheet):</span><b style="color:#4a9fd4;">${tsChemicals}</b></div>
+        `;
     };
 </script>
 <!-- DEVIATION EINGABE MODAL -->
