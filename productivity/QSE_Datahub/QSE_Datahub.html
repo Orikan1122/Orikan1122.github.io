@@ -2078,6 +2078,43 @@
         </div>
       </div>
 
+      <!-- NEU: Compliance Zeile 1 -->
+      <div style="display:flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 300px; background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+          <h4 style="font-size: 13px; color: #333; margin-bottom: 10px; font-weight: 600;">SDB-Aktualität (Sicherheitsdatenblatt-Alter)</h4>
+          <div style="height: 180px; position: relative;"><canvas id="chemChartSdb"></canvas></div>
+        </div>
+        <div style="flex: 1; min-width: 300px; background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+          <h4 style="font-size: 13px; color: #333; margin-bottom: 10px; font-weight: 600;">Störfallverordnung (Produkte pro Mengenschwelle)</h4>
+          <div style="height: 180px; position: relative;"><canvas id="chemChartStfv"></canvas></div>
+        </div>
+      </div>
+
+      <!-- NEU: Compliance Zeile 2 -->
+      <div style="display:flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 300px; background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+          <h4 style="font-size: 13px; color: #333; margin-bottom: 10px; font-weight: 600;">Gesetzlicher Schutzbereich (REACH, VOC, Biozide etc.)</h4>
+          <div style="height: 180px; position: relative;"><canvas id="chemChartLaws"></canvas></div>
+        </div>
+        <div style="flex: 1; min-width: 300px; background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+          <h4 style="font-size: 13px; color: #333; margin-bottom: 10px; font-weight: 600;">GHS Gefahrenprofil nach Standort</h4>
+          <div style="height: 180px; overflow-y: auto;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 11.5px; text-align: center;">
+              <thead>
+                <tr style="background: #f4f7f6; position: sticky; top: 0; z-index:2;">
+                  <th style="padding: 6px; text-align: left;">Gefahrensymbol</th>
+                  <th style="padding: 6px;">Dietlikon</th>
+                  <th style="padding: 6px;">Vals</th>
+                </tr>
+              </thead>
+              <tbody id="chemGhsTableBody">
+                <tr><td colspan="3" style="padding:10px; color:#999;">Keine Daten</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
       <!-- Tabelle & Detailkarte nebeneinander -->
       <div style="display:flex; gap: 15px; flex-wrap: wrap; align-items: flex-start;">
         <!-- Chemikalien-Tabelle -->
@@ -2542,6 +2579,8 @@ let chartVals      = null;
 let filterTimer    = null;
 let showOnlyUnmatched = false;
 let activeChemChartFilter = { category: null, status: null };
+let activeChemSdbFilter = null;
+let activeChemStfvFilter = null;
 // Nur diese Spalten werden als numerische Summe aggregiert
 const SUM_COLS = new Set([
   'CO2_Value_SPCCO202',
@@ -11090,7 +11129,7 @@ function normalizeChemicalRow(r, sheetId, category) {
     }
 
     return {
-        rowId: r._rowId,
+        rowId: r._rowId || r.rowId || r.id,
         sheetId: sheetId,
         category: category,
         name: getField(r, ['1.1 handelsname', 'handelsname', 'handels name', 'handels-name']),
@@ -11112,6 +11151,9 @@ function normalizeChemicalRow(r, sheetId, category) {
         valsEinsatzort: vEinsatz,
         valsLagerort: vLager,
         valsKontakt: vKontakt,
+        
+        stfv: getField(r, ['mengenschwelle', 'stfv mengenschwelle kg', 'mengenschwelle kg']),
+        laws: getField(r, ['betroffene gesetze', 'gesetze', 'affected laws']),
         
         ghs: ghsSymbols
     };
@@ -11159,6 +11201,9 @@ async function ladeChemicals() {
 
 function updateChemicals() {
     if (!globalChemicals || globalChemicals.length === 0) return;
+    
+    // Globale Jahreskonstante für SDB-Berechnung ganz oben deklarieren
+    const nowYear = new Date().getFullYear();
 
     const fillDropdown = (id, prop, prependAll) => {
         const sel = document.getElementById(id);
@@ -11212,6 +11257,30 @@ function updateChemicals() {
         }
         return true;
     });
+
+    // ==========================================
+    // INTERAKTIVE FILTER ANWENDEN
+    // ==========================================
+    if (activeChemSdbFilter) {
+        filtered = filtered.filter(r => {
+            let d = parseDateSafely(r.sdbDatum);
+            if (!d) return activeChemSdbFilter === 'Unbekannt';
+            let diffYears = nowYear - d.getFullYear();
+            if (diffYears < 3) return activeChemSdbFilter === 'Aktuell (< 3 J)';
+            if (diffYears <= 5) return activeChemSdbFilter === 'Warnung (3-5 J)';
+            return activeChemSdbFilter === 'Abgelaufen (> 5 J)';
+        });
+    }
+
+    if (activeChemStfvFilter) {
+        filtered = filtered.filter(r => {
+            let val = String(r.stfv || '').replace(/['’\s]/g, '').trim();
+            let num = parseInt(val);
+            if (isNaN(num)) return false;
+            let label = num.toLocaleString('de-CH') + ' kg';
+            return label === activeChemStfvFilter;
+        });
+    }
 
     let catCounts = {};
     filtered.forEach(r => catCounts[r.category] = (catCounts[r.category] || 0) + 1);
@@ -11309,13 +11378,210 @@ function updateChemicals() {
         }
     });
 
-    let tblHtml = '';
+    // ==========================================
+    // NEU 1: SDB-AKTUALITÄT CHART (Doughnut + Klick-Filter)
+    // ==========================================
+    let sdbCounts = { 'Aktuell (< 3 J)': 0, 'Warnung (3-5 J)': 0, 'Abgelaufen (> 5 J)': 0, 'Unbekannt': 0 };
+    filtered.forEach(r => {
+        let d = parseDateSafely(r.sdbDatum);
+        if (!d) { sdbCounts['Unbekannt']++; return; }
+        let diffYears = nowYear - d.getFullYear();
+        if (diffYears < 3) sdbCounts['Aktuell (< 3 J)']++;
+        else if (diffYears <= 5) sdbCounts['Warnung (3-5 J)']++;
+        else sdbCounts['Abgelaufen (> 5 J)']++;
+    });
+
+    let sdbLabels = Object.keys(sdbCounts);
+    let sdbData = sdbLabels.map(l => sdbCounts[l]);
+
+    if (chemicalCharts['sdb']) chemicalCharts['sdb'].destroy();
+    chemicalCharts['sdb'] = new Chart(document.getElementById('chemChartSdb').getContext('2d'), {
+        type: 'doughnut',
+        plugins: [ChartDataLabels],
+        data: {
+            labels: sdbLabels,
+            datasets: [{ data: sdbData, backgroundColor: ['#107c41', '#f0a500', '#d83b01', '#888'] }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false, cutout: '50%',
+            onClick: (evt, elements) => {
+                if (elements.length > 0) {
+                    const idx = elements[0].index;
+                    const clickedLabel = sdbLabels[idx];
+                    activeChemSdbFilter = (activeChemSdbFilter === clickedLabel) ? null : clickedLabel;
+                } else {
+                    activeChemSdbFilter = null;
+                }
+                updateChemicals();
+            },
+            onHover: (evt, elements) => {
+                evt.native.target.style.cursor = elements.length > 0 ? 'pointer' : 'default';
+            },
+            plugins: {
+                legend: { position: 'right', labels: { boxWidth: 10, font: { size: 9 } } },
+                datalabels: {
+                    color: '#fff', font: { weight: 'bold', size: 10 },
+                    formatter: (v, ctx) => {
+                        let total = ctx.dataset.data.reduce((a,b)=>a+b,0);
+                        return total > 0 && v > 0 ? ((v/total)*100).toFixed(0) + '%' : '';
+                    }
+                }
+            }
+        }
+    });
+
+    // ==========================================
+    // NEU 2: STÖRFALLVERORDNUNG (StFV) CHART (Bar + Klick-Filter)
+    // ==========================================
+    let stfvCounts = {};
+    filtered.forEach(r => {
+        let val = String(r.stfv || '').replace(/['’\s]/g, '').trim();
+        if (!val || val === '-' || val.toLowerCase() === 'no' || val.toLowerCase() === 'keine' || val.toLowerCase() === '--') return;
+        let num = parseInt(val);
+        if (!isNaN(num)) {
+            let label = num.toLocaleString('de-CH') + ' kg';
+            stfvCounts[label] = (stfvCounts[label] || 0) + 1;
+        }
+    });
+
+    let stfvLabels = Object.keys(stfvCounts).sort((a,b) => parseInt(a.replace(/[^0-9]/g,'')) - parseInt(b.replace(/[^0-9]/g,'')));
+    let stfvData = stfvLabels.map(l => stfvCounts[l]);
+
+    if (chemicalCharts['stfv']) chemicalCharts['stfv'].destroy();
+    chemicalCharts['stfv'] = new Chart(document.getElementById('chemChartStfv').getContext('2d'), {
+        type: 'bar',
+        plugins: [ChartDataLabels],
+        data: {
+            labels: stfvLabels,
+            datasets: [{ data: stfvData, backgroundColor: '#0078d4', borderRadius: 3 }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            onClick: (evt, elements) => {
+                if (elements.length > 0) {
+                    const idx = elements[0].index;
+                    const clickedLabel = stfvLabels[idx];
+                    activeChemStfvFilter = (activeChemStfvFilter === clickedLabel) ? null : clickedLabel;
+                } else {
+                    activeChemStfvFilter = null;
+                }
+                updateChemicals();
+            },
+            onHover: (evt, elements) => {
+                evt.native.target.style.cursor = elements.length > 0 ? 'pointer' : 'default';
+            },
+            plugins: {
+                legend: { display: false },
+                datalabels: { color: '#fff', anchor: 'end', align: 'start', font: { weight: 'bold', size: 11 } }
+            },
+            scales: { x: { grid: { display: false } }, y: { display: false } }
+        }
+    });
+
+    // ==========================================
+    // NEU 3: GESETZLICHER SCHUTZBEREICH CHART (Horizontal Bar)
+    // ==========================================
+    let lawCounts = { 'REACH': 0, 'VOCV': 0, 'VBP (Biozid)': 0, 'GSchV (Wasser)': 0, 'StFV (Störfall)': 0 };
+    filtered.forEach(r => {
+        let l = String(r.laws || '').toUpperCase();
+        if (l.includes('REACH')) lawCounts['REACH']++;
+        if (l.includes('VOC')) lawCounts['VOCV']++;
+        if (l.includes('VBP') || l.includes('BIOZID')) lawCounts['VBP (Biozid)']++;
+        if (l.includes('GSCHV') || l.includes('GEWÄSSER') || l.includes('GEWAESSER')) lawCounts['GSchV (Wasser)']++;
+        if (l.includes('STFV') || l.includes('STÖRFALL') || l.includes('STOERFALL')) lawCounts['StFV (Störfall)']++;
+    });
+
+    let lawLabels = Object.keys(lawCounts);
+    let lawData = lawLabels.map(l => lawCounts[l]);
+
+    if (chemicalCharts['laws']) chemicalCharts['laws'].destroy();
+    chemicalCharts['laws'] = new Chart(document.getElementById('chemChartLaws').getContext('2d'), {
+        type: 'bar',
+        plugins: [ChartDataLabels],
+        data: {
+            labels: lawLabels,
+            datasets: [{ data: lawData, backgroundColor: '#5c2d91', borderRadius: 3 }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                datalabels: { color: '#fff', anchor: 'end', align: 'start', font: { weight: 'bold', size: 11 } }
+            },
+            scales: { x: { display: false }, y: { grid: { display: false } } }
+        }
+    });
+
+    // ==========================================
+    // NEU 4: GHS GEFAHRENPROFILE NACH STANDORT (Tabelle)
+    // ==========================================
+    let ghsCounts = { 'Dietlikon': {}, 'Vals': {} };
+    const ghsSyms = ['GHS01', 'GHS02', 'GHS03', 'GHS04', 'GHS05', 'GHS06', 'GHS07', 'GHS08', 'GHS09'];
+    ghsSyms.forEach(s => { ghsCounts.Dietlikon[s] = 0; ghsCounts.Vals[s] = 0; });
+
+    filtered.forEach(r => {
+        let usesDiet = r.dietlikonStatus && r.dietlikonStatus.toLowerCase() !== 'keine verwendung' && r.dietlikonStatus !== '';
+        let usesVals = r.valsStatus && r.valsStatus.toLowerCase() !== 'keine verwendung' && r.valsStatus !== '';
+
+        if (r.ghs && r.ghs.length > 0) {
+            r.ghs.forEach(sym => {
+                if (ghsSyms.includes(sym)) {
+                    if (usesDiet) ghsCounts.Dietlikon[sym]++;
+                    if (usesVals) ghsCounts.Vals[sym]++;
+                }
+            });
+        }
+    });
+
+    const ghsDescriptions = {
+        'GHS01': 'Explosiv', 'GHS02': 'Hochentzündlich', 'GHS03': 'Brandfördernd',
+        'GHS04': 'Gas unter Druck', 'GHS05': 'Ätzend', 'GHS06': 'Hochgiftig',
+        'GHS07': 'Vorsicht Gefährlich', 'GHS08': 'Gesundheitsschädigend', 'GHS09': 'Umweltgefährdend'
+    };
+
+    let ghsHtml = '';
+    ghsSyms.forEach(sym => {
+        let dCount = ghsCounts.Dietlikon[sym] || 0;
+        let vCount = ghsCounts.Vals[sym] || 0;
+        if (dCount > 0 || vCount > 0) {
+            ghsHtml += `
+            <tr style="border-bottom:1px solid #eee; transition: background 0.2s;" onmouseover="this.style.background='#f0f5fa'" onmouseout="this.style.background='transparent'">
+                <td style="padding: 6px 8px; text-align: left; font-weight:600; display:flex; align-items:center; gap:5px;">
+                    <span style="background:#e74c3c; color:white; padding:1px 5px; border-radius:3px; font-size:9.5px; font-weight:bold;">${sym}</span>
+                    <span style="color:#333;">${ghsDescriptions[sym]}</span>
+                </td>
+                <td style="padding: 6px 8px; font-weight:bold; color:${dCount > 0 ? '#0078d4' : '#ccc'}">${dCount > 0 ? dCount : '-'}</td>
+                <td style="padding: 6px 8px; font-weight:bold; color:${vCount > 0 ? '#16a34a' : '#ccc'}">${vCount > 0 ? vCount : '-'}</td>
+            </tr>`;
+        }
+    });
+    
+    document.getElementById('chemGhsTableBody').innerHTML = ghsHtml || '<tr><td colspan="3" style="text-align:center; padding:15px; color:#999;">Keine Symbole in diesem Filter gefunden</td></tr>';
+
+    // ==========================================
+    // TABELLEN-HEADER AKTUALISIEREN (Zeigt aktive Filter an)
+    // ==========================================
+    let activeFiltersText = '';
+    if (activeChemChartFilter.category) activeFiltersText += ` [Kategorie: ${activeChemChartFilter.category}]`;
+    if (activeChemChartFilter.status) activeFiltersText += ` [Status: ${activeChemChartFilter.status}]`;
+    if (activeChemSdbFilter) activeFiltersText += ` [SDB: ${activeChemSdbFilter}]`;
+    if (activeChemStfvFilter) activeFiltersText += ` [StFV: ${activeChemStfvFilter}]`;
+
+    let finalHeaderText = 'Gefahrstoffkataster';
+    if (activeFiltersText) {
+        finalHeaderText += ` <span style="font-size:11px; color:#d83b01; font-weight:bold;">(Gefiltert:${activeFiltersText})</span>`;
+    }
+    document.getElementById('chemChartCatTitle').parentNode.parentNode.querySelector('h4').innerHTML = finalHeaderText;
+
+    // --- RENDER TABLE ---
+    let chemTableHtml = '';
     filtered.forEach(r => {
         let displayStatus = loc === 'All' 
             ? `D: ${r.dietlikonStatus || '-'} | V: ${r.valsStatus || '-'}` 
             : r[statusProp];
             
-        tblHtml += `
+        chemTableHtml += `
         <tr style="border-bottom: 1px solid #eee;" onclick="showChemicalCard('${r.rowId}')">
             <td style="padding: 8px; font-weight: 600;">${escapeHTML(r.name)}</td>
             <td style="padding: 8px; color: #555;">${escapeHTML(r.artNr || '-')}</td>
@@ -11325,115 +11591,113 @@ function updateChemicals() {
         </tr>`;
     });
 
-    document.getElementById('chemTableBody').innerHTML = tblHtml || `<tr><td colspan="5" style="text-align:center; padding:15px;">Keine Gefahrstoffe gefunden.</td></tr>`;
-    
-    let filterIndicator = '';
-    if (activeChemChartFilter.category) filterIndicator += ` [Kat: ${activeChemChartFilter.category}]`;
-    if (activeChemChartFilter.status) filterIndicator += ` [Status: ${activeChemChartFilter.status}]`;
-    document.getElementById('chemChartCatTitle').innerText = 'Anteil pro Kategorie' + filterIndicator;
-}
-
-function showChemicalCard(rowId) {
-    const r = globalChemicals.find(x => String(x.rowId) === String(rowId));
-    if (!r) return;
-
-    window._activeChemRow = r;
-
-    document.getElementById('chemDetailCard').style.display = 'block';
-    document.getElementById('chCategory').innerText = r.category;
-    document.getElementById('chName').innerText = r.name;
-    document.getElementById('chArtNr').innerText = r.artNr || 'Keine';
-    document.getElementById('chUfi').innerText = r.ufi || 'Keine';
-    document.getElementById('chSignalwort').innerText = r.signalwort || 'Keines';
-
-    const ssLink = document.getElementById('chSmartsheetLink');
-    if (ssLink && r.sheetId && r.rowId) {
-        ssLink.href = `https://app.smartsheet.eu/sheets/${r.sheetId}?rowId=${r.rowId}`;
-        ssLink.style.display = 'inline-block';
-    } else if (ssLink) {
-        ssLink.style.display = 'none';
+    document.getElementById('chemTableBody').innerHTML = chemTableHtml || `<tr><td colspan="5" style="text-align:center; padding:15px;">Keine Gefahrstoffe gefunden.</td></tr>`;
     }
 
-    let ghsHtml = '';
-    if (r.ghs && r.ghs.length > 0) {
-        ghsHtml = r.ghs.map(sym => {
-            return `<span style="background: #e74c3c; color: white; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 10px;">${sym}</span>`;
-        }).join(' ');
-    } else {
-        ghsHtml = '<span style="color:#888; font-size:11px;">Keine Einstufung</span>';
-    }
-    document.getElementById('chGhsSymbols').innerHTML = ghsHtml;
+    // ============================================================
+    // WIEDERHERGESTELLTE GEFAHRSTOFF-FUNKTIONEN (SDB & DETAILS)
+    // ============================================================
+    window.showChemicalCard = function(rowId) {
+        const r = globalChemicals.find(x => String(x.rowId) === String(rowId));
+        if (!r) return;
 
-    document.getElementById('chHSatz').innerText = r.hSatz || 'Keine H-Sätze definiert.';
-    document.getElementById('chPSatz').innerText = r.pSatz || 'Keine P-Sätze definiert.';
-    
-    let casStr = r.cas ? ` (CAS: ${r.cas})` : '';
-    document.getElementById('chInhaltsstoffe').innerText = (r.inhaltsstoffe || 'Keine Angabe') + casStr;
+        window._activeChemRow = r;
 
-    const loc = document.getElementById('chemLoc').value;
-    if (loc === 'All') {
-        document.getElementById('chLocTitle').innerText = "Dietlikon & Vals";
-        document.getElementById('chEinsatzort').innerHTML = `<b>D:</b> ${r.dietlikonEinsatzort || '-'} <br><b>V:</b> ${r.valsEinsatzort || '-'}`;
-        document.getElementById('chLagerort').innerHTML = `<b>D:</b> ${r.dietlikonLagerort || '-'} <br><b>V:</b> ${r.valsLagerort || '-'}`;
-        document.getElementById('chKontakt').innerHTML = `<b>D:</b> ${r.dietlikonKontakt || '-'} <br><b>V:</b> ${r.valsKontakt || '-'}`;
-    } else {
-        document.getElementById('chLocTitle').innerText = loc.toUpperCase();
-        if (loc === 'dietlikon') {
-            document.getElementById('chEinsatzort').innerText = r.dietlikonEinsatzort || '-';
-            document.getElementById('chLagerort').innerText = r.dietlikonLagerort || '-';
-            document.getElementById('chKontakt').innerText = r.dietlikonKontakt || '-';
-        } else {
-            document.getElementById('chEinsatzort').innerText = r.valsEinsatzort || '-';
-            document.getElementById('chLagerort').innerText = r.valsLagerort || '-';
-            document.getElementById('chKontakt').innerText = r.valsKontakt || '-';
+        document.getElementById('chemDetailCard').style.display = 'block';
+        document.getElementById('chCategory').innerText = r.category;
+        document.getElementById('chName').innerText = r.name;
+        document.getElementById('chArtNr').innerText = r.artNr || 'Keine';
+        document.getElementById('chUfi').innerText = r.ufi || 'Keine';
+        document.getElementById('chSignalwort').innerText = r.signalwort || 'Keines';
+
+        const ssLink = document.getElementById('chSmartsheetLink');
+        if (ssLink && r.sheetId && r.rowId) {
+            ssLink.href = `https://app.smartsheet.eu/sheets/${r.sheetId}?rowId=${r.rowId}`;
+            ssLink.style.display = 'inline-block';
+        } else if (ssLink) {
+            ssLink.style.display = 'none';
         }
-    }
 
-    document.getElementById('chAttachmentsArea').innerHTML = '';
-}
+        let ghsHtml = '';
+        if (r.ghs && r.ghs.length > 0) {
+            ghsHtml = r.ghs.map(sym => {
+                return `<span style="background: #e74c3c; color: white; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 10px;">${sym}</span>`;
+            }).join(' ');
+        } else {
+            ghsHtml = '<span style="color:#888; font-size:11px;">Keine Einstufung</span>';
+        }
+        document.getElementById('chGhsSymbols').innerHTML = ghsHtml;
 
-async function fetchChemicalAttachments() {
-    const r = window._activeChemRow;
-    if (!r) return;
+        document.getElementById('chHSatz').innerText = r.hSatz || 'Keine H-Sätze definiert.';
+        document.getElementById('chPSatz').innerText = r.pSatz || 'Keine P-Sätze definiert.';
+        
+        let casStr = r.cas ? ` (CAS: ${r.cas})` : '';
+        document.getElementById('chInhaltsstoffe').innerText = (r.inhaltsstoffe || 'Keine Angabe') + casStr;
 
-    const btn = document.getElementById('btnFetchAttachments');
-    const oldText = btn.innerText;
-    btn.innerText = "⏳ Rufe Anhänge ab...";
-    btn.disabled = true;
-
-    try {
-        const response = await fetch(PA_ATTACHMENTS_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                sheetId: r.sheetId, 
-                rowId: r.rowId, 
-                action: "getAttachments"
-            })
-        });
-
-        if (response.ok) {
-            const data = await response.json();
-            const parsed = typeof data === 'string' ? JSON.parse(data) : data;
-            
-            if (parsed && Array.isArray(parsed) && parsed.length > 0) {
-                let html = parsed.map(att => {
-                    return `<a href="${att.url}" target="_blank" style="background:#eafaf1; color:#107c41; padding:6px; border-radius:4px; font-weight:bold; text-decoration:none; border:1px solid #c6e0b4;">📄 ${escapeHTML(att.name)}</a>`;
-                }).join('');
-                document.getElementById('chAttachmentsArea').innerHTML = html;
+        const loc = document.getElementById('chemLoc').value;
+        if (loc === 'All') {
+            document.getElementById('chLocTitle').innerText = "Dietlikon & Vals";
+            document.getElementById('chEinsatzort').innerHTML = `<b>D:</b> ${r.dietlikonEinsatzort || '-'} <br><b>V:</b> ${r.valsEinsatzort || '-'}`;
+            document.getElementById('chLagerort').innerHTML = `<b>D:</b> ${r.dietlikonLagerort || '-'} <br><b>V:</b> ${r.valsLagerort || '-'}`;
+            document.getElementById('chKontakt').innerHTML = `<b>D:</b> ${r.dietlikonKontakt || '-'} <br><b>V:</b> ${r.valsKontakt || '-'}`;
+        } else {
+            document.getElementById('chLocTitle').innerText = loc.toUpperCase();
+            if (loc === 'dietlikon') {
+                document.getElementById('chEinsatzort').innerText = r.dietlikonEinsatzort || '-';
+                document.getElementById('chLagerort').innerText = r.dietlikonLagerort || '-';
+                document.getElementById('chKontakt').innerText = r.dietlikonKontakt || '-';
             } else {
-                document.getElementById('chAttachmentsArea').innerHTML = '<span style="color:#d83b01;">⚠️ Keine Anhänge an dieser Zeile gefunden.</span>';
+                document.getElementById('chEinsatzort').innerText = r.valsEinsatzort || '-';
+                document.getElementById('chLagerort').innerText = r.valsLagerort || '-';
+                document.getElementById('chKontakt').innerText = r.valsKontakt || '-';
             }
-        } else {
-            document.getElementById('chAttachmentsArea').innerHTML = '<span style="color:#d83b01;">Fehler beim Abruf (Flow-Anpassung nötig).</span>';
         }
-    } catch(e) {
-        document.getElementById('chAttachmentsArea').innerHTML = '<span style="color:#d83b01;">Netzwerkfehler beim Abruf.</span>';
-    } finally {
-        btn.innerText = oldText;
-        btn.disabled = false;
-    }
-}
+
+        document.getElementById('chAttachmentsArea').innerHTML = '';
+    };
+
+    window.fetchChemicalAttachments = async function() {
+        const r = window._activeChemRow;
+        if (!r) return;
+
+        const btn = document.getElementById('btnFetchAttachments');
+        const oldText = btn.innerText;
+        btn.innerText = "⏳ Rufe Anhänge ab...";
+        btn.disabled = true;
+
+        try {
+            const response = await fetch(PA_ATTACHMENTS_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    sheetId: r.sheetId, 
+                    rowId: r.rowId, 
+                    action: "getAttachments"
+                })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                const parsed = typeof data === 'string' ? JSON.parse(data) : data;
+                
+                if (parsed && Array.isArray(parsed) && parsed.length > 0) {
+                    let html = parsed.map(att => {
+                        return `<a href="${att.url}" target="_blank" style="background:#eafaf1; color:#107c41; padding:6px; border-radius:4px; font-weight:bold; text-decoration:none; border:1px solid #c6e0b4;">📄 ${escapeHTML(att.name)}</a>`;
+                    }).join('');
+                    document.getElementById('chAttachmentsArea').innerHTML = html;
+                } else {
+                    document.getElementById('chAttachmentsArea').innerHTML = '<span style="color:#d83b01;">⚠️ Keine Anhänge an dieser Zeile gefunden.</span>';
+                }
+            } else {
+                document.getElementById('chAttachmentsArea').innerHTML = '<span style="color:#d83b01;">Fehler beim Abruf (Flow-Anpassung nötig).</span>';
+            }
+        } catch(e) {
+            document.getElementById('chAttachmentsArea').innerHTML = '<span style="color:#d83b01;">Netzwerkfehler beim Abruf.</span>';
+        } finally {
+            btn.innerText = oldText;
+            btn.disabled = false;
+        }
+    };
 </script>
 <!-- DEVIATION EINGABE MODAL -->
 <div class="modal-overlay" id="deviationModal">
