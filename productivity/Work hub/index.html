@@ -5,7 +5,587 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Work Hub</title>
     <link rel="icon" href="data:,"> 
-    <link rel="stylesheet" href="style.css">
+    <style>
+        :root {
+            /* --- LIGHT MODE (High Contrast Defaults) --- */
+            --primary-bg: #eef2f6;      /* Slightly darker than pure white for background */
+            --secondary-bg: #ffffff;    /* Pure white for cards/sidebar */
+            
+            --text-color: #222222;      /* Almost black for sharp text */
+            --text-muted: #666666;
+            --header-color: #1a1a1a;
+            
+            --border-color: #ccc;       /* Darker grey for visible lines */
+            --input-bg: #ffffff;
+            --input-border: #999;       /* Darker border for inputs */
+            
+            --card-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            --modal-bg: rgba(0, 0, 0, 0.5);
+            --config-bg: #f8f9fa;
+            --overdue-bg: #fff5f5;
+            
+            /* --- BUTTONS & ACCENTS --- */
+            --accent-color: #2980b9;       /* Strong Blue */
+            --accent-hover: #1c5980;
+            --secondary-action-color: #7f8c8d; /* Strong Grey */
+            --secondary-action-hover: #616c6d;
+            --danger-color: #c0392b;
+            --danger-hover: #a93226;
+            --success-color: #27ae60;
+            
+            /* Status Colors */
+            --status-working: #2ecc71;
+            --status-unfinished: #f1c40f;
+            --status-issues: #e74c3c;
+            --status-not-set: #bdc3c7;
+        }
+
+        /* --- DARK MODE OVERRIDES --- */
+        body.dark-mode {
+            --primary-bg: #121212;
+            --secondary-bg: #1e1e1e;
+            
+            --text-color: #e0e0e0;
+            --text-muted: #a0a0a0;
+            --header-color: #ffffff;
+            
+            --border-color: #444444;
+            --input-bg: #2d2d2d;
+            --input-border: #555;
+            
+            --card-shadow: 0 4px 8px rgba(0,0,0,0.4);
+            --modal-bg: rgba(0, 0, 0, 0.8);
+            --config-bg: #2d2d2d;
+            --overdue-bg: #3c2a2a;
+            
+            /* Adjust accent slightly for dark mode contrast */
+            --accent-color: #3498db; 
+            --accent-hover: #5dade2;
+        }
+
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            margin: 0;
+            padding-top: 40px; /* Space for the top bar */
+            padding-right: 15px;
+            padding-bottom: 15px;
+            padding-left: 15px;
+            height: 100%;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--primary-bg);
+            color: var(--text-color);
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        .hub-container {
+            display: flex;
+            height: 100%; 
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
+            background-color: var(--secondary-bg);
+            box-shadow: var(--card-shadow);
+        }
+
+        /* SIDEBAR */
+        .sidebar {
+            width: 350px; 
+            flex-shrink: 0; 
+            background-color: var(--secondary-bg);
+            padding: 20px; 
+            overflow-y: auto; 
+            border-right: 1px solid var(--border-color);
+            transition: margin-left 0.3s ease, background-color 0.3s ease, border-color 0.3s ease;
+        }
+        .sidebar.hidden { margin-left: -351px; }
+
+        /* MAIN CONTENT SPLIT */
+        .main-content {
+            flex-grow: 1; 
+            display: flex; 
+            overflow: hidden;
+            background-color: var(--primary-bg); /* Distinct from sidebar */
+        }
+
+        .content-pane {
+            flex: 1 1 0%;
+            display: flex; 
+            flex-direction: column;
+            overflow: hidden; 
+            min-width: 200px;
+            background-color: var(--secondary-bg); /* Panes are white/dark */
+            transition: opacity 0.3s ease;
+        }
+        .content-pane.hidden {
+            display: none !important;
+        }
+        /* Border between panes if they touch without gutter */
+        .content-pane:not(:last-child) { border-right: 1px solid var(--border-color); }
+
+
+        /* GUTTER / RESIZER */
+        .gutter {
+            width: 12px;
+            background-color: var(--primary-bg); /* Use primary BG to look like a gap */
+            border-left: 1px solid var(--border-color);
+            border-right: 1px solid var(--border-color);
+            cursor: col-resize;
+            flex-shrink: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: background-color 0.2s;
+        }
+        .gutter:hover { background-color: var(--accent-color); border-color: var(--accent-color); }
+        .gutter::after {
+            content: "⋮";
+            color: var(--text-muted);
+            font-size: 14px;
+            font-weight: bold;
+        }
+        .gutter.hidden { display: none; }
+
+
+        .pane-header {
+            padding: 15px 20px; 
+            border-bottom: 1px solid var(--border-color);
+            background-color: var(--secondary-bg); 
+            display: flex; 
+            justify-content: space-between;
+            align-items: center; 
+            flex-shrink: 0; 
+            gap: 15px;
+        }
+        .pane-header h2 { margin: 0; font-size: 1.2rem; color: var(--header-color); }
+        .pane-body { padding: 20px; overflow-y: auto; }
+
+        .header-controls { display: flex; align-items: center; gap: 10px; }
+
+        /* FORM ELEMENTS */
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; color: var(--text-color); }
+
+        input, select, textarea, .filter-input {
+            width: 100%; 
+            padding: 8px 10px; 
+            border: 1px solid var(--input-border);
+            background-color: var(--input-bg);
+            color: var(--text-color); /* CRITICAL FIX: Ensures text isn't white on white */
+            border-radius: 4px; 
+            box-sizing: border-box; 
+            font-size: 1rem;
+        }
+        .filter-input { width: 220px; }
+        .form-group select[multiple] { height: 120px; }
+        .form-group input[type="color"] { padding: 2px; height: 40px; background-color: var(--input-bg); }
+        .form-group textarea { resize: vertical; min-height: 80px; }
+
+        h2, h3 { color: var(--header-color); }
+        .sidebar h2 { margin-top: 0; padding-bottom: 10px; border-bottom: 1px solid var(--border-color); }
+
+        /* BUTTONS - VISUAL FIXES */
+        button, .btn {
+            background-color: var(--accent-color);
+            color: #fff; /* Always white text on colored buttons */
+            border: 1px solid rgba(0,0,0,0.1);
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.15); /* Gives depth */
+        }
+        button:hover, .btn:hover { 
+            background-color: var(--accent-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 3px 6px rgba(0,0,0,0.2);
+        }
+        button:disabled, .btn:disabled {
+            background-color: var(--status-not-set);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-secondary { background-color: var(--secondary-action-color); }
+        .btn-secondary:hover { background-color: var(--secondary-action-hover); }
+        .btn-small { padding: 4px 10px; font-size: 0.85rem; }
+        button.btn-danger { background-color: var(--danger-color); }
+        button.btn-danger:hover { background-color: var(--danger-hover); }
+
+        /* DATA ACTIONS AREA */
+        .data-actions {
+            margin-top: 30px; border-top: 1px solid var(--border-color); padding-top: 20px;
+            display: flex; flex-direction: column; gap: 15px;
+        }
+        .data-actions-row { display: flex; gap: 10px; }
+        .data-actions .btn-import-wrapper { position: relative; overflow: hidden; flex-grow: 1; }
+        .data-actions input[type="file"] { position: absolute; left: 0; top: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+
+        /* TOP BAR TOGGLES */
+        .toggle-buttons {
+            position: fixed;
+            top: 5px; 
+            right: 25px;
+            z-index: 1000;
+            display: flex; gap: 10px; 
+            background: var(--secondary-bg);
+            border: 1px solid var(--border-color);
+            padding: 5px 10px; 
+            border-radius: 0 0 8px 8px; /* Hanging look */
+            box-shadow: var(--card-shadow);
+        }
+
+        /* FILTERS */
+        #category-filters { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; align-items: center; }
+        
+        /* CARDS */
+        #tool-list-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+        #todo-list-container { display: flex; flex-direction: column; gap: 15px; }
+
+        .tool-card, .todo-card {
+            background-color: var(--secondary-bg); 
+            border: 1px solid var(--border-color);
+            border-radius: 8px; 
+            padding: 15px; 
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            transition: box-shadow 0.2s ease, border-color 0.2s ease;
+            display: flex; flex-direction: column;
+        }
+        .tool-card:hover, .todo-card:hover { box-shadow: var(--card-shadow); border-color: var(--accent-color); }
+
+        .card-content, .edit-area { flex-grow: 1; }
+        .category-tag {
+            align-self: flex-start; color: white; padding: 3px 10px;
+            border-radius: 4px; font-size: 0.8rem; margin-bottom: 10px; font-weight: 500;
+        }
+        .card-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; margin-top: 15px; }
+
+        .tool-card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
+        .tool-card-header h3 { margin: 0; color: var(--header-color); flex-grow: 1; }
+        .status-badge {
+            padding: 3px 8px; border-radius: 12px; color: white;
+            font-size: 0.8rem; font-weight: bold; flex-shrink: 0; text-transform: capitalize;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+        }
+        .status-badge.working { background-color: var(--status-working); }
+        .status-badge.unfinished { background-color: var(--status-unfinished); }
+        .status-badge.issues-to-be-fixed { background-color: var(--status-issues); }
+        .status-badge.not-set { background-color: var(--status-not-set); }
+        .tool-description { flex-grow: 1; margin: 0 0 15px 0; font-size: 0.95rem; color: var(--text-color); }
+
+        .todo-options { 
+            margin-bottom: 20px; 
+        }
+
+        .todo-options label {
+            display: flex;
+            align-items: center;
+            gap: 8px; 
+            cursor: pointer;
+            width: fit-content; 
+        }
+
+        .todo-options input[type="checkbox"] {
+            width: auto; 
+            margin: 0;
+            height: 18px; 
+            width: 18px;
+        }
+        .todo-card.overdue { background-color: var(--overdue-bg); border-left: 4px solid var(--danger-color); }
+        .todo-card.done { text-decoration: line-through; opacity: 0.6; }
+        .todo-card.done .todo-text { color: var(--text-muted); }
+        .todo-card-header { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
+        .todo-card-header input[type="checkbox"] { margin-top: 4px; width: 18px; height: 18px; cursor: pointer; }
+        .todo-card-header .todo-text { flex-grow: 1; margin: 0; font-size: 1rem; text-decoration: none; color: var(--text-color); }
+        .todo-card-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 15px; }
+        .todo-linked-tools button { margin-right: 5px; }
+        .due-date { font-size: 0.85rem; color: var(--text-muted); text-decoration: none; }
+
+        .cloud-status-indicator {
+            padding: 10px; border-radius: 4px; font-weight: 500; text-align: center;
+            display: none; transition: all 0.3s ease; margin-bottom: 10px;
+        }
+        .cloud-status-indicator.success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .cloud-status-indicator.error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .cloud-status-indicator.loading { background-color: #e2e3e5; color: #383d41; border: 1px solid #d6d8db; }
+
+        #drive-config-section {
+            background-color: var(--config-bg);
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 20px;
+        }
+
+        .category-mgr-row {
+            background-color: var(--secondary-bg);
+            border: 1px solid var(--border-color);
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+
+        /* --- CALENDAR INTEGRATION STYLES --- */
+
+        /* Calendar Pane Specifics */
+        #calendar-pane {
+            min-width: 400px; /* Minimum width to keep calendar usable */
+        }
+        #calendar-pane .pane-body {
+            background-color: #f4f4f4; /* Match calendar original background */
+        }
+
+        /* Smart Header */
+        .smart-header {
+            background: linear-gradient(to right, #000080, #0033cc);
+            color: white;
+            padding: 15px 20px;
+            width: 100%;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-sizing: border-box;
+        }
+        .smart-title { font-size: 18px; font-weight: bold; }
+        .smart-info { font-size: 14px; text-align: right; }
+        .smart-info div { margin-top: 2px; }
+
+        /* Panels */
+        .settings-panel, .editor-panel {
+            background: #fff;
+            border: 1px solid #ccc;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .settings-panel { background: #eef2f5; border-color: #b0c4de; }
+
+        /* Calendar Utilities */
+        .row-flex { display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap; }
+        .divider { width: 100%; height: 1px; background: #ccc; margin: 15px 0; }
+
+        .input-group { display: flex; flex-direction: column; gap: 3px; }
+        .input-group label { font-size: 10px; font-weight: bold; color: #555; text-transform: uppercase; }
+        .input-group input, .input-group select { padding: 5px; border: 1px solid #ccc; height: 32px; box-sizing: border-box; border-radius: 3px; background-color: #fff; color: #333;}
+
+        /* Calendar Buttons */
+        .cal-btn { height: 32px; padding: 0 15px; cursor: pointer; border: none; border-radius: 3px; color: white; font-size: 12px; display: inline-block; }
+        .btn-save { background-color: #000080; }
+        .btn-del { background-color: #c00; }
+        .btn-blue { background-color: #0066cc; }
+        .btn-gray { background-color: #666; }
+        .btn-green { background-color: #28a745; }
+
+        /* List Delete Button */
+        .btn-list-del {
+            background-color: #ffcccc;
+            color: #cc0000;
+            border: 1px solid #cc0000;
+            border-radius: 4px;
+            width: 24px;
+            height: 24px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .btn-list-del:hover { background-color: #c00; color: white; }
+
+        /* Grid System */
+        .calendar-wrapper {
+            background: white;
+            padding: 15px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            overflow-x: auto;
+            width: 100%;
+            box-sizing: border-box;
+            margin-bottom: 20px;
+        }
+        table.cal-grid { border-collapse: collapse; border: 2px solid #000080; margin-bottom: 20px; width: auto; }
+        .cal-grid th, .cal-grid td {
+            text-align: center; padding: 0; min-width: 26px; height: 22px;
+            font-size: 13px; cursor: pointer; border-right: 1px dotted #888; border-bottom: 1px dotted #888;
+            color: #000; /* Force black text for calendar cells */
+        }
+        .month-end-border { border-right: 3px solid #000 !important; }
+        .header-row th { border: 1px solid #000080; background-color: #fff; border-bottom: 2px solid #000080; padding: 4px; color: #000; }
+        .wk-header-row th { background-color: #000080; color: #ffff00; border: 1px solid #fff; font-weight: normal; }
+        .day-label { background-color: #fff; border-right: 2px solid #000080 !important; font-weight: bold; width: 40px; cursor: default; color: #000;}
+        .weekend-row td, .weekend-row th:not(.day-label) { background-color: #d0cece; }
+        .empty-cell { background-color: #fff !important; cursor: default; }
+        .cal-grid td:hover:not(.day-label):not(.empty-cell) { background-color: #e6f7ff; border: 1px solid #000080; }
+        .cal-grid td.selected { outline: 2px solid red; z-index: 10; position: relative; }
+
+        /* List Views */
+        .lists-wrapper { width: 100%; display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
+        .category-box { background: white; border: 1px solid #ccc; min-width: 300px; flex: 1; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .category-header { padding: 6px 10px; font-weight: bold; color: #000; font-size: 13px; text-transform: uppercase; border-bottom: 3px solid #ccc; }
+
+        table.compact-list { width: 100%; border-collapse: collapse; font-size: 12px; color: #333; }
+        .compact-list th { text-align: left; background: #eee; padding: 4px 8px; border-bottom: 1px solid #ddd; color: #000; }
+        .compact-list td { padding: 4px 8px; border-bottom: 1px solid #f0f0f0; cursor: pointer; }
+        .compact-list tr:hover { background-color: #f9f9f9; }
+
+        .cat-tag { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 12px; font-size: 11px; border: 1px solid #ccc; background: white; margin-right: 5px; margin-top:5px; color: #000;}
+        .cat-tag span { cursor: pointer; margin-left: 6px; color: #c00; font-weight: bold; }
+        .pattern-box textarea { width: 100%; height: 30px; font-family: monospace; resize: vertical; border: 1px solid #ccc; background: #fff; color: #000;}
+
+        /* Dark Mode Overrides for Calendar */
+        body.dark-mode #calendar-pane .pane-body { background-color: #2d2d2d; }
+        body.dark-mode .settings-panel { background-color: #383838; border-color: #555; }
+        body.dark-mode .editor-panel { background-color: #383838; border-color: #555; }
+        body.dark-mode .calendar-wrapper { background-color: #383838; }
+
+        /* --- FORCE GRID CELLS TO WHITE --- */
+        body.dark-mode .cal-grid td { 
+            background-color: #ffffff; /* Force White Background */
+            color: #000000;            /* Force Black Text */
+        }
+
+        /* Keep weekends Light Grey (so they are visible against white days) */
+        body.dark-mode .weekend-row td { 
+            background-color: #d0cece; 
+        }
+
+        /* Ensure Headers are White */
+        body.dark-mode .header-row th { 
+            background-color: #ffffff;
+            color: #000000;
+        }
+        body.dark-mode .day-label {
+            background-color: #ffffff !important;
+            color: #000000;
+        }
+
+        /* Empty filler cells */
+        body.dark-mode .empty-cell {
+            background-color: #ffffff !important;
+        }
+
+        body.dark-mode .category-box { background-color: #383838; border-color: #555; }
+        body.dark-mode .category-header { color: #e0e0e0; }
+        body.dark-mode table.compact-list { color: #e0e0e0; }
+        body.dark-mode .compact-list th { background-color: #444; color: #fff; }
+        body.dark-mode .compact-list tr:hover { background-color: #444; }
+        body.dark-mode .input-group label { color: #bbb; }
+        body.dark-mode .input-group input, body.dark-mode .input-group select { background-color: #555; color: #fff; border-color: #666; }
+
+        #cal-settings-content.collapsed {
+            display: none;
+        }
+
+        /* --- Multi-Event Styles --- */
+        #day-events-list {
+            width: 100%;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px dashed #ccc;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .event-pill {
+            background: #eef2f6;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 2px 8px;
+            font-size: 11px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .event-pill:hover { background: #dfe6ed; border-color: #999; }
+        .event-pill.active { background: #000080; color: white; border-color: #000060; }
+        .event-pill .pill-color { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+        .event-pill .pill-close { font-weight: bold; margin-left: 5px; opacity: 0.6; }
+        .event-pill .pill-close:hover { opacity: 1; color: red; }
+
+        /* Indicator for multiple events in grid */
+        .multi-event-dot {
+            position: absolute;
+            bottom: 1px;
+            right: 1px;
+            width: 4px;
+            height: 4px;
+            background-color: #000;
+            border-radius: 50%;
+        }
+        body.dark-mode .multi-event-dot { background-color: #fff; }
+
+        /* --- SYSTEM CONSOLE STYLES --- */
+        .console-wrapper {
+            margin-bottom: 20px;
+        }
+
+        .console-box {
+            background-color: #1e1e1e; /* Dark background like a terminal */
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            height: 150px; /* Fixed height with scroll */
+            overflow-y: auto;
+            padding: 10px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 11px;
+            color: #e0e0e0;
+            box-shadow: inset 0 0 5px rgba(0,0,0,0.5);
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .log-entry {
+            line-height: 1.4;
+            border-bottom: 1px solid #333;
+            padding-bottom: 2px;
+        }
+
+        .log-time {
+            color: #888;
+            margin-right: 5px;
+            user-select: none;
+        }
+
+        /* Log Types */
+        .log-info { color: #fff; }
+        .log-loading { color: #f1c40f; } /* Yellow */
+        .log-success { color: #2ecc71; } /* Green */
+        .log-error { color: #e74c3c; }   /* Red */
+
+        /* Scrollbar styling for the console */
+        .console-box::-webkit-scrollbar {
+            width: 8px;
+        }
+        .console-box::-webkit-scrollbar-track {
+            background: #2d2d2d; 
+        }
+        .console-box::-webkit-scrollbar-thumb {
+            background: #555; 
+            border-radius: 4px;
+        }
+
+        /* Button Loading State */
+        .btn.processing {
+            opacity: 0.7;
+            cursor: wait;
+            pointer-events: none; /* Prevents double clicking */
+        }
+    </style>
 </head>
 <body>
     <div class="toggle-buttons">
@@ -43,7 +623,7 @@
                     </div>
                 </div>
 
-                <!-- 2. System Console (New) -->
+                <!-- 2. System Console -->
                 <h3 style="margin-top: 20px;">System Console</h3>
                 <div class="console-wrapper">
                     <div id="system-console" class="console-box">
@@ -70,6 +650,12 @@
                         <input type="file" id="import-file" accept=".json">
                     </div>
                 </div>
+
+                <!-- 5. Category Manager (New) -->
+                <h3 style="margin-top: 20px;">Manage Categories</h3>
+                <div id="category-manager-list" style="max-height: 150px; overflow-y: auto; border: 1px solid var(--border-color); padding: 8px; border-radius: 4px; background: var(--primary-bg); display: flex; flex-direction: column; gap: 5px;">
+                    <!-- Categories loaded dynamically -->
+                </div>
             </div>
             
             <hr style="margin: 25px 0; border: 0; border-top: 1px solid var(--border-color);">
@@ -86,12 +672,12 @@
                 </div>
                 <div class="form-group">
                     <label>Category & Color</label>
-                    <div class="category-group">
-                        <div class="category-name">
+                    <div style="display: flex; gap: 5px; align-items: center;">
+                        <div style="flex-grow: 1;">
                              <input type="text" id="tool-category" list="category-suggestions" placeholder="Category Name">
                              <datalist id="category-suggestions"></datalist>
                         </div>
-                        <input type="color" id="tool-category-color" value="#3498db" title="Category Color">
+                        <input type="color" id="tool-category-color" value="#3498db" title="Category Color" style="width: 50px;">
                     </div>
                 </div>
                 <div class="form-group">
@@ -118,11 +704,11 @@
                 </div>
                 <div class="form-group">
                     <label>Category & Color</label>
-                    <div class="category-group">
-                        <div class="category-name">
+                    <div style="display: flex; gap: 5px; align-items: center;">
+                        <div style="flex-grow: 1;">
                              <input type="text" id="todo-category" list="category-suggestions" placeholder="Category Name">
                         </div>
-                        <input type="color" id="todo-category-color" value="#3498db" title="Category Color">
+                        <input type="color" id="todo-category-color" value="#3498db" title="Category Color" style="width: 50px;">
                     </div>
                 </div>
                 <div class="form-group">
@@ -138,156 +724,1628 @@
             </form>
         </aside>
 
-    <main class="main-content" id="main-content">
-        <!-- PANE 1: TOOLS -->
-        <div class="content-pane" id="tools-pane">
-            <div class="pane-header">
-                <h2>My Tools</h2>
-                <div class="header-controls">
-                    <input type="search" id="tool-search-input" class="filter-input" placeholder="Filter by name/desc...">
-                    <button id="launch-all-btn" class="btn btn-small" disabled>Launch All</button>
+        <main class="main-content" id="main-content">
+            <!-- PANE 1: TOOLS -->
+            <div class="content-pane" id="tools-pane">
+                <div class="pane-header">
+                    <h2>My Tools</h2>
+                    <div class="header-controls">
+                        <input type="search" id="tool-search-input" class="filter-input" placeholder="Filter by name/desc...">
+                        <button id="launch-all-btn" class="btn btn-small" disabled>Launch All</button>
+                    </div>
+                </div>
+                <div class="pane-body">
+                    <div id="category-filters"></div>
+                    <div id="tool-list-container"></div>
                 </div>
             </div>
-            <div class="pane-body">
-                <div id="category-filters"></div>
-                <div id="tool-list-container"></div>
-            </div>
-        </div>
 
-        <!-- GUTTER 1 -->
-        <div class="gutter" id="gutter-1"></div>
+            <!-- GUTTER 1 -->
+            <div class="gutter" id="gutter-1"></div>
 
-        <!-- PANE 2: CALENDAR (NEW) -->
-        <div class="content-pane" id="calendar-pane">
-            <div class="pane-header">
-                <h2>Year Planner</h2>
-                <div></div>
-            </div>
-            <div class="pane-body">
-                <!-- Smart Header -->
-                <div class="smart-header">
-                    <div class="smart-title" id="smart-date-display">Loading...</div>
-                    <div class="smart-info" id="smart-event-display">Loading...</div>
+            <!-- PANE 2: CALENDAR -->
+            <div class="content-pane" id="calendar-pane">
+                <div class="pane-header">
+                    <h2>Year Planner</h2>
+                    <div></div>
                 </div>
-
-                <!-- Settings Panel -->
-                <div class="settings-panel">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; padding-bottom:5px; border-bottom:1px solid #ccc;">
-                        <span style="font-weight:bold; color:#000080; font-size:14px;">Configuration & Categories</span>
-                        <button id="toggle-cal-settings-btn" class="btn btn-secondary btn-small" style="font-size:11px; padding:2px 8px;">_</button>
+                <div class="pane-body">
+                    <!-- Smart Header -->
+                    <div class="smart-header">
+                        <div class="smart-title" id="smart-date-display">Loading...</div>
+                        <div class="smart-info" id="smart-event-display">Loading...</div>
                     </div>
 
-                    <!-- Wrapper for collapsible content -->
-                    <div id="cal-settings-content">
-                        <div class="row-flex">
-                            <div class="input-group">
-                                <label>View Year</label>
-                                <input type="number" id="config-year" value="2026" style="width: 70px; font-weight:bold;">
-                            </div>
-                            <div class="input-group">
-                                <label>Jan Weeks</label>
-                                <input type="number" id="w-jan" value="5" min="4" max="6" style="width: 40px;">
-                            </div>
-                            <div class="input-group">
-                                <label>Dec Weeks</label>
-                                <input type="number" id="w-dec" value="6" min="4" max="6" style="width: 40px;">
-                            </div>
-                            <div class="input-group" style="flex:1;">
-                                <label>Week Pattern (Manual)</label>
-                                <textarea id="week-pattern-input"></textarea>
-                            </div>
-                            <button id="btn-reset-pattern" class="cal-btn btn-gray">Reset</button>
+                    <!-- Settings Panel -->
+                    <div class="settings-panel">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; padding-bottom:5px; border-bottom:1px solid #ccc;">
+                            <span style="font-weight:bold; color:#000080; font-size:14px;">Configuration & Categories</span>
+                            <button id="toggle-cal-settings-btn" class="btn btn-secondary btn-small" style="font-size:11px; padding:2px 8px;">_</button>
                         </div>
 
-                        <div class="divider"></div>
-
-                        <div class="row-flex">
-                            <div style="display:flex; gap:10px; align-items:flex-end; border-right:1px solid #ccc; padding-right:20px;">
+                        <!-- Wrapper for collapsible content -->
+                        <div id="cal-settings-content">
+                            <div class="row-flex">
                                 <div class="input-group">
-                                    <label>Copy events to:</label>
-                                    <input type="number" id="copy-target-year" value="2027" style="width: 60px;">
+                                    <label>View Year</label>
+                                    <input type="number" id="config-year" value="2026" style="width: 70px; font-weight:bold;">
                                 </div>
-                                <button id="btn-copy-year" class="cal-btn btn-green">Copy All</button>
+                                <div class="input-group">
+                                    <label>Jan Weeks</label>
+                                    <input type="number" id="w-jan" value="5" min="4" max="6" style="width: 40px;">
+                                </div>
+                                <div class="input-group">
+                                    <label>Dec Weeks</label>
+                                    <input type="number" id="w-dec" value="6" min="4" max="6" style="width: 40px;">
+                                </div>
+                                <div class="input-group" style="flex:1;">
+                                    <label>Week Pattern (Manual)</label>
+                                    <textarea id="week-pattern-input"></textarea>
+                                </div>
+                                <button id="btn-reset-pattern" class="cal-btn btn-gray">Reset</button>
                             </div>
 
-                            <div style="flex:1; display:flex; gap:10px; align-items:flex-end;">
-                                <div class="input-group">
-                                    <label>New Category</label>
-                                    <input type="text" id="new-cat-name" placeholder="Name">
+                            <div class="divider"></div>
+
+                            <div class="row-flex">
+                                <div style="display:flex; gap:10px; align-items:flex-end; border-right:1px solid #ccc; padding-right:20px;">
+                                    <div class="input-group">
+                                        <label>Copy events to:</label>
+                                        <input type="number" id="copy-target-year" value="2027" style="width: 60px;">
+                                    </div>
+                                    <button id="btn-copy-year" class="cal-btn btn-green">Copy All</button>
                                 </div>
-                                <div class="input-group">
-                                    <label>Color</label>
-                                    <input type="color" id="new-cat-color" value="#33ccff" style="width:40px; padding:0;">
+
+                                <div style="flex:1; display:flex; gap:10px; align-items:flex-end;">
+                                    <div class="input-group">
+                                        <label>New Category</label>
+                                        <input type="text" id="new-cat-name" placeholder="Name">
+                                    </div>
+                                    <div class="input-group">
+                                        <label>Color</label>
+                                        <input type="color" id="new-cat-color" value="#33ccff" style="width:40px; padding:0;">
+                                    </div>
+                                    <button id="btn-add-cat" class="cal-btn btn-blue">Add</button>
                                 </div>
-                                <button id="btn-add-cat" class="cal-btn btn-blue">Add</button>
                             </div>
+                            <div id="cat-list-display" style="display:flex; flex-wrap:wrap; margin-top:5px;"></div>
                         </div>
-                        <div id="cat-list-display" style="display:flex; flex-wrap:wrap; margin-top:5px;"></div>
                     </div>
-                </div>
 
-                <!-- Editor Panel -->
-                <div class="editor-panel row-flex">
-                    <div class="input-group">
-                        <label>Start Date</label>
-                        <input type="date" id="input-start-date">
+                    <!-- Editor Panel -->
+                    <div class="editor-panel row-flex">
+                        <div class="input-group">
+                            <label>Start Date</label>
+                            <input type="date" id="input-start-date">
+                        </div>
+                        <div class="input-group">
+                            <label>End Date (Range)</label>
+                            <input type="date" id="input-end-date">
+                        </div>
+                        <div class="input-group">
+                            <label>Type</label>
+                            <select id="event-type"></select>
+                        </div>
+                        <div class="input-group">
+                            <label>Event Name</label>
+                            <input type="text" id="event-name" placeholder="Name" style="width:160px;">
+                        </div>
+                        <div class="input-group">
+                            <label>Time</label>
+                            <input type="text" id="event-time" placeholder="0:00" value="0:00" style="width: 60px;">
+                        </div>
+                        <div style="padding-bottom:5px;">
+                            <label style="font-size:12px; cursor: pointer; display:flex; align-items:center;">
+                                <input type="checkbox" id="event-highlight" checked> Highlight
+                            </label>
+                        </div>
+                        <button id="btn-save-event" class="cal-btn btn-save">Save</button>
+                        <button id="btn-del-event" class="cal-btn btn-del">Delete</button>
+                        <div id="day-events-list"></div>
                     </div>
-                    <div class="input-group">
-                        <label>End Date (Range)</label>
-                        <input type="date" id="input-end-date">
-                    </div>
-                    <div class="input-group">
-                        <label>Type</label>
-                        <select id="event-type"></select>
-                    </div>
-                    <div class="input-group">
-                        <label>Event Name</label>
-                        <input type="text" id="event-name" placeholder="Name" style="width:160px;">
-                    </div>
-                    <div class="input-group">
-                        <label>Time</label>
-                        <input type="text" id="event-time" placeholder="0:00" value="0:00" style="width: 60px;">
-                    </div>
-                    <div style="padding-bottom:5px;">
-                        <label style="font-size:12px; cursor: pointer; display:flex; align-items:center;">
-                            <input type="checkbox" id="event-highlight" checked> Highlight
-                        </label>
-                    </div>
-                    <button id="btn-save-event" class="cal-btn btn-save">Save</button>
-                    <button id="btn-del-event" class="cal-btn btn-del">Delete</button>
-                    <div id="day-events-list"></div>
-                </div>
 
-                <!-- Grids -->
-                <div class="calendar-wrapper">
-                    <div id="calendar-top"></div>
-                    <div id="calendar-bottom"></div>
-                </div>
+                    <!-- Grids -->
+                    <div class="calendar-wrapper">
+                        <div id="calendar-top"></div>
+                        <div id="calendar-bottom"></div>
+                    </div>
 
-                <!-- Lists -->
-                <div id="lists-container" class="lists-wrapper"></div>
+                    <!-- Lists -->
+                    <div id="lists-container" class="lists-wrapper"></div>
+                </div>
             </div>
-        </div>
 
-        <!-- GUTTER 2 -->
-        <div class="gutter" id="gutter-2"></div>
+            <!-- GUTTER 2 -->
+            <div class="gutter" id="gutter-2"></div>
 
-        <!-- PANE 3: TODOS -->
-        <div class="content-pane" id="todos-pane">
-            <div class="pane-header">
-                <h2>My To-Do List</h2>
-                <input type="search" id="todo-search-input" class="filter-input" placeholder="Filter by task...">
-            </div>
-            <div class="pane-body">
-                <div class="todo-options">
-                    <label><input type="checkbox" id="show-done-todos" checked> Show Completed</label>
+            <!-- PANE 3: TODOS -->
+            <div class="content-pane" id="todos-pane">
+                <div class="pane-header">
+                    <h2>My To-Do List</h2>
+                    <input type="search" id="todo-search-input" class="filter-input" placeholder="Filter by task...">
                 </div>
-                <div id="todo-list-container"></div>
+                <div class="pane-body">
+                    <div class="todo-options">
+                        <label><input type="checkbox" id="show-done-todos" checked> Show Completed</label>
+                    </div>
+                    <div id="todo-list-container"></div>
+                </div>
             </div>
-        </div>
-    </main>
+        </main>
     </div>
     
-    <script src="script.js" defer></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            
+            // --- CONFIG & STATE ---
+            let tools = [], categories = {}, todos = [];
+            let currentCategoryFilter = 'all';
+            let showDoneTodos = true;
+            let toolSearchTerm = '';
+            let todoSearchTerm = '';
+            let isDarkMode = false;
+
+            // Calendar State
+            let calendarData = {
+                events: {
+                    "2026-01-01": { name: "Neujahrstag", type: "Holiday", time: "0:00", highlight: true }
+                },
+                categories: [
+                    { name: "Holiday", color: "#ffc000" },
+                    { name: "Birthday", color: "#ff99cc" },
+                    { name: "Vacation", color: "#66ccff" },
+                    { name: "Work", color: "#ccff99" },
+                    { name: "Other", color: "#e0e0e0" }
+                ],
+                config: {
+                    year: 2026,
+                    janWeeks: 5,
+                    decWeeks: 6,
+                    weekPattern: [] 
+                }
+            };
+            
+            const MONTHS_TOP = ["January", "February", "March", "April", "May", "June"];
+            const MONTHS_BOTTOM = ["July", "August", "September", "October", "November", "December"];
+            let monthCols = {
+                "January": 5, "February": 4, "March": 5, "April": 4, "May": 4, "June": 5,
+                "July": 4, "August": 4, "September": 5, "October": 4, "November": 4, "December": 5
+            };
+            let anchorDate = null;
+            let selectedDateKey = null;
+
+            // Storage Keys
+            const STORAGE_KEY = 'workHubDataV11';
+            const CONFIG_KEY = 'workHubDriveConfig';
+            const THEME_KEY = 'workHubTheme';
+
+            // --- UI Elements ---
+            const sidebar = document.getElementById('sidebar');
+            const toolsPane = document.getElementById('tools-pane');
+            const calendarPane = document.getElementById('calendar-pane');
+            const todosPane = document.getElementById('todos-pane');
+            const mainContent = document.getElementById('main-content');
+            
+            const gutter1 = document.getElementById('gutter-1');
+            const gutter2 = document.getElementById('gutter-2');
+            const themeToggleBtn = document.getElementById('theme-toggle');
+            
+            // Inputs & Forms
+            const addToolForm = document.getElementById('add-tool-form');
+            const addTodoForm = document.getElementById('add-todo-form');
+            const toolListContainer = document.getElementById('tool-list-container');
+            const todoListContainer = document.getElementById('todo-list-container');
+            const toolSelector = document.getElementById('todo-linked-tools');
+            const categoryFiltersContainer = document.getElementById('category-filters');
+            const categorySuggestions = document.getElementById('category-suggestions');
+            const toolCategoryInput = document.getElementById('tool-category');
+            const toolCategoryColorInput = document.getElementById('tool-category-color');
+            const todoCategoryInput = document.getElementById('todo-category');
+            const todoCategoryColorInput = document.getElementById('todo-category-color');
+            const exportBtn = document.getElementById('export-btn');
+            const importFile = document.getElementById('import-file');
+            const launchAllBtn = document.getElementById('launch-all-btn');
+            const showDoneTodosCheckbox = document.getElementById('show-done-todos');
+            const toolSearchInput = document.getElementById('tool-search-input');
+            const todoSearchInput = document.getElementById('todo-search-input');
+            const saveToCloudBtn = document.getElementById('save-to-cloud-btn');
+            const loadFromCloudBtn = document.getElementById('load-from-cloud-btn');
+            const confUrlInput = document.getElementById('conf-url');
+            const confIdInput = document.getElementById('conf-id');
+            const confPwInput = document.getElementById('conf-pw');
+            const vaultUser = document.getElementById('vault-user');
+            const vaultPass = document.getElementById('vault-pass');
+            const vaultLoginBtn = document.getElementById('vault-login-btn');
+
+            // Calendar Elements
+            const calConfigYear = document.getElementById('config-year');
+            const calWJan = document.getElementById('w-jan');
+            const calWDec = document.getElementById('w-dec');
+            const calWeekPatternInput = document.getElementById('week-pattern-input');
+            const calCopyTargetYear = document.getElementById('copy-target-year');
+            const calNewCatName = document.getElementById('new-cat-name');
+            const calNewCatColor = document.getElementById('new-cat-color');
+            const calInputStartDate = document.getElementById('input-start-date');
+            const calInputEndDate = document.getElementById('input-end-date');
+            const calEventType = document.getElementById('event-type');
+            const calEventName = document.getElementById('event-name');
+            const calEventTime = document.getElementById('event-time');
+            const calEventHighlight = document.getElementById('event-highlight');
+
+            // Console Reference
+            const systemConsole = document.getElementById('system-console');
+            
+            function logToConsole(message, type = 'info') {
+                if (!systemConsole) return;
+                const now = new Date();
+                const timeStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+                const entry = document.createElement('div');
+                entry.className = `log-entry log-${type}`;
+                entry.innerHTML = `<span class="log-time">[${timeStr}]</span> ${message}`;
+                systemConsole.appendChild(entry);
+                systemConsole.scrollTop = systemConsole.scrollHeight;
+            }
+
+            function setButtonLoading(btnId, isLoading, originalText = "") {
+                const btn = document.getElementById(btnId);
+                if (!btn) return;
+                if (isLoading) {
+                    btn.dataset.originalText = btn.textContent;
+                    btn.textContent = "Processing...";
+                    btn.classList.add('processing');
+                    btn.disabled = true;
+                } else {
+                    btn.textContent = originalText || btn.dataset.originalText || "Action";
+                    btn.classList.remove('processing');
+                    btn.disabled = false;
+                }
+            }
+
+            document.getElementById('clear-console-btn')?.addEventListener('click', () => {
+                if(systemConsole) systemConsole.innerHTML = '<div class="log-entry"><span class="log-time">System:</span> Log cleared.</div>';
+            });
+
+            // --- INITIALIZATION ---
+            function initializeApp() {
+                loadTheme();
+                loadLocalData();
+                loadConfig();
+                attachEventListeners();
+                setupSplitScreen();
+                renderHub();
+                initCalendar();
+                logToConsole("App initialized and ready.", "info");
+            }
+
+            initializeApp();
+
+            // --- THEME ---
+            function loadTheme() {
+                const savedTheme = localStorage.getItem(THEME_KEY);
+                isDarkMode = savedTheme === 'dark';
+                applyTheme();
+            }
+
+            function toggleTheme() {
+                isDarkMode = !isDarkMode;
+                localStorage.setItem(THEME_KEY, isDarkMode ? 'dark' : 'light');
+                applyTheme();
+            }
+
+            function applyTheme() {
+                if (isDarkMode) {
+                    document.body.classList.add('dark-mode');
+                    themeToggleBtn.textContent = '☀️';
+                    themeToggleBtn.title = 'Switch to Light Mode';
+                } else {
+                    document.body.classList.remove('dark-mode');
+                    themeToggleBtn.textContent = '🌙';
+                    themeToggleBtn.title = 'Switch to Dark Mode';
+                }
+            }
+
+            // --- SPLIT SCREEN LOGIC & GUTTERS ---
+            function setupSplitScreen() {
+                document.getElementById('toggle-sidebar')?.addEventListener('click', () => sidebar.classList.toggle('hidden'));
+                
+                document.getElementById('toggle-tools')?.addEventListener('click', () => {
+                     toolsPane.classList.toggle('hidden');
+                     resetPaneFlexBasis();
+                     updateGutters();
+                });
+                
+                document.getElementById('toggle-calendar')?.addEventListener('click', () => {
+                    calendarPane.classList.toggle('hidden');
+                    resetPaneFlexBasis();
+                    updateGutters();
+                });
+
+                document.getElementById('toggle-todos')?.addEventListener('click', () => {
+                    todosPane.classList.toggle('hidden');
+                    resetPaneFlexBasis();
+                    updateGutters();
+                });
+
+                updateGutters();
+                setupDrag(gutter1);
+                setupDrag(gutter2);
+            }
+
+            function resetPaneFlexBasis() {
+                [toolsPane, calendarPane, todosPane].forEach(p => p.style.flex = '');
+            }
+
+            function updateGutters() {
+                const tHidden = toolsPane.classList.contains('hidden');
+                const cHidden = calendarPane.classList.contains('hidden');
+                const tdHidden = todosPane.classList.contains('hidden');
+                const visibleCount = [tHidden, cHidden, tdHidden].filter(h => !h).length;
+
+                gutter1.classList.add('hidden');
+                gutter2.classList.add('hidden');
+
+                if (visibleCount === 3) {
+                    gutter1.classList.remove('hidden');
+                    gutter2.classList.remove('hidden');
+                } else if (visibleCount === 2) {
+                    if (!tHidden && !cHidden) {
+                        gutter1.classList.remove('hidden');
+                    } else if (!cHidden && !tdHidden) {
+                        gutter2.classList.remove('hidden');
+                    } else if (!tHidden && !tdHidden) {
+                        gutter1.classList.remove('hidden');
+                    }
+                }
+            }
+
+            function setupDrag(gutter) {
+                let isDragging = false;
+                gutter.addEventListener('mousedown', (e) => {
+                    isDragging = true;
+                    document.body.style.cursor = 'col-resize';
+                    document.body.style.userSelect = 'none';
+                });
+
+                document.addEventListener('mousemove', (e) => {
+                    if (!isDragging) return;
+                    
+                    const visiblePanes = Array.from(document.querySelectorAll('.content-pane')).filter(p => !p.classList.contains('hidden'));
+                    if (visiblePanes.length < 2) return;
+                    
+                    let leftPane, rightPane;
+                    if (gutter === gutter1) {
+                        leftPane = visiblePanes[0];
+                        rightPane = visiblePanes[1];
+                    } else if (gutter === gutter2) {
+                        if (visiblePanes.length === 3) {
+                            leftPane = visiblePanes[1];
+                            rightPane = visiblePanes[2];
+                        } else {
+                            return;
+                        }
+                    }
+                    
+                    if (!leftPane || !rightPane) return;
+                    
+                    const leftPaneRect = leftPane.getBoundingClientRect();
+                    const rightPaneRect = rightPane.getBoundingClientRect();
+                    const totalWidth = leftPaneRect.width + rightPaneRect.width;
+                    const pointerXOffset = e.clientX - leftPaneRect.left;
+                    
+                    const leftPercent = Math.max(15, Math.min(85, (pointerXOffset / totalWidth) * 100));
+                    const rightPercent = 100 - leftPercent;
+                    
+                    leftPane.style.flex = `${leftPercent} 1 0%`;
+                    rightPane.style.flex = `${rightPercent} 1 0%`;
+                });
+
+                document.addEventListener('mouseup', () => {
+                    if (isDragging) {
+                        isDragging = false;
+                        document.body.style.cursor = '';
+                        document.body.style.userSelect = '';
+                    }
+                });
+            }
+
+            // --- VAULT LOGIN & CLOUD BRIDGE ---
+            const VAULT_URL = "https://script.google.com/macros/s/AKfycbxsM9fmYDvprjDea64dg8DYv5OUq_MmkHVXu0zbxqiGqmrQId_QyXummxb2r6JLZYmbKg/exec"
+
+            async function handleVaultLogin() {
+                const u = vaultUser.value.trim();
+                const p = vaultPass.value.trim();
+
+                if (!u || !p) {
+                    alert("Please enter both Username and Password.");
+                    return;
+                }
+
+                logToConsole("Initiating Vault Login...", "loading");
+                setButtonLoading('vault-login-btn', true);
+
+                try {
+                    logToConsole(`Connecting to Vault...`, "info");
+                    const response = await fetch(`${VAULT_URL}?u=${encodeURIComponent(u)}&p=${encodeURIComponent(p)}`);
+                    const result = await response.json();
+
+                    if (result.success) {
+                        confUrlInput.value = result.config.cfgUrl;
+                        confIdInput.value = result.config.cfgId;
+                        confPwInput.value = result.config.cfgPw;
+                        saveConfig();
+                        
+                        logToConsole("Vault Login Successful!", "success");
+                        logToConsole("Credentials saved.", "success");
+                        await loadFromCloud();
+                    } else {
+                        logToConsole("Login Failed: Incorrect credentials.", "error");
+                    }
+                } catch (error) {
+                    logToConsole(`Connection Error: ${error.message}`, "error");
+                } finally {
+                    setButtonLoading('vault-login-btn', false);
+                }
+            }
+
+            function getDriveConfig() {
+                return {
+                    url: confUrlInput.value.trim(),
+                    id: confIdInput.value.trim(),
+                    pw: confPwInput.value.trim()
+                };
+            }
+
+            function saveConfig() {
+                localStorage.setItem(CONFIG_KEY, JSON.stringify(getDriveConfig()));
+            }
+
+            function loadConfig() {
+                const storedConfig = localStorage.getItem(CONFIG_KEY);
+                if (storedConfig) {
+                    const config = JSON.parse(storedConfig);
+                    if(confUrlInput) confUrlInput.value = config.url || '';
+                    if(confIdInput) confIdInput.value = config.id || '';
+                    if(confPwInput) confPwInput.value = config.pw || '';
+                }
+            }
+
+            async function saveToCloud() {
+                const cfg = getDriveConfig();
+                if (!cfg.url || !cfg.id) {
+                    logToConsole("Cannot Save: Missing Vault configuration. Please login.", "error");
+                    return;
+                }
+
+                logToConsole("Starting Cloud Backup...", "loading");
+                setButtonLoading('save-to-cloud-btn', true);
+                const dataToSave = { tools, categories, todos, calendarData };
+                
+                try {
+                    const response = await fetch(`${cfg.url}?id=${cfg.id}&pw=${cfg.pw}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                        body: JSON.stringify(dataToSave)
+                    });
+                    const result = await response.json();
+                    if (result.error) throw new Error(result.error);
+                    logToConsole("Cloud Sync Complete: Data saved successfully.", "success");
+                } catch (error) {
+                    logToConsole(`Save Failed: ${error.message}`, "error");
+                } finally {
+                    setButtonLoading('save-to-cloud-btn', false);
+                }
+            }
+
+            async function loadFromCloud() {
+                const cfg = getDriveConfig();
+                if (!cfg.url || !cfg.id) {
+                    logToConsole("Cannot Load: Missing Vault configuration.", "error");
+                    return;
+                }
+
+                logToConsole("Fetching data from Cloud...", "loading");
+                setButtonLoading('load-from-cloud-btn', true);
+
+                try {
+                    const response = await fetch(`${cfg.url}?id=${cfg.id}&pw=${cfg.pw}&t=${Date.now()}`);
+                    const data = await response.json();
+                    if (data.error) throw new Error(data.error);
+                    
+                    let itemsCount = 0;
+                    if (data.tools) { tools = data.tools; itemsCount += tools.length; }
+                    if (data.categories) categories = data.categories;
+                    if (data.todos) { todos = data.todos; itemsCount += todos.length; }
+                    if (data.calendarData) calendarData = data.calendarData;
+
+                    saveLocalData(); 
+                    renderHub();
+                    initCalendar();
+                    logToConsole(`Data Restored: ${itemsCount} items loaded.`, "success");
+                } catch (error) {
+                    logToConsole(`Load Failed: ${error.message}`, "error");
+                } finally {
+                    setButtonLoading('load-from-cloud-btn', false);
+                }
+            }
+
+            function loadLocalData() {
+                const storedData = localStorage.getItem(STORAGE_KEY);
+                if (storedData) {
+                    const data = JSON.parse(storedData);
+                    tools = data.tools || [];
+                    categories = data.categories || {};
+                    todos = data.todos || [];
+                    if(data.calendarData) calendarData = data.calendarData;
+                }
+                showDoneTodos = JSON.parse(localStorage.getItem('showDoneTodos')) ?? true;
+                if(showDoneTodosCheckbox) showDoneTodosCheckbox.checked = showDoneTodos;
+            }
+
+            function saveLocalData() {
+                const data = { tools, categories, todos, calendarData };
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+                localStorage.setItem('showDoneTodos', JSON.stringify(showDoneTodos));
+            }
+            
+            function getFilteredTools() {
+                const term = toolSearchTerm.toLowerCase();
+                return tools.filter(tool => {
+                    const inCategory = currentCategoryFilter === 'all' || (tool.category || '').toLowerCase() === currentCategoryFilter;
+                    const matchesSearch = !term || tool.name.toLowerCase().includes(term) || (tool.description || '').toLowerCase().includes(term);
+                    return inCategory && matchesSearch;
+                });
+            }
+
+            function getFilteredTodos() {
+                const term = todoSearchTerm.toLowerCase();
+                return todos.filter(todo => {
+                    const inCategory = currentCategoryFilter === 'all' || (todo.category || '').toLowerCase() === currentCategoryFilter;
+                    const matchesSearch = !term || (todo.text || '').toLowerCase().includes(term);
+                    const isVisible = showDoneTodos || !todo.done;
+                    return inCategory && matchesSearch && isVisible;
+                });
+            }
+            
+            function pruneOrphanedCategories() {
+                const allUsedCategories = new Set([
+                    ...tools.map(t => (t.category || '').toLowerCase()),
+                    ...todos.map(t => (t.category || '').toLowerCase())
+                ].filter(Boolean));
+                
+                for (const categoryKey in categories) {
+                    if (!categoryKey || categoryKey === 'uncategorized' || !allUsedCategories.has(categoryKey)) {
+                        delete categories[categoryKey];
+                    }
+                }
+            }
+
+            // --- RENDER WORKHUB ---
+            function renderHub() {
+                renderCategories();
+                renderTools();
+                renderTodos();
+                renderToolSelector();
+                renderCategoryManager();
+            }
+
+            function renderTools() {
+                if (!toolListContainer) return;
+                toolListContainer.innerHTML = '';
+                const filteredTools = getFilteredTools();
+                if (launchAllBtn) launchAllBtn.disabled = filteredTools.length === 0;
+                if (launchAllBtn) launchAllBtn.textContent = filteredTools.length > 0 ? `Launch All (${filteredTools.length})` : 'Launch All';
+
+                if (filteredTools.length === 0) {
+                    toolListContainer.innerHTML = `<p style="color:var(--text-muted)">No tools found matching your criteria.</p>`;
+                    return;
+                }
+                filteredTools.forEach(tool => {
+                    const card = document.createElement('div');
+                    card.className = 'tool-card';
+                    card.dataset.id = tool.id;
+                    const statusClass = tool.status || 'not-set';
+                    const statusText = statusClass.replace(/-/g, ' ');
+                    const isLocalFile = (tool.url || '').startsWith('file:///');
+                    const categoryKey = (tool.category || '').toLowerCase();
+                    const categoryStyle = categories[categoryKey] || { color: '#7f8c8d' };
+
+                    card.innerHTML = `
+                        <div class="card-content">
+                            <div class="tool-card-header">
+                                <h3>${tool.name}</h3>
+                                <span class="status-badge ${statusClass}">${statusText}</span>
+                            </div>
+                            <span class="category-tag" style="background-color: ${categoryStyle.color};">${tool.category || 'Uncategorized'}</span>
+                            <p class="tool-description">${tool.description || 'No description provided.'}</p>
+                        </div>
+                        <div class="card-actions">
+                            <button class="btn btn-secondary btn-small" data-action="copy-path" ${!isLocalFile ? 'disabled title="Only for local file URLs"' : ''}>Copy Path</button>
+                            <button class="btn btn-secondary btn-small" data-action="edit-tool">Edit</button>
+                            <a href="${tool.url}" target="_blank" rel="noopener noreferrer" class="btn btn-small">Launch</a>
+                            <button class="btn btn-danger btn-small" data-action="delete-tool">Delete</button>
+                        </div>
+                    `;
+                    toolListContainer.appendChild(card);
+                });
+            }
+
+            function renderCategories() {
+                if (!categoryFiltersContainer || !categorySuggestions) return;
+                categoryFiltersContainer.innerHTML = '';
+                categorySuggestions.innerHTML = '';
+                
+                const label = document.createElement('label');
+                label.textContent = 'Category Filter: ';
+                label.style.fontWeight = 'bold';
+                label.style.fontSize = '0.9rem';
+                label.style.marginRight = '8px';
+                categoryFiltersContainer.appendChild(label);
+
+                // Create alphabetical Dropdown Filter
+                const selectEl = document.createElement('select');
+                selectEl.id = 'category-filter-select';
+                selectEl.style.padding = '6px 12px';
+                selectEl.style.borderRadius = '20px';
+                selectEl.style.fontWeight = 'bold';
+                selectEl.style.border = '2px solid var(--border-color)';
+                selectEl.style.width = 'auto';
+                selectEl.style.cursor = 'pointer';
+                selectEl.style.color = '#ffffff';
+                
+                const allOption = document.createElement('option');
+                allOption.value = 'all';
+                allOption.textContent = 'All Categories';
+                allOption.style.backgroundColor = '#7f8c8d';
+                allOption.style.color = '#ffffff';
+                if (currentCategoryFilter === 'all') {
+                    allOption.selected = true;
+                    selectEl.style.backgroundColor = '#7f8c8d';
+                }
+                selectEl.appendChild(allOption);
+
+                Object.keys(categories).sort().forEach(key => {
+                    if (!key) return;
+                    const category = categories[key];
+                    const optionEl = document.createElement('option');
+                    optionEl.value = key;
+                    optionEl.textContent = key;
+                    optionEl.style.backgroundColor = category.color;
+                    optionEl.style.color = '#ffffff';
+                    
+                    if (key === currentCategoryFilter) {
+                        optionEl.selected = true;
+                        selectEl.style.backgroundColor = category.color;
+                    }
+                    selectEl.appendChild(optionEl);
+                    
+                    const datalistOption = document.createElement('option');
+                    datalistOption.value = key;
+                    categorySuggestions.appendChild(datalistOption);
+                });
+
+                selectEl.addEventListener('change', (e) => {
+                    currentCategoryFilter = e.target.value;
+                    const selectedColor = currentCategoryFilter === 'all' ? '#7f8c8d' : (categories[currentCategoryFilter]?.color || '#7f8c8d');
+                    selectEl.style.backgroundColor = selectedColor;
+                    renderHub();
+                });
+
+                categoryFiltersContainer.appendChild(selectEl);
+            }
+            
+            function renderTodos() {
+                if (!todoListContainer) return;
+                todoListContainer.innerHTML = '';
+                const filteredTodos = getFilteredTodos();
+                
+                const sortedTodos = filteredTodos.sort((a, b) => {
+                    if (a.done !== b.done) return a.done ? 1 : -1;
+                    if (!a.dueDate) return 1; if (!b.dueDate) return -1;
+                    return new Date(a.dueDate) - new Date(b.dueDate);
+                });
+
+                if (sortedTodos.length === 0) {
+                    todoListContainer.innerHTML = `<p style="color:var(--text-muted)">No tasks found matching your criteria.</p>`;
+                } else {
+                    sortedTodos.forEach(todo => {
+                        const card = document.createElement('div');
+                        card.className = 'todo-card';
+                        card.dataset.id = todo.id;
+                        const today = new Date();
+                        today.setHours(0,0,0,0);
+                        const dueDate = todo.dueDate ? new Date(todo.dueDate) : null;
+                        if (todo.done) card.classList.add('done');
+                        if (!todo.done && dueDate && dueDate < today) card.classList.add('overdue');
+                        const categoryKey = (todo.category || '').toLowerCase();
+                        const categoryStyle = categories[categoryKey] || { color: '#7f8c8d' };
+
+                        let linkedToolsHtml = '';
+                        (todo.linkedTools || []).forEach(toolId => {
+                            const tool = tools.find(t => t.id === toolId);
+                            if (tool) linkedToolsHtml += `<a href="${tool.url}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-small">${tool.name}</a>`;
+                        });
+
+                        card.innerHTML = `
+                            <div class="card-content">
+                                <div class="todo-card-header">
+                                    <input type="checkbox" data-action="toggle-done" ${todo.done ? 'checked' : ''}>
+                                    <p class="todo-text">${todo.text.replace(/\n/g, '<br>')}</p>
+                                </div>
+                                <span class="category-tag" style="background-color: ${categoryStyle.color};">${todo.category || 'Uncategorized'}</span>
+                                <div class="todo-card-footer">
+                                     <span class="due-date">${todo.dueDate ? `Due: ${todo.dueDate}` : 'No due date'}</span>
+                                     <div class="todo-linked-tools">${linkedToolsHtml}</div>
+                                </div>
+                            </div>
+                            <div class="card-actions">
+                                <button class="btn btn-secondary btn-small" data-action="edit-todo">Edit</button>
+                                <button class="btn btn-danger btn-small" data-action="delete-todo" title="Delete Task">✖</button>
+                            </div>
+                        `;
+                        todoListContainer.appendChild(card);
+                    });
+                }
+            }
+
+            function renderToolSelector() {
+                if (!toolSelector) return;
+                toolSelector.innerHTML = '';
+                tools.sort((a, b) => a.name.localeCompare(b.name)).forEach(tool => {
+                    const option = document.createElement('option');
+                    option.value = tool.id;
+                    option.textContent = tool.name;
+                    toolSelector.appendChild(option);
+                });
+            }
+
+            // --- CATEGORY MANAGER ---
+            function renderCategoryManager() {
+                const container = document.getElementById('category-manager-list');
+                if (!container) return;
+                container.innerHTML = '';
+
+                const keys = Object.keys(categories).sort();
+                if (keys.length === 0) {
+                    container.innerHTML = '<p style="color:var(--text-muted); font-size:0.9rem; margin:0;">No categories registered.</p>';
+                    return;
+                }
+
+                keys.forEach(key => {
+                    const cat = categories[key];
+                    const toolCount = tools.filter(t => (t.category || '').toLowerCase() === key).length;
+                    const todoCount = todos.filter(t => (t.category || '').toLowerCase() === key).length;
+                    const totalCount = toolCount + todoCount;
+
+                    const row = document.createElement('div');
+                    row.className = 'category-mgr-row';
+                    row.style.display = 'flex';
+                    row.style.justifyContent = 'space-between';
+                    row.style.alignItems = 'center';
+                    row.style.marginBottom = '4px';
+
+                    row.innerHTML = `
+                        <div style="display:flex; align-items:center; gap:6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex-grow:1;">
+                            <span style="width:12px; height:12px; border-radius:50%; background-color:${cat.color}; flex-shrink:0;"></span>
+                            <span title="${key}" style="overflow:hidden; text-overflow:ellipsis; font-size: 0.85rem;">${key} (${totalCount})</span>
+                        </div>
+                        <button class="btn btn-danger btn-small" style="padding: 1px 5px; font-size: 0.75rem;" data-cat="${key}">✖</button>
+                    `;
+                    container.appendChild(row);
+                });
+            }
+
+            function toggleToolEditMode(card, tool) {
+                const statusOptions = ['not-set', 'working', 'unfinished', 'issues-to-be-fixed'];
+                let statusOptionsHTML = statusOptions.map(s => 
+                    `<option value="${s}" ${tool.status === s ? 'selected' : ''}>${s.replace(/-/g, ' ')}</option>`
+                ).join('');
+
+                card.innerHTML = `
+                    <div class="edit-area">
+                        <div class="form-group"><label>Name</label><input class="edit-tool-name" value="${tool.name}"></div>
+                        <div class="form-group"><label>URL</label><input class="edit-tool-url" value="${tool.url}"></div>
+                        <div class="form-group"><label>Category</label><input class="edit-tool-category" value="${tool.category || ''}" list="category-suggestions"></div>
+                        <div class="form-group"><label>Status</label><select class="edit-tool-status">${statusOptionsHTML}</select></div>
+                        <div class="form-group"><label>Description</label><textarea class="edit-tool-description">${tool.description || ''}</textarea></div>
+                    </div>
+                    <div class="card-actions">
+                        <button class="btn btn-secondary btn-small" data-action="cancel-edit-tool">Cancel</button>
+                        <button class="btn btn-small" data-action="save-tool">Save</button>
+                    </div>
+                `;
+            }
+
+            function saveToolEdit(card, tool) {
+                const newCategoryName = card.querySelector('.edit-tool-category').value.trim();
+                const newCategoryKey = newCategoryName.toLowerCase();
+                
+                tool.name = card.querySelector('.edit-tool-name').value.trim();
+                tool.url = card.querySelector('.edit-tool-url').value.trim();
+                tool.category = newCategoryName || 'Uncategorized';
+                tool.status = card.querySelector('.edit-tool-status').value;
+                tool.description = card.querySelector('.edit-tool-description').value.trim();
+                
+                if (newCategoryName && !categories[newCategoryKey]) {
+                    categories[newCategoryKey] = { color: '#3498db' };
+                }
+                
+                pruneOrphanedCategories();
+                saveLocalData();
+                renderHub();
+            }
+
+            function toggleTodoEditMode(card, todo) {
+                let toolOptionsHTML = '';
+                tools.sort((a,b) => a.name.localeCompare(b.name)).forEach(t => {
+                    const isSelected = (todo.linkedTools || []).includes(t.id);
+                    toolOptionsHTML += `<option value="${t.id}" ${isSelected ? 'selected' : ''}>${t.name}</option>`;
+                });
+
+                card.innerHTML = `
+                    <div class="edit-area">
+                        <div class="form-group"><label>Task</label><textarea class="edit-todo-text">${todo.text}</textarea></div>
+                        <div class="form-group"><label>Category</label><input type="text" class="edit-todo-category" value="${todo.category || ''}" list="category-suggestions"></div>
+                        <div class="form-group"><label>Due Date</label><input type="date" class="edit-todo-due-date" value="${todo.dueDate || ''}"></div>
+                        <div class="form-group"><label>Linked Tools</label><select class="edit-todo-linked-tools" multiple>${toolOptionsHTML}</select></div>
+                    </div>
+                    <div class="card-actions">
+                        <button class="btn btn-secondary btn-small" data-action="cancel-edit-todo">Cancel</button>
+                        <button class="btn btn-small" data-action="save-todo">Save</button>
+                    </div>
+                `;
+            }
+
+            function saveTodoEdit(card, todo) {
+                const newCategoryName = card.querySelector('.edit-todo-category').value.trim();
+                const newCategoryKey = newCategoryName.toLowerCase();
+                
+                todo.text = card.querySelector('.edit-todo-text').value.trim();
+                todo.dueDate = card.querySelector('.edit-todo-due-date').value;
+                todo.category = newCategoryName || 'Uncategorized';
+                todo.linkedTools = [...card.querySelector('.edit-todo-linked-tools').selectedOptions].map(opt => Number(opt.value));
+                
+                if (newCategoryName && !categories[newCategoryKey]) {
+                    categories[newCategoryKey] = { color: '#3498db' };
+                }
+                
+                pruneOrphanedCategories();
+                saveLocalData();
+                renderHub();
+            }
+            
+            // --- CALENDAR FUNCTIONS ---
+            function initCalendar() {
+                if (!calendarData.config) {
+                     calendarData.config = { year: 2026, janWeeks: 5, decWeeks: 6, weekPattern: [] };
+                }
+                
+                Object.keys(calendarData.events).forEach(key => {
+                    if (!Array.isArray(calendarData.events[key])) {
+                        calendarData.events[key] = [calendarData.events[key]];
+                    }
+                });
+
+                calConfigYear.value = calendarData.config.year;
+                calWJan.value = calendarData.config.janWeeks;
+                calWDec.value = calendarData.config.decWeeks;
+                calWeekPatternInput.value = (calendarData.config.weekPattern || []).join(', ');
+
+                updateCategoryDropdown();
+                renderCalendarCategoryTags();
+                recalcDateAnchor();
+                updateSmartHeader();
+                
+                setInterval(updateSmartHeader, 60000);
+            }
+
+            let editingEventIndex = -1;
+
+            function updateSmartHeader() {
+                const now = new Date(); 
+                const d = String(now.getDate()).padStart(2,'0');
+                const m = String(now.getMonth()+1).padStart(2,'0');
+                const y = now.getFullYear();
+                
+                const oneJan = new Date(now.getFullYear(), 0, 1);
+                const days = Math.floor((now - oneJan) / 86400000);
+                const wkNum = Math.ceil((now.getDay() + 1 + days) / 7);
+
+                document.getElementById("smart-date-display").innerHTML = 
+                    `Today is ${d}.${m}.${y} <span style="opacity:0.7">| Cal Week ${wkNum}</span>`;
+
+                const keyToday = formatDateKey(now);
+                const tmr = new Date(now); tmr.setDate(now.getDate()+1);
+                const keyTmr = formatDateKey(tmr);
+
+                const getNames = (k) => {
+                    if(!calendarData.events[k]) return "No events";
+                    return calendarData.events[k].map(e => e.name).join(", ");
+                };
+
+                document.getElementById("smart-event-display").innerHTML = `
+                    <div><strong>Today:</strong> ${getNames(keyToday)}</div>
+                    <div><strong>Tomorrow:</strong> ${getNames(keyTmr)}</div>
+                `;
+            }
+
+            function recalcDateAnchor() {
+                const year = parseInt(calConfigYear.value);
+                calendarData.config.year = year;
+                
+                const jan1 = new Date(year, 0, 1);
+                const dayOfWeek = jan1.getDay(); 
+                let jsDay = dayOfWeek === 0 ? 6 : dayOfWeek - 1; 
+                const monday = new Date(jan1);
+                monday.setDate(jan1.getDate() - jsDay);
+                anchorDate = monday;
+                
+                if (calendarData.config.weekPattern && calendarData.config.weekPattern.length > 0) {
+                    renderFromPattern();
+                } else {
+                    resetPattern();
+                }
+            }
+            
+            function updateStructure() {
+                monthCols["January"] = parseInt(calWJan.value);
+                monthCols["December"] = parseInt(calWDec.value);
+                calendarData.config.janWeeks = monthCols["January"];
+                calendarData.config.decWeeks = monthCols["December"];
+                resetPattern();
+            }
+
+            function resetPattern() {
+                monthCols["January"] = parseInt(calWJan.value);
+                monthCols["December"] = parseInt(calWDec.value);
+                const totalWeeks = Object.values(monthCols).reduce((a,b) => a+b, 0);
+                let arr = []; for(let i=1; i<=totalWeeks; i++) arr.push(i);
+                calendarData.config.weekPattern = arr;
+                calWeekPatternInput.value = arr.join(", ");
+                saveLocalData();
+                renderFromPattern();
+            }
+            
+            function renderFromPattern() {
+                const txt = calWeekPatternInput.value;
+                if(txt) calendarData.config.weekPattern = txt.split(",").map(s => s.trim());
+                renderCalendarAll();
+            }
+
+            function renderCalendarAll() {
+                const year = parseInt(calConfigYear.value);
+                const topConfig = MONTHS_TOP.map(m => ({ name: m, cols: monthCols[m] }));
+                const bottomConfig = MONTHS_BOTTOM.map(m => ({ name: m, cols: monthCols[m] }));
+                
+                let topTotalWeeks = topConfig.reduce((a,b) => a + b.cols, 0);
+                const fullPattern = calendarData.config.weekPattern || [];
+                const topWeeksArr = fullPattern.slice(0, topTotalWeeks);
+                const botWeeksArr = fullPattern.slice(topTotalWeeks);
+
+                createTable("calendar-top", topConfig, topWeeksArr, anchorDate, year, 0);
+                createTable("calendar-bottom", bottomConfig, botWeeksArr, anchorDate, year, topTotalWeeks);
+                renderListGroups(year);
+            }
+
+            function createTable(containerId, config, weekLabels, anchorDate, targetYear, weekOffsetGlobal) {
+                const container = document.getElementById(containerId);
+                container.innerHTML = "";
+                const table = document.createElement("table");
+                table.className = "cal-grid"; 
+
+                const trMonth = document.createElement("tr");
+                trMonth.className = "header-row";
+                const thYear = document.createElement("th"); thYear.innerText = targetYear; thYear.style.width="50px"; trMonth.appendChild(thYear);
+                config.forEach(m => {
+                    const th = document.createElement("th"); th.colSpan = m.cols; th.innerText = m.name; th.className = "month-end-border"; trMonth.appendChild(th);
+                });
+                table.appendChild(trMonth);
+
+                const trWeek = document.createElement("tr"); trWeek.className = "wk-header-row";
+                const thLabel = document.createElement("th"); thLabel.innerText = "Wk#"; trWeek.appendChild(thLabel);
+                let flatColIndex = 0;
+                config.forEach(m => {
+                    for(let i=0; i<m.cols; i++) {
+                        const th = document.createElement("th"); th.innerText = weekLabels[flatColIndex] || "?";
+                        if(i === m.cols - 1) th.classList.add("month-end-border");
+                        trWeek.appendChild(th); flatColIndex++;
+                    }
+                });
+                table.appendChild(trWeek);
+
+                const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+                days.forEach((dName, dIndex) => {
+                    const tr = document.createElement("tr");
+                    if(dIndex >= 5) tr.className = "weekend-row";
+                    const tdLabel = document.createElement("td"); tdLabel.className = "day-label"; tdLabel.innerText = dName; tr.appendChild(tdLabel);
+                    
+                    let localWeekOffset = 0;
+                    config.forEach(m => {
+                        for(let i=0; i<m.cols; i++) {
+                            const td = document.createElement("td");
+                            const totalWeeks = weekOffsetGlobal + localWeekOffset;
+                            const daysToAdd = (totalWeeks * 7) + dIndex;
+                            const cellDate = new Date(anchorDate);
+                            cellDate.setDate(anchorDate.getDate() + daysToAdd);
+                            
+                            if (cellDate.getFullYear() !== targetYear) {
+                                 td.className = "empty-cell";
+                            } else {
+                                const dateKey = formatDateKey(cellDate);
+                                td.innerText = String(cellDate.getDate()).padStart(2, '0');
+                                td.dataset.date = dateKey;
+                                
+                                const eventsArr = calendarData.events[dateKey];
+                                if (eventsArr && eventsArr.length > 0) {
+                                    const primary = eventsArr.find(e => e.highlight) || eventsArr[0];
+                                    if(primary.highlight) {
+                                        td.style.backgroundColor = getCalendarCategoryColor(primary.type);
+                                        td.style.fontWeight = "bold";
+                                    }
+                                    if (eventsArr.length > 1) {
+                                        const dot = document.createElement('div');
+                                        dot.className = 'multi-event-dot';
+                                        td.appendChild(dot);
+                                    }
+                                }
+                                
+                                if (dateKey === selectedDateKey) td.classList.add("selected");
+                                td.addEventListener('click', () => selectDate(dateKey));
+                            }
+                            if(i === m.cols - 1) td.classList.add("month-end-border");
+                            tr.appendChild(td); localWeekOffset++;
+                        }
+                    });
+                    table.appendChild(tr);
+                });
+                container.appendChild(table);
+            }
+
+            function renderListGroups(filterYear) {
+                const container = document.getElementById("lists-container");
+                container.innerHTML = "";
+                filterYear = String(filterYear);
+
+                let grouped = {};
+                Object.keys(calendarData.events).sort().forEach(dateKey => {
+                    if(dateKey.startsWith(filterYear)) {
+                        const evList = calendarData.events[dateKey];
+                        evList.forEach(ev => {
+                            const type = ev.type || "Other";
+                            if(!grouped[type]) grouped[type] = [];
+                            const parts = dateKey.split("-");
+                            const dObj = new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
+                            grouped[type].push({ dateKey: dateKey, dateObj: dObj, ...ev });
+                        });
+                    }
+                });
+
+                Object.keys(grouped).forEach(type => {
+                    const box = document.createElement("div"); box.className = "category-box";
+                    const header = document.createElement("div"); header.className = "category-header";
+                    const col = getCalendarCategoryColor(type);
+                    header.innerText = type; header.style.borderBottom = `3px solid ${col}`;
+                    box.appendChild(header);
+
+                    const table = document.createElement("table"); table.className = "compact-list";
+                    table.innerHTML = `<thead><tr><th style="width:30px"></th><th>Date</th><th>Event</th><th>Time</th></tr></thead>`;
+                    const tbody = document.createElement("tbody");
+
+                    let list = grouped[type];
+                    if(list.length > 0) {
+                        list.sort((a,b) => a.dateObj - b.dateObj);
+                        
+                        let currentStart = list[0];
+                        let currentEnd = list[0];
+                        let count = 1;
+
+                        for (let i = 1; i < list.length; i++) {
+                            const prev = list[i-1];
+                            const curr = list[i];
+                            
+                            const isConsecutive = (curr.dateObj - prev.dateObj) === 86400000;
+                            const isSameName = curr.name === prev.name;
+
+                            if (isConsecutive && isSameName) {
+                                currentEnd = curr;
+                                count++;
+                            } else {
+                                tbody.appendChild(createRow(currentStart, currentEnd, count, type));
+                                currentStart = curr;
+                                currentEnd = curr;
+                                count = 1;
+                            }
+                        }
+                        tbody.appendChild(createRow(currentStart, currentEnd, count, type));
+                    }
+
+                    table.appendChild(tbody);
+                    box.appendChild(table);
+                    container.appendChild(box);
+                });
+            }
+
+            function createRow(startItem, endItem, count, typeFilter) {
+                const tr = document.createElement("tr");
+
+                const tdDel = document.createElement("td");
+                const btnDel = document.createElement("button");
+                btnDel.className = "btn-list-del";
+                btnDel.innerHTML = "×";
+                btnDel.title = "Delete Event Series";
+                btnDel.onclick = (e) => {
+                    e.stopPropagation(); 
+                    deleteRange(startItem.dateObj, endItem.dateObj, typeFilter);
+                };
+                tdDel.appendChild(btnDel);
+
+                let dateText = count > 1 ? `${formatDisplayDate(startItem.dateKey)} - ${formatDisplayDate(endItem.dateKey)}` : formatDisplayDate(startItem.dateKey);
+                let timeText = count > 1 ? `<b>${count} Days</b>` : startItem.time;
+
+                const tdDate = document.createElement("td"); tdDate.innerHTML = dateText;
+                const tdName = document.createElement("td"); tdName.innerHTML = startItem.name;
+                const tdTime = document.createElement("td"); tdTime.innerHTML = timeText;
+
+                tr.appendChild(tdDel);
+                tr.appendChild(tdDate);
+                tr.appendChild(tdName);
+                tr.appendChild(tdTime);
+                tr.onclick = () => selectDate(startItem.dateKey);
+                return tr;
+            }
+
+            function deleteRange(startDateObj, endDateObj, typeFilter) {
+                if(!confirm(`Delete "${typeFilter}" events in this range?`)) return;
+                
+                let curr = new Date(startDateObj);
+                while(curr <= endDateObj) {
+                    const k = formatDateKey(curr);
+                    if (calendarData.events[k]) {
+                        calendarData.events[k] = calendarData.events[k].filter(e => e.type !== typeFilter);
+                        if(calendarData.events[k].length === 0) delete calendarData.events[k];
+                    }
+                    curr.setDate(curr.getDate() + 1);
+                }
+                saveLocalData();
+                renderCalendarAll(); 
+                updateSmartHeader();
+            }
+
+            function selectDate(dateKey) {
+                selectedDateKey = dateKey;
+                editingEventIndex = -1; 
+                
+                document.querySelectorAll(".selected").forEach(e=>e.classList.remove("selected"));
+                const cell = document.querySelector(`td[data-date="${dateKey}"]`);
+                if(cell) cell.classList.add("selected");
+
+                calInputStartDate.value = dateKey;
+                calInputEndDate.value = ""; 
+                
+                calEventName.value = "";
+                calEventTime.value = "0:00";
+                calEventHighlight.checked = true;
+
+                renderDayEventsList(dateKey);
+            }
+            
+            function renderDayEventsList(dateKey) {
+                const container = document.getElementById("day-events-list");
+                if(!container) return;
+                container.innerHTML = "";
+                
+                const eventsArr = calendarData.events[dateKey] || [];
+                
+                const newPill = document.createElement("div");
+                newPill.className = `event-pill ${editingEventIndex === -1 ? 'active' : ''}`;
+                newPill.innerHTML = `<span>+ New Event</span>`;
+                newPill.onclick = () => {
+                    editingEventIndex = -1;
+                    calEventName.value = "";
+                    calEventTime.value = "0:00";
+                    calEventHighlight.checked = true;
+                    renderDayEventsList(dateKey);
+                };
+                container.appendChild(newPill);
+
+                eventsArr.forEach((ev, idx) => {
+                    const pill = document.createElement("div");
+                    pill.className = `event-pill ${editingEventIndex === idx ? 'active' : ''}`;
+                    const color = getCalendarCategoryColor(ev.type);
+                    pill.innerHTML = `<span class="pill-color" style="background:${color}"></span> <span>${ev.name}</span>`;
+                    
+                    pill.onclick = () => {
+                        editingEventIndex = idx;
+                        calEventName.value = ev.name;
+                        calEventTime.value = ev.time;
+                        calEventType.value = ev.type;
+                        calEventHighlight.checked = ev.highlight;
+                        renderDayEventsList(dateKey);
+                    };
+                    container.appendChild(pill);
+                });
+            }
+
+            function saveEvent() {
+                const startVal = calInputStartDate.value;
+                const endVal = calInputEndDate.value;
+                const name = calEventName.value;
+                const time = calEventTime.value;
+                const type = calEventType.value;
+                const highlight = calEventHighlight.checked;
+
+                if(!startVal || !name) return alert("Start Date and Name required");
+
+                const newEventObj = { name, time, type, highlight };
+
+                if (!endVal || endVal === startVal) {
+                    if (!calendarData.events[startVal]) calendarData.events[startVal] = [];
+                    
+                    if (editingEventIndex > -1) {
+                        calendarData.events[startVal][editingEventIndex] = newEventObj;
+                    } else {
+                        calendarData.events[startVal].push(newEventObj);
+                    }
+                    selectDate(startVal);
+                } else {
+                    const sDate = new Date(startVal);
+                    const eDate = new Date(endVal);
+                    if(eDate < sDate) return alert("End date error");
+                    
+                    let curr = new Date(sDate);
+                    while (curr <= eDate) {
+                        const k = formatDateKey(curr);
+                        if (!calendarData.events[k]) calendarData.events[k] = [];
+                        calendarData.events[k].push({ ...newEventObj }); 
+                        curr.setDate(curr.getDate() + 1);
+                    }
+                    selectDate(startVal);
+                }
+                
+                saveLocalData();
+                renderCalendarAll(); 
+                updateSmartHeader();
+            }
+
+            function deleteEvent() {
+                const dateKey = calInputStartDate.value;
+                if(dateKey && calendarData.events[dateKey]) {
+                    if (editingEventIndex > -1) {
+                        calendarData.events[dateKey].splice(editingEventIndex, 1);
+                        if (calendarData.events[dateKey].length === 0) delete calendarData.events[dateKey];
+                        selectDate(dateKey);
+                    } else {
+                        alert("Please select a specific event from the list below to delete it.");
+                    }
+                    saveLocalData();
+                    renderCalendarAll(); 
+                    updateSmartHeader();
+                }
+            }
+
+            function copyEventsToYear() {
+                const currentYearStr = calConfigYear.value;
+                const targetYearStr = calCopyTargetYear.value;
+                
+                if(!targetYearStr) return alert("Enter target year");
+                if(currentYearStr === targetYearStr) return alert("Target year must be different");
+
+                if(!confirm(`Copy all events from ${currentYearStr} to ${targetYearStr}?`)) return;
+
+                let count = 0;
+                Object.keys(calendarData.events).forEach(key => {
+                    if(key.startsWith(currentYearStr)) {
+                        const parts = key.split("-");
+                        const newKey = `${targetYearStr}-${parts[1]}-${parts[2]}`;
+                        
+                        if(!calendarData.events[newKey]) calendarData.events[newKey] = [];
+                        
+                        calendarData.events[key].forEach(ev => {
+                            calendarData.events[newKey].push({ ...ev });
+                        });
+                        count++;
+                    }
+                });
+
+                saveLocalData();
+                alert(`Copied events from ${count} days to ${targetYearStr}.`);
+            }
+
+            function updateCategoryDropdown() {
+                calEventType.innerHTML = "";
+                calendarData.categories.forEach(c => {
+                    const opt = document.createElement("option"); opt.value = c.name; opt.innerText = c.name; calEventType.appendChild(opt);
+                });
+            }
+            
+            function renderCalendarCategoryTags() {
+                const div = document.getElementById("cat-list-display"); 
+                div.innerHTML = "";
+                calendarData.categories.forEach((c, index) => {
+                    const tag = document.createElement("div"); 
+                    tag.className = "cat-tag"; 
+                    tag.style.borderLeft = `5px solid ${c.color}`;
+                    tag.innerHTML = `${c.name}`;
+                    const closeSpan = document.createElement("span");
+                    closeSpan.innerHTML = "&times;";
+                    closeSpan.onclick = () => removeCalendarCategory(index);
+                    tag.appendChild(closeSpan);
+                    div.appendChild(tag);
+                });
+            }
+            
+            function addCalendarCategory() {
+                const name = calNewCatName.value;
+                const color = calNewCatColor.value;
+                if(name) { 
+                    calendarData.categories.push({ name, color }); 
+                    saveLocalData();
+                    updateCategoryDropdown(); 
+                    renderCalendarCategoryTags(); 
+                    renderCalendarAll(); 
+                }
+            }
+            
+            function removeCalendarCategory(index) {
+                if(confirm("Remove category?")) { 
+                    calendarData.categories.splice(index, 1); 
+                    saveLocalData();
+                    updateCategoryDropdown(); 
+                    renderCalendarCategoryTags(); 
+                    renderCalendarAll(); 
+                }
+            }
+            
+            function getCalendarCategoryColor(typeName) {
+                const found = calendarData.categories.find(c => c.name === typeName); 
+                return found ? found.color : "#ccc";
+            }
+
+            function formatDateKey(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+            function formatDisplayDate(s) { const d = new Date(s); const m = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]; return `${d.getDate()}-${m[d.getMonth()]}`; }
+
+            // --- EVENT LISTENERS ---
+            function attachEventListeners() {
+                themeToggleBtn?.addEventListener('click', toggleTheme);
+
+                // Vault & Cloud Bridge
+                vaultLoginBtn?.addEventListener('click', handleVaultLogin);
+                document.getElementById('vault-login-btn')?.addEventListener('click', handleVaultLogin);
+                saveToCloudBtn?.addEventListener('click', saveToCloud);
+                loadFromCloudBtn?.addEventListener('click', loadFromCloud);
+
+                // Searches
+                toolSearchInput?.addEventListener('input', e => { toolSearchTerm = e.target.value; renderTools(); });
+                todoSearchInput?.addEventListener('input', e => { todoSearchTerm = e.target.value; renderTodos(); });
+                
+                showDoneTodosCheckbox?.addEventListener('change', () => {
+                    showDoneTodos = showDoneTodosCheckbox.checked;
+                    saveLocalData();
+                    renderTodos();
+                });
+
+                // Auto-fill color pickers on category write
+                [toolCategoryInput, todoCategoryInput].forEach(input => {
+                    if(input) input.addEventListener('input', e => {
+                        const categoryKey = e.target.value.toLowerCase();
+                        if (categories[categoryKey]) {
+                            const color = categories[categoryKey].color;
+                            if(toolCategoryColorInput) toolCategoryColorInput.value = color;
+                            if(todoCategoryColorInput) todoCategoryColorInput.value = color;
+                        }
+                    });
+                });
+
+                // Add Tool Submission
+                addToolForm?.addEventListener('submit', e => {
+                    e.preventDefault();
+                    const categoryName = toolCategoryInput.value.trim();
+                    const categoryKey = categoryName.toLowerCase();
+                    
+                    tools.push({
+                        id: Date.now(),
+                        name: document.getElementById('tool-name').value.trim(),
+                        url: document.getElementById('tool-url').value.trim(),
+                        category: categoryName || 'Uncategorized',
+                        status: document.getElementById('tool-status').value,
+                        description: document.getElementById('tool-description').value.trim(),
+                    });
+                    
+                    if (categoryName && !categories[categoryKey]) {
+                        categories[categoryKey] = { color: toolCategoryColorInput.value };
+                    }
+                    
+                    pruneOrphanedCategories();
+                    saveLocalData();
+                    renderHub();
+                    addToolForm.reset();
+                    toolCategoryColorInput.value = '#3498db';
+                });
+                
+                // Add Todo Submission
+                addTodoForm?.addEventListener('submit', e => {
+                    e.preventDefault();
+                    const categoryName = todoCategoryInput.value.trim();
+                    const categoryKey = categoryName.toLowerCase();
+
+                    todos.push({
+                        id: Date.now(),
+                        text: document.getElementById('todo-text').value.trim(),
+                        dueDate: document.getElementById('todo-due-date').value,
+                        done: false,
+                        completionDate: null,
+                        category: categoryName || 'Uncategorized',
+                        linkedTools: [...toolSelector.selectedOptions].map(opt => Number(opt.value))
+                    });
+                    
+                    if (categoryName && !categories[categoryKey]) {
+                        categories[categoryKey] = { color: todoCategoryColorInput.value };
+                    }
+
+                    pruneOrphanedCategories();
+                    saveLocalData();
+                    renderHub();
+                    addTodoForm.reset();
+                    todoCategoryColorInput.value = '#3498db';
+                });
+
+                // Card Actions (Todos)
+                todoListContainer?.addEventListener('click', e => {
+                    const button = e.target.closest('button[data-action]');
+                    const checkbox = e.target.closest('input[data-action="toggle-done"]');
+
+                    if (button) {
+                        const action = button.dataset.action;
+                        const card = button.closest('.todo-card');
+                        const todoId = Number(card.dataset.id);
+                        const todo = todos.find(t => t.id === todoId);
+
+                        if (action === 'delete-todo') { 
+                            if (confirm('Delete this task?')) { 
+                                todos = todos.filter(t => t.id !== todoId); 
+                                pruneOrphanedCategories();
+                                saveLocalData(); 
+                                renderHub(); 
+                            } 
+                        }
+                        else if (action === 'edit-todo') { toggleTodoEditMode(card, todo); }
+                        else if (action === 'save-todo') { saveTodoEdit(card, todo); }
+                        else if (action === 'cancel-edit-todo') { renderTodos(); }
+                    } else if (checkbox) {
+                        const todoId = Number(checkbox.closest('.todo-card').dataset.id);
+                        const todo = todos.find(t => t.id === todoId);
+                        if (todo) {
+                            todo.done = checkbox.checked;
+                            todo.completionDate = todo.done ? new Date().toISOString() : null;
+                            saveLocalData();
+                            renderTodos();
+                        }
+                    }
+                });
+                
+                // Card Actions (Tools)
+                launchAllBtn?.addEventListener('click', () => {
+                    getFilteredTools().forEach(tool => window.open(tool.url, '_blank'));
+                });
+                
+                toolListContainer?.addEventListener('click', e => {
+                    const button = e.target.closest('button[data-action], a[data-action]');
+                    if (!button) return;
+
+                    const action = button.dataset.action;
+                    if (!action || action === 'launch') return;
+
+                    e.preventDefault();
+                    const card = button.closest('.tool-card');
+                    const toolId = Number(card.dataset.id);
+                    const tool = tools.find(t => t.id === toolId);
+                    
+                    if (action === 'delete-tool') { 
+                        if (confirm(`Delete "${tool.name}"?`)) { 
+                            tools = tools.filter(t => t.id !== toolId); 
+                            pruneOrphanedCategories();
+                            saveLocalData(); 
+                            renderHub(); 
+                        } 
+                    }
+                    else if (action === 'edit-tool') { toggleToolEditMode(card, tool); }
+                    else if (action === 'save-tool') { saveToolEdit(card, tool); }
+                    else if (action === 'cancel-edit-tool') { renderTools(); }
+                    else if (action === 'copy-path') {
+                        if ((tool.url || '').startsWith('file:///')) {
+                            const osPath = decodeURIComponent(tool.url.substring(0, tool.url.lastIndexOf('/'))).replace('file:///', '');
+                            navigator.clipboard.writeText(osPath.replace(/\//g, '\\')).then(() => {
+                                button.textContent = 'Copied!'; button.classList.add('copied');
+                                setTimeout(() => { button.textContent = 'Copy Path'; button.classList.remove('copied'); }, 2000);
+                            });
+                        }
+                    }
+                });
+
+                // Category Manager Actions
+                document.getElementById('category-manager-list')?.addEventListener('click', (e) => {
+                    const btn = e.target.closest('button[data-cat]');
+                    if (!btn) return;
+                    const catKey = btn.dataset.cat;
+                    
+                    if (confirm(`Are you sure you want to delete the category "${catKey}"? Associated tools/todos will be reset to Uncategorized.`)) {
+                        tools.forEach(t => {
+                            if ((t.category || '').toLowerCase() === catKey) t.category = 'Uncategorized';
+                        });
+                        todos.forEach(t => {
+                            if ((t.category || '').toLowerCase() === catKey) t.category = 'Uncategorized';
+                        });
+                        delete categories[catKey];
+                        
+                        saveLocalData();
+                        renderHub();
+                    }
+                });
+
+                // Calendar Settings
+                calConfigYear?.addEventListener('change', recalcDateAnchor);
+                calWJan?.addEventListener('change', updateStructure);
+                calWDec?.addEventListener('change', updateStructure);
+                calWeekPatternInput?.addEventListener('change', renderFromPattern);
+                calInputStartDate?.addEventListener('change', () => {
+                     const val = calInputStartDate.value;
+                     if(val) selectDate(val);
+                });
+                
+                document.getElementById('btn-reset-pattern')?.addEventListener('click', resetPattern);
+                document.getElementById('btn-copy-year')?.addEventListener('click', copyEventsToYear);
+                document.getElementById('btn-add-cat')?.addEventListener('click', addCalendarCategory);
+                document.getElementById('btn-save-event')?.addEventListener('click', saveEvent);
+                document.getElementById('btn-del-event')?.addEventListener('click', deleteEvent);
+
+                // Data export/import
+                exportBtn?.addEventListener('click', () => {
+                    const dataStr = JSON.stringify({ tools, categories, todos, calendarData }, null, 2);
+                    const blob = new Blob([dataStr], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `work-hub-backup-${new Date().toISOString().split('T')[0]}.json`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                });
+
+                document.getElementById('toggle-cal-settings-btn')?.addEventListener('click', (e) => {
+                    const content = document.getElementById('cal-settings-content');
+                    content.classList.toggle('collapsed');
+                    e.target.textContent = content.classList.contains('collapsed') ? '+' : '_';
+                });
+
+                importFile?.addEventListener('change', e => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = event => {
+                        try {
+                            const data = JSON.parse(event.target.result);
+                            if (!data.tools) throw new Error("JSON missing required data.");
+                            
+                            if (confirm('This will overwrite all current data. Proceed?')) {
+                                tools = data.tools || [];
+                                categories = data.categories || {};
+                                todos = data.todos || [];
+                                calendarData = data.calendarData || calendarData;
+                                
+                                saveLocalData();
+                                currentCategoryFilter = 'all';
+                                renderHub();
+                                initCalendar();
+                                alert('Data imported successfully!');
+                            }
+                        } catch (error) {
+                            alert('Failed to import file.\nError: ' + error.message);
+                        } finally {
+                            importFile.value = '';
+                        }
+                    };
+                    reader.readAsText(file);
+                });
+            }
+        });
+    </script>
 </body>
 </html>
