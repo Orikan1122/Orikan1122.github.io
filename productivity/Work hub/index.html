@@ -58,7 +58,6 @@
             --config-bg: #2d2d2d;
             --overdue-bg: #3c2a2a;
             
-            /* Adjust accent slightly for dark mode contrast */
             --accent-color: #3498db; 
             --accent-hover: #5dade2;
         }
@@ -108,7 +107,7 @@
             flex-grow: 1; 
             display: flex; 
             overflow: hidden;
-            background-color: var(--primary-bg); /* Distinct from sidebar */
+            background-color: var(--primary-bg);
         }
 
         .content-pane {
@@ -117,20 +116,18 @@
             flex-direction: column;
             overflow: hidden; 
             min-width: 200px;
-            background-color: var(--secondary-bg); /* Panes are white/dark */
+            background-color: var(--secondary-bg);
             transition: opacity 0.3s ease;
         }
         .content-pane.hidden {
             display: none !important;
         }
-        /* Border between panes if they touch without gutter */
         .content-pane:not(:last-child) { border-right: 1px solid var(--border-color); }
-
 
         /* GUTTER / RESIZER */
         .gutter {
             width: 12px;
-            background-color: var(--primary-bg); /* Use primary BG to look like a gap */
+            background-color: var(--primary-bg);
             border-left: 1px solid var(--border-color);
             border-right: 1px solid var(--border-color);
             cursor: col-resize;
@@ -148,7 +145,6 @@
             font-weight: bold;
         }
         .gutter.hidden { display: none; }
-
 
         .pane-header {
             padding: 15px 20px; 
@@ -174,9 +170,9 @@
             padding: 8px 10px; 
             border: 1px solid var(--input-border);
             background-color: var(--input-bg);
-            color: var(--text-color); /* CRITICAL FIX: Ensures text isn't white on white */
+            color: var(--text-color);
             border-radius: 4px; 
-            box-sizing: border-box; 
+            box-sizing: border-box;
             font-size: 1rem;
         }
         .filter-input { width: 220px; }
@@ -187,10 +183,10 @@
         h2, h3 { color: var(--header-color); }
         .sidebar h2 { margin-top: 0; padding-bottom: 10px; border-bottom: 1px solid var(--border-color); }
 
-        /* BUTTONS - VISUAL FIXES */
+        /* BUTTONS */
         button, .btn {
             background-color: var(--accent-color);
-            color: #fff; /* Always white text on colored buttons */
+            color: #fff;
             border: 1px solid rgba(0,0,0,0.1);
             padding: 8px 16px;
             border-radius: 4px;
@@ -201,7 +197,7 @@
             text-decoration: none;
             display: inline-block;
             text-align: center;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.15); /* Gives depth */
+            box-shadow: 0 2px 4px rgba(0,0,0,0.15);
         }
         button:hover, .btn:hover { 
             background-color: var(--accent-hover);
@@ -240,18 +236,18 @@
             background: var(--secondary-bg);
             border: 1px solid var(--border-color);
             padding: 5px 10px; 
-            border-radius: 0 0 8px 8px; /* Hanging look */
+            border-radius: 0 0 8px 8px;
             box-shadow: var(--card-shadow);
         }
 
         /* FILTERS */
         #category-filters { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; align-items: center; }
         
-        /* CARDS */
+        /* CARDS & SLIK TO-DOS */
         #tool-list-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
-        #todo-list-container { display: flex; flex-direction: column; gap: 15px; }
+        #todo-list-container { display: flex; flex-direction: column; gap: 6px; }
 
-        .tool-card, .todo-card {
+        .tool-card {
             background-color: var(--secondary-bg); 
             border: 1px solid var(--border-color);
             border-radius: 8px; 
@@ -260,7 +256,51 @@
             transition: box-shadow 0.2s ease, border-color 0.2s ease;
             display: flex; flex-direction: column;
         }
-        .tool-card:hover, .todo-card:hover { box-shadow: var(--card-shadow); border-color: var(--accent-color); }
+        .tool-card:hover { box-shadow: var(--card-shadow); border-color: var(--accent-color); }
+
+        /* TO-DO COMPACT ROW DESIGN */
+        .todo-card {
+            background-color: var(--secondary-bg); 
+            border: 1px solid var(--border-color);
+            border-radius: 6px; 
+            padding: 6px 12px; 
+            box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            transition: all 0.2s ease;
+        }
+        .todo-card:hover {
+            box-shadow: var(--card-shadow);
+            border-color: var(--accent-color);
+        }
+        .todo-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-grow: 1;
+            min-width: 0;
+        }
+        .todo-text {
+            margin: 0;
+            font-size: 0.9rem;
+            color: var(--text-color);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .todo-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+        .todo-meta {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
 
         .card-content, .edit-area { flex-grow: 1; }
         .category-tag {
@@ -271,6 +311,7 @@
 
         .tool-card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
         .tool-card-header h3 { margin: 0; color: var(--header-color); flex-grow: 1; }
+        
         .status-badge {
             padding: 3px 8px; border-radius: 12px; color: white;
             font-size: 0.8rem; font-weight: bold; flex-shrink: 0; text-transform: capitalize;
@@ -283,9 +324,8 @@
         .tool-description { flex-grow: 1; margin: 0 0 15px 0; font-size: 0.95rem; color: var(--text-color); }
 
         .todo-options { 
-            margin-bottom: 20px; 
+            margin-bottom: 12px; 
         }
-
         .todo-options label {
             display: flex;
             align-items: center;
@@ -293,23 +333,17 @@
             cursor: pointer;
             width: fit-content; 
         }
-
         .todo-options input[type="checkbox"] {
             width: auto; 
             margin: 0;
             height: 18px; 
             width: 18px;
         }
+        
         .todo-card.overdue { background-color: var(--overdue-bg); border-left: 4px solid var(--danger-color); }
-        .todo-card.done { text-decoration: line-through; opacity: 0.6; }
-        .todo-card.done .todo-text { color: var(--text-muted); }
-        .todo-card-header { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
-        .todo-card-header input[type="checkbox"] { margin-top: 4px; width: 18px; height: 18px; cursor: pointer; }
-        .todo-card-header .todo-text { flex-grow: 1; margin: 0; font-size: 1rem; text-decoration: none; color: var(--text-color); }
-        .todo-card-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 15px; }
-        .todo-linked-tools button { margin-right: 5px; }
-        .due-date { font-size: 0.85rem; color: var(--text-muted); text-decoration: none; }
-
+        .todo-card.done { opacity: 0.6; }
+        .todo-card.done .todo-text { text-decoration: line-through; color: var(--text-muted); }
+        
         .cloud-status-indicator {
             padding: 10px; border-radius: 4px; font-weight: 500; text-align: center;
             display: none; transition: all 0.3s ease; margin-bottom: 10px;
@@ -334,13 +368,11 @@
         }
 
         /* --- CALENDAR INTEGRATION STYLES --- */
-
-        /* Calendar Pane Specifics */
         #calendar-pane {
-            min-width: 400px; /* Minimum width to keep calendar usable */
+            min-width: 400px;
         }
         #calendar-pane .pane-body {
-            background-color: #f4f4f4; /* Match calendar original background */
+            background-color: #f4f4f4;
         }
 
         /* Smart Header */
@@ -414,13 +446,12 @@
             overflow-x: auto;
             width: 100%;
             box-sizing: border-box;
-            margin-bottom: 20px;
         }
         table.cal-grid { border-collapse: collapse; border: 2px solid #000080; margin-bottom: 20px; width: auto; }
         .cal-grid th, .cal-grid td {
             text-align: center; padding: 0; min-width: 26px; height: 22px;
             font-size: 13px; cursor: pointer; border-right: 1px dotted #888; border-bottom: 1px dotted #888;
-            color: #000; /* Force black text for calendar cells */
+            color: #000;
         }
         .month-end-border { border-right: 3px solid #000 !important; }
         .header-row th { border: 1px solid #000080; background-color: #fff; border-bottom: 2px solid #000080; padding: 4px; color: #000; }
@@ -430,6 +461,13 @@
         .empty-cell { background-color: #fff !important; cursor: default; }
         .cal-grid td:hover:not(.day-label):not(.empty-cell) { background-color: #e6f7ff; border: 1px solid #000080; }
         .cal-grid td.selected { outline: 2px solid red; z-index: 10; position: relative; }
+
+        /* TODAY HIGHLIGHT */
+        table.cal-grid td.today-cell {
+            border: 2px solid #e74c3c !important; /* Bold red outline */
+            outline: 2px solid #e74c3c !important;
+            font-weight: bold;
+        }
 
         /* List Views */
         .lists-wrapper { width: 100%; display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
@@ -451,18 +489,13 @@
         body.dark-mode .editor-panel { background-color: #383838; border-color: #555; }
         body.dark-mode .calendar-wrapper { background-color: #383838; }
 
-        /* --- FORCE GRID CELLS TO WHITE --- */
         body.dark-mode .cal-grid td { 
-            background-color: #ffffff; /* Force White Background */
-            color: #000000;            /* Force Black Text */
+            background-color: #ffffff; 
+            color: #000000;            
         }
-
-        /* Keep weekends Light Grey (so they are visible against white days) */
         body.dark-mode .weekend-row td { 
             background-color: #d0cece; 
         }
-
-        /* Ensure Headers are White */
         body.dark-mode .header-row th { 
             background-color: #ffffff;
             color: #000000;
@@ -471,8 +504,6 @@
             background-color: #ffffff !important;
             color: #000000;
         }
-
-        /* Empty filler cells */
         body.dark-mode .empty-cell {
             background-color: #ffffff !important;
         }
@@ -534,10 +565,10 @@
         }
 
         .console-box {
-            background-color: #1e1e1e; /* Dark background like a terminal */
+            background-color: #1e1e1e;
             border: 1px solid var(--border-color);
             border-radius: 4px;
-            height: 150px; /* Fixed height with scroll */
+            height: 150px;
             overflow-y: auto;
             padding: 10px;
             font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
@@ -563,11 +594,10 @@
 
         /* Log Types */
         .log-info { color: #fff; }
-        .log-loading { color: #f1c40f; } /* Yellow */
-        .log-success { color: #2ecc71; } /* Green */
-        .log-error { color: #e74c3c; }   /* Red */
+        .log-loading { color: #f1c40f; }
+        .log-success { color: #2ecc71; }
+        .log-error { color: #e74c3c; }
 
-        /* Scrollbar styling for the console */
         .console-box::-webkit-scrollbar {
             width: 8px;
         }
@@ -583,7 +613,7 @@
         .btn.processing {
             opacity: 0.7;
             cursor: wait;
-            pointer-events: none; /* Prevents double clicking */
+            pointer-events: none;
         }
     </style>
 </head>
@@ -634,7 +664,7 @@
 
                 <div id="cloud-status" class="cloud-status-indicator"></div>
                 
-                <!-- 3. Cloud Buttons -->
+                <!-- 3. Cloud Sync -->
                 <h3 style="margin-top: 20px;">Cloud Sync</h3>
                 <div class="data-actions-row">
                     <button id="save-to-cloud-btn" class="btn">Save to Drive</button>
@@ -651,7 +681,7 @@
                     </div>
                 </div>
 
-                <!-- 5. Category Manager (New) -->
+                <!-- 5. Category Manager -->
                 <h3 style="margin-top: 20px;">Manage Categories</h3>
                 <div id="category-manager-list" style="max-height: 150px; overflow-y: auto; border: 1px solid var(--border-color); padding: 8px; border-radius: 4px; background: var(--primary-bg); display: flex; flex-direction: column; gap: 5px;">
                     <!-- Categories loaded dynamically -->
@@ -844,10 +874,22 @@
                         <div id="day-events-list"></div>
                     </div>
 
-                    <!-- Grids -->
-                    <div class="calendar-wrapper">
-                        <div id="calendar-top"></div>
-                        <div id="calendar-bottom"></div>
+                    <!-- Grids & Current Week Layout -->
+                    <div class="calendar-main-layout" style="display: flex; gap: 15px; align-items: flex-start; flex-wrap: wrap; margin-bottom: 20px;">
+                        <div class="calendar-wrapper" style="flex: 3 1 500px; min-width: 300px; margin-bottom: 0;">
+                            <div id="calendar-top"></div>
+                            <div id="calendar-bottom"></div>
+                        </div>
+                        <!-- This Week's Events Panel (New) -->
+                        <div id="weekly-events-panel" class="weekly-panel" style="flex: 1 1 250px; min-width: 200px; background: var(--secondary-bg); border: 1px solid var(--border-color); border-radius: 6px; padding: 12px; box-shadow: var(--card-shadow); max-height: 400px; overflow-y: auto;">
+                            <h3 style="margin-top: 0; margin-bottom: 10px; font-size: 0.95rem; border-bottom: 2px solid var(--accent-color); padding-bottom: 6px; color: var(--header-color); display: flex; justify-content: space-between; align-items: center;">
+                                <span>This Week's Events</span>
+                                <span id="cal-week-badge" style="font-size: 0.75rem; background: var(--accent-color); color: white; padding: 2px 6px; border-radius: 10px;"></span>
+                            </h3>
+                            <div id="weekly-events-list" style="display: flex; flex-direction: column; gap: 8px;">
+                                <!-- Weekly events loaded dynamically -->
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Lists -->
@@ -865,6 +907,17 @@
                     <input type="search" id="todo-search-input" class="filter-input" placeholder="Filter by task...">
                 </div>
                 <div class="pane-body">
+                    
+                    <!-- Quick-Add To-Do Bar (New) -->
+                    <div class="todo-quick-add" style="display: flex; gap: 6px; margin-bottom: 12px; background: var(--primary-bg); padding: 8px; border-radius: 6px; border: 1px solid var(--border-color);">
+                        <input type="text" id="todo-quick-input" placeholder="New task... (Press Enter)" style="flex-grow: 1; height: 32px; font-size: 0.9rem;">
+                        <select id="todo-quick-tool" style="width: 100px; height: 32px; font-size: 0.85rem; padding: 2px 5px;">
+                            <option value="">No Tool</option>
+                        </select>
+                        <input type="date" id="todo-quick-date" style="width: 110px; height: 32px; font-size: 0.85rem; padding: 2px 5px;">
+                        <button id="todo-quick-add-btn" class="btn btn-small" style="height: 32px; padding: 0 10px;">+</button>
+                    </div>
+
                     <div class="todo-options">
                         <label><input type="checkbox" id="show-done-todos" checked> Show Completed</label>
                     </div>
@@ -1451,35 +1504,41 @@
                         const card = document.createElement('div');
                         card.className = 'todo-card';
                         card.dataset.id = todo.id;
+                        
                         const today = new Date();
                         today.setHours(0,0,0,0);
                         const dueDate = todo.dueDate ? new Date(todo.dueDate) : null;
                         if (todo.done) card.classList.add('done');
                         if (!todo.done && dueDate && dueDate < today) card.classList.add('overdue');
+                        
                         const categoryKey = (todo.category || '').toLowerCase();
                         const categoryStyle = categories[categoryKey] || { color: '#7f8c8d' };
 
                         let linkedToolsHtml = '';
                         (todo.linkedTools || []).forEach(toolId => {
                             const tool = tools.find(t => t.id === toolId);
-                            if (tool) linkedToolsHtml += `<a href="${tool.url}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-small">${tool.name}</a>`;
+                            if (tool) {
+                                linkedToolsHtml += `<a href="${tool.url}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-small" style="padding: 2px 6px; font-size: 0.75rem; margin-left: 2px;" title="Launch linked tool: ${tool.name}">🔗 ${tool.name}</a>`;
+                            }
                         });
 
+                        const formattedDate = todo.dueDate ? todo.dueDate.split('-').reverse().slice(0,2).join('.') : '';
+
                         card.innerHTML = `
-                            <div class="card-content">
-                                <div class="todo-card-header">
-                                    <input type="checkbox" data-action="toggle-done" ${todo.done ? 'checked' : ''}>
-                                    <p class="todo-text">${todo.text.replace(/\n/g, '<br>')}</p>
-                                </div>
-                                <span class="category-tag" style="background-color: ${categoryStyle.color};">${todo.category || 'Uncategorized'}</span>
-                                <div class="todo-card-footer">
-                                     <span class="due-date">${todo.dueDate ? `Due: ${todo.dueDate}` : 'No due date'}</span>
-                                     <div class="todo-linked-tools">${linkedToolsHtml}</div>
-                                </div>
+                            <div class="todo-left">
+                                <input type="checkbox" data-action="toggle-done" ${todo.done ? 'checked' : ''} style="margin: 0; cursor: pointer; width: 16px; height: 16px; flex-shrink: 0;">
+                                <span class="todo-text" title="${todo.text}">${todo.text}</span>
                             </div>
-                            <div class="card-actions">
-                                <button class="btn btn-secondary btn-small" data-action="edit-todo">Edit</button>
-                                <button class="btn btn-danger btn-small" data-action="delete-todo" title="Delete Task">✖</button>
+                            <div class="todo-right">
+                                <div class="todo-meta">
+                                    ${todo.dueDate ? `<span class="due-date" style="font-size: 0.75rem; background: var(--primary-bg); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-color); color: var(--text-muted);" title="Due: ${todo.dueDate}">📅 ${formattedDate}</span>` : ''}
+                                    <span class="category-tag" style="background-color: ${categoryStyle.color}; font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; color: white; font-weight: bold; margin: 0;">${todo.category || 'Uncategorized'}</span>
+                                    <div class="todo-linked-tools">${linkedToolsHtml}</div>
+                                </div>
+                                <div class="card-actions" style="margin: 0; display: flex; gap: 4px;">
+                                    <button class="btn btn-secondary btn-small" data-action="edit-todo" style="padding: 2px 6px; font-size: 0.75rem;">Edit</button>
+                                    <button class="btn btn-danger btn-small" data-action="delete-todo" title="Delete Task" style="padding: 2px 6px; font-size: 0.75rem;">✖</button>
+                                </div>
                             </div>
                         `;
                         todoListContainer.appendChild(card);
@@ -1490,11 +1549,22 @@
             function renderToolSelector() {
                 if (!toolSelector) return;
                 toolSelector.innerHTML = '';
+                
+                const quickTool = document.getElementById('todo-quick-tool');
+                if (quickTool) quickTool.innerHTML = '<option value="">No Tool</option>';
+
                 tools.sort((a, b) => a.name.localeCompare(b.name)).forEach(tool => {
                     const option = document.createElement('option');
                     option.value = tool.id;
                     option.textContent = tool.name;
                     toolSelector.appendChild(option);
+
+                    if (quickTool) {
+                        const optCopy = document.createElement('option');
+                        optCopy.value = tool.id;
+                        optCopy.textContent = tool.name;
+                        quickTool.appendChild(optCopy);
+                    }
                 });
             }
 
@@ -1532,6 +1602,37 @@
                     `;
                     container.appendChild(row);
                 });
+            }
+
+            // --- INLINE QUICK ADD TO-DO ---
+            function addQuickTodo() {
+                const input = document.getElementById('todo-quick-input');
+                const toolSelect = document.getElementById('todo-quick-tool');
+                const dateSelect = document.getElementById('todo-quick-date');
+                
+                const text = input.value.trim();
+                if (!text) return;
+
+                const linkedToolId = toolSelect.value ? Number(toolSelect.value) : null;
+                const dueDate = dateSelect.value || null;
+
+                todos.push({
+                    id: Date.now(),
+                    text: text,
+                    dueDate: dueDate,
+                    done: false,
+                    completionDate: null,
+                    category: 'Uncategorized',
+                    linkedTools: linkedToolId ? [linkedToolId] : []
+                });
+
+                saveLocalData();
+                renderHub();
+
+                // Clear inputs
+                input.value = '';
+                toolSelect.value = '';
+                dateSelect.value = '';
             }
 
             function toggleToolEditMode(card, tool) {
@@ -1582,13 +1683,13 @@
                 });
 
                 card.innerHTML = `
-                    <div class="edit-area">
+                    <div class="edit-area" style="padding: 10px 0;">
                         <div class="form-group"><label>Task</label><textarea class="edit-todo-text">${todo.text}</textarea></div>
                         <div class="form-group"><label>Category</label><input type="text" class="edit-todo-category" value="${todo.category || ''}" list="category-suggestions"></div>
                         <div class="form-group"><label>Due Date</label><input type="date" class="edit-todo-due-date" value="${todo.dueDate || ''}"></div>
                         <div class="form-group"><label>Linked Tools</label><select class="edit-todo-linked-tools" multiple>${toolOptionsHTML}</select></div>
                     </div>
-                    <div class="card-actions">
+                    <div class="card-actions" style="margin: 0;">
                         <button class="btn btn-secondary btn-small" data-action="cancel-edit-todo">Cancel</button>
                         <button class="btn btn-small" data-action="save-todo">Save</button>
                     </div>
@@ -1634,6 +1735,7 @@
                 renderCalendarCategoryTags();
                 recalcDateAnchor();
                 updateSmartHeader();
+                renderWeeklyEvents();
                 
                 setInterval(updateSmartHeader, 60000);
             }
@@ -1724,6 +1826,7 @@
                 createTable("calendar-top", topConfig, topWeeksArr, anchorDate, year, 0);
                 createTable("calendar-bottom", bottomConfig, botWeeksArr, anchorDate, year, topTotalWeeks);
                 renderListGroups(year);
+                renderWeeklyEvents();
             }
 
             function createTable(containerId, config, weekLabels, anchorDate, targetYear, weekOffsetGlobal) {
@@ -1753,6 +1856,8 @@
                 table.appendChild(trWeek);
 
                 const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+                const todayKey = formatDateKey(new Date());
+
                 days.forEach((dName, dIndex) => {
                     const tr = document.createElement("tr");
                     if(dIndex >= 5) tr.className = "weekend-row";
@@ -1789,6 +1894,8 @@
                                 }
                                 
                                 if (dateKey === selectedDateKey) td.classList.add("selected");
+                                if (dateKey === todayKey) td.classList.add("today-cell"); // Highlight current day
+
                                 td.addEventListener('click', () => selectDate(dateKey));
                             }
                             if(i === m.cols - 1) td.classList.add("month-end-border");
@@ -1798,6 +1905,77 @@
                     table.appendChild(tr);
                 });
                 container.appendChild(table);
+            }
+
+            // --- WEEKLY SUMMARY PANEL RENDER ---
+            function renderWeeklyEvents() {
+                const container = document.getElementById('weekly-events-list');
+                const badge = document.getElementById('cal-week-badge');
+                if (!container) return;
+                container.innerHTML = '';
+
+                const now = new Date();
+                
+                // Get ISO Week Number
+                const oneJan = new Date(now.getFullYear(), 0, 1);
+                const days = Math.floor((now - oneJan) / 86400000);
+                const wkNum = Math.ceil((now.getDay() + 1 + days) / 7);
+                if (badge) badge.textContent = `Wk ${wkNum}`;
+
+                // Calculate current Monday
+                const day = now.getDay();
+                const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+                const monday = new Date(now.setDate(diff));
+                monday.setHours(0,0,0,0);
+
+                const weekDates = [];
+                for (let i = 0; i < 7; i++) {
+                    const d = new Date(monday);
+                    d.setDate(monday.getDate() + i);
+                    weekDates.push(formatDateKey(d));
+                }
+
+                let hasEvents = false;
+                const daysNames = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+
+                weekDates.forEach((dateKey, index) => {
+                    const events = calendarData.events[dateKey] || [];
+                    if (events.length > 0) {
+                        hasEvents = true;
+                        const dateParts = dateKey.split('-');
+                        const displayDay = `${dateParts[2]}.${dateParts[1]}.`;
+                        
+                        const dayDiv = document.createElement('div');
+                        dayDiv.style.borderLeft = `3px solid var(--accent-color)`;
+                        dayDiv.style.paddingLeft = '8px';
+                        dayDiv.style.marginBottom = '6px';
+                        
+                        let eventsHtml = '';
+                        events.forEach(ev => {
+                            const color = getCalendarCategoryColor(ev.type);
+                            eventsHtml += `
+                                <div style="font-size: 0.85rem; display: flex; align-items: center; gap: 6px; margin-top: 3px; color: var(--text-color);">
+                                    <span style="width: 8px; height: 8px; border-radius: 50%; background-color: ${color}; display: inline-block; flex-shrink: 0;"></span>
+                                    <span style="font-weight: 600; font-size: 0.8rem; color: var(--text-muted);">${ev.time !== '0:00' ? ev.time : ''}</span>
+                                    <span>${ev.name}</span>
+                                </div>
+                            `;
+                        });
+
+                        dayDiv.innerHTML = `
+                            <div style="font-size: 0.85rem; font-weight: bold; color: var(--header-color); display: flex; justify-content: space-between;">
+                                <span>${daysNames[index]}</span>
+                                <span style="font-weight: normal; color: var(--text-muted); font-size: 0.75rem;">${displayDay}</span>
+                            </div>
+                            ${eventsHtml}
+                        `;
+                        container.appendChild(dayDiv);
+                    }
+                });
+
+                if (!hasEvents) {
+                    container.innerHTML = `<p style="color:var(--text-muted); font-size:0.85rem; margin:0; text-align: center; padding: 10px 0;">No events scheduled for this week.</p>`;
+                }
             }
 
             function renderListGroups(filterYear) {
@@ -1908,6 +2086,7 @@
                 saveLocalData();
                 renderCalendarAll(); 
                 updateSmartHeader();
+                renderWeeklyEvents();
             }
 
             function selectDate(dateKey) {
@@ -2004,6 +2183,7 @@
                 saveLocalData();
                 renderCalendarAll(); 
                 updateSmartHeader();
+                renderWeeklyEvents();
             }
 
             function deleteEvent() {
@@ -2019,6 +2199,7 @@
                     saveLocalData();
                     renderCalendarAll(); 
                     updateSmartHeader();
+                    renderWeeklyEvents();
                 }
             }
 
@@ -2048,6 +2229,7 @@
 
                 saveLocalData();
                 alert(`Copied events from ${count} days to ${targetYearStr}.`);
+                renderWeeklyEvents();
             }
 
             function updateCategoryDropdown() {
@@ -2107,7 +2289,7 @@
             function attachEventListeners() {
                 themeToggleBtn?.addEventListener('click', toggleTheme);
 
-                // Vault & Cloud Bridge
+                // Vault Login
                 vaultLoginBtn?.addEventListener('click', handleVaultLogin);
                 document.getElementById('vault-login-btn')?.addEventListener('click', handleVaultLogin);
                 saveToCloudBtn?.addEventListener('click', saveToCloud);
@@ -2123,7 +2305,7 @@
                     renderTodos();
                 });
 
-                // Auto-fill color pickers on category write
+                // Auto-fill category color picker on write
                 [toolCategoryInput, todoCategoryInput].forEach(input => {
                     if(input) input.addEventListener('input', e => {
                         const categoryKey = e.target.value.toLowerCase();
@@ -2134,6 +2316,18 @@
                         }
                     });
                 });
+
+                // Quick Add Listeners
+                const quickInput = document.getElementById('todo-quick-input');
+                const quickBtn = document.getElementById('todo-quick-add-btn');
+
+                quickInput?.addEventListener('keydown', e => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        addQuickTodo();
+                    }
+                });
+                quickBtn?.addEventListener('click', addQuickTodo);
 
                 // Add Tool Submission
                 addToolForm?.addEventListener('submit', e => {
