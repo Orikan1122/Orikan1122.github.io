@@ -1341,16 +1341,25 @@
             }
             
             function getFilteredTools() {
-                const term = toolSearchTerm.toLowerCase();
+                // Entfernt führende/nachfolgende Leerzeichen und konvertiert in Kleinbuchstaben
+                const term = toolSearchTerm.trim().toLowerCase(); 
                 return tools.filter(tool => {
                     const inCategory = currentCategoryFilter === 'all' || (tool.category || '').toLowerCase() === currentCategoryFilter;
-                    const matchesSearch = !term || tool.name.toLowerCase().includes(term) || (tool.description || '').toLowerCase().includes(term);
+                    
+                    // Durchsucht Name, Beschreibung, ID und die URL
+                    const matchesSearch = !term || 
+                        tool.name.toLowerCase().includes(term) || 
+                        (tool.description || '').toLowerCase().includes(term) ||
+                        String(tool.id).includes(term) || 
+                        (tool.url || '').toLowerCase().includes(term);
+                        
                     return inCategory && matchesSearch;
                 });
             }
 
             function getFilteredTodos() {
-                const term = todoSearchTerm.toLowerCase();
+                // Entfernt führende/nachfolgende Leerzeichen und konvertiert in Kleinbuchstaben
+                const term = todoSearchTerm.trim().toLowerCase(); 
                 return todos.filter(todo => {
                     const inCategory = currentCategoryFilter === 'all' || (todo.category || '').toLowerCase() === currentCategoryFilter;
                     const matchesSearch = !term || (todo.text || '').toLowerCase().includes(term);

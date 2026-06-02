@@ -1679,6 +1679,58 @@
           </div>
         </div>
       </div>
+
+      <!-- ROW 4b: FOOD WASTE ZIELVORGABEN (SCHWEIZER ZIEL & CCHBC ZIEL) -->
+      <div style="display:flex; gap: 20px; flex-wrap: wrap; margin-bottom: 20px;">
+        <!-- Schweizer Ziel -->
+        <div style="flex: 1; min-width: 400px; background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; flex-direction: column;">
+          <h4 style="font-size: 14px; color: #333; margin-bottom: 10px;">🇨🇭 Schweizer Zielvorgabe (Food Waste Reduktion vs. 2017)</h4>
+          <div style="height: 300px; position: relative;"><canvas id="wasteChartSwissTarget"></canvas></div>
+        </div>
+        
+        <!-- CCHBC Ziel -->
+        <div style="flex: 1; min-width: 400px; background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; flex-direction: column;">
+          <h4 style="font-size: 14px; color: #333; margin-bottom: 10px;">🇪🇺 CCHBC Reduktionsziel (vs. 2019)</h4>
+          <div style="height: 300px; position: relative;"><canvas id="wasteChartCchbcTarget"></canvas></div>
+        </div>
+      </div>
+
+      <!-- ROW 4c: TABELLE FOOD WASTE REDUKTIONSTRENDS -->
+      <div style="background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 25px;">
+        <h4 style="font-size: 14px; color: #333; margin-bottom: 10px;">📋 Entwicklungstabelle: Food Waste Reduktion & Zielerreichung</h4>
+        <div style="overflow-x: auto;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: right;">
+            <thead style="background: #f4f7f6; border-bottom: 2px solid #ccc;">
+              <tr>
+                <th style="padding: 10px; text-align: left;">Jahr</th>
+                <th style="padding: 10px;">Food Waste (Kg)</th>
+                <th style="padding: 10px; border-left: 2px solid #ddd;">Abweichung vs. 2017 (Kg)</th>
+                <th style="padding: 10px;">Abweichung vs. 2017 (%)</th>
+                <th style="padding: 10px; border-left: 2px solid #ddd;">Abweichung vs. 2019 (Kg)</th>
+                <th style="padding: 10px;">Abweichung vs. 2019 (%)</th>
+              </tr>
+            </thead>
+            <tbody id="wasteTargetsTableBody">
+              <tr><td colspan="6" style="text-align:center; padding:15px; color:#999;">Keine Daten geladen.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ROW 4b: FOOD WASTE ZIELVORGABEN (SCHWEIZER ZIEL & CCHBC ZIEL) -->
+      <div style="display:flex; gap: 20px; flex-wrap: wrap; margin-bottom: 20px;">
+        <!-- Schweizer Ziel -->
+        <div style="flex: 1; min-width: 400px; background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; flex-direction: column;">
+          <h4 style="font-size: 14px; color: #333; margin-bottom: 10px;">🇨🇭 Schweizer Zielvorgabe (Food Waste Reduktion vs. 2017)</h4>
+          <div style="height: 300px; position: relative;"><canvas id="wasteChartSwissTarget"></canvas></div>
+        </div>
+        
+        <!-- CCHBC Ziel -->
+        <div style="flex: 1; min-width: 400px; background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; flex-direction: column;">
+          <h4 style="font-size: 14px; color: #333; margin-bottom: 10px;">🇪🇺 CCHBC Reduktionsziel (vs. 2019)</h4>
+          <div style="height: 300px; position: relative;"><canvas id="wasteChartCchbcTarget"></canvas></div>
+        </div>
+      </div>
       <!-- ========================================================= -->
       <!-- NEU: PHYSICAL WASTE & RECYCLING                           -->
       <!-- ========================================================= -->
@@ -2114,13 +2166,9 @@
 
       <!-- NEU: Compliance Zeile 1 -->
       <div style="display:flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;">
-        <div style="flex: 1; min-width: 300px; background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+        <div style="flex: 1; max-width: 50%; min-width: 300px; background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
           <h4 style="font-size: 13px; color: #333; margin-bottom: 10px; font-weight: 600;">SDB-Aktualität (Sicherheitsdatenblatt-Alter)</h4>
           <div style="height: 180px; position: relative;"><canvas id="chemChartSdb"></canvas></div>
-        </div>
-        <div style="flex: 1; min-width: 300px; background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-          <h4 style="font-size: 13px; color: #333; margin-bottom: 10px; font-weight: 600;">Störfallverordnung (Produkte pro Mengenschwelle)</h4>
-          <div style="height: 180px; position: relative;"><canvas id="chemChartStfv"></canvas></div>
         </div>
       </div>
 
@@ -10541,8 +10589,256 @@ function updateWasteDashboard() {
     });
     document.getElementById('wasteHistTableBody').innerHTML = lTbHtml || `<tr><td colspan="99">Keine Daten</td></tr>`;
 
-    // Auch diese alte Funktion entfernen wir komplett, um Fehler zu vermeiden!
-    // const destroyChart = (canvasId) => { ... } <--- WURDE GESTRICHEN!
+    // =========================================================
+    // NEU: SCHWEIZER & CCHBC ZIELVORGABEN (Food Waste)
+    // =========================================================
+    let foodWasteByYear = {};
+
+    // Ausschließlich die Daten aus dem Longterm Historical Dataset (globalWasteLT) verwenden,
+    // um Datenkonsistenz über alle Tabellen und Diagramme hinweg zu garantieren.
+    if (globalWasteLT && globalWasteLT.length > 0) {
+        globalWasteLT.forEach(r => {
+            let yr = String(r.Year || r.year).trim();
+            if (yr && yr !== 'undefined') {
+                foodWasteByYear[yr] = (foodWasteByYear[yr] || 0) + (r.Kg || 0);
+            }
+        });
+    }
+
+    let yearsList = ['2017', '2018', '2019', '2020', '2021', '2022', '2023', '2024', '2025', '2026'];
+    
+    let base2017 = foodWasteByYear['2017'] || 0;
+    let base2019 = foodWasteByYear['2019'] || 0;
+
+    // --- TABELLE RENDERN ---
+    let targetTbodyHtml = '';
+    yearsList.forEach(yr => {
+        let val = foodWasteByYear[yr] || 0;
+        
+        let diff2017Kg = base2017 > 0 ? (val - base2017) : 0;
+        let diff2017Pct = base2017 > 0 ? (diff2017Kg / base2017) * 100 : 0;
+        
+        let diff2019Kg = base2019 > 0 ? (val - base2019) : 0;
+        let diff2019Pct = base2019 > 0 ? (diff2019Kg / base2019) * 100 : 0;
+
+        let col2017 = diff2017Pct <= -50 ? '#107c41' : (diff2017Pct <= 0 ? '#1f3a60' : '#d83b01');
+        let col2019 = diff2019Pct <= -40 ? '#107c41' : (diff2019Pct <= 0 ? '#1f3a60' : '#d83b01');
+
+        targetTbodyHtml += `
+        <tr style="border-bottom: 1px solid #eee;">
+            <td style="padding: 8px 10px; text-align: left; font-weight: bold;">${yr}</td>
+            <td style="padding: 8px 10px; font-weight: bold;">${val > 0 ? Math.round(val).toLocaleString('de-CH') : '-'}</td>
+            
+            <td style="padding: 8px 10px; border-left: 2px solid #ddd; color: ${col2017};">${yr === '2017' ? '-' : (diff2017Kg > 0 ? '+' : '') + Math.round(diff2017Kg).toLocaleString('de-CH')}</td>
+            <td style="padding: 8px 10px; font-weight: bold; color: ${col2017};">${yr === '2017' ? 'Baseline' : (diff2017Pct > 0 ? '+' : '') + diff2017Pct.toFixed(1) + '%'}</td>
+            
+            <td style="padding: 8px 10px; border-left: 2px solid #ddd; color: ${col2019};">${yr === '2019' ? '-' : (diff2019Kg > 0 ? '+' : '') + Math.round(diff2019Kg).toLocaleString('de-CH')}</td>
+            <td style="padding: 8px 10px; font-weight: bold; color: ${col2019};">${yr === '2019' ? 'Baseline' : (diff2019Pct > 0 ? '+' : '') + diff2019Pct.toFixed(1) + '%'}</td>
+        </tr>`;
+    });
+    document.getElementById('wasteTargetsTableBody').innerHTML = targetTbodyHtml || `<tr><td colspan="6" style="text-align:center;">Keine Daten vorhanden</td></tr>`;
+
+    // --- CHART 1: Schweizer Zielvorgabe (Reduction vs. 2017 in % & Kg) ---
+    let swissLabels = [...yearsList, '2030 (Ziel)'];
+    let swissActualKg = [...yearsList.map(yr => foodWasteByYear[yr] || null), null];
+    let swissTargetLineKg = swissLabels.map(yr => {
+        let yNum = parseInt(yr);
+        if (isNaN(yNum)) return base2017 * 0.5; // -50% Ziel in 2030
+        if (yNum < 2017) return base2017;
+        let pct = 1.0 - ((yNum - 2017) * (0.5 / 13)); // Linearer Pfad
+        return base2017 * pct;
+    });
+
+    if (wasteCharts['swissTarget']) wasteCharts['swissTarget'].destroy();
+    wasteCharts['swissTarget'] = new Chart(document.getElementById('wasteChartSwissTarget').getContext('2d'), {
+        type: 'bar',
+        plugins: [ChartDataLabels],
+        data: {
+            labels: swissLabels,
+            datasets: [
+                {
+                    label: 'Absenkpfad (-50% bis 2030)',
+                    data: swissTargetLineKg,
+                    type: 'line',
+                    borderColor: '#e74c3c',
+                    borderDash: [5, 5],
+                    borderWidth: 2,
+                    fill: false,
+                    pointRadius: 0,
+                    datalabels: { display: false }
+                },
+                {
+                    label: 'Aktueller Food Waste (Kg)',
+                    data: swissActualKg,
+                    backgroundColor: swissActualKg.map((v, i) => {
+                        if (v === null) return 'transparent';
+                        let yr = yearsList[i];
+                        let val = foodWasteByYear[yr] || 0;
+                        if (base2017 > 0) {
+                            let pct = ((val - base2017) / base2017) * 100;
+                            return pct <= -50 ? '#107c41' : (pct <= 0 ? '#1f3a60' : '#d83b01');
+                        }
+                        return '#1f3a60';
+                    }),
+                    borderRadius: 4,
+                    datalabels: {
+                        align: 'end',
+                        anchor: 'start',
+                        color: 'white',
+                        font: { weight: 'bold', size: 9 },
+                        formatter: (v, ctx) => {
+                            if (v === null || v === 0) return '';
+                            let yr = ctx.chart.data.labels[ctx.dataIndex];
+                            if (yr === '2017') return `${formatLargeNumbers(v)}\n(Base)`;
+                            if (base2017 > 0) {
+                                let pct = ((v - base2017) / base2017) * 100;
+                                return `${formatLargeNumbers(v)}\n(${pct >= 0 ? '+' : ''}${pct.toFixed(0)}%)`;
+                            }
+                            return formatLargeNumbers(v);
+                        }
+                    }
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom', labels: { boxWidth: 12 } },
+                tooltip: {
+                    callbacks: {
+                        label: function(ctx) {
+                            let val = ctx.raw;
+                            if (val === null) return '';
+                            let label = `${ctx.dataset.label}: ${Math.round(val).toLocaleString('de-CH')} Kg`;
+                            if (ctx.datasetIndex === 1 && base2017 > 0) {
+                                let pct = ((val - base2017) / base2017) * 100;
+                                label += ` (${pct >= 0 ? '+' : ''}${pct.toFixed(1)}% vs. 2017)`;
+                            }
+                            return label;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    title: { display: true, text: 'Menge (Kg)' },
+                    ticks: { callback: v => formatLargeNumbers(v) }
+                }
+            }
+        }
+    });
+
+    // --- CHART 2: CCHBC Zielvorgabe (Menge & % vs. 2019) ---
+    let cchbcLabels = [...yearsList, '2030 (Ziel)'];
+    let cchbcActualKg = [...yearsList.map(yr => foodWasteByYear[yr] || null), null];
+    
+    // Generiert den Absenkpfad der Meilensteine: 2019 (100%), 2025 (-30%), 2030 (-40%)
+    let cchbcTargets = cchbcLabels.map(yr => {
+        let yNum = parseInt(yr);
+        if (isNaN(yNum)) return base2019 * 0.6; // 2030 Ziel ist 60%
+        if (yNum < 2019) return base2019;
+        if (yNum <= 2025) {
+            let factor = 1.0 - ((yNum - 2019) * 0.05); // Linearer Zielpfad bis 2025
+            return base2019 * factor;
+        } else {
+            let factor = 0.7 - ((yNum - 2025) * 0.02); // Linearer Zielpfad 2025 bis 2030
+            return base2019 * factor;
+        }
+    });
+
+    if (wasteCharts['cchbcTarget']) wasteCharts['cchbcTarget'].destroy();
+    wasteCharts['cchbcTarget'] = new Chart(document.getElementById('wasteChartCchbcTarget').getContext('2d'), {
+        type: 'bar',
+        plugins: [ChartDataLabels],
+        data: {
+            labels: cchbcLabels,
+            datasets: [
+                {
+                    label: 'Zielpfad (Kg)',
+                    data: cchbcTargets,
+                    type: 'line',
+                    borderColor: '#e3008c',
+                    borderWidth: 2,
+                    fill: false,
+                    pointRadius: 4,
+                    pointBackgroundColor: '#e3008c',
+                    datalabels: {
+                        align: 'top',
+                        anchor: 'end',
+                        color: '#e3008c',
+                        font: { weight: 'bold', size: 9 },
+                        formatter: (v, ctx) => {
+                            let label = ctx.chart.data.labels[ctx.dataIndex];
+                            if (label === '2019') return 'Baseline';
+                            if (label === '2025') return 'Ziel -30%';
+                            if (label === '2030 (Ziel)') return 'Ziel -40%';
+                            return '';
+                        }
+                    }
+                },
+                {
+                    label: 'Aktueller Food Waste (Kg)',
+                    data: cchbcActualKg,
+                    backgroundColor: cchbcActualKg.map((v, i) => {
+                        if (v === null) return 'transparent';
+                        let yr = yearsList[i];
+                        let val = foodWasteByYear[yr] || 0;
+                        if (base2019 > 0) {
+                            let pct = ((val - base2019) / base2019) * 100;
+                            return pct <= -30 ? '#107c41' : (pct <= 0 ? '#1f3a60' : '#d83b01');
+                        }
+                        return '#1f3a60';
+                    }),
+                    borderRadius: 4,
+                    datalabels: {
+                        align: 'end',
+                        anchor: 'start',
+                        color: 'white',
+                        font: { weight: 'bold', size: 9 },
+                        formatter: (v, ctx) => {
+                            if (v === null || v === 0) return '';
+                            let yr = ctx.chart.data.labels[ctx.dataIndex];
+                            if (yr === '2019') return `${formatLargeNumbers(v)}\n(Base)`;
+                            if (base2019 > 0) {
+                                let pct = ((v - base2019) / base2019) * 100;
+                                return `${formatLargeNumbers(v)}\n(${pct >= 0 ? '+' : ''}${pct.toFixed(0)}%)`;
+                            }
+                            return formatLargeNumbers(v);
+                        }
+                    }
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom', labels: { boxWidth: 12 } },
+                tooltip: {
+                    callbacks: {
+                        label: function(ctx) {
+                            let val = ctx.raw;
+                            if (val === null) return '';
+                            let label = `${ctx.dataset.label}: ${Math.round(val).toLocaleString('de-CH')} Kg`;
+                            if (ctx.datasetIndex === 1 && base2019 > 0) {
+                                let pct = ((val - base2019) / base2019) * 100;
+                                label += ` (${pct >= 0 ? '+' : ''}${pct.toFixed(1)}% vs. 2019)`;
+                            }
+                            return label;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    title: { display: true, text: 'Menge (Kg)' },
+                    ticks: { callback: v => formatLargeNumbers(v) }
+                }
+            }
+        }
+    });
+
     // =========================================================
     // NEU: PHYSICAL WASTE & RECYCLING RENDER LOGIK
     // =========================================================
@@ -11348,16 +11644,7 @@ function updateChemicals() {
         });
     }
 
-    if (activeChemStfvFilter) {
-        filtered = filtered.filter(r => {
-            let val = String(r.stfv || '').replace(/['’\s]/g, '').trim();
-            let num = parseInt(val);
-            if (isNaN(num)) return false;
-            let label = num.toLocaleString('de-CH') + ' kg';
-            return label === activeChemStfvFilter;
-        });
-    }
-
+    
     let catCounts = {};
     filtered.forEach(r => catCounts[r.category] = (catCounts[r.category] || 0) + 1);
     let catLabels = Object.keys(catCounts).sort((a,b) => catCounts[b] - catCounts[a]);
@@ -11523,53 +11810,7 @@ function updateChemicals() {
         }
     });
 
-    // ==========================================
-    // NEU 2: STÖRFALLVERORDNUNG (StFV) CHART (Bar + Klick-Filter)
-    // ==========================================
-    let stfvCounts = {};
-    filtered.forEach(r => {
-        let val = String(r.stfv || '').replace(/['’\s]/g, '').trim();
-        if (!val || val === '-' || val.toLowerCase() === 'no' || val.toLowerCase() === 'keine' || val.toLowerCase() === '--') return;
-        let num = parseInt(val);
-        if (!isNaN(num)) {
-            let label = num.toLocaleString('de-CH') + ' kg';
-            stfvCounts[label] = (stfvCounts[label] || 0) + 1;
-        }
-    });
-
-    let stfvLabels = Object.keys(stfvCounts).sort((a,b) => parseInt(a.replace(/[^0-9]/g,'')) - parseInt(b.replace(/[^0-9]/g,'')));
-    let stfvData = stfvLabels.map(l => stfvCounts[l]);
-
-    if (chemicalCharts['stfv']) chemicalCharts['stfv'].destroy();
-    chemicalCharts['stfv'] = new Chart(document.getElementById('chemChartStfv').getContext('2d'), {
-        type: 'bar',
-        plugins: [ChartDataLabels],
-        data: {
-            labels: stfvLabels,
-            datasets: [{ data: stfvData, backgroundColor: '#0078d4', borderRadius: 3 }]
-        },
-        options: {
-            responsive: true, maintainAspectRatio: false,
-            onClick: (evt, elements) => {
-                if (elements.length > 0) {
-                    const idx = elements[0].index;
-                    const clickedLabel = stfvLabels[idx];
-                    activeChemStfvFilter = (activeChemStfvFilter === clickedLabel) ? null : clickedLabel;
-                } else {
-                    activeChemStfvFilter = null;
-                }
-                updateChemicals();
-            },
-            onHover: (evt, elements) => {
-                evt.native.target.style.cursor = elements.length > 0 ? 'pointer' : 'default';
-            },
-            plugins: {
-                legend: { display: false },
-                datalabels: { color: '#fff', anchor: 'end', align: 'start', font: { weight: 'bold', size: 11 } }
-            },
-            scales: { x: { grid: { display: false } }, y: { display: false } }
-        }
-    });
+    
 
     
     // ==========================================
@@ -11625,8 +11866,7 @@ function updateChemicals() {
     if (activeChemChartFilter.category) activeFiltersText += ` [Kategorie: ${activeChemChartFilter.category}]`;
     if (activeChemChartFilter.status) activeFiltersText += ` [Status: ${activeChemChartFilter.status}]`;
     if (activeChemSdbFilter) activeFiltersText += ` [SDB: ${activeChemSdbFilter}]`;
-    if (activeChemStfvFilter) activeFiltersText += ` [StFV: ${activeChemStfvFilter}]`;
-
+    
     let finalHeaderText = 'Gefahrstoffkataster';
     if (activeFiltersText) {
         finalHeaderText += ` <span style="font-size:11px; color:#d83b01; font-weight:bold;">(Gefiltert:${activeFiltersText})</span>`;
