@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Browser/System Audio Recorder</title>
+    <!-- lamejs für die MP3-Konvertierung direkt im Browser laden -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.min.js"></script>
     <style>
         :root {
             --primary-color: #673AB7; /* Changed to purple for system audio */
@@ -67,6 +69,30 @@
             0% { opacity: 1; }
             50% { opacity: 0.5; }
             100% { opacity: 1; }
+        }
+
+        .settings-zone {
+            margin: 20px 0;
+            text-align: left;
+        }
+
+        .settings-zone label {
+            font-size: 13px;
+            font-weight: bold;
+            color: #555;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .settings-zone select {
+            width: 100%;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            font-size: 14px;
+            background-color: #fff;
+            cursor: pointer;
+            outline: none;
         }
 
         .controls {
@@ -151,6 +177,15 @@
             <b>Important:</b> When prompted, select a Browser Tab or your Screen, and make sure to toggle <b>"Share tab audio"</b> or <b>"Share system audio"</b> before clicking Share.
         </p>
 
+        <!-- Format-Auswahl -->
+        <div class="settings-zone">
+            <label for="formatSelect">Format beim Herunterladen:</label>
+            <select id="formatSelect">
+                <option value="wav" selected>WAV (.wav - Unkomprimiert, Hohe Qualität)</option>
+                <option value="mp3">MP3 (.mp3 - Komprimiert, Kleinere Datei bei 320 kbps)</option>
+            </select>
+        </div>
+
         <div id="status" class="status">Ready to record</div>
         
         <div class="controls">
@@ -160,7 +195,7 @@
 
         <div class="playback-zone">
             <audio id="audioPlayback" controls class="hidden"></audio>
-            <a id="downloadBtn" class="download-btn hidden" download="system_audio.wav">⬇️ Download WAV Audio</a>
+            <a id="downloadBtn" class="download-btn hidden" download="system_audio.wav">⬇️ Download Audio</a>
         </div>
     </div>
 
@@ -181,6 +216,15 @@
         const statusText = document.getElementById('status');
         const audioPlayback = document.getElementById('audioPlayback');
         const downloadBtn = document.getElementById('downloadBtn');
+        const formatSelect = document.getElementById('formatSelect');
+
+        // Sicherheitshinweis für den Fall, dass lamejs offline ist
+        formatSelect.addEventListener('change', () => {
+            if (formatSelect.value === 'mp3' && typeof lamejs === 'undefined') {
+                alert("The MP3 library is still loading or could not be loaded. Please check your internet connection. Falling back to WAV.");
+                formatSelect.value = 'wav';
+            }
+        });
 
         recordBtn.addEventListener('click', async () => {
             try {
@@ -234,7 +278,8 @@
                 // UI-Zustand anpassen
                 recordBtn.disabled = true;
                 stopBtn.disabled = false;
-                statusText.innerText = "🔴 Recording Browser Audio directly to WAV...";
+                formatSelect.disabled = true;
+                statusText.innerText = "🔴 Recording Browser Audio...";
                 statusText.classList.add('recording-pulse');
 
                 audioPlayback.classList.add('hidden');
@@ -252,7 +297,7 @@
             stopRecording();
         });
 
-        function stopRecording() {
+        async function stopRecording() {
             if (!isRecording) return;
             isRecording = false;
 
@@ -261,14 +306,34 @@
             if (mediaStreamSource) mediaStreamSource.disconnect();
             if (audioContext) audioContext.close();
 
+            statusText.innerText = "Processing audio...";
+            statusText.classList.remove('recording-pulse');
+
+            // Einen Moment warten, um das UI zu aktualisieren
+            await new Promise(r => setTimeout(r, 50));
+
             // Puffer zusammenführen
             const leftBuffer = mergeBuffers(leftChannel, recordingLength);
             const rightBuffer = mergeBuffers(rightChannel, recordingLength);
-
-            // WAV generieren
             const sampleRate = audioContext ? audioContext.sampleRate : 44100;
-            const wavBlob = bufferToWav(leftBuffer, rightBuffer, sampleRate);
-            const audioUrl = URL.createObjectURL(wavBlob);
+
+            const selectedFormat = formatSelect.value;
+            let audioBlob;
+            let ext = "";
+
+            if (selectedFormat === 'mp3') {
+                statusText.innerText = "Converting to MP3 (please wait)...";
+                await new Promise(r => setTimeout(r, 50));
+                audioBlob = bufferToMp3(leftBuffer, rightBuffer, sampleRate, 320);
+                ext = "mp3";
+            } else {
+                statusText.innerText = "Converting to WAV...";
+                await new Promise(r => setTimeout(r, 50));
+                audioBlob = bufferToWav(leftBuffer, rightBuffer, sampleRate);
+                ext = "wav";
+            }
+
+            const audioUrl = URL.createObjectURL(audioBlob);
 
             // Audio-Element einrichten
             audioPlayback.src = audioUrl;
@@ -276,9 +341,9 @@
 
             // Download-Button einrichten
             downloadBtn.href = audioUrl;
-            downloadBtn.download = `browser_audio_${new Date().getTime()}.wav`;
+            downloadBtn.download = `browser_audio_${new Date().getTime()}.${ext}`;
             downloadBtn.classList.remove('hidden');
-            downloadBtn.innerText = "⬇️ Download WAV Audio";
+            downloadBtn.innerText = `⬇️ Download ${ext.toUpperCase()} Audio`;
 
             // Physische Spuren schließen
             if (captureStream) {
@@ -288,8 +353,8 @@
             // UI zurücksetzen
             recordBtn.disabled = false;
             stopBtn.disabled = true;
-            statusText.innerText = "Recording saved as WAV. Ready to play or download.";
-            statusText.classList.remove('recording-pulse');
+            formatSelect.disabled = false;
+            statusText.innerText = `Recording saved as ${ext.toUpperCase()}. Ready to play or download.`;
         }
 
         function mergeBuffers(channelBuffer, length) {
@@ -303,6 +368,7 @@
             return result;
         }
 
+        // WAV-Generierung
         function bufferToWav(left, right, sampleRate) {
             const numOfChan = 2; // Stereo
             const numSamples = left.length;
@@ -318,34 +384,28 @@
                 }
             }
 
-            // RIFF-Header
             writeString("RIFF");
             view.setUint32(offset, length - 8, true); offset += 4;
             writeString("WAVE");
             
-            // Format-Chunk
             writeString("fmt ");
             view.setUint32(offset, 16, true); offset += 4;
-            view.setUint16(offset, 1, true); offset += 2; // PCM Format
+            view.setUint16(offset, 1, true); offset += 2; // PCM
             view.setUint16(offset, numOfChan, true); offset += 2;
             view.setUint32(offset, sampleRate, true); offset += 4;
             view.setUint32(offset, sampleRate * 2 * numOfChan, true); offset += 4;
             view.setUint16(offset, numOfChan * 2, true); offset += 2;
-            view.setUint16(offset, 16, true); offset += 2; // 16-bit
+            view.setUint16(offset, 16, true); offset += 2;
 
-            // Data-Chunk
             writeString("data");
             view.setUint32(offset, length - offset - 4, true); offset += 4;
 
-            // Audiodaten verschachteln und konvertieren (Float32 -> Int16)
             for (let i = 0; i < numSamples; i++) {
-                // Linker Kanal
                 let s0 = Math.max(-1, Math.min(1, left[i]));
                 let sample0 = s0 < 0 ? s0 * 0x8000 : s0 * 0x7FFF;
                 view.setInt16(offset, sample0, true);
                 offset += 2;
 
-                // Rechter Kanal
                 let s1 = Math.max(-1, Math.min(1, right[i]));
                 let sample1 = s1 < 0 ? s1 * 0x8000 : s1 * 0x7FFF;
                 view.setInt16(offset, sample1, true);
@@ -353,6 +413,43 @@
             }
 
             return new Blob([view], { type: "audio/wav" });
+        }
+
+        // MP3-Generierung via lamejs
+        function bufferToMp3(left, right, sampleRate, bitrate = 320) {
+            const mp3encoder = new lamejs.Mp3Encoder(2, sampleRate, bitrate);
+            const mp3Data = [];
+
+            const leftInt16 = new Int16Array(left.length);
+            const rightInt16 = new Int16Array(right.length);
+
+            // Audio-Daten zu 16-bit Int anpassen
+            for (let i = 0; i < left.length; i++) {
+                let s0 = Math.max(-1, Math.min(1, left[i]));
+                leftInt16[i] = s0 < 0 ? s0 * 0x8000 : s0 * 0x7FFF;
+
+                let s1 = Math.max(-1, Math.min(1, right[i]));
+                rightInt16[i] = s1 < 0 ? s1 * 0x8000 : s1 * 0x7FFF;
+            }
+
+            const sampleBlockSize = 1152;
+            const totalLength = leftInt16.length;
+
+            for (let i = 0; i < totalLength; i += sampleBlockSize) {
+                const leftChunk = leftInt16.subarray(i, i + sampleBlockSize);
+                const rightChunk = rightInt16.subarray(i, i + sampleBlockSize);
+                const mp3buf = mp3encoder.encodeBuffer(leftChunk, rightChunk);
+                if (mp3buf.length > 0) {
+                    mp3Data.push(mp3buf);
+                }
+            }
+
+            const mp3buf = mp3encoder.flush();
+            if (mp3buf.length > 0) {
+                mp3Data.push(mp3buf);
+            }
+
+            return new Blob(mp3Data, { type: "audio/mp3" });
         }
     </script>
 </body>
