@@ -693,6 +693,23 @@
         </select>
       </div>
       <div style="margin-top: 10px;">
+        <label>YTD Cutoff (Monat)</label>
+        <select id="dpmoCutoff" onchange="updateDPMO()">
+          <option value="11" selected>Dezember (Full Yr)</option>
+          <option value="0">Januar</option>
+          <option value="1">Februar</option>
+          <option value="2">März</option>
+          <option value="3">April</option>
+          <option value="4">Mai</option>
+          <option value="5">Juni</option>
+          <option value="6">Juli</option>
+          <option value="7">August</option>
+          <option value="8">September</option>
+          <option value="9">Oktober</option>
+          <option value="10">November</option>
+        </select>
+      </div>
+      <div style="margin-top: 10px;">
         <label>Werk (Plant)</label>
         <select id="dpmoPlant" onchange="updateDPMO()">
           <option value="">National (Alle)</option>
@@ -4615,17 +4632,22 @@ function updateDPMO() {
   }
   const activeDpmoLtYears = Array.from(document.querySelectorAll('.dpmo-lt-year-chk:checked')).map(cb => cb.value);
 
-  // 2. Filter-Werte auslesen
+ // 2. Filter-Werte auslesen
   const year      = document.getElementById('dpmoYear').value;
   let month       = document.getElementById('dpmoMonth').value;
   const plant     = document.getElementById('dpmoPlant').value;
   const line      = document.getElementById('dpmoLine').value;
   const indicator = document.getElementById('dpmoIndicator').value;
   const timeView  = document.getElementById('dpmoTimeView').value;
+  const cutoff    = parseInt(document.getElementById('dpmoCutoff').value);
 
-  // 3. Dynamisches Monats-Dropdown befüllen (Abhängig vom Jahr)
+  // 3. Dynamisches Monats-Dropdown befüllen (Abhängig vom Jahr & Cutoff)
   const relevantForMonths = year && yIdx > -1 ? globalRows.filter(r => String(r[yIdx]) === year) : globalRows;
-  const monthsDropdown = [...new Set(relevantForMonths.map(r => formatFiscper(r[fiscperIdx])).filter(m => m !== '—'))].sort();
+  const monthsDropdown = [...new Set(relevantForMonths.map(r => formatFiscper(r[fiscperIdx])).filter(m => {
+      if (m === '—') return false;
+      let mVal = parseInt(m.split('-')[1]) - 1;
+      return mVal <= cutoff;
+  }))].sort();
   document.getElementById('dpmoMonth').innerHTML = '<option value="">Alle Monate</option>' +
     monthsDropdown.map(m => {
       const display = new Date(m + '-01').toLocaleString('en-us', {month:'short', year:'numeric'});
@@ -4645,6 +4667,15 @@ function updateDPMO() {
     if (month && formatFiscper(r[fiscperIdx]) !== month) return false; // NEUER MONATSFILTER
     if (plant && pIdx > -1 && String(r[pIdx]) !== plant) return false;
     if (line  && lIdx > -1 && String(r[lIdx]) !== line) return false;
+    
+    // CutOff Filter-Logik
+    if (fiscperIdx > -1) {
+      let f = formatFiscper(r[fiscperIdx]);
+      if (f !== '—') {
+        let mVal = parseInt(f.split('-')[1]) - 1;
+        if (mVal > cutoff) return false;
+      }
+    }
     return true;
   });
 
