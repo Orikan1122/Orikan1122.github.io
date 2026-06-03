@@ -160,14 +160,20 @@
 
         <div class="playback-zone">
             <audio id="audioPlayback" controls class="hidden"></audio>
-            <a id="downloadBtn" class="download-btn hidden" download="system_audio.webm">⬇️ Download Audio</a>
+            <a id="downloadBtn" class="download-btn hidden" download="system_audio.wav">⬇️ Download WAV Audio</a>
         </div>
     </div>
 
     <script>
-        let mediaRecorder;
-        let audioChunks =[];
-        let captureStream; // Holds the screen/audio stream
+        let audioContext;
+        let scriptProcessor;
+        let mediaStreamSource;
+        let captureStream;
+        
+        let leftChannel = [];
+        let rightChannel = [];
+        let recordingLength = 0;
+        let isRecording = false;
 
         // Grab DOM Elements
         const recordBtn = document.getElementById('recordBtn');
@@ -178,77 +184,57 @@
 
         recordBtn.addEventListener('click', async () => {
             try {
-                // To get system/tab audio, we must use getDisplayMedia. 
-                // Browsers usually require video: true to trigger the screen share popup.
+                // Screen/Tab Audio anfragen
                 captureStream = await navigator.mediaDevices.getDisplayMedia({ 
                     video: true, 
                     audio: true 
                 });
                 
-                // Check if the user actually shared audio
                 const audioTracks = captureStream.getAudioTracks();
                 if (audioTracks.length === 0) {
-                    // If no audio track exists, stop the stream and alert the user
                     captureStream.getTracks().forEach(track => track.stop());
                     alert("No audio captured! Please make sure to check 'Share tab audio' or 'Share system audio' in the popup.");
                     return;
                 }
 
-                // Create a new stream using ONLY the audio track so we don't record a video file
                 const audioOnlyStream = new MediaStream([audioTracks[0]]);
                 
-                // Initialize Media Recorder with the audio-only stream
-                mediaRecorder = new MediaRecorder(audioOnlyStream);
+                // AudioContext initialisieren
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                mediaStreamSource = audioContext.createMediaStreamSource(audioOnlyStream);
                 
-                // Collect audio data chunks
-                mediaRecorder.ondataavailable = event => {
-                    if (event.data.size > 0) {
-                        audioChunks.push(event.data);
-                    }
+                // ScriptProcessor für direktes Erfassen der Audiodaten (Stereo, 4096 Buffer)
+                scriptProcessor = audioContext.createScriptProcessor(4096, 2, 2);
+                
+                leftChannel = [];
+                rightChannel = [];
+                recordingLength = 0;
+                isRecording = true;
+
+                scriptProcessor.onaudioprocess = (e) => {
+                    if (!isRecording) return;
+                    const left = e.inputBuffer.getChannelData(0);
+                    const right = e.inputBuffer.getChannelData(1);
+                    
+                    // Kopie der Audiodaten sichern (da der Buffer wiederverwendet wird)
+                    leftChannel.push(new Float32Array(left));
+                    rightChannel.push(new Float32Array(right));
+                    recordingLength += left.length;
                 };
 
-                // What to do when recording stops
-                mediaRecorder.onstop = () => {
-                    // Create audio blob
-                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                    const audioUrl = URL.createObjectURL(audioBlob);
-                    
-                    // Setup audio element for playback
-                    audioPlayback.src = audioUrl;
-                    audioPlayback.classList.remove('hidden');
+                // Knoten verbinden
+                mediaStreamSource.connect(scriptProcessor);
+                scriptProcessor.connect(audioContext.destination);
 
-                    // Setup download button
-                    downloadBtn.href = audioUrl;
-                    downloadBtn.download = `browser_audio_${new Date().getTime()}.webm`;
-                    downloadBtn.classList.remove('hidden');
-
-                    // Clear chunks for next time
-                    audioChunks =[];
-
-                    // Stop ALL tracks (video and audio) to end the browser screen sharing session fully
-                    captureStream.getTracks().forEach(track => track.stop());
-                    
-                    // Update UI
-                    recordBtn.disabled = false;
-                    stopBtn.disabled = true;
-                    statusText.innerText = "Recording saved. Ready to play or download.";
-                    statusText.classList.remove('recording-pulse');
-                };
-
-                // Detect if the user clicks "Stop sharing" via the browser's built-in banner
+                // Automatischer Stopp, wenn der Nutzer die Freigabe über das Browser-Banner beendet
                 captureStream.getVideoTracks()[0].onended = () => {
-                     if (mediaRecorder.state !== 'inactive') {
-                         mediaRecorder.stop();
-                     }
+                     stopRecording();
                 };
 
-                // Start recording
-                mediaRecorder.start();
-
-                // Update UI for recording state
+                // UI-Zustand anpassen
                 recordBtn.disabled = true;
                 stopBtn.disabled = false;
-                statusText.innerText = "🔴 Recording Browser Audio...";
+                statusText.innerText = "🔴 Recording Browser Audio directly to WAV...";
                 statusText.classList.add('recording-pulse');
 
                 audioPlayback.classList.add('hidden');
@@ -261,12 +247,113 @@
             }
         });
 
-        // Event Listener for Manual Stop
+        // Event-Listener für manuellen Stopp
         stopBtn.addEventListener('click', () => {
-            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-                mediaRecorder.stop();
-            }
+            stopRecording();
         });
+
+        function stopRecording() {
+            if (!isRecording) return;
+            isRecording = false;
+
+            // Verbindungen trennen
+            if (scriptProcessor) scriptProcessor.disconnect();
+            if (mediaStreamSource) mediaStreamSource.disconnect();
+            if (audioContext) audioContext.close();
+
+            // Puffer zusammenführen
+            const leftBuffer = mergeBuffers(leftChannel, recordingLength);
+            const rightBuffer = mergeBuffers(rightChannel, recordingLength);
+
+            // WAV generieren
+            const sampleRate = audioContext ? audioContext.sampleRate : 44100;
+            const wavBlob = bufferToWav(leftBuffer, rightBuffer, sampleRate);
+            const audioUrl = URL.createObjectURL(wavBlob);
+
+            // Audio-Element einrichten
+            audioPlayback.src = audioUrl;
+            audioPlayback.classList.remove('hidden');
+
+            // Download-Button einrichten
+            downloadBtn.href = audioUrl;
+            downloadBtn.download = `browser_audio_${new Date().getTime()}.wav`;
+            downloadBtn.classList.remove('hidden');
+            downloadBtn.innerText = "⬇️ Download WAV Audio";
+
+            // Physische Spuren schließen
+            if (captureStream) {
+                captureStream.getTracks().forEach(track => track.stop());
+            }
+
+            // UI zurücksetzen
+            recordBtn.disabled = false;
+            stopBtn.disabled = true;
+            statusText.innerText = "Recording saved as WAV. Ready to play or download.";
+            statusText.classList.remove('recording-pulse');
+        }
+
+        function mergeBuffers(channelBuffer, length) {
+            const result = new Float32Array(length);
+            let offset = 0;
+            for (let i = 0; i < channelBuffer.length; i++) {
+                const buffer = channelBuffer[i];
+                result.set(buffer, offset);
+                offset += buffer.length;
+            }
+            return result;
+        }
+
+        function bufferToWav(left, right, sampleRate) {
+            const numOfChan = 2; // Stereo
+            const numSamples = left.length;
+            const length = numSamples * numOfChan * 2 + 44;
+            const bufferArray = new ArrayBuffer(length);
+            const view = new DataView(bufferArray);
+
+            let offset = 0;
+
+            function writeString(str) {
+                for (let i = 0; i < str.length; i++) {
+                    view.setUint8(offset++, str.charCodeAt(i));
+                }
+            }
+
+            // RIFF-Header
+            writeString("RIFF");
+            view.setUint32(offset, length - 8, true); offset += 4;
+            writeString("WAVE");
+            
+            // Format-Chunk
+            writeString("fmt ");
+            view.setUint32(offset, 16, true); offset += 4;
+            view.setUint16(offset, 1, true); offset += 2; // PCM Format
+            view.setUint16(offset, numOfChan, true); offset += 2;
+            view.setUint32(offset, sampleRate, true); offset += 4;
+            view.setUint32(offset, sampleRate * 2 * numOfChan, true); offset += 4;
+            view.setUint16(offset, numOfChan * 2, true); offset += 2;
+            view.setUint16(offset, 16, true); offset += 2; // 16-bit
+
+            // Data-Chunk
+            writeString("data");
+            view.setUint32(offset, length - offset - 4, true); offset += 4;
+
+            // Audiodaten verschachteln und konvertieren (Float32 -> Int16)
+            for (let i = 0; i < numSamples; i++) {
+                // Linker Kanal
+                let s0 = Math.max(-1, Math.min(1, left[i]));
+                let sample0 = s0 < 0 ? s0 * 0x8000 : s0 * 0x7FFF;
+                view.setInt16(offset, sample0, true);
+                offset += 2;
+
+                // Rechter Kanal
+                let s1 = Math.max(-1, Math.min(1, right[i]));
+                let sample1 = s1 < 0 ? s1 * 0x8000 : s1 * 0x7FFF;
+                view.setInt16(offset, sample1, true);
+                offset += 2;
+            }
+
+            return new Blob([view], { type: "audio/wav" });
+        }
     </script>
 </body>
 </html>
