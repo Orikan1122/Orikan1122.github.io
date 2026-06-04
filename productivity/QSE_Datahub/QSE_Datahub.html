@@ -7605,7 +7605,6 @@ const KPI_TO_HIST_MAPPING = {
 let syncDataPayload = [];
 
 function generateCompareData() {
-    // Sicherstellen, dass die Arrays auch wirklich existieren, bevor auf .length zugegriffen wird
     if (!globalEnvKPI || !Array.isArray(globalEnvKPI) || !globalEnvHist || !Array.isArray(globalEnvHist) || globalEnvKPI.length === 0 || globalEnvHist.length === 0) {
         document.getElementById('envCompareBody').innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 20px; color:#d83b01;">&#9888; Keine Daten gefunden. Bitte erst "Env. Sync" ausführen.</td></tr>';
         return;
@@ -7655,74 +7654,82 @@ function generateCompareData() {
             else if (plantRaw === 'total') plant = 'National Total';
             else if (plantRaw === 'national') plant = 'National';
 
-            monthsKeys.forEach(m => {
-                let kpiValRaw = kpiRow[m];
-                let kpiVal = parseEnvNum(kpiValRaw);
-                
-                if (kpiVal !== null && kpiVal !== undefined && kpiVal !== 0) {
-                    
-                    let histRow = globalEnvHist.find(h => {
-                        let hLoc = String(h['Location'] || h['Scope'] || '').trim().toLowerCase();
-                        let hYear = String(h['Year'] || '').trim();
-                        let hMonth = String(h['Month'] || '').trim();
-                        return hLoc === plant.toLowerCase() && hYear === targetYear && hMonth === m;
-                    });
+            // Erzeuge ein Array von Zielwerken. Bei Volumen für National fügen wir National Total als Duplikat hinzu (Fehlertolerante Prüfung).
+                let normCol = actualHistCol.toLowerCase().replace(/[^a-z0-9]/g, '');
+                let isVolumeCol = normCol.includes('prodvol') || normCol.includes('totalprodvol');
 
-                    // Nutze den exakten (normalisierten) Spaltennamen
-                    let histVal = histRow ? parseEnvNum(histRow[actualHistCol]) : null;
-                    let isNew = histVal === null;
-                    
-                    // Differenz berechnen
-                    let diff = isNew ? kpiVal : (kpiVal - histVal);
-                    
-                    // TOLERANZ: Ist die Differenz größer als 0.5?
-                    let isDiff = isNew || Math.abs(diff) >= 0.5;
-                    
-                    if (!showOnlyDiffs || isDiff) {
-                        
-                        let statusColor = isDiff ? (isNew ? "#107c41" : "#d83b01") : "#888";
-                        let statusText = isDiff ? (isNew ? "NEU" : "Δ " + diff.toLocaleString('de-CH', {minimumFractionDigits: 1, maximumFractionDigits: 1})) : "OK (Gleich/Gerundet)";
-                        let trStyle = isDiff ? "border-bottom: 1px solid #eee; background: #fff;" : "border-bottom: 1px solid #eee; background: #f9f9f9; opacity: 0.7;";
-
-                        if (isDiff && histRow && histRow._rowId && columnId) {
-                            syncDataPayload.push({
-                                id: 'sync_chk_' + rowIdCounter,
-                                plant: plant,
-                                year: targetYear,
-                                month: m,
-                                columnToUpdate: actualHistCol,
-                                newValue: kpiVal,
-                                rowId: histRow._rowId,
-                                columnId: columnId
-                            });
-                        }
-
-                        let checkboxHtml = '-';
-                        if (isDiff) {
-                            if (!histRow || !histRow._rowId) {
-                                checkboxHtml = `<span title="Zeile für ${m} ${targetYear} fehlt im Historical Sheet!">&#9888;</span>`;
-                                statusText = "Zeile fehlt im Ziel!";
-                                statusColor = "#d83b01";
-                            } else {
-                                checkboxHtml = `<input type="checkbox" class="sync-checkbox" id="sync_chk_${rowIdCounter}" value="${syncDataPayload.length - 1}">`;
-                            }
-                        }
-
-                        html += `
-                        <tr style="${trStyle}">
-                            <td style="padding: 8px;">${checkboxHtml}</td>
-                            <td style="padding: 8px; font-weight:bold;">${plant}</td>
-                            <td style="padding: 8px;">${m}</td>
-                            <td style="padding: 8px; font-size:11px;">${rawMetric} [${rawUnit}]</td>
-                            <td style="padding: 8px; font-size:11px; color:#003366;">${actualHistCol}</td>
-                            <td style="padding: 8px; text-align:right;">${histVal !== null ? histVal.toLocaleString('de-CH', {maximumFractionDigits: 2}) : '<i>Leer</i>'}</td>
-                            <td style="padding: 8px; text-align:right; font-weight:bold; color:#0078d4;">${kpiVal.toLocaleString('de-CH', {maximumFractionDigits: 2})}</td>
-                            <td style="padding: 8px; color:${statusColor}; font-weight:bold;">${statusText}</td>
-                        </tr>`;
-                        
-                        rowIdCounter++;
-                    }
+                let targetPlants = [plant];
+                if (plant === 'National' && isVolumeCol) {
+                    targetPlants.push('National Total');
                 }
+
+            targetPlants.forEach(currentPlant => {
+                monthsKeys.forEach(m => {
+                    let kpiValRaw = kpiRow[m];
+                    let kpiVal = parseEnvNum(kpiValRaw);
+                    
+                    if (kpiVal !== null && kpiVal !== undefined && kpiVal !== 0) {
+                        
+                        let histRow = globalEnvHist.find(h => {
+                            let hLoc = String(h['Location'] || h['Scope'] || '').trim().toLowerCase();
+                            let hYear = String(h['Year'] || '').trim();
+                            let hMonth = String(h['Month'] || '').trim();
+                            return hLoc === currentPlant.toLowerCase() && hYear === targetYear && hMonth === m;
+                        });
+
+                        // Nutze den exakten (normalisierten) Spaltennamen
+                        let histVal = histRow ? parseEnvNum(histRow[actualHistCol]) : null;
+                        let isNew = histVal === null;
+                        
+                        let diff = isNew ? kpiVal : (kpiVal - histVal);
+                        let isDiff = isNew || Math.abs(diff) >= 0.5;
+                        
+                        if (!showOnlyDiffs || isDiff) {
+                            
+                            let statusColor = isDiff ? (isNew ? "#107c41" : "#d83b01") : "#888";
+                            let statusText = isDiff ? (isNew ? "NEU" : "Δ " + diff.toLocaleString('de-CH', {minimumFractionDigits: 1, maximumFractionDigits: 1})) : "OK (Gleich/Gerundet)";
+                            let trStyle = isDiff ? "border-bottom: 1px solid #eee; background: #fff;" : "border-bottom: 1px solid #eee; background: #f9f9f9; opacity: 0.7;";
+
+                            if (isDiff && histRow && histRow._rowId && columnId) {
+                                syncDataPayload.push({
+                                    id: 'sync_chk_' + rowIdCounter,
+                                    plant: currentPlant,
+                                    year: targetYear,
+                                    month: m,
+                                    columnToUpdate: actualHistCol,
+                                    newValue: kpiVal,
+                                    rowId: histRow._rowId,
+                                    columnId: columnId
+                                });
+                            }
+
+                            let checkboxHtml = '-';
+                            if (isDiff) {
+                                if (!histRow || !histRow._rowId) {
+                                    checkboxHtml = `<span title="Zeile für ${m} ${targetYear} fehlt im Historical Sheet!">&#9888;</span>`;
+                                    statusText = "Zeile fehlt im Ziel!";
+                                    statusColor = "#d83b01";
+                                } else {
+                                    checkboxHtml = `<input type="checkbox" class="sync-checkbox" id="sync_chk_${rowIdCounter}" value="${syncDataPayload.length - 1}">`;
+                                }
+                            }
+
+                            html += `
+                            <tr style="${trStyle}">
+                                <td style="padding: 8px;">${checkboxHtml}</td>
+                                <td style="padding: 8px; font-weight:bold;">${currentPlant}</td>
+                                <td style="padding: 8px;">${m}</td>
+                                <td style="padding: 8px; font-size:11px;">${rawMetric} [${rawUnit}]</td>
+                                <td style="padding: 8px; font-size:11px; color:#003366;">${actualHistCol}</td>
+                                <td style="padding: 8px; text-align:right;">${histVal !== null ? histVal.toLocaleString('de-CH', {maximumFractionDigits: 2}) : '<i>Leer</i>'}</td>
+                                <td style="padding: 8px; text-align:right; font-weight:bold; color:#0078d4;">${kpiVal.toLocaleString('de-CH', {maximumFractionDigits: 2})}</td>
+                                <td style="padding: 8px; color:${statusColor}; font-weight:bold;">${statusText}</td>
+                            </tr>`;
+                            
+                            rowIdCounter++;
+                        }
+                    }
+                });
             });
         }
     });
