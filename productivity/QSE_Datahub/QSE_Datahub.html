@@ -3016,7 +3016,10 @@ function findMapping(bStr, pStr, isSales) {
 // HELPERS
 // ============================================================
 function setStatus(msg) { 
-    document.getElementById('status').innerText = msg; 
+    const timestamp = new Date().toLocaleTimeString('de-CH');
+    console.info(`[${timestamp}] ${msg}`);
+    const statusEl = document.getElementById('status');
+    if (statusEl) statusEl.innerText = msg; 
     updateSyncLogDisplay(msg); // Update des Logs bei jedem neuen Ladestatus
 }
 function updateStatusForCurrentTab() {
@@ -3095,19 +3098,28 @@ function showTab(id, btn) {
 // SYNC / LADEN (Master-Pipeline)
 // ============================================================
 async function ladeDaten() {
-  document.getElementById('btn').disabled = true;
+  const startTime = performance.now();
+  const masterBtn = document.getElementById('btn');
+  const originalText = masterBtn.innerText;
+  
+  masterBtn.disabled = true;
+  masterBtn.innerText = "⏳ Lädt...";
   document.getElementById('exportBtn').style.display = 'none';
 
+  console.group('%c[Sync] Master-Daten-Pipeline gestartet', 'color: #5c2d91; font-weight: bold; font-size: 13px;');
+
   try {
-    // 1. PRODUKTION & MATERIAL (Aus Datei 1 via Bulk Request)
+    // (1/5)
+    const t1 = performance.now();
     setStatus('(1/5) Lade Produktions- und Materialdaten aus Excel...');
-    // Hier fordern wir den neuen Case 'Production' und die beiden Blätter an
     const prodData = await fetchBulkData('Production', 'Sheet1,Material_Database');
+    console.log(`[Sync] Excel-Rohdaten geladen in ${((performance.now() - t1)/1000).toFixed(2)}s`);
     
     const rawProd = Array.isArray(prodData["Sheet1"]) ? prodData["Sheet1"] : [];
     const rawMat  = Array.isArray(prodData["Material_Database"]) ? prodData["Material_Database"] : [];
+    console.log(`[Sync] Rohdaten-Zustand: ${rawProd.length} Zeilen Produktion, ${rawMat.length} Zeilen Material`);
 
-    // JSON in das Array-Format übersetzen, das das Dashboard erwartet
+    // JSON in das Array-Format übersetzen
     if (rawProd.length > 0) {
       const headers = Object.keys(rawProd[0]);
       globalColumns = headers.map(h => ({ name: h }));
@@ -3129,44 +3141,46 @@ async function ladeDaten() {
     matIdx = globalColumns.findIndex(c => c.name === 'material');
     activeJoinCols = globalMatCols.length > 0 ? MAT_JOIN_COLS.filter(c=>globalMatCols.includes(c)) : [];
     
-    // UI-Elemente für Produktion updaten
     buildProdHeader();
-    populateDropdowns(new Date().getFullYear().toString()); // Setzt einfach das aktuelle Jahr als Standard
+    populateDropdowns(new Date().getFullYear().toString());
     applyFilters();
     updateCharts();
 
-    // 2. EXTRA DATEN (Datei 2: Complaints)
+    // (2/5)
+    const t2 = performance.now();
     setStatus('(2/5) Lade Complaints (B2C & B2B)...');
     const complaintsData = await fetchBulkData('Complaints', 'Consumer Data,Customer Data');
+    console.log(`[Sync] Complaints geladen in ${((performance.now() - t2)/1000).toFixed(2)}s`);
     
     globalConsumerData = Array.isArray(complaintsData["Consumer Data"]) ? complaintsData["Consumer Data"] : [];
     globalCustomerData = Array.isArray(complaintsData["Customer Data"]) ? complaintsData["Customer Data"] : [];
+    console.log(`[Sync] Verarbeitet: B2C = ${globalConsumerData.length} Einträge, B2B = ${globalCustomerData.length} Einträge`);
     
     renderExtraTable('consumerHead', 'consumerBody', globalConsumerData);
     renderExtraTable('customerHead', 'customerBody', globalCustomerData);
 
-    // 3. EXTRA DATEN (Datei 3: Sales & Produktzuordnung)
+    // (3/5)
+    const t3 = performance.now();
     setStatus('(3/5) Lade Sales & Mapping...');
     const salesData = await fetchBulkData('Sales', 'DataFile,Produktezuordnung');
+    console.log(`[Sync] Sales & Mapping geladen in ${((performance.now() - t3)/1000).toFixed(2)}s`);
     
     globalSalesData    = Array.isArray(salesData["DataFile"]) ? salesData["DataFile"] : [];
     globalProduktData  = Array.isArray(salesData["Produktezuordnung"]) ? salesData["Produktezuordnung"] : [];
+    console.log(`[Sync] Verarbeitet: Sales = ${globalSalesData.length} Zeilen, Produktezuordnung = ${globalProduktData.length} Zeilen`);
     
     renderExtraTable('salesHead', 'salesBody', globalSalesData);
     renderExtraTable('produktHead', 'produktBody', globalProduktData);
 
-    // AUFRUF DER CPM DASHBOARDS (WICHTIG!)
+    // (4/5)
+    const t4 = performance.now();
+    setStatus('(4/5) Berechne CPM-Dashboards...');
     updateCPM();
+    console.log(`[Sync] CPM-Berechnungen abgeschlossen in ${((performance.now() - t4)/1000).toFixed(2)}s`);
 
-    // FINISH
-    showMatchStats();
-    setStatus(`Alle Quellen geladen! (${globalRows.length} Produktions-Aufträge)`);
-    document.getElementById('exportBtn').style.display = 'inline-block';
-
-  // AUFRUF DER CPM DASHBOARDS (WICHTIG!)
-    updateCPM();
-
-    // --------- NEU: IN DEN CACHE SPEICHERN ---------
+    // (5/5)
+    const t5 = performance.now();
+    setStatus('(5/5) Speichere Daten im lokalen Browser-Cache...');
     await saveToCache('prodData', { cols: globalColumns, rows: globalRows });
     await saveToCache('matData', { cols: globalMatCols, rows: globalMatRows });
     await saveToCache('consumerData', globalConsumerData);
@@ -3176,17 +3190,24 @@ async function ladeDaten() {
     
     let now = new Date().toLocaleString('de-CH');
     await saveToCache('lastSyncMaster', now);
-    tsMaster = now; // Variable im RAM updaten
+    tsMaster = now;
+    console.log(`[Sync] Cache-Speicherung abgeschlossen in ${((performance.now() - t5)/1000).toFixed(2)}s`);
 
     showMatchStats();
     document.getElementById('exportBtn').style.display = 'inline-block';
-    updateStatusForCurrentTab(); // NEU
+    updateStatusForCurrentTab();
+
+    const totalDuration = ((performance.now() - startTime) / 1000).toFixed(2);
+    setStatus(`✓ Master-Sync erfolgreich abgeschlossen in ${totalDuration}s!`);
+    console.log(`%c[Sync] Master-Sync erfolgreich beendet in ${totalDuration}s.`, 'color: #107c41; font-weight: bold;');
 
   } catch(e) {
-    setStatus('Fehler beim Laden: ' + e.message);
-    console.error(e);
+    console.error('[Sync-Fehler] Fehler in ladeDaten Pipeline:', e);
+    setStatus('⚠ Fehler beim Laden: ' + e.message);
   } finally {
-    document.getElementById('btn').disabled = false;
+    masterBtn.innerText = originalText;
+    masterBtn.disabled = false;
+    console.groupEnd();
   }
 }
 
@@ -3194,24 +3215,38 @@ async function ladeDaten() {
 // DIE HILFSFUNKTION FÜR DEN BULK REQUEST
 // ---------------------------------------------------------
 async function fetchBulkData(datasetName, sheetNamesString) {
-  const response = await fetch(PA_EXTRA_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    // Sende BEIDES an PA: Den Switch-Key (dataset) und die Blätter (sheetNames)
-    body: JSON.stringify({ 
-        dataset: datasetName, 
-        sheetNames: sheetNamesString 
-    }) 
-  });
+  const startTime = performance.now();
+  console.log(`%c[Network] Starte Bulk-Request für Dataset: "${datasetName}" (Sheets: ${sheetNamesString})...`, 'color: #0078d4; font-weight: bold;');
   
-  if (!response.ok) throw new Error(`Fehler bei ${datasetName} (HTTP ${response.status})`);
-  
-  const rawData = await response.json();
-  const parsedData = typeof rawData === 'string' ? JSON.parse(rawData) : rawData;
-  
-  if (parsedData.error) throw new Error(parsedData.error);
-  
-  return parsedData; // Gibt ein Objekt mit den abgerufenen Sheets zurück
+  try {
+    const response = await fetch(PA_EXTRA_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+          dataset: datasetName, 
+          sheetNames: sheetNamesString 
+      }) 
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Fehler bei "${datasetName}" (HTTP Status ${response.status})`);
+    }
+    
+    const rawData = await response.json();
+    const parsedData = typeof rawData === 'string' ? JSON.parse(rawData) : rawData;
+    
+    if (parsedData && parsedData.error) {
+      throw new Error(parsedData.error);
+    }
+    
+    const duration = ((performance.now() - startTime) / 1000).toFixed(2);
+    console.log(`%c[Network] Erhalten: "${datasetName}" in ${duration}s.`, 'color: #107c41; font-weight: bold;');
+    return parsedData;
+  } catch (err) {
+    const duration = ((performance.now() - startTime) / 1000).toFixed(2);
+    console.error(`%c[Network-Fehler] Dataset "${datasetName}" fehlgeschlagen nach ${duration}s: ${err.message}`, 'color: #d83b01; font-weight: bold;');
+    throw err;
+  }
 }
 function renderExtraTable(headId, bodyId, dataArray) {
   if (!dataArray || dataArray.length === 0) {
@@ -6205,61 +6240,97 @@ async function fetchSmartsheet(sheetId) {
 }
 
 async function ladeEnvDaten() {
-  document.getElementById('btnEnv').disabled = true;
+  const startTime = performance.now();
+  const envBtn = document.getElementById('btnEnv');
+  const originalText = envBtn.innerText;
+  
+  envBtn.disabled = true;
+  envBtn.innerText = "⏳ Lädt...";
+  
+  console.group('%c[Sync] Environment-Daten-Pipeline gestartet', 'color: #107c41; font-weight: bold; font-size: 13px;');
   setStatus('Lade Umweltdaten aus Smartsheet...');
+
   try {
+    const t1 = performance.now();
+    setStatus('Lade Env KPI 2026...');
     const rawKpi = await fetchSmartsheet(S_ID_KPI);
     globalEnvKPI = parseSmartsheetData(rawKpi, false);
+    console.log(`[Sync] KPI-Daten geladen in ${((performance.now() - t1)/1000).toFixed(2)}s (${globalEnvKPI.length} Zeilen)`);
     
+    const t2 = performance.now();
+    setStatus('Lade Historical Data...');
     const rawHist = await fetchSmartsheet(S_ID_HIST);
     globalEnvHist = parseSmartsheetData(rawHist, true); 
+    console.log(`[Sync] Historische Daten geladen in ${((performance.now() - t2)/1000).toFixed(2)}s (${globalEnvHist.length} Zeilen)`);
 
-    // DEVIATIONS LADEN & SPALTEN-IDS SPEICHERN (Sauber isoliert!)
+    // DEVIATIONS LADEN & SPALTEN-IDS SPEICHERN
+    const t3 = performance.now();
+    setStatus('Lade Deviations...');
     try {
         const rawDev = await fetchSmartsheet(S_ID_DEVIATIONS);
         globalEnvDeviations = parseSmartsheetData(rawDev, true); 
-        
         window.devColIds = {};
         if (rawDev.columns) {
             rawDev.columns.forEach(c => window.devColIds[c.title] = c.id);
         }
+        console.log(`[Sync] Deviations geladen in ${((performance.now() - t3)/1000).toFixed(2)}s (${globalEnvDeviations.length} Zeilen)`);
     } catch(e) {
-        console.warn("Deviations konnten nicht geladen werden (Sheet ID prüfen).", e);
-        globalEnvDeviations = null; // 'null' bedeutet: Fehler bei der Verbindung
+        console.warn("[Sync-Warnung] Deviations konnten nicht geladen werden.", e);
+        globalEnvDeviations = null; 
     }
-    // PROJEKTE LADEN & NORMALISIEREN (Fuzzy Mapping)
+
+    // PROJEKTE LADEN & NORMALISIEREN
+    const t4 = performance.now();
+    setStatus('Lade Projekte...');
     try {
         const rawProj = await fetchSmartsheet(S_ID_PROJECTS);
         const parsedProj = parseSmartsheetData(rawProj, false);
         globalProjects = normalizeProjects(parsedProj);
         await saveToCache('projData', globalProjects); 
-    } catch(e) { console.warn("Projekte konnten nicht geladen werden.", e); }
+        console.log(`[Sync] Projekte geladen & normalisiert in ${((performance.now() - t4)/1000).toFixed(2)}s (${globalProjects.length} Projekte)`);
+    } catch(e) { 
+        console.warn("[Sync-Warnung] Projekte konnten nicht geladen werden.", e); 
+    }
+
     // CO2 DATEN LADEN
+    const t5 = performance.now();
+    setStatus('Lade CO2-Daten...');
     try {
         const rawCO2 = await fetchSmartsheet(S_ID_CO2);
         globalCO2Data = parseSmartsheetData(rawCO2, false);
         await saveToCache('co2Data', globalCO2Data);
-    } catch(e) { console.warn("CO2 Daten konnten nicht geladen werden.", e); }
+        console.log(`[Sync] CO2-Daten geladen in ${((performance.now() - t5)/1000).toFixed(2)}s (${globalCO2Data.length} Zeilen)`);
+    } catch(e) { 
+        console.warn("[Sync-Warnung] CO2-Daten konnten nicht geladen werden.", e); 
+    }
 
     renderExtraTable('envKpiHead', 'envKpiBody', globalEnvKPI);
     renderExtraTable('envHistHead', 'envHistBody', globalEnvHist);
     
-    // --------- ENV DATEN IN DEN CACHE SPEICHERN ---------
+    setStatus('Speichere Environment-Daten im Cache...');
     await saveToCache('envKpiData', globalEnvKPI);
     await saveToCache('envHistData', globalEnvHist);
     await saveToCache('envDevData', globalEnvDeviations);
     if (window.devColIds) await saveToCache('devColIds', window.devColIds);
     
     let nowEnv = new Date().toLocaleString('de-CH');
-    await saveToCache('lastSyncEnv', nowEnv); // WICHTIG: Key in lastSyncEnv geändert!
+    await saveToCache('lastSyncEnv', nowEnv); 
     tsEnv = nowEnv;
 
     updateEnvDashboard();
-    updateStatusForCurrentTab(); // NEU
+    updateStatusForCurrentTab();
+
+    const totalDuration = ((performance.now() - startTime) / 1000).toFixed(2);
+    setStatus(`✓ Environment-Sync abgeschlossen in ${totalDuration}s!`);
+    console.log(`%c[Sync] Environment-Sync erfolgreich beendet in ${totalDuration}s.`, 'color: #107c41; font-weight: bold;');
+
   } catch(e) {
-    setStatus('Fehler beim Smartsheet-Sync: ' + e.message);
+    console.error('[Sync-Fehler] Fehler in ladeEnvDaten Pipeline:', e);
+    setStatus('⚠ Fehler beim Smartsheet-Sync: ' + e.message);
   } finally {
-    document.getElementById('btnEnv').disabled = false;
+    envBtn.innerText = originalText;
+    envBtn.disabled = false;
+    console.groupEnd();
   }
   if (typeof renderExecutiveSummary === 'function') renderExecutiveSummary();
 }
@@ -6515,6 +6586,19 @@ function processEnvironmentalData() {
     unifiedEnvData = { monthly: [], yearly: [] };
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     
+    // Hilfsfunktion zur fehlertoleranten Spaltenabfrage (unempfindlich gegen Doppelleerzeichen, Groß-/Kleinschreibung und Sonderzeichen)
+    const getResilientVal = (row, keyToFind) => {
+        const rowKeys = Object.keys(row);
+        const normKey = keyToFind.replace(/\s+/g, '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+        
+        const match = rowKeys.find(k => {
+            const normK = k.replace(/\s+/g, '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+            return normK === normKey;
+        });
+        
+        return match ? parseEnvNum(row[match]) : null;
+    };
+
     globalEnvHist.forEach(row => {
         let m = String(row['Month'] || '').trim();
         let y = String(row['Year'] || '').trim();
@@ -6523,28 +6607,28 @@ function processEnvironmentalData() {
         if(!y || !p) return;
         if(p.toLowerCase().includes("national")) p = p === "National Total" ? "National Total" : "National";
 
-        // Absolutwerte aus CSV
-        let volTotal = parseEnvNum(row['Total Prod Vol. [liters]']);
-        let waterAct = parseEnvNum(row['Total Water Act. [liters]']);
-        let thermAct = parseEnvNum(row['Total Thermal Energy Act. [MJ]']);
-        let elecAct = parseEnvNum(row['Total Electrical Energy Act. [MJ]']);
-        let wasteAct = parseEnvNum(row['Total Waste Act. [Kg]']);
+        // Absolutwerte aus Smartsheet (fehlertolerant ausgelesen)
+        let volTotal = getResilientVal(row, 'Total Prod Vol. [liters]');
+        let waterAct = getResilientVal(row, 'Total Water Act. [liters]');
+        let thermAct = getResilientVal(row, 'Total Thermal Energy Act. [MJ]');
+        let elecAct  = getResilientVal(row, 'Total Electrical Energy Act. [MJ]');
+        let wasteAct = getResilientVal(row, 'Total Waste Act. [Kg]');
         let energyAct = (thermAct || 0) + (elecAct || 0);
 
         // Targets (BP Ratios)
-        let bpWaterRatio = parseEnvNum(row['Water Ratio BP [L/Lbev.]']);
-        let bpEnergyRatio = parseEnvNum(row['Energy Ratio BP [MJ/L]']);
-        let bpWasteRatio = parseEnvNum(row['Waste Ratio BP [g/L]']);
+        let bpWaterRatio  = getResilientVal(row, 'Water Ratio BP [L/Lbev.]');
+        let bpEnergyRatio = getResilientVal(row, 'Energy Ratio BP [MJ/L]');
+        let bpWasteRatio  = getResilientVal(row, 'Waste Ratio BP [g/L]');
 
-        // Mix Volumen Actual
-        let volPET = parseEnvNum(row['Prod.  Vol PET [liters]']); 
-        let volRGB = parseEnvNum(row['Prod. Vol RGB [liters]']);
-        let volKEG = parseEnvNum(row['Prod. Vol KEG [liters]']);
+        // Mix Volumen Actual (Doppelleerzeichen-resistent)
+        let volPET = getResilientVal(row, 'Prod. Vol PET [liters]'); 
+        let volRGB = getResilientVal(row, 'Prod. Vol RGB [liters]');
+        let volKEG = getResilientVal(row, 'Prod. Vol KEG [liters]');
 
         // Mix Volumen Target (BP)
-        let bpVolPET = parseEnvNum(row['BP Prod.  Vol PET [liters]']);
-        let bpVolRGB = parseEnvNum(row['BP Prod. Vol RGB [liters]']);
-        let bpVolKEG = parseEnvNum(row['BP Prod. Vol KEG [liters]']);
+        let bpVolPET   = getResilientVal(row, 'BP Prod. Vol PET [liters]');
+        let bpVolRGB   = getResilientVal(row, 'BP Prod. Vol RGB [liters]');
+        let bpVolKEG   = getResilientVal(row, 'BP Prod. Vol KEG [liters]');
         let bpVolTotal = (bpVolPET || 0) + (bpVolRGB || 0) + (bpVolKEG || 0);
 
         let record = {
@@ -6558,7 +6642,7 @@ function processEnvironmentalData() {
             absWater: waterAct, absEnergy: energyAct, absWaste: wasteAct,
             absElec: elecAct, 
             absTherm: thermAct,
-            // BP Absolutwerte für YTD Kalkulation
+            // BP Absolutwerte für YTD-Kalkulation
             bpWaterAbs: (bpWaterRatio && bpVolTotal) ? bpWaterRatio * bpVolTotal : null,
             bpEnergyAbs: (bpEnergyRatio && bpVolTotal) ? bpEnergyRatio * bpVolTotal : null,
             bpWasteAbs: (bpWasteRatio && bpVolTotal) ? (bpWasteRatio * bpVolTotal) / 1000 : null,
@@ -7476,8 +7560,12 @@ function sendEnvEmail() {
 
 // 1. MAPPING (Kombination aus Metrik + Unit)
 const KPI_TO_HIST_MAPPING = {
-    // Production Volume
+    // Production Volume & Packaging Splits (Neu & Erweitert)
     'produced | liter': 'Total Prod Vol. [liters]',
+    'pet | liter': 'Prod. Vol PET [liters]',
+    'rgb | liter': 'Prod. Vol RGB [liters]',
+    'glas | liter': 'Prod. Vol RGB [liters]', // Für Vals & National (Glas = RGB)
+    'keg | liter': 'Prod. Vol KEG [liters]',
     
     // Water
     'total water consumption cr360 | liter': 'Total Water Act. [liters]',
@@ -7486,12 +7574,17 @@ const KPI_TO_HIST_MAPPING = {
     
     // Electricity
     'electricity total cr360 | mj': 'Total Electrical Energy Act. [MJ]',
+    'cr360 total electricity consumption | mj': 'Total Electrical Energy Act. [MJ]',
     'electricity | mj': 'Total Electrical Energy Act. [MJ]',
     'electricity energy all ttl | mj': 'Total Electrical Energy Act. [MJ]',
     
-    // Thermal Energy (Gas / Öl)
+    // Thermal Energy / Heating (Inklusive Heizöl für Vals)
     'thermal energy | mj': 'Total Thermal Energy Act. [MJ]',
     'thermal energy all ttl | mj': 'Total Thermal Energy Act. [MJ]',
+    'cr360 total heating consumption | mj': 'Total Thermal Energy Act. [MJ]',
+    'natural gas total cr360 | mj': 'Total Thermal Energy Act. [MJ]',
+    'heating oil | mj': 'Total Thermal Energy Act. [MJ]', // Für Vals (Heizöl = Thermal Energy)
+    'heating oil total | mj': 'Total Thermal Energy Act. [MJ]',
     
     // Waste
     'total waste all plant including projects cr360 | kg': 'Total Waste Act. [Kg]',
@@ -7517,6 +7610,17 @@ function generateCompareData() {
     let html = '';
     let rowIdCounter = 0;
 
+    // Hilfsfunktion zur Ermittlung des exakten Spaltennamens im geladenen historical Smartsheet (ignoriert doppelte Leerzeichen und Sonderzeichen)
+    const findActualHistColumn = (colName) => {
+        const rowKeys = Object.keys(globalHistColMap);
+        const normSearch = colName.replace(/\s+/g, '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+        const match = rowKeys.find(k => {
+            const normK = k.replace(/\s+/g, '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+            return normK === normSearch;
+        });
+        return match || colName;
+    };
+
     // Durchlaufe alle Zeilen im KPI Sheet
     globalEnvKPI.forEach(kpiRow => {
         let metricColumnName = kpiRow['DIETLIKON'] ? 'DIETLIKON' : 'Env KBI'; 
@@ -7524,12 +7628,19 @@ function generateCompareData() {
         let rawUnit = String(kpiRow['Unit'] || '').trim().toLowerCase();
         let mappingKey = rawMetric + ' | ' + rawUnit;
         
+        // Scope-abhängiger Filter: Verhindert, dass National das Valser Heizöl als Gesamtwert übernimmt
+        let plantRaw = String(kpiRow['Scope'] || '').trim().toLowerCase();
+        if ((plantRaw.includes('national') || plantRaw === 'total') && rawMetric === 'heating oil') {
+            return; // Überspringt diese Zeile für den National-Scope
+        }
+        
         let histColumnTarget = KPI_TO_HIST_MAPPING[mappingKey];
         
         if (histColumnTarget) {
-            let plantRaw = String(kpiRow['Scope'] || '').trim().toLowerCase();
+            let actualHistCol = findActualHistColumn(histColumnTarget);
+            let columnId = globalHistColMap[actualHistCol];
+
             let plant = plantRaw;
-            
             if (plantRaw.includes('dietlikon')) plant = 'Dietlikon';
             else if (plantRaw.includes('vals')) plant = 'Vals';
             else if (plantRaw === 'total') plant = 'National Total';
@@ -7548,13 +7659,14 @@ function generateCompareData() {
                         return hLoc === plant.toLowerCase() && hYear === targetYear && hMonth === m;
                     });
 
-                    let histVal = histRow ? parseEnvNum(histRow[histColumnTarget]) : null;
+                    // Nutze den exakten (normalisierten) Spaltennamen
+                    let histVal = histRow ? parseEnvNum(histRow[actualHistCol]) : null;
                     let isNew = histVal === null;
                     
                     // Differenz berechnen
                     let diff = isNew ? kpiVal : (kpiVal - histVal);
                     
-                    // TOLERANZ: Ist die Differenz größer als 0.5? (Ignoriert reine Komma-Rundungen)
+                    // TOLERANZ: Ist die Differenz größer als 0.5?
                     let isDiff = isNew || Math.abs(diff) >= 0.5;
                     
                     if (!showOnlyDiffs || isDiff) {
@@ -7563,16 +7675,16 @@ function generateCompareData() {
                         let statusText = isDiff ? (isNew ? "NEU" : "Δ " + diff.toLocaleString('de-CH', {minimumFractionDigits: 1, maximumFractionDigits: 1})) : "OK (Gleich/Gerundet)";
                         let trStyle = isDiff ? "border-bottom: 1px solid #eee; background: #fff;" : "border-bottom: 1px solid #eee; background: #f9f9f9; opacity: 0.7;";
 
-                        if (isDiff && histRow && histRow._rowId && globalHistColMap[histColumnTarget]) {
+                        if (isDiff && histRow && histRow._rowId && columnId) {
                             syncDataPayload.push({
                                 id: 'sync_chk_' + rowIdCounter,
                                 plant: plant,
                                 year: targetYear,
                                 month: m,
-                                columnToUpdate: histColumnTarget,
+                                columnToUpdate: actualHistCol,
                                 newValue: kpiVal,
                                 rowId: histRow._rowId,
-                                columnId: globalHistColMap[histColumnTarget]
+                                columnId: columnId
                             });
                         }
 
@@ -7593,7 +7705,7 @@ function generateCompareData() {
                             <td style="padding: 8px; font-weight:bold;">${plant}</td>
                             <td style="padding: 8px;">${m}</td>
                             <td style="padding: 8px; font-size:11px;">${rawMetric} [${rawUnit}]</td>
-                            <td style="padding: 8px; font-size:11px; color:#003366;">${histColumnTarget}</td>
+                            <td style="padding: 8px; font-size:11px; color:#003366;">${actualHistCol}</td>
                             <td style="padding: 8px; text-align:right;">${histVal !== null ? histVal.toLocaleString('de-CH', {maximumFractionDigits: 2}) : '<i>Leer</i>'}</td>
                             <td style="padding: 8px; text-align:right; font-weight:bold; color:#0078d4;">${kpiVal.toLocaleString('de-CH', {maximumFractionDigits: 2})}</td>
                             <td style="padding: 8px; color:${statusColor}; font-weight:bold;">${statusText}</td>
