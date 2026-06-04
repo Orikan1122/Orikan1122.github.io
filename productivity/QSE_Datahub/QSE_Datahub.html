@@ -7569,14 +7569,16 @@ function sendEnvEmail() {
 // ENV DATA SYNC & COMPARE LOGIK
 // ============================================================
 
-// 1. MAPPING (Kombination aus Metrik + Unit)
+
 // 1. MAPPING (Kombination aus Metrik + Unit)
 const KPI_TO_HIST_MAPPING = {
-    // Production Volume & Packaging Typen (Logisch korrigiert nach CCHBC-Spezifikation)
+    // Production Volume & Packaging Typen (Werksspezifisch präzisiert)
     'produced | liter': 'Total Prod Vol. [liters]',
-    'non returnable | liter': 'Prod. Vol PET [liters]', // non Returnable -> PET historical
-    'returnable | liter': 'Prod. Vol RGB [liters]',     // Returnable -> RGB historical
-    'keg | liter': 'Prod. Vol KEG [liters]',            // KEG -> KEG historical
+    'non returnable | liter': 'Prod. Vol PET [liters]', // Für alle Werke: non Returnable -> PET
+    'rgb | liter': 'Prod. Vol RGB [liters]',            // Für Dietlikon: RGB -> RGB
+    'glas | liter': 'Prod. Vol RGB [liters]',           // Für Vals & National: Glas -> RGB
+    'keg | liter': 'Prod. Vol KEG [liters]',            // Für Dietlikon & National: KEG -> KEG
+    'premix | liter': 'Prod. Vol KEG [liters]',         // Für Vals: Premix -> KEG (Fassbier)
     
     // Water
     'total water consumption cr360 | liter': 'Total Water Act. [liters]',
