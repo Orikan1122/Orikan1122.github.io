@@ -2886,6 +2886,7 @@ async function loadAppFromCache() {
             globalEnvHist = await loadFromCache('envHistData') || [];
             globalEnvDeviations = await loadFromCache('envDevData') || [];
             globalChemicals = await loadFromCache('chemicalData') || [];
+            globalHistColMap = await loadFromCache('globalHistColMap') || {}; // Lädt das Spalten-Verzeichnis
             
 
             // 2. UMWELTDATEN VORBEREITEN (Extrem wichtig für das Master Summary!)
@@ -6311,6 +6312,7 @@ async function ladeEnvDaten() {
     await saveToCache('envKpiData', globalEnvKPI);
     await saveToCache('envHistData', globalEnvHist);
     await saveToCache('envDevData', globalEnvDeviations);
+    await saveToCache('globalHistColMap', globalHistColMap); // Speichert das Spalten-Verzeichnis
     if (window.devColIds) await saveToCache('devColIds', window.devColIds);
     
     let nowEnv = new Date().toLocaleString('de-CH');
@@ -6577,7 +6579,14 @@ let unifiedEnvData = { monthly: [], yearly: [] };
 function parseEnvNum(val) {
     if(val === undefined || val === null || val === "" || String(val).includes("DIVIDE BY ZERO") || String(val).includes("UNPARSEABLE")) return null;
     if(typeof val === 'number') return val;
-    let s = String(val).replace(/,/g, '').replace('%', '').replace(/'/g, '').trim();
+    // Resiliente Bereinigung von Tausendertrennern (inkl. typografischen Hochkommas '’' und Leerzeichen)
+    let s = String(val)
+        .replace(/,/g, '')
+        .replace('%', '')
+        .replace(/'/g, '')
+        .replace(/’/g, '')
+        .replace(/\s/g, '')
+        .trim();
     let n = parseFloat(s);
     return isNaN(n) ? null : n;
 }
@@ -7559,13 +7568,13 @@ function sendEnvEmail() {
 // ============================================================
 
 // 1. MAPPING (Kombination aus Metrik + Unit)
+// 1. MAPPING (Kombination aus Metrik + Unit)
 const KPI_TO_HIST_MAPPING = {
-    // Production Volume & Packaging Splits (Neu & Erweitert)
+    // Production Volume & Packaging Typen (Logisch korrigiert nach CCHBC-Spezifikation)
     'produced | liter': 'Total Prod Vol. [liters]',
-    'pet | liter': 'Prod. Vol PET [liters]',
-    'rgb | liter': 'Prod. Vol RGB [liters]',
-    'glas | liter': 'Prod. Vol RGB [liters]', // Für Vals & National (Glas = RGB)
-    'keg | liter': 'Prod. Vol KEG [liters]',
+    'non returnable | liter': 'Prod. Vol PET [liters]', // non Returnable -> PET historical
+    'returnable | liter': 'Prod. Vol RGB [liters]',     // Returnable -> RGB historical
+    'keg | liter': 'Prod. Vol KEG [liters]',            // KEG -> KEG historical
     
     // Water
     'total water consumption cr360 | liter': 'Total Water Act. [liters]',
@@ -7606,10 +7615,6 @@ function generateCompareData() {
     const targetYear = "2026"; 
     const showOnlyDiffs = document.getElementById('showOnlyDiffs').checked;
     
-    syncDataPayload = [];
-    let html = '';
-    let rowIdCounter = 0;
-
     // Hilfsfunktion zur Ermittlung des exakten Spaltennamens im geladenen historical Smartsheet (ignoriert doppelte Leerzeichen und Sonderzeichen)
     const findActualHistColumn = (colName) => {
         const rowKeys = Object.keys(globalHistColMap);
@@ -7620,6 +7625,10 @@ function generateCompareData() {
         });
         return match || colName;
     };
+
+    syncDataPayload = [];
+    let html = '';
+    let rowIdCounter = 0;
 
     // Durchlaufe alle Zeilen im KPI Sheet
     globalEnvKPI.forEach(kpiRow => {
