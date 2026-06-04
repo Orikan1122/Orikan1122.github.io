@@ -7641,12 +7641,17 @@ function generateCompareData() {
         let mappingKey = rawMetric + ' | ' + rawUnit;
         
         // Scope-abhängiger Filter: Verhindert, dass National das Valser Heizöl als Gesamtwert übernimmt
-        let plantRaw = String(kpiRow['Scope'] || '').trim().toLowerCase();
-        if ((plantRaw.includes('national') || plantRaw === 'total') && rawMetric === 'heating oil') {
-            return; // Überspringt diese Zeile für den National-Scope
-        }
-        
-        let histColumnTarget = KPI_TO_HIST_MAPPING[mappingKey];
+            let plantRaw = String(kpiRow['Scope'] || '').trim().toLowerCase();
+            if ((plantRaw.includes('national') || plantRaw === 'total') && rawMetric === 'heating oil') {
+                return; // Überspringt diese Zeile für den National-Scope
+            }
+
+            // Scope-abhängiger Filter: Premix = KEG gilt NUR für Vals (in Dietlikon/National ist KEG = KEG)
+            if ((plantRaw.includes('dietlikon') || plantRaw.includes('national') || plantRaw === 'total') && rawMetric === 'premix') {
+                return; // Überspringt diese Zeile für Dietlikon und National
+            }
+            
+            let histColumnTarget = KPI_TO_HIST_MAPPING[mappingKey];
         
         if (histColumnTarget) {
             let actualHistCol = findActualHistColumn(histColumnTarget);
