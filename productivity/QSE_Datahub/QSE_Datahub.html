@@ -7540,10 +7540,12 @@ function sendEnvEmail() {
             <p>Hallo zusammen,</p>
             <p>wir haben das Reporting für <strong>${p.month} ${p.year}</strong> abgeschlossen. Folgende Ziele wurden verfehlt:</p>
             <ul style="margin-top:0;">
-                <li><strong>Dietlikon:</strong> <span style="color:#d83b01;">${getMissed(d) || "Alle Ziele erreicht"}</span></li>
-                <li><strong>Vals:</strong> <span style="color:#d83b01;">${getMissed(v) || "Alle Ziele erreicht"}</span></li>
+                <li><strong>Dietlikon:</strong> <span style="color:#d83b01;">${getMissed(d) || "Alle Ziele erreicht ✓"}</span></li>
+                <li><strong>Vals:</strong> <span style="color:#d83b01;">${getMissed(v) || "Alle Ziele erreicht ✓"}</span></li>
             </ul>
-            <p>Bitte erstellt für diese Abweichungen eine Ursachenanalyse (Fishbone).</p>
+            <p>Bitte erstellt für diese Abweichungen eine Ursachenanalyse (Fishbone). Ihr könnt die Gründe und Massnahmen entweder <strong>direkt im QSE Datahub-Tool</strong> erfassen (über die Schaltfläche „Bearbeiten“ / Stift-Symbol in der Abweichungs-Tabelle) oder mir eure ausgefüllten Fishbones per E-Mail zusenden, damit ich diese für euch einpflege.</p>
+            <p><strong>Hinweis zur Datenaktualisierung:</strong> Ihr könnt das Umwelt-Dataset ab sofort auch selbstständig im Tool aktualisieren, indem ihr ganz einfach oben im Menü auf den grünen Button <strong>'🌍 Env.' (Env. Sync)</strong> klickt.</p>
+            <br>
             ${buildTable(v)}
             ${buildTable(d)}
             <p style="font-size:11px; color:#777; margin-top:15px;">Dies ist ein automatischer Report aus dem QSE Datahub.</p>
