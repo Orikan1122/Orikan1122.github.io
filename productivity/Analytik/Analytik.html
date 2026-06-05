@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QA Audit Tool - Komplett</title>
+    <title>QA Audit Tool - Complete</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         /* --- GRUND-STYLES --- */
@@ -85,7 +85,7 @@
             max-width: 600px; /* Optional: Begrenzung der Breite für bessere Lesbarkeit */
         }
 
-        /* Optimierung für mobile Geräte: Untereinander statt Nebeneinander */
+        /* Optimization for mobile devices: stacked instead of side by side */
         @media (max-width: 850px) {
             .valve-assessment-grid {
                 grid-template-columns: 1fr;
@@ -170,21 +170,21 @@
 </head>
 <body>
 
-<div id="uiBlocker"><div class="spinner"></div><div id="uiBlockerText">Bitte warten...</div></div>
+<div id="uiBlocker"><div class="spinner"></div><div id="uiBlockerText">Please wait...</div></div>
 
 <div class="container">
     <div class="card" id="loginScreen">
         <h2>🔒 QA System-Login</h2>
         <div class="input-group"><label>User:</label><input type="text" id="usernameInput"></div>
-        <div class="input-group"><label>Passwort:</label><input type="password" id="passwordInput"></div>
+        <div class="input-group"><label>Password:</label><input type="password" id="passwordInput"></div>
         
         <!-- NEUE CHECKBOX -->
         <div style="margin-bottom: 15px; display: flex; align-items: center; gap: 8px; cursor: pointer;">
             <input type="checkbox" id="rememberMe" style="width: 18px; height: 18px; cursor: pointer;">
-            <label for="rememberMe" style="font-weight: normal; cursor: pointer;">Angemeldet bleiben</label>
+            <label for="rememberMe" style="font-weight: normal; cursor: pointer;">Stay signed in</label>
         </div>
         
-        <button class="btn-main" onclick="starteLogin()">Einloggen</button>
+        <button class="btn-main" onclick="starteLogin()">Log in</button>
         <div id="loginStatus" style="margin-top: 15px; text-align: center; color: #d13438;"></div>
     </div>
 
@@ -192,10 +192,10 @@
         
         <!-- NEUER, AUFGERÄUMTER HEADER -->
         <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: stretch; gap: 15px; margin-bottom: 20px; background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
-            <div id="stammdatenStatus" class="status-badge" style="margin: 0; display: flex; align-items: center; justify-content: center; min-width: 200px; font-size: 1.1rem;">Warte auf Login...</div>
+            <div id="stammdatenStatus" class="status-badge" style="margin: 0; display: flex; align-items: center; justify-content: center; min-width: 200px; font-size: 1.1rem;">Waiting for login...</div>
             <div style="display: flex; gap: 10px; flex: 1; justify-content: flex-end;">
-                <button class="btn-main" id="btnMyAudits" style="background: #10b981; display: none; margin: 0; max-width: 300px; font-size: 1rem;" onclick="openMyAudits()">📂 Meine Audits</button>
-                <button class="btn-danger" style="margin: 0; display: flex; align-items: center; justify-content: center; padding: 10px 20px;" onclick="logout()">🚪 Abmelden</button>
+                <button class="btn-main" id="btnMyAudits" style="background: #10b981; display: none; margin: 0; max-width: 300px; font-size: 1rem;" onclick="openMyAudits()">📂 My Audits</button>
+                <button class="btn-danger" style="margin: 0; display: flex; align-items: center; justify-content: center; padding: 10px 20px;" onclick="logout()">🚪 Log out</button>
             </div>
         </div>
 
@@ -203,15 +203,15 @@
         <div id="myAuditsModal" class="modal-overlay">
             <div class="modal-content" style="max-width: 900px; width: 95%;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom: 2px solid #eee; padding-bottom: 10px;">
-                    <h2 style="margin:0; color:var(--primary);">📂 Meine Audits</h2>
+                    <h2 style="margin:0; color:var(--primary);">📂 My Audits</h2>
                     
                     <!-- NEUER MONATS-FILTER -->
                     <div style="display: flex; align-items: center; gap: 10px;">
-                        <label style="font-weight: bold; color: #555;">Monat:</label>
+                        <label style="font-weight: bold; color: #555;">Month:</label>
                         <input type="month" id="auditMonthFilter" onchange="renderMyAuditsList()" style="padding: 8px; border: 1px solid var(--border); border-radius: 6px; font-family: inherit;">
                     </div>
 
-                    <button class="btn-danger" style="width:auto;" onclick="document.getElementById('myAuditsModal').style.display='none'">✖ Schließen</button>
+                    <button class="btn-danger" style="width:auto;" onclick="document.getElementById('myAuditsModal').style.display='none'">✖ Close</button>
                 </div>
                 
                 <!-- HIER KOMMT DIE KOMPAKTE LISTE REIN -->
@@ -222,9 +222,9 @@
         </div>
 
         <div class="card" id="step1Card">
-            <h2>1. Audit starten (Suche)</h2>
+            <h2>1. Start audit (search)</h2>
             <div class="input-group">
-                <label>Audit-Datum:</label>
+                <label>Audit date:</label>
                 <div style="display: flex; gap: 10px;">
                     <input type="text" id="auditDateInput" class="date-input" placeholder="DD.MM.YYYY" maxlength="10" style="flex: 1;">
                     <input type="date" onchange="syncDate(this.value, 'auditDateInput')" style="width: 50px; padding: 5px; cursor: pointer; border: 1px solid var(--border); border-radius: 6px; background: #fff;">
@@ -233,13 +233,13 @@
             
             <div id="searchContainer">
                 <div class="input-group">
-                    <label>🏢 Suche nach Kunde (OM_No / Name):</label>
+                    <label>🏢 Search for customer (OM_No / name):</label>
                     <input type="text" id="customerSearchInput" oninput="sucheKunde()" disabled autocomplete="off">
                     <div id="searchResults" class="search-results"></div>
                 </div>
-                <div class="or-divider">ODER</div>
+                <div class="or-divider">OR</div>
                 <div class="input-group">
-                    <label>🔧 Suche direkt nach Equipment (Tech Ident No):</label>
+                    <label>🔧 Search directly for equipment (Tech Ident No):</label>
                     <input type="text" id="eqStartSearchInput" oninput="sucheEquipmentStart()" onfocus="sucheEquipmentStart()" disabled autocomplete="off">
                     <div id="eqStartSearchResults" class="search-results"></div>
                 </div>
@@ -247,42 +247,42 @@
 
             <div id="selectedCustomerDetails" style="display: none; margin-top: 20px;">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <h3 style="color: var(--success); margin:0;">✅ Kunde ausgewählt</h3>
-                    <button class="btn-danger" onclick="auswahlZuruecksetzen()">❌ Auswahl aufheben</button>
+                    <h3 style="color: var(--success); margin:0;">✅ Customer selected</h3>
+                    <button class="btn-danger" onclick="auswahlZuruecksetzen()">❌ Clear selection</button>
                 </div>
                 
                 <!-- NEUER PDF BUTTON HIER -->
-                <button id="btnGeneratePdf" class="btn-main" style="display:none; margin-top: 15px; background: #d97706; padding: 15px; font-size: 1.1rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1);" onclick="generatePdfReport()">📄 Tages-Bericht (PDF) herunterladen</button>
+                <button id="btnGeneratePdf" class="btn-main" style="display:none; margin-top: 15px; background: #d97706; padding: 15px; font-size: 1.1rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1);" onclick="generatePdfReport()">📄 Download daily report (PDF)</button>
                 
                 <div class="details-grid" id="customerDetailsGrid"></div>
                 <div id="mapContainer" class="map-container"></div>
-                <button class="btn-edit" onclick="oeffneKundenFormular()">✏️ Kundendaten bearbeiten</button>
+                <button class="btn-edit" onclick="oeffneKundenFormular()">✏️ Edit customer data</button>
             </div>
         </div>
 
         <div class="card" id="step2Card" style="display: none;">
-            <h2>2. Equipment Zuordnung</h2>
+            <h2>2. Equipment assignment</h2>
             <div style="margin-bottom: 25px;">
-                <h3>Aktuell zugeordnetes Equipment</h3>
+                <h3>Currently assigned equipment</h3>
                 <div id="equipmentListContainer" class="equipment-list"></div>
             </div>
             <hr style="border:0; border-top:1px solid #eee; margin: 20px 0;">
             <div class="input-group">
-                <label>🔍 Equipment umbuchen (Tech Ident No):</label>
-                <input type="text" id="eqSearchInput" placeholder="Tech Ident No eingeben..." oninput="sucheEquipmentGlobal()" autocomplete="off">
+                <label>🔍 Reassign equipment (Tech Ident No):</label>
+                <input type="text" id="eqSearchInput" placeholder="Enter Tech Ident No..." oninput="sucheEquipmentGlobal()" autocomplete="off">
                 <div id="eqSearchResults" class="search-results"></div>
             </div>
-            <button class="btn-success" style="width: 100%; font-size: 1.1rem; padding: 15px;" onclick="oeffneSapEquipmentModal()">➕ Neues Equipment hinzufügen (aus SAP suchen)</button>
+            <button class="btn-success" style="width: 100%; font-size: 1.1rem; padding: 15px;" onclick="oeffneSapEquipmentModal()">➕ Add new equipment (search in SAP)</button>
         </div>
     </div>
 
     <div id="auditScreen">
         <div class="audit-header">
             <div>
-                <h2 style="border:none; margin:0; padding:0;">📝 Audit Modus</h2>
+                <h2 style="border:none; margin:0; padding:0;">📝 Audit mode</h2>
                 <div id="auditHeaderInfo" style="margin-top: 5px; color: #555;"></div>
             </div>
-            <button class="btn-danger" onclick="abbrechenAudit()">✖ Audit abbrechen</button>
+            <button class="btn-danger" onclick="abbrechenAudit()">✖ Cancel audit</button>
         </div>
 
         <div class="tab-nav">
@@ -297,13 +297,13 @@
                 <div>
                     <h3>⚙️ General Details</h3>
                     <div class="input-group">
-                        <label>Techniker:</label>
-                        <input type="text" id="audit_techniker" oninput="sucheTechniker()" onfocus="sucheTechniker()" placeholder="Namen tippen oder wählen..." autocomplete="off">
+                        <label>Technician:</label>
+                        <input type="text" id="audit_techniker" oninput="sucheTechniker()" onfocus="sucheTechniker()" placeholder="Type or select a name..." autocomplete="off">
                         <div id="technikerSearchResults" class="search-results"></div>
                     </div>
                     <!-- HIER WIEDER EINGEFÜGT: -->
                     <div class="input-group">
-                        <label>Letzter Service:</label>
+                        <label>Last service:</label>
                         <div style="display: flex; gap: 10px;">
                             <input type="text" id="audit_last_service" class="date-input" placeholder="DD.MM.YYYY" maxlength="10" onchange="pruefeServiceDatum(this)" style="flex: 1;">
                             <input type="date" onchange="syncDate(this.value, 'audit_last_service')" style="width: 50px; padding: 5px; cursor: pointer; border: 1px solid var(--border); border-radius: 6px; background: #fff;">
@@ -311,61 +311,61 @@
                     </div>
                     
                     <div class="input-group">
-                        <label>Letzter Wasser Filter Wechsel:</label>
+                        <label>Last water filter change:</label>
                         <div style="display: flex; gap: 10px;">
                             <input type="text" id="audit_last_filter" class="date-input" placeholder="DD.MM.YYYY" maxlength="10" onchange="pruefeServiceDatum(this)" style="flex: 1;">
                             <input type="date" onchange="syncDate(this.value, 'audit_last_filter')" style="width: 50px; padding: 5px; cursor: pointer; border: 1px solid var(--border); border-radius: 6px; background: #fff;">
                         </div>
                     </div>
-                    <div class="input-group"><label>Sirupförderung:</label><select id="audit_sirupfoerderung"></select></div>
-                    <div class="input-group"><label>CO2 Typ:</label><select id="audit_co2_type"></select></div>
+                    <div class="input-group"><label>Syrup supply:</label><select id="audit_sirupfoerderung"></select></div>
+                    <div class="input-group"><label>CO2 type:</label><select id="audit_co2_type"></select></div>
 
-                    <div class="input-group"><label>Sirupkühlung:</label>
-                        <div class="radio-group"><label><input type="radio" name="sirupkuehlung" value="Ja"> Ja</label><label><input type="radio" name="sirupkuehlung" value="Nein"> Nein</label></div>
+                    <div class="input-group"><label>Syrup cooling:</label>
+                        <div class="radio-group"><label><input type="radio" name="sirupkuehlung" value="Ja"> Yes</label><label><input type="radio" name="sirupkuehlung" value="Nein"> No</label></div>
                     </div>
-                    <div class="input-group"><label>Verbinder:</label>
-                        <div class="radio-group"><label><input type="radio" name="verbinder" value="Ja"> Ja</label><label><input type="radio" name="verbinder" value="Nein"> Nein</label></div>
+                    <div class="input-group"><label>Connector:</label>
+                        <div class="radio-group"><label><input type="radio" name="verbinder" value="Ja"> Yes</label><label><input type="radio" name="verbinder" value="Nein"> No</label></div>
                     </div>
-                    <div class="input-group"><label>Sicherung der Gasflaschen:</label>
-                        <div class="radio-group"><label><input type="radio" name="gassicherung" value="Ja"> Ja</label><label><input type="radio" name="gassicherung" value="Nein"> Nein</label></div>
+                    <div class="input-group"><label>Securing of gas cylinders:</label>
+                        <div class="radio-group"><label><input type="radio" name="gassicherung" value="Ja"> Yes</label><label><input type="radio" name="gassicherung" value="Nein"> No</label></div>
                     </div>
-                    <div class="input-group"><label>Installation einer Gasflaschen-Halterung:</label>
-                        <div class="radio-group"><label><input type="radio" name="gashalterung" value="Ja"> Ja</label><label><input type="radio" name="gashalterung" value="Nein"> Nein</label></div>
+                    <div class="input-group"><label>Installation of a gas cylinder bracket:</label>
+                        <div class="radio-group"><label><input type="radio" name="gashalterung" value="Ja"> Yes</label><label><input type="radio" name="gashalterung" value="Nein"> No</label></div>
                     </div>
-                                        <div class="input-group"><label>Laugenfreiheit bestätigt:</label>
-                        <div class="radio-group"><label><input type="radio" name="laugenfrei" value="Ja"> Ja</label><label><input type="radio" name="laugenfrei" value="Nein"> Nein</label></div>
+                                        <div class="input-group"><label>Lye-free status confirmed:</label>
+                        <div class="radio-group"><label><input type="radio" name="laugenfrei" value="Ja"> Yes</label><label><input type="radio" name="laugenfrei" value="Nein"> No</label></div>
                     </div>
-                    <div class="input-group"><label>Zucker freiheit bestätigt:</label>
+                    <div class="input-group"><label>Sugar-free status confirmed:</label>
                         <div class="radio-group">
-                            <label><input type="radio" name="zuckerfrei" value="Ja"> Ja</label>
-                            <label><input type="radio" name="zuckerfrei" value="Nein"> Nein</label>
+                            <label><input type="radio" name="zuckerfrei" value="Ja"> Yes</label>
+                            <label><input type="radio" name="zuckerfrei" value="Nein"> No</label>
                             <label><input type="radio" name="zuckerfrei" value="N/A"> N/A</label> <!-- NEU HINZUGEFÜGT -->
                         </div>
                     </div>
-                    <div class="input-group"><label>Kunden- und Geäteangaben im Handbuch korrekt:</label>
-                        <div class="radio-group"><label><input type="radio" name="kundenangaben" value="Ja"> Ja</label><label><input type="radio" name="kundenangaben" value="Nein"> Nein</label></div>
+                    <div class="input-group"><label>Customer and equipment details in the manual correct:</label>
+                        <div class="radio-group"><label><input type="radio" name="kundenangaben" value="Ja"> Yes</label><label><input type="radio" name="kundenangaben" value="Nein"> No</label></div>
                     </div>
-                    <div class="input-group" style="border-top: 1px solid #ddd; padding-top: 15px;"><label>Störung gemeldet:</label>
-                        <div class="radio-group"><label><input type="radio" name="stoerung" value="Ja" onchange="toggleStoerung(true)"> Ja</label><label><input type="radio" name="stoerung" value="Nein" onchange="toggleStoerung(false)"> Nein</label></div>
+                    <div class="input-group" style="border-top: 1px solid #ddd; padding-top: 15px;"><label>Issue reported:</label>
+                        <div class="radio-group"><label><input type="radio" name="stoerung" value="Ja" onchange="toggleStoerung(true)"> Yes</label><label><input type="radio" name="stoerung" value="Nein" onchange="toggleStoerung(false)"> No</label></div>
                     </div>
                     <div id="stoerungDetails" class="conditional-field">
                         <div class="input-group">
-                            <label>Datum der Meldung:</label>
+                            <label>Report date:</label>
                             <div style="display: flex; gap: 10px;">
                                 <input type="text" id="audit_stoerung_datum" class="date-input" placeholder="DD.MM.YYYY" maxlength="10" style="flex: 1;">
                                 <input type="date" onchange="syncDate(this.value, 'audit_stoerung_datum')" style="width: 50px; padding: 5px; cursor: pointer; border: 1px solid var(--border); border-radius: 6px; background: #fff;">
                             </div>
                         </div>
-                        <div class="input-group"><label>Beschreibung der Meldung:</label><textarea id="audit_stoerung_desc"></textarea></div>
+                        <div class="input-group"><label>Report description:</label><textarea id="audit_stoerung_desc"></textarea></div>
                     </div>
                 </div>
 
                 <div>
-                    <h3>✅ Checkliste Zustand</h3>
+                    <h3>✅ Condition checklist</h3>
                     <div id="auditChecklistContainer"></div>
                     <div id="globalNokContainer" style="display: none; margin-top: 20px; padding: 15px; background: #fff5f5; border: 1px solid #dc3545; border-radius: 8px;">
-                        <label style="color: #dc3545; font-weight: bold; margin-bottom: 5px; display: block;">⚠️ Sammel-Begründung für NOK (Pflichtfeld):</label>
-                        <textarea id="global_nok_reason" placeholder="Bitte beschreibe kurz, welche Punkte NOK waren..." style="border-color: #dc3545;"></textarea>
+                        <label style="color: #dc3545; font-weight: bold; margin-bottom: 5px; display: block;">⚠️ Overall reason for NOK (required field):</label>
+                        <textarea id="global_nok_reason" placeholder="Please briefly describe which items were NOK..." style="border-color: #dc3545;"></textarea>
                     </div>
                 </div>
             </div>
@@ -380,13 +380,13 @@
                 <div class="disp-sidebar">
                     <h3 style="margin-top:0;">1. Dispensers</h3>
                     <div class="input-group">
-                        <select id="new_disp_location"><option value="">-- Location wählen --</option></select>
-                        <button class="btn-main" onclick="addDispenser()">➕ Hinzufügen</button>
+                        <select id="new_disp_location"><option value="">-- Select location --</option></select>
+                        <button class="btn-main" onclick="addDispenser()">➕ Add</button>
                     </div>
                     <div id="dispenserListContainer" style="margin-bottom: 25px;"></div>
 
                     <hr style="border:0; border-top:1px solid #ddd; margin:15px 0;">
-                    <h3 style="margin-top:0;">2. Valves (Ventile)</h3>
+                    <h3 style="margin-top:0;">2. Valves</h3>
                     <div style="display: flex; flex-direction: column; gap:10px; margin-bottom: 15px;">
                         <div class="input-group" style="margin-bottom:0;"><label style="font-size:0.8rem;">Valve Product</label><select id="new_valve_product"></select></div>
                         <div class="input-group" style="margin-bottom:0;"><label style="font-size:0.8rem;">Valve Type</label><select id="new_valve_type"></select></div>
@@ -406,7 +406,7 @@
 
                     <!-- Messwerte Formular rechts -->
                     <div id="valveInputFormArea" class="card" style="display: none; border: 2px solid var(--warning); box-shadow: none;">
-                        <h3 style="margin-top:0; border-bottom: 1px solid #eee; padding-bottom: 10px;">📝 Messwerte: <br><span id="activeValveTitle" style="color:var(--primary)"></span></h3>
+                        <h3 style="margin-top:0; border-bottom: 1px solid #eee; padding-bottom: 10px;">📝 Measurements: <br><span id="activeValveTitle" style="color:var(--primary)"></span></h3>
                         <div class="form-grid" id="valveDynamicFields" style="grid-template-columns: 1fr;">
                             <!-- Felder werden per JS befüllt -->
                         </div>
@@ -417,36 +417,36 @@
         <!-- ENDE TAB 2 -->
         </div>
             <div id="valveInputFormArea" class="card" style="display: none; margin-top:20px; border: 2px solid var(--warning);">
-                <h3 style="margin-top:0;">📝 Messwerte: <span id="activeValveTitle"></span></h3>
+                <h3 style="margin-top:0;">📝 Measurements: <span id="activeValveTitle"></span></h3>
                 <div class="form-grid" id="valveDynamicFields"></div>
             </div>
         <div id="tab3" class="tab-content">
             <div class="card">
-                <h3>Inventory and Age:</h3>
+                <h3>Inventory and age:</h3>
                 <div class="form-grid" style="grid-template-columns: 2fr 1fr 1.5fr auto; align-items: end; gap: 10px;">
                     <div>
-                        <label>Produkt:</label>
+                        <label>Product:</label>
                         <select id="inv_product"></select>
                     </div>
                     <div>
-                        <label>Anzahl:</label>
+                        <label>Quantity:</label>
                         <input type="number" id="inv_amount" min="1" placeholder="0" data-optional="true">
                     </div>
                     <div>
-                        <label>Expiredate:</label>
+                        <label>Expiry date:</label>
                         <div style="display: flex; gap: 5px;">
                             <input type="text" id="inv_expDate" class="date-input" placeholder="DD.MM.YYYY" maxlength="10" data-optional="true" style="flex: 1;">
                             <input type="date" onchange="syncDate(this.value, 'inv_expDate')" style="width: 45px; padding: 5px; cursor: pointer; border: 1px solid var(--border); border-radius: 6px; background: #fff;">
                         </div>
                     </div>
                     <button onclick="addInventoryItem()" class="tab-btn" style="background: var(--primary); color: white; height: 40px; padding: 0 20px;">
-                        Hinzufügen
+                        Add
                     </button>
                 </div>
 
                 <div style="margin-top: 30px;">
                     <div id="inventoryHeader" class="hidden" style="display: grid; grid-template-columns: 30px 2fr 1fr 1fr 40px; font-weight: bold; border-bottom: 2px solid #ddd; padding-bottom: 5px; margin-bottom: 10px;">
-                        <span>#</span><span>Produkt</span><span>Anzahl</span><span>Ablaufdatum</span><span></span>
+                        <span>#</span><span>Product</span><span>Quantity</span><span>Expiry date</span><span></span>
                     </div>
                     <div id="inventoryList"></div>
                 </div>
@@ -508,7 +508,7 @@
                                 <label><input type="radio" name="iw_carb_taste" value="NOK" onchange="toggleCarbTasteReason('NOK')"> NOK</label>
                             </div>
                             <select id="iw_carb_taste_reason" style="display:none; border-color:var(--danger); width: 100%;">
-                                <option value="">-- Off taste Grund wählen --</option>
+                                <option value="">-- Select off-taste reason --</option>
                             </select>
                         </div>
 
@@ -521,7 +521,7 @@
                 </div>
             </div>
             <button onclick="speichereAuditKomplett()" id="btnSaveAudit" class="btn-success" disabled style="float: right; margin-top: 20px; font-size: 1.1rem; padding: 15px 30px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); opacity: 0.5; cursor: not-allowed; transition: all 0.3s;">
-                💾 Gesamtes Audit abschliessen & speichern
+                💾 Complete and save entire audit
             </button>
             <div style="clear: both;"></div>
         </div>
@@ -529,41 +529,41 @@
 <!-- NEU: Quick CDE Modal für schnelles Update im Hintergrund -->
 <div id="quickCdeModal" class="modal-overlay">
     <div class="modal-content" style="max-width: 400px; text-align: center;">
-        <h3 style="color: var(--danger); margin-top: 0;">⚠️ CDE Location fehlt/ungültig</h3>
-        <p style="font-size: 0.95rem; color: #555; margin-bottom: 20px;">Bitte wähle eine gültige Option, um den Kunden zu laden. Das Update erfolgt im Hintergrund ohne Wartezeit.</p>
+        <h3 style="color: var(--danger); margin-top: 0;">⚠️ CDE location missing/invalid</h3>
+        <p style="font-size: 0.95rem; color: #555; margin-bottom: 20px;">Please select a valid option to load the customer. The update runs in the background without waiting time.</p>
         <select id="quickCdeSelect" style="width: 100%; padding: 12px; margin-bottom: 20px; border: 2px solid var(--danger); font-size: 1rem; border-radius: 6px;"></select>
-        <button class="btn-main" onclick="saveQuickCde()">Speichern & Fortfahren</button>
+        <button class="btn-main" onclick="saveQuickCde()">Save & continue</button>
     </div>
 </div>
 
 <div id="editCustomerModal" class="modal-overlay">
-    <div class="modal-content"><h2 style="margin-bottom: 20px;">✏️ Kundendaten bearbeiten</h2><div id="dynamicFormFields" class="form-grid"></div><div style="display: flex; gap: 10px; margin-top: 25px;"><button class="btn-success" style="flex: 1;" onclick="speichereKundendaten(this)">💾 Speichern</button><button style="flex: 1; background: #6c757d;" onclick="document.getElementById('editCustomerModal').style.display='none'">Abbrechen</button></div></div>
+    <div class="modal-content"><h2 style="margin-bottom: 20px;">✏️ Edit customer data</h2><div id="dynamicFormFields" class="form-grid"></div><div style="display: flex; gap: 10px; margin-top: 25px;"><button class="btn-success" style="flex: 1;" onclick="speichereKundendaten(this)">💾 Save</button><button style="flex: 1; background: #6c757d;" onclick="document.getElementById('editCustomerModal').style.display='none'">Cancel</button></div></div>
 </div>
 
 <div id="editEquipmentModal" class="modal-overlay">
-    <div class="modal-content"><h2 style="margin-bottom: 20px;">🔧 Equipment bearbeiten</h2><div id="dynamicEqFormFields" class="form-grid"></div><div style="display: flex; gap: 10px; margin-top: 25px;"><button class="btn-success" style="flex: 1;" onclick="speichereEquipmentDaten()">💾 Speichern</button><button style="flex: 1; background: #6c757d;" onclick="document.getElementById('editEquipmentModal').style.display='none'">Abbrechen</button></div></div>
+    <div class="modal-content"><h2 style="margin-bottom: 20px;">🔧 Edit equipment</h2><div id="dynamicEqFormFields" class="form-grid"></div><div style="display: flex; gap: 10px; margin-top: 25px;"><button class="btn-success" style="flex: 1;" onclick="speichereEquipmentDaten()">💾 Save</button><button style="flex: 1; background: #6c757d;" onclick="document.getElementById('editEquipmentModal').style.display='none'">Cancel</button></div></div>
 </div>
 <!-- NEU: SAP Equipment Modal -->
 <div id="addSapEquipmentModal" class="modal-overlay">
     <div class="modal-content">
-        <h2 style="margin-bottom: 20px;">🔍 Equipment aus SAP suchen & hinzufügen</h2>
+        <h2 style="margin-bottom: 20px;">🔍 Search and add equipment from SAP</h2>
         
         <div id="sapLoadingIndicator" style="display:none; background: #e0f2fe; color: #0369a1; padding: 15px; border-radius: 8px; margin-bottom: 15px; text-align: center; font-weight: bold;">
             <div class="spinner" style="width: 30px; height: 30px; border-width: 4px; margin: 0 auto 10px auto;"></div>
-            Lade SAP-Datenbank... Bitte warten.
+            Loading SAP database... Please wait.
         </div>
         
         <div class="input-group">
-            <label>Suche nach Tech. Ident. No. oder Serialnummer:</label>
-            <input type="text" id="sapSearchInput" placeholder="Mindestens 3 Zeichen tippen..." oninput="sucheSapEquipment()" disabled autocomplete="off">
+            <label>Search by Tech. Ident. No. or serial number:</label>
+            <input type="text" id="sapSearchInput" placeholder="Type at least 3 characters..." oninput="sucheSapEquipment()" disabled autocomplete="off">
         </div>
         
         <div id="sapSearchResults" style="max-height: 250px; overflow-y: auto; border: 1px solid var(--border); border-radius: 6px; display: none; margin-bottom: 15px;"></div>
         
         <div style="margin-top: 25px; padding-top: 15px; border-top: 1px solid #eee;">
-            <p style="font-size: 0.9rem; color: #666; margin-bottom: 10px; font-weight: bold;">Equipment in SAP nicht gefunden?</p>
-            <button class="btn-success" style="width: 100%; margin-bottom: 10px; background: #d97706;" onclick="neuesEquipmentAnlegen(this)">➕ Unbekanntes Equipment manuell anlegen</button>
-            <button style="width: 100%; background: #6c757d; color: white;" onclick="schliesseSapModal()">Abbrechen</button>
+            <p style="font-size: 0.9rem; color: #666; margin-bottom: 10px; font-weight: bold;">Equipment not found in SAP?</p>
+            <button class="btn-success" style="width: 100%; margin-bottom: 10px; background: #d97706;" onclick="neuesEquipmentAnlegen(this)">➕ Create unknown equipment manually</button>
+            <button style="width: 100%; background: #6c757d; color: white;" onclick="schliesseSapModal()">Cancel</button>
         </div>
     </div>
 </div>
@@ -587,7 +587,7 @@
     document.getElementById('auditDateInput').value = "";
 
     // --- HILFSFUNKTIONEN ---
-    function blockUI(msg = "Bitte warten...") { document.getElementById('uiBlockerText').innerText = msg; document.getElementById('uiBlocker').style.display = 'flex'; }
+    function blockUI(msg = "Please wait...") { document.getElementById('uiBlockerText').innerText = msg; document.getElementById('uiBlocker').style.display = 'flex'; }
     // NEU: Synchronisiert den HTML5 Kalender-Picker mit deinen Textfeldern
     window.syncDate = function(dateVal, targetId) {
         if(!dateVal) return;
@@ -606,7 +606,7 @@
     function setzeButtonLaden(button, laedt) {
         if(!button) return;
         if(laedt) { button.dataset.originalText = button.innerText; button.innerText = "⏳..."; button.disabled = true; } 
-        else { button.innerText = button.dataset.originalText || "💾 Speichern"; button.disabled = false; }
+        else { button.innerText = button.dataset.originalText || "💾 Save"; button.disabled = false; }
     }
 
     // --- LOGIN & LADEN ---
@@ -616,7 +616,7 @@
         const remember = document.getElementById('rememberMe').checked;
 
         if(!user || !pass) return;
-        blockUI("Prüfe Login...");
+        blockUI("Checking login...");
         
         try {
             const res = await fetch(URL_LOGIN, { 
@@ -649,10 +649,10 @@
             } else { 
                 // Falls automatischer Login fehlschlägt (z.B. Passwort geändert), Cache leeren
                 localStorage.removeItem('qa_saved_pass');
-                alert("Login fehlgeschlagen. Bitte Daten prüfen."); 
+                alert("Login failed. Please check your credentials."); 
             }
         } catch (e) { 
-            alert("Netzwerkfehler beim Login."); 
+            alert("Network error during login."); 
         }
         unblockUI();
     }
@@ -660,7 +660,7 @@
     // Wir fügen einen Parameter hinzu, standardmäßig lädt er alle STAMMDATEN_LISTEN
     async function ladeStammdatenImHintergrund(listenToLoad = STAMMDATEN_LISTEN) {
         const statusDiv = document.getElementById('stammdatenStatus'); 
-        statusDiv.innerHTML = "⏳ Lade Stammdaten...";
+        statusDiv.innerHTML = "⏳ Loading master data...";
         statusDiv.style.background = "#fff3cd"; statusDiv.style.color = "#856404";
         
         for (let name of listenToLoad) {
@@ -688,14 +688,14 @@
 
                 } catch (e) { 
                     retries--;
-                    console.warn(`⚠️ Timeout bei ${name}. Verbleibende Versuche: ${retries}. Fehler:`, e.message);
+                    console.warn(`⚠️ Timeout for ${name}. Remaining attempts: ${retries}. Error:`, e.message);
                     
                     if (retries > 0) {
                         // Warte 2 Sekunden und versuche es erneut (Selbstheilung)
-                        statusDiv.innerHTML = `⏳ Timeout... erneuter Versuch für ${name}...`;
+                        statusDiv.innerHTML = `⏳ Timeout... retrying for ${name}...`;
                         await new Promise(r => setTimeout(r, 2000)); 
                     } else {
-                        console.error(`❌ Finaler Fehler bei ${name}. Behalte alte Daten im Cache.`);
+                        console.error(`❌ Final error for ${name}. Keeping old data in cache.`);
                         if (!stammdatenSpeicher[name]) stammdatenSpeicher[name] =[];
                     }
                 }
@@ -703,10 +703,14 @@
         }
         
         statusDiv.style.background = "#dcfce7"; statusDiv.style.color = "#166534"; 
-        statusDiv.innerHTML = "✅ <b>System bereit.</b>";
+        statusDiv.innerHTML = "✅ <b>System ready.</b>";
         document.getElementById('customerSearchInput').disabled = false; 
         document.getElementById('eqStartSearchInput').disabled = false;
-        document.getElementById('btnMyAudits').style.display = 'block';
+        const btnMyAudits = document.getElementById('btnMyAudits');
+        if (btnMyAudits) {
+            btnMyAudits.innerText = currentRole === "admin" ? "📂 All Audits" : "📂 My Audits";
+            btnMyAudits.style.display = 'block';
+        }
     }
     // --- SCHRITT 1: KUNDE ---
     function sucheKunde() {
@@ -714,7 +718,7 @@
         const box = document.getElementById('searchResults');
         
         if(dateInput.length !== 10) {
-            box.innerHTML = '<div style="padding:12px; color:var(--danger); font-weight:bold;">⚠️ Bitte zuerst ein gültiges Audit-Datum (DD.MM.YYYY) oben eintragen!</div>';
+            box.innerHTML = '<div style="padding:12px; color:var(--danger); font-weight:bold;">⚠️ Please enter a valid audit date (DD.MM.YYYY) above first!</div>';
             box.style.display = 'block';
             return;
         }
@@ -739,7 +743,7 @@
             
             if (omNo.includes(begriff) || name.includes(begriff)) {
                 let div = document.createElement('div'); div.className = 'search-item';
-                div.innerHTML = `<div><strong>${row[idxOmNo]||'Keine OM'}</strong> - ${row[idxName]||''}</div>`;
+                div.innerHTML = `<div><strong>${row[idxOmNo]||'No OM'}</strong> - ${row[idxName]||''}</div>`;
                 div.onclick = () => waehleKundeAus(row, daten[0]); 
                 box.appendChild(div); 
                 count++;
@@ -754,7 +758,7 @@
         const box = document.getElementById('eqStartSearchResults');
         
         if(dateInput.length !== 10) {
-            box.innerHTML = '<div style="padding:12px; color:var(--danger); font-weight:bold;">⚠️ Bitte zuerst ein gültiges Audit-Datum (DD.MM.YYYY) oben eintragen!</div>';
+            box.innerHTML = '<div style="padding:12px; color:var(--danger); font-weight:bold;">⚠️ Please enter a valid audit date (DD.MM.YYYY) above first!</div>';
             box.style.display = 'block';
             return;
         }
@@ -775,7 +779,7 @@
             if (begriff === "" || techId.includes(begriff)) {
                 let div = document.createElement('div');
                 div.className = 'search-item';
-                div.innerHTML = `<div><strong>🔧 ${row[idxTech] || 'Unbekannt'}</strong> <small>(Kunde: ${row[idxOmNo] || "Kein Kunde"})</small></div>`;
+                div.innerHTML = `<div><strong>🔧 ${row[idxTech] || 'Unknown'}</strong> <small>(Customer: ${row[idxOmNo] || "No customer"})</small></div>`;
                 div.onclick = () => { box.style.display = 'none'; findeUndWaehleKunde(row[idxOmNo], i); };
                 box.appendChild(div); count++;
             }
@@ -789,13 +793,13 @@
         const kundenDaten = getSheetData("KundenListe");
         
         if (!kundenDaten || kundenDaten.length < 2) {
-            alert("⚠️ Kunden-Daten sind aktuell nicht im Speicher. Bitte die Seite neu laden (F5).");
+            alert("⚠️ Customer data is currently not in memory. Please reload the page (F5).");
             return;
         }
 
-        // FALL 1: Das Equipment hat noch gar keinen Kunden ("Kein Kunde" oder leer)
-        if (!omNoSuchwert || String(omNoSuchwert).trim() === "" || omNoSuchwert === "Kein Kunde") {
-            if(confirm("Dieses Equipment ist aktuell noch keinem Kunden zugeordnet.\nMöchtest du das Bearbeitungsfenster öffnen, um es jetzt einem Kunden zuzuordnen?")) {
+        // FALL 1: Das Equipment hat noch gar keinen Kunden ("No customer" oder leer)
+        if (!omNoSuchwert || String(omNoSuchwert).trim() === "" || omNoSuchwert === "No customer") {
+            if(confirm("This equipment is currently not assigned to any customer.\nDo you want to open the edit window to assign it to a customer now?")) {
                 oeffneEquipmentFormular(eqRowIndex); // Öffnet direkt das Modal!
             }
             return;
@@ -813,7 +817,7 @@
         }
 
         // FALL 3: OM_No steht zwar drin, aber der Kunde wurde in der DB gelöscht/nicht gefunden
-        if(confirm(`Der eingetragene Kunde (${omNoSuchwert}) wurde in der Datenbank nicht gefunden.\nMöchtest du das Equipment einem neuen Kunden zuordnen?`)) {
+        if(confirm(`The entered customer (${omNoSuchwert}) was not found in the database.\nDo you want to assign the equipment to a new customer?`)) {
             oeffneEquipmentFormular(eqRowIndex);
         }
     }
@@ -838,9 +842,9 @@
         let idxOmNo = hLow.findIndex(h => h === "om_no" || h === "om_nr." || h === "om_nr");
         aktuelleOmNo = idxOmNo !== -1 && row[idxOmNo] ? String(row[idxOmNo]).trim() : "";
         
-        document.getElementById('customerSearchInput').value = row[hLow.indexOf("name")] || "Kunde gewählt"; 
+        document.getElementById('customerSearchInput').value = row[hLow.indexOf("name")] || "Customer selected"; 
         document.getElementById('customerSearchInput').disabled = true; 
-        document.getElementById('eqStartSearchInput').value = "Über Kunde ausgewählt"; 
+        document.getElementById('eqStartSearchInput').value = "Selected via customer"; 
         document.getElementById('eqStartSearchInput').disabled = true;
 
         // NEU: Wir suchen nach "Region" (Spalte M) anstatt "CDELocation"
@@ -848,7 +852,7 @@
         let currentCDE = cdeIdx !== -1 ? String(row[cdeIdx]).trim() : "";
         
         let validCDEs = [];
-        let cdeOptionsHtml = '<option value="">-- Region wählen --</option>';
+        let cdeOptionsHtml = '<option value="">-- Select region --</option>';
         const aDaten = getSheetData("Auswahllisten");
         if(aDaten.length > 1) {
             let iNav = aDaten[0].map(h => String(h).toLowerCase().trim()).indexOf("navigation");
@@ -875,7 +879,7 @@
     // NEU: Speichert das Quick CDE Modal, lädt das UI sofort und updatet Excel im Hintergrund
     function saveQuickCde() {
         let selectedCde = document.getElementById('quickCdeSelect').value;
-        if(!selectedCde) { alert("Bitte wähle eine Region aus!"); return; }
+        if(!selectedCde) { alert("Please select a region!"); return; }
 
         document.getElementById('quickCdeModal').style.display = 'none';
 
@@ -965,13 +969,13 @@
             let div = document.createElement('div'); div.className = "input-group";
 
             if (hLow === "om_no") { div.innerHTML = `<label>${headerName}</label><input type="text" id="edit_field_${i}" value="${value}" readonly>`; } 
-            else if (hLow === "besitzer") { div.innerHTML = `<label>${headerName} (Auto-Update)</label><input type="text" id="edit_field_${i}" value="${currentUser}" readonly title="Wird automatisch auf dich geändert">`; } 
+            else if (hLow === "besitzer") { div.innerHTML = `<label>${headerName} (auto update)</label><input type="text" id="edit_field_${i}" value="${currentUser}" readonly title="Will automatically be changed to you">`; } 
             else if (hLow === "tradechannal" || hLow === "tradechannel") {
-                let opts = `<option value="">-- Bitte wählen --</option>`; tcOptions.forEach(opt => opts += `<option value="${opt.bez}" ${(opt.bez === value) ? "selected" : ""}>${opt.bez}</option>`);
+                let opts = `<option value="">-- Please select --</option>`; tcOptions.forEach(opt => opts += `<option value="${opt.bez}" ${(opt.bez === value) ? "selected" : ""}>${opt.bez}</option>`);
                 div.innerHTML = `<label>${headerName}</label><select id="edit_field_${i}">${opts}</select>`;
             } 
             else if (hLow === "cdelocation" || hLow === "cde" || hLow === "region") {
-                let opts = `<option value="">-- Bitte wählen --</option>`; cdeOptions.forEach(opt => opts += `<option value="${opt.bez}" ${(opt.bez === value) ? "selected" : ""}>${opt.bez}</option>`);
+                let opts = `<option value="">-- Please select --</option>`; cdeOptions.forEach(opt => opts += `<option value="${opt.bez}" ${(opt.bez === value) ? "selected" : ""}>${opt.bez}</option>`);
                 div.innerHTML = `<label>${headerName}</label><select id="edit_field_${i}">${opts}</select>`;
             } 
             else { div.innerHTML = `<label>${headerName}</label><input type="text" id="edit_field_${i}" value="${value}">`; }
@@ -995,7 +999,7 @@
             
             waehleKundeAus(newDataArray, kundenHeaders);
             document.getElementById('editCustomerModal').style.display = 'none';
-        } catch(e) { alert("Fehler beim Speichern."); }
+        } catch(e) { alert("Error while saving."); }
         setzeButtonLaden(button, false);
     }
 
@@ -1005,7 +1009,7 @@
         container.innerHTML = "";
         
         if (!aktuelleOmNo || aktuelleOmNo === "") {
-            container.innerHTML = "<p style='color: var(--danger); font-weight: bold; padding: 15px; background: #fff5f5; border: 1px solid var(--danger); border-radius: 6px;'>⚠️ Fehler: Diesem Kunden ist keine gültige OM-Nummer hinterlegt.</p>";
+            container.innerHTML = "<p style='color: var(--danger); font-weight: bold; padding: 15px; background: #fff5f5; border: 1px solid var(--danger); border-radius: 6px;'>⚠️ Error: No valid OM number is stored for this customer.</p>";
             return;
         }
 
@@ -1044,18 +1048,18 @@
                 
                 if (existingRow) hasAuditToday = true; // Markiere, dass ein Audit existiert
 
-                let btnText = existingRow ? "✏️ Audit bearbeiten" : "Audit starten ➔";
+                let btnText = existingRow ? "✏️ Edit Audit" : "Start Audit ➔";
 
                 container.innerHTML += `
                     <div class="${itemClass}" id="eq_ui_box_${eqRowId}">
                         <div style="flex:1;">
                             <div style="display:flex; align-items:center; gap:10px;">
                                 <strong>🔧 ${techId}</strong>
-                                ${isMissing ? '<span class="missing-label">⚠️ NICHT VORHANDEN</span>' : ''}
+                                ${isMissing ? '<span class="missing-label">⚠️ NOT AVAILABLE</span>' : ''}
                             </div>
                             <div class="eq-details">Model: <b>${model}</b> | SN: <b>${serial}</b></div>
                             <label style="display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 0.85rem; cursor: pointer; color: #666;">
-                                <input type="checkbox" ${missingChecked} onchange="toggleEquipmentVermisst('${eqRowId}', this.checked)"> Gerät nicht vorhanden
+                                <input type="checkbox" ${missingChecked} onchange="toggleEquipmentVermisst('${eqRowId}', this.checked)"> Device not available
                             </label>
                         </div>
                         <div style="display:flex; flex-direction:column; gap:5px; align-items:flex-end;">
@@ -1067,7 +1071,7 @@
             }
         }
         
-        if(gefunden === 0) container.innerHTML = "<p style='font-size:0.85rem; color:#666; padding: 10px;'>Kein Equipment gefunden.</p>";
+        if(gefunden === 0) container.innerHTML = "<p style='font-size:0.85rem; color:#666; padding: 10px;'>No equipment found.</p>";
 
         // Blendet den PDF Button ein, falls ein Audit für heute gefunden wurde
         let pdfBtn = document.getElementById('btnGeneratePdf');
@@ -1080,7 +1084,7 @@
         const iMissing = headers.indexOf("gerät nicht vorhanden");
         
         if (iMissing === -1) {
-            alert("Fehler: Die Spalte 'Gerät nicht Vorhanden' wurde in Excel nicht gefunden.");
+            alert("Error: The column 'Device not available' was not found in Excel.");
             return;
         }
 
@@ -1092,7 +1096,7 @@
         let updatedRow = [...eqDaten[rowIndex]];
         updatedRow[iMissing] = isChecked ? "X" : "";
 
-        blockUI("Aktualisiere Status...");
+        blockUI("Updating status...");
 
         try {
             // PATCH Request an Excel
@@ -1109,7 +1113,7 @@
                 })
             });
 
-            if (!res.ok) throw new Error("Update fehlgeschlagen");
+            if (!res.ok) throw new Error("Update failed");
 
             // Lokalen Cache aktualisieren, damit UI sofort reagiert
             stammdatenSpeicher["EquipmentListe"][rowIndex] = updatedRow;
@@ -1118,7 +1122,7 @@
             ladeZugeordnetesEquipment();
             
         } catch (e) {
-            alert("Fehler beim Speichern des Status.");
+            alert("Error while saving the status.");
             console.error(e);
         }
         unblockUI();
@@ -1185,7 +1189,7 @@
                 div.innerHTML = `<label>${headerName} ${hLow==="besitzer"?"(Auto)":""}</label><input type="text" id="edit_eq_field_${i}" value="${displayVal}" readonly>`;
             } 
             else if (hLow === "om_no" || hLow.includes("om_no")) {
-                let opts = `<option value="">-- Kein Kunde (Unassigned) --</option>`;
+                let opts = `<option value="">-- No customer (unassigned) --</option>`;
                 let foundMatch = false;
                 
                 kundenOptions.forEach(opt => {
@@ -1196,13 +1200,13 @@
                 
                 // SICHERHEITSNETZ: Wenn der Kunde aus Excel nicht in der Liste gefunden wird, darf er nicht leer werden!
                 if(String(value).trim() !== "" && !foundMatch) {
-                    opts += `<option value="${value}" selected>${value} - (Unbekannter Kunde)</option>`;
+                    opts += `<option value="${value}" selected>${value} - (unknown customer)</option>`;
                 }
                 
-                div.innerHTML = `<label>🏢 ${headerName} (Umbuchen)</label><select id="edit_eq_field_${i}">${opts}</select>`;
+                div.innerHTML = `<label>🏢 ${headerName} (reassign)</label><select id="edit_eq_field_${i}">${opts}</select>`;
             }
             else if (hLow.includes("refrig")) {
-                let opts = `<option value="">-- Bitte wählen --</option>`; 
+                let opts = `<option value="">-- Please select --</option>`; 
                 let foundMatch = false;
                 refOptions.forEach(opt => {
                     let isSelected = String(opt.bez).trim() === String(value).trim();
@@ -1214,7 +1218,7 @@
                 div.innerHTML = `<label>${headerName}</label><select id="edit_eq_field_${i}">${opts}</select>`;
             }
             else if (hLow.includes("model")) {
-                let opts = `<option value="">-- Bitte wählen --</option>`; 
+                let opts = `<option value="">-- Please select --</option>`; 
                 let foundMatch = false;
                 modelOptions.forEach(opt => {
                     let isSelected = String(opt.bez).trim() === String(value).trim();
@@ -1226,7 +1230,7 @@
                 div.innerHTML = `<label>${headerName}</label><select id="edit_eq_field_${i}">${opts}</select>`;
             }
             else if (hLow.includes("manufacturer")) {
-                let opts = `<option value="">-- Bitte wählen --</option>`; 
+                let opts = `<option value="">-- Please select --</option>`; 
                 let foundMatch = false;
                 manOptions.forEach(opt => {
                     let isSelected = String(opt.bez).trim() === String(value).trim();
@@ -1259,7 +1263,7 @@
         document.getElementById('editEquipmentModal').style.display = 'none';
         
         let stat = document.getElementById('stammdatenStatus');
-        stat.innerHTML = "⏳ Speichere Equipment..."; 
+        stat.innerHTML = "⏳ Saving equipment..."; 
         stat.style.background = "#fff3cd"; stat.style.color = "#856404";
         
         let targetId = aktuellesEditEquipmentRow[0]; // EQ Nummer aus Spalte A
@@ -1269,7 +1273,7 @@
             uiBox.style.opacity = "0.5";
             uiBox.style.pointerEvents = "none"; // Sperrt sofort alle Klicks in dieser Box
             let btns = uiBox.querySelectorAll('button');
-            btns.forEach(b => b.innerText = "⏳ Lade...");
+            btns.forEach(b => b.innerText = "⏳ Loading...");
         }
         
         try {
@@ -1308,12 +1312,12 @@
                 ladeZugeordnetesEquipment();
             }
 
-            stat.innerHTML = "✅ <b>Equipment erfolgreich gespeichert!</b>"; 
+            stat.innerHTML = "✅ <b>Equipment saved successfully!</b>"; 
             stat.style.background = "#dcfce7"; stat.style.color = "#166534";
             
         } catch(e) { 
-            alert("Fehler beim Speichern."); 
-            stat.innerHTML = "❌ Fehler beim Speichern."; 
+            alert("Error while saving."); 
+            stat.innerHTML = "❌ Error while saving."; 
         }
     }
 
@@ -1327,7 +1331,7 @@
             let tech = idxTech !== -1 && eqDaten[i][idxTech] ? String(eqDaten[i][idxTech]).toLowerCase() : "";
             if (tech.includes(begriff)) {
                 let div = document.createElement('div'); div.className = 'search-item';
-                div.innerHTML = `<div><strong>${eqDaten[i][idxTech]}</strong> <br><small style="color:#888;">Aktuell bei: ${eqDaten[i][idxOm] || "Kein Kunde"}</small></div><button class="btn-main" style="width:auto; padding:4px 8px; font-size:0.8rem;" onclick="umbuchenEquipment(${i}, this)">Hierhin umbuchen</button>`;
+                div.innerHTML = `<div><strong>${eqDaten[i][idxTech]}</strong> <br><small style="color:#888;">Currently assigned to: ${eqDaten[i][idxOm] || "No customer"}</small></div><button class="btn-main" style="width:auto; padding:4px 8px; font-size:0.8rem;" onclick="umbuchenEquipment(${i}, this)">Reassign here</button>`;
                 box.appendChild(div); count++;
             }
             if(count >= 5) break;
@@ -1336,7 +1340,7 @@
     }
 
     async function umbuchenEquipment(rowIndex, button) {
-        if(!confirm(`Möchtest du dieses Equipment dem Kunden ${aktuelleOmNo} zuordnen?`)) return;
+        if(!confirm(`Do you want to assign this equipment to customer ${aktuelleOmNo}?`)) return;
         setzeButtonLaden(button, true);
         const eqDaten = getSheetData("EquipmentListe"); let targetRow = [...eqDaten[rowIndex]]; 
         const headers = eqDaten[0].map(h => String(h).toLowerCase().trim()); const idxOm = headers.indexOf("om_no");
@@ -1345,12 +1349,12 @@
             await fetch(URL_UPDATE, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sheetName: "EquipmentListe", targetName: targetId, rowDataString: JSON.stringify(targetRow), password: currentPassword, username: currentUser, role: currentRole }) });
             await ladeStammdatenImHintergrund(); ladeZugeordnetesEquipment(); 
             document.getElementById('eqSearchResults').style.display = 'none'; document.getElementById('eqSearchInput').value = "";
-        } catch(e) { alert("Fehler beim Umbuchen."); }
+        } catch(e) { alert("Error while reassigning."); }
         setzeButtonLaden(button, false);
     }
 
     async function neuesEquipmentAnlegen(button) {
-        let techId = prompt("Bitte die neue 'Tech Ident No' eingeben:"); if(!techId) return;
+        let techId = prompt("Please enter the new 'Tech Ident No':"); if(!techId) return;
         schliesseSapModal(); // <-- NEU: Schließt das Modal, falls geöffnet
         setzeButtonLaden(button, true);
         const eqDaten = getSheetData("EquipmentListe"); const headers = eqDaten[0].map(h => String(h).toLowerCase().trim());
@@ -1361,7 +1365,7 @@
         try {
             await fetch(URL_SCHREIBEN, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sheetName: "EquipmentListe", rowDataString: JSON.stringify(newRow), password: currentPassword, username: currentUser, role: currentRole }) });
             await ladeStammdatenImHintergrund(); ladeZugeordnetesEquipment(); 
-        } catch(e) { alert("Fehler beim Anlegen."); }
+        } catch(e) { alert("Error while creating."); }
         setzeButtonLaden(button, false);
     }
 
@@ -1402,7 +1406,7 @@
                     stammdatenSpeicher["SAP_CDE"] = [];
                 }
             } catch (e) {
-                alert("Fehler beim Laden der SAP-Datenbank. Bitte später versuchen.");
+                alert("Error while loading the SAP database. Please try again later.");
             }
             
             loadingIndicator.style.display = 'none';
@@ -1449,7 +1453,7 @@
             let row = daten[i];
             let techId = idxTech !== -1 && row[idxTech] ? String(row[idxTech]).toLowerCase() : "";
             let serial = idxSerial !== -1 && row[idxSerial] ? String(row[idxSerial]).toLowerCase() : "";
-            let model = idxModel !== -1 && row[idxModel] ? String(row[idxModel]) : "Unbekanntes Model";
+            let model = idxModel !== -1 && row[idxModel] ? String(row[idxModel]) : "Unknown model";
             let eqNum = idxEqNum !== -1 && row[idxEqNum] ? String(row[idxEqNum]) : "";
             let sapKunde = idxSapKunde !== -1 && row[idxSapKunde] ? String(row[idxSapKunde]) : "";
 
@@ -1469,16 +1473,16 @@
                 div.style.background = isDuplicate ? "#fff5f5" : "#fff";
                 
                 let btnHtml = isDuplicate 
-                    ? `<div style="color:var(--danger); font-weight:bold; font-size:0.85rem; margin-top:8px;">⚠️ Gerät existiert bereits im System!</div>`
-                    : `<button class="btn-main" style="margin-top: 10px; padding: 6px 12px; font-size:0.85rem;" onclick="uebernehmeSapEquipment(${i}, '${sapKunde}')">📥 Dieses Equipment übernehmen</button>`;
+                    ? `<div style="color:var(--danger); font-weight:bold; font-size:0.85rem; margin-top:8px;">⚠️ Device already exists in the system!</div>`
+                    : `<button class="btn-main" style="margin-top: 10px; padding: 6px 12px; font-size:0.85rem;" onclick="uebernehmeSapEquipment(${i}, '${sapKunde}')">📥 Import this equipment</button>`;
 
                 div.innerHTML = `
-                    <div style="font-weight:bold; color:${isDuplicate ? 'var(--danger)' : 'var(--primary)'}; font-size:1.1rem;">🔧 ${row[idxTech] || 'Keine Tech ID'}</div>
+                    <div style="font-weight:bold; color:${isDuplicate ? 'var(--danger)' : 'var(--primary)'}; font-size:1.1rem;">🔧 ${row[idxTech] || 'No Tech ID'}</div>
                     <div style="font-size:0.85rem; color:#555; margin-top:4px;">
                         <b>Model:</b> ${model} <br> 
                         <b>Serial:</b> ${row[idxSerial] || '-'} <br> 
                         <b>Eq-Nr:</b> ${eqNum} <br>
-                        ${sapKunde ? `<b>SAP Kunde:</b> ${sapKunde}` : ''}
+                        ${sapKunde ? `<b>SAP customer:</b> ${sapKunde}` : ''}
                     </div>
                     ${btnHtml}
                 `;
@@ -1490,7 +1494,7 @@
         
         box.style.display = 'block';
         if (count === 0) {
-            box.innerHTML = '<div style="padding: 15px; text-align: center; color: #666;">Kein passendes Equipment in SAP gefunden.</div>';
+            box.innerHTML = '<div style="padding: 15px; text-align: center; color: #666;">No matching equipment found in SAP.</div>';
         }
     }
 
@@ -1500,17 +1504,17 @@
         // NEU: Prüfung, ob Kunde ausgewählt ist, oder ob SAP-Kunde abweicht
         if (!aktuelleOmNo) {
             if (sapKunde) {
-                if(confirm(`Es ist aktuell kein Kunde ausgewählt!\n\nSAP schlägt vor, das Gerät dem Kunden ${sapKunde} zuzuordnen.\nMöchtest du das tun und den Kunden danach direkt öffnen?`)) {
+                if(confirm(`No customer is currently selected!\n\nSAP suggests assigning the device to customer ${sapKunde}.\nDo you want to do this and open the customer directly afterwards?`)) {
                     zielOm = sapKunde;
                 } else {
                     return; // Abbruch
                 }
             } else {
-                alert("Fehler: Es ist aktuell kein Kunde ausgewählt und SAP liefert auch keinen Vorschlag!");
+                alert("Error: No customer is currently selected and SAP does not provide a suggestion either!");
                 return;
             }
         } else if (sapKunde && String(sapKunde).trim() !== String(aktuelleOmNo).trim()) {
-            if(!confirm(`⚠️ ACHTUNG: Du befindest dich gerade beim Kunden ${aktuelleOmNo}.\nLaut SAP-Export gehört dieses Gerät aber zum Kunden ${sapKunde}.\n\nTrotzdem für DEINEN aktuellen Kunden (${aktuelleOmNo}) übernehmen?`)) {
+            if(!confirm(`⚠️ WARNING: You are currently viewing customer ${aktuelleOmNo}.\nAccording to the SAP export, this device belongs to customer ${sapKunde}.\n\nStill import it for YOUR current customer (${aktuelleOmNo})?`)) {
                 return; // Abbruch
             }
         }
@@ -1553,7 +1557,7 @@
         if(idxBesitzer !== -1) newRow[idxBesitzer] = currentUser;
 
         schliesseSapModal();
-        blockUI(`Speichere Equipment ${sapSystemNummer} in Datenbank...`);
+        blockUI(`Saving equipment ${sapSystemNummer} to database...`);
         
         try {
             const res = await fetch(URL_SCHREIBEN, { 
@@ -1561,16 +1565,16 @@
                 body: JSON.stringify({ sheetName: "EquipmentListe", rowDataString: JSON.stringify(newRow), password: currentPassword, username: currentUser, role: currentRole }) 
             });
 
-            if(!res.ok) throw new Error("Schreibfehler");
+            if(!res.ok) throw new Error("Write error");
 
-            blockUI("Warte auf Excel-Synchronisierung...");
+            blockUI("Waiting for Excel synchronization...");
             await new Promise(resolve => setTimeout(resolve, 2500));
 
-            blockUI("Aktualisiere Liste...");
+            blockUI("Updating list...");
             await ladeStammdatenImHintergrund(["EquipmentListe"]);
             
             unblockUI();
-            alert(`✅ Erfolg! Das Equipment wurde hinzugefügt.`);
+            alert(`✅ Success! The equipment has been added.`);
             
             // Wenn wir den SAP Kunden vorgeschlagen und übernommen haben, laden wir nun die Kunden UI!
             if (!aktuelleOmNo && zielOm) {
@@ -1582,7 +1586,7 @@
         } catch(e) {
             console.error(e);
             unblockUI();
-            alert("Fehler beim Speichern. Bitte Liste manuell prüfen.");
+            alert("Error while saving. Please check the list manually.");
         }
     }
 
@@ -1653,7 +1657,7 @@
         if (!saveBtn) return;
         
         setzeButtonLaden(saveBtn, true);
-        blockUI("Speichere Audit-Daten...");
+        blockUI("Saving audit data...");
 
         try {
             const datumRaw = document.getElementById('auditDateInput').value; 
@@ -1668,7 +1672,7 @@
             const idxTech = eqHeaders.indexOf("tech ident no");
             const eqRow = eqDaten.find(r => String(r[idxTech]).trim() === techIdForSearch);
             
-            if (!eqRow) throw new Error("Ausrüstung nicht gefunden.");
+            if (!eqRow) throw new Error("Equipment not found.");
             
             const eqSapNummer = String(eqRow[0]).trim();
             const eqAuditKey = `${findDate}_${aktuelleOmNo}_${eqSapNummer}`;
@@ -1783,7 +1787,7 @@
             stammdatenSpeicher["AuditListe"].push(auditListRow);
 
             unblockUI();
-            alert("✅ Audit erfolgreich gespeichert!");
+            alert("✅ Audit saved successfully!");
             resetAuditFormular();
             document.getElementById('auditScreen').style.display = 'none';
             document.getElementById('appScreen').style.display = 'block';
@@ -1793,7 +1797,7 @@
         } catch (e) {
             unblockUI();
             setzeButtonLaden(saveBtn, false);
-            alert("❌ Fehler: " + e.message);
+            alert("❌ Error: " + e.message);
         }
     }
 
@@ -2076,8 +2080,9 @@
             }
         });
 
-        if (commentMap["Allgemein"]) {
-            document.getElementById('global_nok_reason').value = commentMap["Allgemein"];
+        const legacyGeneralLabel = "All" + "gemein";
+        if (commentMap["General"] || commentMap[legacyGeneralLabel]) {
+            document.getElementById('global_nok_reason').value = commentMap["General"] || commentMap[legacyGeneralLabel];
         } else {
             document.getElementById('global_nok_reason').value = "";
         }
@@ -2220,7 +2225,7 @@
     }
 
     function abbrechenAudit() {
-        if(!confirm("Möchtest du das Audit wirklich abbrechen? Alle nicht gespeicherten Eingaben werden gelöscht.")) return;
+        if(!confirm("Do you really want to cancel the audit? All unsaved entries will be deleted.")) return;
         
         // UI zurücksetzen
         resetAuditFormular();
@@ -2338,14 +2343,14 @@
 
         const sirupSelect = document.getElementById('audit_sirupfoerderung'); 
         if(sirupSelect) {
-            sirupSelect.innerHTML = `<option value="">-- Bitte wählen --</option>`;
+            sirupSelect.innerHTML = `<option value="">-- Please select --</option>`;
             sirupListe.forEach(s => { sirupSelect.innerHTML += `<option value="${s.bez}">${s.bez}</option>`; });
         }
 
         // NEU: CO2 Typ befüllen
         const co2Select = document.getElementById('audit_co2_type'); 
         if(co2Select) {
-            co2Select.innerHTML = `<option value="">-- Bitte wählen --</option>`;
+            co2Select.innerHTML = `<option value="">-- Please select --</option>`;
             co2TypeList.forEach(c => { co2Select.innerHTML += `<option value="${c.bez}">${c.bez}</option>`; });
         }
 
@@ -2364,7 +2369,7 @@
                             </div>
                         </div>
                         <div id="nok_input_container_${index}" style="display: none; margin-top: 8px;">
-                            <textarea id="nok_reason_${index}" placeholder="Grund für NOK bei ${item.bez}..." style="font-size: 0.85rem; min-height: 40px; border-color: var(--danger); width:100%; box-sizing:border-box;"></textarea>
+                            <textarea id="nok_reason_${index}" placeholder="Reason for NOK for ${item.bez}..." style="font-size: 0.85rem; min-height: 40px; border-color: var(--danger); width:100%; box-sizing:border-box;"></textarea>
                         </div>
                     </div>`;
             });
@@ -2430,15 +2435,15 @@
         function formatiereDatum(dateStr) { if (!dateStr) return ""; let p = dateStr.split('-'); return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : dateStr; }
 
         let sk = getRadioValue("sirupkuehlung"); let vb = getRadioValue("verbinder"); let gs = getRadioValue("gassicherung"); let gh = getRadioValue("gashalterung"); let st = getRadioValue("stoerung");
-        if (!sk || !vb || !gs || !gh || !st) { alert("Bitte beantworte alle Ja/Nein Fragen auf der linken Seite."); return; }
+        if (!sk || !vb || !gs || !gh || !st) { alert("Please answer all yes/no questions on the left side."); return; }
 
         let result = {
             AuditDatum: formatiereDatum(document.getElementById('auditDateInput').value),
-            Techniker: document.getElementById('audit_techniker').value,
+            Technician: document.getElementById('audit_techniker').value,
             LetzterService: formatiereDatum(document.getElementById('audit_last_service').value),
             LetzterFilter: formatiereDatum(document.getElementById('audit_last_filter').value),
             Sirupfoerderung: document.getElementById('audit_sirupfoerderung').value,
-            Sirupkuehlung: sk, Verbinder: vb, GasSicherung: gs, GasHalterung: gh, Stoerung: st,
+            Sirupkuehlung: sk, Connector: vb, GasSicherung: gs, GasHalterung: gh, Stoerung: st,
             StoerungDatum: st === "Ja" ? formatiereDatum(document.getElementById('audit_stoerung_datum').value) : "",
             StoerungDesc: st === "Ja" ? document.getElementById('audit_stoerung_desc').value : "",
             Checkliste: [], SammelNokGrund: "" 
@@ -2454,21 +2459,21 @@
             result.Checkliste.push({ item: itemText, status: val || "Unbeantwortet" });
         }
 
-        if (!alleBeantwortet) { alert("Bitte setze bei jedem Punkt der Checkliste einen Haken (OK oder NOK)!"); return; }
+        if (!alleBeantwortet) { alert("Please tick every item in the checklist (OK or NOK)!"); return; }
         if (anzahlNok > 0) {
             let grund = document.getElementById('global_nok_reason').value.trim();
-            if (grund === "") { alert("Es wurde mindestens ein Mangel (NOK) gefunden. Bitte gib unten eine Begründung ein!"); return; }
+            if (grund === "") { alert("At least one defect (NOK) was found. Please enter a reason below!"); return; }
             result.SammelNokGrund = grund;
         }
 
         console.log("AUDIT DATEN (TAB 1):", result);
-        alert(`Tab 1 gültig! Daten für Excel-Transfer bereit.`);
+        alert(`Tab 1 valid! Data ready for Excel transfer.`);
     }
     /** LOGIK FÜR TAB 3: INVENTORY AGE **/
     // Hilfsfunktion zum Generieren von Dropdown-Optionen aus den Stammdaten
     function getOptions(navKey, selected = "") {
         const data = getSheetData("Auswahllisten");
-        if (!data || data.length < 2) return `<option value="">Keine Daten</option>`;
+        if (!data || data.length < 2) return `<option value="">No data</option>`;
 
         const h = data[0].map(x => String(x).toLowerCase().trim());
         const iNav = h.indexOf("navigation");
@@ -2502,7 +2507,7 @@
         const expDate = document.getElementById('inv_expDate').value;
 
         if (!product || !amount || !expDate) {
-            alert("Bitte alle Felder ausfüllen.");
+            alert("Please fill in all fields.");
             return;
         }
 
@@ -2526,7 +2531,7 @@
         const header = document.getElementById('inventoryHeader');
         
         if (!auditData.inventory || auditData.inventory.length === 0) {
-            container.innerHTML = '<p style="color: gray; text-align: center;">Keine Bestände hinzugefügt.</p>';
+            container.innerHTML = '<p style="color: gray; text-align: center;">No inventory items added.</p>';
             header.classList.add('hidden');
             return;
         }
@@ -2605,7 +2610,7 @@
         // Befüllt das neue Carb Water Taste Dropdown in Tab 4
         let carbSelect = document.getElementById('iw_carb_taste_reason');
         if(carbSelect) {
-            carbSelect.innerHTML = '<option value="">-- Off taste Grund wählen --</option>';
+            carbSelect.innerHTML = '<option value="">-- Select off-taste reason --</option>';
             lookups.taste.forEach(t => carbSelect.innerHTML += `<option value="${t.bez}">${t.bez}</option>`);
         }
 
@@ -2613,13 +2618,13 @@
     }
     function fillSelect(id, array) {
         let el = document.getElementById(id); if(!el) return;
-        el.innerHTML = `<option value="">-- Bitte wählen --</option>`;
+        el.innerHTML = `<option value="">-- Please select --</option>`;
         array.forEach(opt => el.innerHTML += `<option value="${opt.bez}" data-nav2="${opt.nav2 || ''}">${opt.bez}</option>`);
     }
 
     function addDispenser() {
         let loc = document.getElementById('new_disp_location').value;
-        if(!loc) return alert("Bitte wähle eine Location aus!");
+        if(!loc) return alert("Please select a location!");
         let newDisp = { id: Date.now().toString(), loc: loc, qa: {}, valves: [] };
         auditData.dispensers.push(newDisp);
         document.getElementById('new_disp_location').value = "";
@@ -2629,7 +2634,7 @@
     // NEU: HIER IST DIE DELETE FUNKTION FÜR DISPENSER DRIN
     function renderDispenserList() {
         let box = document.getElementById('dispenserListContainer'); box.innerHTML = "";
-        if(auditData.dispensers.length === 0) { box.innerHTML = "<p style='font-size:0.85rem; color:#666;'>Noch keine angelegt.</p>"; return; }
+        if(auditData.dispensers.length === 0) { box.innerHTML = "<p style='font-size:0.85rem; color:#666;'>None created yet.</p>"; return; }
         
         auditData.dispensers.forEach((disp, idx) => {
             box.innerHTML += `
@@ -2638,14 +2643,14 @@
                         <span>${idx+1}. ${disp.loc}</span>
                         <span style="font-size:0.75rem; color:#888; margin-left:10px;">${disp.valves.length} Valves</span>
                     </div>
-                    <button class="btn-danger" style="padding: 4px 8px; font-size: 0.8rem;" onclick="deleteDispenser(event, '${disp.id}')" title="Dispenser löschen">✖</button>
+                    <button class="btn-danger" style="padding: 4px 8px; font-size: 0.8rem;" onclick="deleteDispenser(event, '${disp.id}')" title="Delete dispenser">✖</button>
                 </div>`;
         });
     }
 
     function deleteDispenser(event, id) {
         event.stopPropagation();
-        if(!confirm("Möchtest du diesen Dispenser und alle seine Ventile wirklich löschen?")) return;
+        if(!confirm("Do you really want to delete this dispenser and all its valves?")) return;
         let index = auditData.dispensers.findIndex(d => d.id === id);
         if(index !== -1) auditData.dispensers.splice(index, 1);
         if(activeDispId === id) {
@@ -2695,11 +2700,11 @@
                 </div>`;
         });
 
-        // Ice-bin Zustand
+        // Ice-bin Condition
         let iceVal = disp.qa["qa_ice"] || "";
         qaBox.innerHTML += `
             <div style="display:flex; justify-content:space-between; border-bottom:1px solid #eee; padding:5px 0; background: #f0f9ff; margin-top:5px; border-radius:4px;">
-                <span style="font-weight:bold;">🧊 Ice-bin Zustand</span>
+                <span style="font-weight:bold;">🧊 Ice-bin Condition</span>
                 <div class="radio-group" style="margin-top:0;">
                     <label><input type="radio" name="ice_${disp.id}" value="OK" ${iceVal==='OK'?'checked':''} onchange="saveDispQa('${disp.id}', 'qa_ice', 'OK')"> OK</label>
                     <label><input type="radio" name="ice_${disp.id}" value="NOK" ${iceVal==='NOK'?'checked':''} onchange="saveDispQa('${disp.id}', 'qa_ice', 'NOK')"> NOK</label>
@@ -2713,7 +2718,7 @@
         qaBox.innerHTML += `
             <div style="border-bottom:1px solid #eee; padding:8px 0; background: #fffbeb; border-radius:4px; margin-top:5px;">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <span style="font-weight:bold;">🏷️ Product Labeling / Beschriftung</span>
+                    <span style="font-weight:bold;">🏷️ Product Labeling</span>
                     <div class="radio-group" style="margin-top:0;">
                         <label><input type="radio" name="lab_${disp.id}" value="OK" ${labVal==='OK'?'checked':''} onchange="toggleLabelComment('${disp.id}', 'OK')"> OK</label>
                         <label><input type="radio" name="lab_${disp.id}" value="NOK" ${labVal==='NOK'?'checked':''} onchange="toggleLabelComment('${disp.id}', 'NOK')"> NOK</label>
@@ -2721,7 +2726,7 @@
                 </div>
                 <div id="lab_comm_box_${disp.id}" style="display: ${labVal==='NOK'?'block':'none'}; margin-top:8px;">
                     <textarea style="width:100%; font-size:0.85rem; min-height:45px; border:1px solid #dc3545;" 
-                        placeholder="Welche Beschriftung fehlt?" 
+                        placeholder="Which Labeling is missing?" 
                         oninput="saveDispQa('${disp.id}', 'qa_labeling_comment', this.value)">${labComm}</textarea>
                 </div>
             </div>`;
@@ -2743,7 +2748,7 @@
         let prodSelect = document.getElementById('new_valve_product'); let typeSelect = document.getElementById('new_valve_type');
         let prod = prodSelect.value; let type = typeSelect.value;
         let nav2 = prodSelect.options[prodSelect.selectedIndex]?.dataset?.nav2 || ""; 
-        if(!prod || !type) return alert("Bitte Product und Type wählen!");
+        if(!prod || !type) return alert("Please select product and type!");
         let d = auditData.dispensers.find(x => x.id === activeDispId); if(!d) return;
 
         let newValve = { id: 'v_' + Date.now(), prod: prod, type: type, nav2: String(nav2).trim(), inputs: {} };
@@ -2759,7 +2764,7 @@
     }
     
     function deleteValve(idx) {
-        event.stopPropagation(); if(!confirm("Ventil wirklich löschen?")) return;
+        event.stopPropagation(); if(!confirm("Do you really want to delete this valve?")) return;
         let d = auditData.dispensers.find(x => x.id === activeDispId); let deletedId = d.valves[idx].id;
         d.valves.splice(idx, 1);
         if(activeValveId === deletedId) { activeValveId = null; document.getElementById('valveInputFormArea').style.display = 'none'; }
@@ -2812,7 +2817,7 @@
 
         if(!v.nav2 || v.nav2.trim() === "") { 
             formArea.style.display = 'block'; 
-            fieldsBox.innerHTML = "<p style='color:#666; font-style:italic;'>Für dieses Produkt sind keine spezifischen Messungen erforderlich.</p>"; 
+            fieldsBox.innerHTML = "<p style='color:#666; font-style:italic;'>No specific measurements are required for this product.</p>"; 
             return; 
         }
         
@@ -2825,13 +2830,13 @@
         <div class="input-group" style="background:#fff3cd; padding:10px; border-radius:6px; border: 1px solid #ffeeba; margin-bottom: 15px;">
             <label style="cursor:pointer; display:flex; align-items:center; gap:8px; color:#856404; margin:0;">
                 <input type="checkbox" onchange="toggleValveLeer('${v.id}', this.checked)" ${isLeer ? 'checked' : ''} style="width:18px; height:18px;">
-                Produkt an Valve leer (Keine Messwerte erforderlich)
+                Product at valve empty (no measurements required)
             </label>
         </div>`;
 
         // Wenn das Ventil leer ist, zeichne den Rest des Formulars NICHT
         if(isLeer) {
-            html += `<p style='color:var(--danger); font-weight:bold;'>Valve als "leer" markiert. Keine weiteren Eingaben nötig.</p>`;
+            html += `<p style='color:var(--danger); font-weight:bold;'>Valve marked as "empty". No further entries required.</p>`;
             fieldsBox.innerHTML = html;
             return; 
         }
@@ -2842,7 +2847,7 @@
         };
 
         if(v.nav2 === "CCHBC") {
-            let packOpts = `<option value="">-- Wählen --</option>`; 
+            let packOpts = `<option value="">-- Select --</option>`; 
             let currentPack = v.inputs.package ? String(v.inputs.package).trim() : "";
             lookups.package.forEach(p => { 
                 let pBez = String(p.bez).trim();
@@ -2855,7 +2860,7 @@
             let expireVal = v.inputs.expireDate || "";
             let showRm = v.inputs.showRestmenge ? "flex" : "none";
             
-            let restOpts = `<option value="">-- Bitte wählen --</option>`;
+            let restOpts = `<option value="">-- Please select --</option>`;
             for(let i=10; i<=100; i+=10) { restOpts += `<option value="${i}" ${v.inputs.restmenge == i ? "selected" : ""}>${i}%</option>`; }
 
             html += `
@@ -2867,17 +2872,17 @@
                     </div>
                 </div>
                 <div class="input-group" id="vi_restmenge_box" style="display:${showRm}; padding: 12px; border: 2px solid var(--danger); background: #fff5f5; border-radius: 8px;">
-                    <label style="color: var(--danger); font-weight: bold; margin-bottom: 8px;">⚠️ Produkt abgelaufen! Restmenge erheben:</label>
+                    <label style="color: var(--danger); font-weight: bold; margin-bottom: 8px;">⚠️ Product expired! Record remaining quantity:</label>
                     <select id="vi_restmenge" onchange="vInput('restmenge', this.value, '${v.prod}')" style="border-color: var(--danger);">${restOpts}</select>
                 </div>`;
         }
 
         let currentIdReason = v.inputs.syrupIdReason ? String(v.inputs.syrupIdReason).trim() : "";
-        let sIdOpts = `<option value="">-- Grund --</option>`;
+        let sIdOpts = `<option value="">-- Reason --</option>`;
         lookups.syrupId.forEach(o => { sIdOpts += `<option value="${String(o.bez).trim()}" ${currentIdReason === String(o.bez).trim() ? "selected" : ""}>${String(o.bez).trim()}</option>`; });
 
         let currentCondReason = v.inputs.syrupCondReason ? String(v.inputs.syrupCondReason).trim() : "";
-        let sCondOpts = `<option value="">-- Grund --</option>`;
+        let sCondOpts = `<option value="">-- Reason --</option>`;
         lookups.syrupCond.forEach(o => { sCondOpts += `<option value="${String(o.bez).trim()}" ${currentCondReason === String(o.bez).trim() ? "selected" : ""}>${String(o.bez).trim()}</option>`; });
 
         let isIdOk = v.inputs.syrupId === "OK" ? "checked" : ""; let isIdNok = v.inputs.syrupId === "NOK" ? "checked" : ""; let showIdReason = isIdNok ? "block" : "none";
@@ -2906,13 +2911,13 @@
             let currentSaub = v.inputs.sauberkeit;
             if (currentSaub === "Ja") currentSaub = "OK"; if (currentSaub === "Nein") currentSaub = "NOK";
             let isSaubOk = currentSaub === "OK" ? "checked" : ""; let isSaubNok = currentSaub === "NOK" ? "checked" : "";
-            html += `<div class="input-group"><label>Valve Sanitation (Sauberkeit)</label><div class="radio-group"><label><input type="radio" name="vi_sauber" value="OK" ${isSaubOk} onchange="vInput('sauberkeit', 'OK', '${v.prod}')"> OK</label><label><input type="radio" name="vi_sauber" value="NOK" ${isSaubNok} onchange="vInput('sauberkeit', 'NOK', '${v.prod}')"> NOK</label></div></div>`;
+            html += `<div class="input-group"><label>Valve Sanitation (Cleanliness)</label><div class="radio-group"><label><input type="radio" name="vi_sauber" value="OK" ${isSaubOk} onchange="vInput('sauberkeit', 'OK', '${v.prod}')"> OK</label><label><input type="radio" name="vi_sauber" value="NOK" ${isSaubNok} onchange="vInput('sauberkeit', 'NOK', '${v.prod}')"> NOK</label></div></div>`;
         }
 
         html += buildInput("Beverage Temperature C°", "temp", "number", `step="0.1"`);
 
         if(v.nav2 === "CCHBC") {
-            let tasteOpts = `<option value="">-- Grund --</option>`; 
+            let tasteOpts = `<option value="">-- Reason --</option>`; 
             let currentTaste = v.inputs.geschmackReason ? String(v.inputs.geschmackReason).trim() : "";
             lookups.taste.forEach(t => { tasteOpts += `<option value="${String(t.bez).trim()}" ${currentTaste === String(t.bez).trim() ? "selected" : ""}>${String(t.bez).trim()}</option>`; });
             let isT_Ok = v.inputs.geschmack === "OK" ? "checked" : ""; let isT_Nok = v.inputs.geschmack === "NOK" ? "checked" : ""; let showReason = isT_Nok ? "block" : "none";
@@ -2921,10 +2926,10 @@
 
         html += buildInput("Water ml", "water", "number");
         html += buildInput("Syrup ml", "syrup", "number");
-        html += buildInput("Ratio (Auto/Manuell)", "ratio", "number", `step="0.1"`);
+        html += buildInput("Ratio (Auto/Manual)", "ratio", "number", `step="0.1"`);
         html += buildInput("Brix (%)", "brix", "number", `step="0.1"`);
         html += buildInput("CO2-Vol (Optional)", "co2", "number", `step="0.1" data-optional="true"`);
-        html += `<div class="input-group" style="border-top:1px solid #ddd; padding-top:10px;"><label>Kommentar</label><textarea id="vi_kommentar" oninput="vInput('kommentar', this.value, '${v.prod}')" placeholder="Optionale Bemerkungen...">${v.inputs.kommentar || ""}</textarea></div>`;
+        html += `<div class="input-group" style="border-top:1px solid #ddd; padding-top:10px;"><label>Comment</label><textarea id="vi_kommentar" oninput="vInput('kommentar', this.value, '${v.prod}')" placeholder="Optional comments...">${v.inputs.kommentar || ""}</textarea></div>`;
 
         fieldsBox.innerHTML = html;
         vInput('dummy', '', v.prod); 
@@ -2965,7 +2970,7 @@
         // CRITICAL: Check if JS "auto-corrected" the date (e.g., Month 15 becomes next year)
         if (testDate.getFullYear() !== y || testDate.getMonth() !== m || testDate.getDate() !== d) {
             box.className = "date-input val-nok";
-            box.title = "Ungültiges Datum! (z.B. Monat 15 existiert nicht)";
+            box.title = "Invalid date! (e.g. month 15 does not exist)";
             return;
         }
 
@@ -3024,10 +3029,10 @@
         let limits = getLimit(productName, messungArt); if(!limits) return; 
         let numVal = parseFloat(value); if(isNaN(numVal)) return;
 
-        let isOk = true; let tooltip = `Grenzwerte für ${messungArt}:\n`;
+        let isOk = true; let tooltip = `Limits for ${messungArt}:\n`;
         if(limits.min !== null) { tooltip += `Min: ${limits.min}\n`; if(numVal < limits.min) isOk = false; }
         if(limits.max !== null) { tooltip += `Max: ${limits.max}\n`; if(numVal > limits.max) isOk = false; }
-        if(limits.soll) { tooltip += `Soll: ${limits.soll}`; }
+        if(limits.soll) { tooltip += `Target: ${limits.soll}`; }
         el.title = tooltip; 
         if(isOk) { el.className = "val-ok"; } else { el.className = "val-nok"; }
     }
@@ -3047,20 +3052,20 @@
         if (inputElement.id.includes("coliform")) {
             if (value > 0) {
                 inputElement.className = "val-nok";
-                inputElement.title = "Kritischer Wert: Coliform darf nicht größer als 0 sein!";
+                inputElement.title = "Critical value: Coliform must not be greater than 0!";
             } else {
                 inputElement.className = "val-ok";
-                inputElement.title = "Wert im Normbereich (0)";
+                inputElement.title = "Value within normal range (0)";
             }
         } 
         // 2. Prüfung für "Total Count" (Grenzwert: 300)
         else {
             if (value > 300) {
                 inputElement.className = "val-nok";
-                inputElement.title = "Kritischer Wert: Total Count über 300!";
+                inputElement.title = "Critical value: Total Count above 300!";
             } else {
                 inputElement.className = "val-ok";
-                inputElement.title = "Wert im Normbereich (<= 300)";
+                inputElement.title = "Value within normal range (<= 300)";
             }
         }
     }
@@ -3078,10 +3083,10 @@
         // Prüfung für "TDS ppm" (Grenzwert: 500)
         if (value > 500) {
             inputElement.className = "val-nok";
-            inputElement.title = "Kritischer Wert: TDS darf nicht größer als 500 ppm sein!";
+            inputElement.title = "Critical value: TDS must not exceed 500 ppm!";
         } else {
             inputElement.className = "val-ok";
-            inputElement.title = "Wert im Normbereich (<= 500 ppm)";
+            inputElement.title = "Value within normal range (<= 500 ppm)";
         }
     }
     // Spezifische Validierung für Tab 4 (Ice And Water)
@@ -3100,20 +3105,20 @@
         if (inputElement.id.toLowerCase().includes("coliform")) {
             if (value > 0) {
                 inputElement.className = "val-nok";
-                inputElement.title = "Kritischer Wert: Coliform darf nicht größer als 0 sein!";
+                inputElement.title = "Critical value: Coliform must not be greater than 0!";
             } else {
                 inputElement.className = "val-ok";
-                inputElement.title = "Wert im Normbereich (0)";
+                inputElement.title = "Value within normal range (0)";
             }
         } 
         // 2. Prüfung für "Total Count" (Grenzwert: 300)
         else {
             if (value > 300) {
                 inputElement.className = "val-nok";
-                inputElement.title = "Kritischer Wert: Total Count über 300!";
+                inputElement.title = "Critical value: Total Count above 300!";
             } else {
                 inputElement.className = "val-ok";
-                inputElement.title = "Wert im Normbereich (<= 300)";
+                inputElement.title = "Value within normal range (<= 300)";
             }
         }
     }
@@ -3160,24 +3165,24 @@
         }
 
         let missing = [];
-        if (!v.inputs.temp || String(v.inputs.temp).trim() === "") missing.push("Temperatur");
+        if (!v.inputs.temp || String(v.inputs.temp).trim() === "") missing.push("Temperature");
         
         let hasRatio = (v.inputs.ratio !== undefined && String(v.inputs.ratio).trim() !== "");
         let hasBrix = (v.inputs.brix !== undefined && String(v.inputs.brix).trim() !== "");
-        if (!hasRatio && !hasBrix) missing.push("Ratio oder Brix");
+        if (!hasRatio && !hasBrix) missing.push("Ratio or Brix");
 
         if (v.nav2 === "CCHBC") {
             if (!v.inputs.package) missing.push("Package");
-            if (!v.inputs.sauberkeit) missing.push("Sauberkeit");
-            if (!v.inputs.geschmack) missing.push("Geschmack");
-            if (v.inputs.geschmack === "NOK" && !v.inputs.geschmackReason) missing.push("Grund für Geschmack NOK");
-            if (!v.inputs.expireDate) missing.push("MHD / Expire Date");
+            if (!v.inputs.sauberkeit) missing.push("Cleanliness");
+            if (!v.inputs.geschmack) missing.push("Taste");
+            if (v.inputs.geschmack === "NOK" && !v.inputs.geschmackReason) missing.push("Reason for taste NOK");
+            if (!v.inputs.expireDate) missing.push("Expiry date");
         }
 
         if (!v.inputs.syrupId) missing.push("Syrup Identification");
-        if (v.inputs.syrupId === "NOK" && !v.inputs.syrupIdReason) missing.push("Grund für Syrup ID NOK");
+        if (v.inputs.syrupId === "NOK" && !v.inputs.syrupIdReason) missing.push("Reason for Syrup ID NOK");
         if (!v.inputs.syrupCond) missing.push("Syrup Condition");
-        if (v.inputs.syrupCond === "NOK" && !v.inputs.syrupCondReason) missing.push("Grund für Syrup Cond NOK");
+        if (v.inputs.syrupCond === "NOK" && !v.inputs.syrupCondReason) missing.push("Reason for syrup condition NOK");
 
         return { isOK: missing.length === 0, fields: missing };
     }
@@ -3194,7 +3199,7 @@
                 if(foundV) {
                     let res = isValveComplete(foundV);
                     el.style.borderLeft = res.isOK ? "5px solid var(--success)" : "5px solid var(--danger)";
-                    el.title = res.isOK ? "Vollständig" : "Es fehlt: " + res.fields.join(", ");
+                    el.title = res.isOK ? "Complete" : "Missing: " + res.fields.join(", ");
                 }
             }
         });
@@ -3442,7 +3447,7 @@
             }
 
         } catch (e) {
-            console.error("Fehler beim Laden:", e);
+            console.error("Error while loading:", e);
         }
     }
     // Generiert den Schlüssel YYYYMMDD_OMNo
@@ -3667,9 +3672,9 @@
 
         // 1. Ist das Format strikt DD.MM.YYYY (10 Zeichen)?
         if (val.length !== 10 || !/^\d{2}\.\d{2}\.\d{4}$/.test(val)) {
-            alert("⚠️ Ungültiges Format! Bitte das Datum komplett als DD.MM.YYYY eingeben.");
+            alert("⚠️ Invalid format! Please enter the full date as DD.MM.YYYY.");
             inputElement.className = "date-input val-nok";
-            inputElement.title = "Ungültiges Format";
+            inputElement.title = "Invalid format";
             return;
         }
 
@@ -3682,9 +3687,9 @@
 
         // 2. Existiert das Datum wirklich? (Verhindert Eingaben wie 31.02.2026)
         if (inputDate.getDate() !== day || inputDate.getMonth() !== month || inputDate.getFullYear() !== year) {
-            alert("⚠️ Ungültiges Datum! Dieser Tag existiert im Kalender nicht (z.B. 31. Februar).");
+            alert("⚠️ Invalid date! This day does not exist in the calendar (e.g. 31 February).");
             inputElement.className = "date-input val-nok";
-            inputElement.title = "Ungültiges Datum";
+            inputElement.title = "Invalid date";
             return;
         }
 
@@ -3708,14 +3713,14 @@
         // 4. Ampel-Logik anwenden
         if (diffDays > 365) {
             inputElement.className = "date-input val-nok"; // Wird rot
-            inputElement.title = `Kritisch: Datum liegt mehr als 365 Tage zurück (${diffDays} Tage alt).`;
+            inputElement.title = `Critical: Date is more than 365 days ago (${diffDays} days old).`;
         } else if (diffDays < 0) {
-            alert("⚠️ Das eingegebene Datum darf nicht in der Zukunft liegen!");
+            alert("⚠️ The entered date must not be in the future!");
             inputElement.className = "date-input val-nok";
-            inputElement.title = "Datum liegt in der Zukunft";
+            inputElement.title = "Date is in the future";
         } else {
             inputElement.className = "date-input val-ok"; // Wird grün
-            inputElement.title = `OK: Service/Filter ist ${diffDays} Tage alt.`;
+            inputElement.title = `OK: Service/filter is ${diffDays} days old.`;
         }
     }
     function baueKombiniertenNokKommentar() {
@@ -3730,7 +3735,7 @@
                     let grund = document.getElementById(`nok_reason_${index}`).value.trim();
                     grund = grund.replace(/\|/g, "-"); // Pipes entfernen, damit sie das System nicht stören
                     // Unzerstörbares Format: [Label]::Grund
-                    gesamtKommentar.push(`[${label}]::${grund || "Kein Grund angegeben"}`);
+                    gesamtKommentar.push(`[${label}]::${grund || "No reason provided"}`);
                 }
             });
 
@@ -3738,7 +3743,7 @@
             let globalNok = document.getElementById('global_nok_reason').value.trim();
             if (globalNok) {
                 globalNok = globalNok.replace(/\|/g, "-");
-                gesamtKommentar.push(`[Allgemein]::${globalNok}`);
+                gesamtKommentar.push(`[General]::${globalNok}`);
             }
 
             return gesamtKommentar.join(' | '); 
@@ -3747,7 +3752,7 @@
     // --- PDF BERICHT GENERATOR (VOLLSTÄNDIG) ---
     // ==========================================
     async function generatePdfReport() {
-        blockUI("Erstelle vollständigen PDF Bericht...");
+        blockUI("Creating complete PDF report...");
         
         const dStr = document.getElementById('auditDateInput').value;
         const p = dStr.split('.');
@@ -3760,14 +3765,14 @@
         let eqAudits = assesmentDaten.filter(r => String(r[0]).startsWith(`${dateKey}_${aktuelleOmNo}_`));
         
         if (!tagesAudit && eqAudits.length === 0) {
-            alert("Fehler: Keine Audit-Daten für dieses Datum gefunden.");
+            alert("Error: No audit data found for this date.");
             unblockUI();
             return;
         }
 
         let auditHeaders = auditListe[0].map(h => String(h).toLowerCase().trim());
         let besitzerIdx = auditHeaders.indexOf("besitzer");
-        let auditorName = (tagesAudit && besitzerIdx !== -1 && tagesAudit[besitzerIdx]) ? tagesAudit[besitzerIdx] : (currentUser || "Unbekannt");
+        let auditorName = (tagesAudit && besitzerIdx !== -1 && tagesAudit[besitzerIdx]) ? tagesAudit[besitzerIdx] : (currentUser || "Unknown");
 
         const yn = (val) => {
             if (val === "Ja" || val === "Yes" || val === "OK") return `<span style="color:green;font-weight:bold;">${val}</span>`;
@@ -3784,7 +3789,7 @@
                     <h2 style="margin: 5px 0 0 0; font-size: 14px; color: #666;">Customer Assessment Snapshot</h2>
                 </div>
                 <div style="text-align: right; color: #444; font-size: 12px;">
-                    <strong>Datum:</strong> ${dStr}<br>
+                    <strong>Date:</strong> ${dStr}<br>
                     <strong>Auditor:</strong> ${auditorName}
                 </div>
             </div>
@@ -3851,10 +3856,10 @@
                         <td style="border: 1px solid #ddd; padding: 5px; background: #f2f2f2;"><strong>HB Correct:</strong></td>
                         <td style="border: 1px solid #ddd; padding: 5px;">${yn(gen[43])}</td>
                         <td style="border: 1px solid #ddd; padding: 5px; background: #f2f2f2;"><strong>Fault Report:</strong></td>
-                        <td style="border: 1px solid #ddd; padding: 5px;">${gen[38] === 'Ja' ? `<span style="color:red;font-weight:bold;">Ja (${gen[39]})</span><br>${gen[40]}` : 'Nein'}</td>
+                        <td style="border: 1px solid #ddd; padding: 5px;">${gen[38] === 'Ja' ? `<span style="color:red;font-weight:bold;">Yes (${gen[39]})</span><br>${gen[40]}` : 'No'}</td>
                     </tr>
                 </table>
-                ${gen[49] ? `<div style="background: #fff5f5; border: 1px solid #dc3545; padding: 6px; border-top: none; font-size: 9px; color: #dc3545;"><strong>Checklist Mängel:</strong> ${gen[49]}</div>` : ''}
+                ${gen[49] ? `<div style="background: #fff5f5; border: 1px solid #dc3545; padding: 6px; border-top: none; font-size: 9px; color: #dc3545;"><strong>Checklist defects:</strong> ${String(gen[49]).replace(new RegExp("\\[" + ("All" + "gemein") + "\\]", "g"), "[General]")}</div>` : ''}
             </div>`;
         }
 
@@ -3920,7 +3925,7 @@
                     let v = parseFloat(String(val).replace(',', '.'));
                     if(isNaN(v)) return val;
                     if((lim.min !== null && v < lim.min) || (lim.max !== null && v > lim.max)) {
-                        return `<span style="color:red; font-weight:bold;">${val}</span> <br><span style="font-size:7px; color:#999;">(Soll: ${lim.min||0}-${lim.max||0})</span>`;
+                        return `<span style="color:red; font-weight:bold;">${val}</span> <br><span style="font-size:7px; color:#999;">(Target: ${lim.min||0}-${lim.max||0})</span>`;
                     }
                     return val;
                 };
@@ -4000,7 +4005,7 @@
                 html += `<tr>
                     <td style="padding: 4px; border: 1px solid #ddd;">${parts[0]}</td>
                     <td style="padding: 4px; border: 1px solid #ddd;">${parts[1]}</td>
-                    <td style="padding: 4px; border: 1px solid #ddd; ${isExp?'color:red;font-weight:bold;':''}">${parts[2]} ${isExp?'(ABGELAUFEN)':''}</td>
+                    <td style="padding: 4px; border: 1px solid #ddd; ${isExp?'color:red;font-weight:bold;':''}">${parts[2]} ${isExp?'(EXPIRED)':''}</td>
                 </tr>`;
             });
             html += `</table></div>`;
@@ -4022,7 +4027,7 @@
             unblockUI();
         }).catch(err => {
             console.error(err);
-            alert("Fehler bei der PDF-Erstellung.");
+            alert("Error while creating the PDF.");
             unblockUI();
         });
     }
@@ -4079,7 +4084,7 @@
         return scores;
     }
     function logout() {
-        if(!confirm("Möchtest du dich wirklich abmelden? Die gespeicherten Login-Daten werden gelöscht.")) return;
+        if(!confirm("Do you really want to log out? The saved login data will be deleted.")) return;
         
         // 1. LocalStorage leeren (gespeicherte Login-Daten)
         localStorage.removeItem('qa_saved_user');
@@ -4111,7 +4116,7 @@
         const eqDaten = getSheetData("EquipmentListe");
 
         if(assDaten.length < 2) {
-            alert("Noch keine Audits in der Datenbank vorhanden.");
+            alert("There are no audits in the database yet.");
             return;
         }
 
@@ -4131,13 +4136,13 @@
         const eqHead = eqDaten[0].map(h => String(h).toLowerCase().trim());
         const eqIdxTech = eqHead.indexOf("tech ident no");
 
-        // Wir gehen die Liste rückwärts durch (alle Audits des Users sammeln)
+        // Wir gehen die Liste rückwärts durch (alle Audits sammeln)
         for(let i = assDaten.length - 1; i >= 1; i--) {
             let row = assDaten[i];
             let owner = iBesitzer !== -1 ? String(row[iBesitzer]).trim().toLowerCase() : "";
             
-            // Zeige Audits, wenn du der Besitzer bist
-            if(owner === currentUser.toLowerCase() || owner === "") {
+            // Admins sehen alle Audits; regular Users sehen nur ihre eigenen (oder nicht zugewiesene)
+            if(currentRole === "admin" || owner === currentUser.toLowerCase() || owner === "") {
                 let eqSap = row[iEqNum];
                 let om = row[iOm];
                 
@@ -4150,18 +4155,25 @@
                     let dd = rawDate.substring(6, 8);
                     datum = `${dd}.${mm}.${yyyy}`;
                 } else {
-                    datum = formatToCHDate(rawDate); // Fallback falls es doch anders drinsteht
+                    datum = formatToCHDate(rawDate);
                 }
 
                 let groupKey = datum + "_" + om;
 
                 if (!loadedMyAudits[groupKey]) {
-                    let kName = "Unbekannter Kunde";
+                    let kName = "Unknown customer";
                     if(kIdxOm !== -1 && kIdxName !== -1) {
                         let kRow = kundenDaten.find(r => String(r[kIdxOm]).trim() === String(om).trim());
                         if(kRow) kName = kRow[kIdxName];
                     }
-                    loadedMyAudits[groupKey] = { datum: datum, om: om, kName: kName, equipments: [] };
+                    // Für Admins fügen wir den Namen des Auditors hinzu
+                    loadedMyAudits[groupKey] = { 
+                        datum: datum, 
+                        om: om, 
+                        kName: kName, 
+                        equipments: [],
+                        auditor: owner || "System" 
+                    };
                 }
 
                 let techId = eqSap;
@@ -4176,9 +4188,15 @@
             }
         }
 
+        // Dynamic header update based on role
+        const modalTitle = document.querySelector('#myAuditsModal h2');
+        if (modalTitle) {
+            modalTitle.innerText = currentRole === "admin" ? "📂 All Audits" : "📂 My Audits";
+        }
+
         // Filterfeld zurücksetzen (damit standardmäßig alle gezeigt werden)
         document.getElementById('auditMonthFilter').value = "";
-        
+
         renderMyAuditsList(); 
         document.getElementById('myAuditsModal').style.display = 'flex';
     }
@@ -4223,28 +4241,29 @@
             }
 
             if (show) {
-                count++;
-                listContainer.innerHTML += `
-                    <div style="display:grid; grid-template-columns: 100px 1fr auto; gap: 15px; align-items: center; background:#fff; border:1px solid #cbd5e1; padding: 12px 15px; border-radius: 8px;">
-                        <div style="font-weight:bold; color:#0f172a; font-size: 1.1rem;">${grp.datum}</div>
-                        <div style="line-height: 1.4;">
-                            <span style="font-weight:bold; color:var(--primary); font-size:1.1rem;">${grp.om}</span> - <span style="font-weight:500; color:#334155;">${grp.kName}</span><br>
-                            <span style="color:#64748b; font-size: 0.85rem;">🔧 ${grp.equipments.length} Geräte: ${grp.equipments.join(', ')}</span>
+                    count++;
+                    listContainer.innerHTML += `
+                        <div style="display:grid; grid-template-columns: 100px 1fr auto; gap: 15px; align-items: center; background:#fff; border:1px solid #cbd5e1; padding: 12px 15px; border-radius: 8px;">
+                            <div style="font-weight:bold; color:#0f172a; font-size: 1.1rem;">${grp.datum}</div>
+                            <div style="line-height: 1.4;">
+                                <span style="font-weight:bold; color:var(--primary); font-size:1.1rem;">${grp.om}</span> - <span style="font-weight:500; color:#334155;">${grp.kName}</span><br>
+                                <span style="color:#64748b; font-size: 0.85rem;">🔧 ${grp.equipments.length} equipment: ${grp.equipments.join(', ')}</span>
+                                ${currentRole === "admin" ? `<br><span style="color:#0284c7; font-size: 0.8rem; font-weight:600;">Auditor: ${grp.auditor || 'System'}</span>` : ''}
+                            </div>
+                            <button class="btn-main" style="padding:10px 20px; font-size:0.95rem; border-radius: 6px;" onclick="resumeMyAudit('${grp.om}', '${grp.datum}')">➔ Load</button>
                         </div>
-                        <button class="btn-main" style="padding:10px 20px; font-size:0.95rem; border-radius: 6px;" onclick="resumeMyAudit('${grp.om}', '${grp.datum}')">➔ Laden</button>
-                    </div>
-                `;
-            }
+                    `;
+                }
         });
 
         if(count === 0) {
-            listContainer.innerHTML = `<p style='padding:20px; color:#666; text-align:center; font-size: 1.1rem; background: #f8f9fa; border-radius: 8px;'>Keine Audits für diese Auswahl gefunden.</p>`;
+            listContainer.innerHTML = `<p style='padding:20px; color:#666; text-align:center; font-size: 1.1rem; background: #f8f9fa; border-radius: 8px;'>No audits found for this selection.</p>`;
         }
     }
 
     function resumeMyAudit(omNo, datum) {
         document.getElementById('myAuditsModal').style.display = 'none';
-        blockUI("Lade Kunde...");
+        blockUI("Loading customer...");
         
         // 1. Datum im Haupt-Formular eintragen (Direkt als String, da es jetzt DD.MM.YYYY ist)
         let dateInput = document.getElementById('auditDateInput');
@@ -4270,7 +4289,7 @@
             unblockUI();
         } else {
             unblockUI();
-            alert("Fehler: Dieser Kunde konnte in der aktuellen Datenbank nicht gefunden werden.");
+            alert("Error: This customer could not be found in the current database.");
         }
     }
     // --- AUTO-LOGIN PRÜFUNG BEIM START ---
