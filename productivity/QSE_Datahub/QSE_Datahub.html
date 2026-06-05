@@ -889,9 +889,9 @@
         <h4>📌 Inhaltsverzeichnis</h4>
         <a href="#sec-cpm-kpi">📊 Top KPIs & Übersicht</a>
         <a href="#sec-cpm-lt">📈 Longterm & YoY Trends</a>
-        <a href="#sec-b2b-dash">🏢 B2B Complaints (Detail)</a>
-        <a href="#sec-b2c-dash">👤 B2C Complaints (Detail)</a>
+        <a href="#sec-b2c-dash">👤 Consumer Complaints (Detail)</a>
         <a href="#sec-cpm-matrix">🗂️ CPM Matrix & Rohdaten</a>
+        <a href="#sec-b2b-dash">🏢 Customer Complaints (Detail)</a>
       </div>
     </div>
 
@@ -911,7 +911,7 @@
         </div>
         <div style="width: 150px; background: white; border-radius: 8px; padding: 10px; display:flex; flex-direction:column; justify-content:center; align-items:center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
           <div id="cpmTotalKpi" style="font-size: 40px; font-weight: bold; color: #333;">0.00</div>
-          <div style="font-size: 12px; color: #777; text-align:center;">YTD CPM<br>TOTAL</div>
+          <div style="font-size: 14px; font-weight: 600; color: #555; text-align:center; margin-top: 5px;">YTD CPM<br>TOTAL</div>
         </div>
       </div>
 
@@ -921,7 +921,7 @@
         <div style="flex: 3; min-width: 300px; height: 200px; position: relative;"><canvas id="cpmDietBar"></canvas></div>
         <div style="width: 150px; display:flex; flex-direction:column; justify-content:center; align-items:center;">
           <div id="cpmDietKpi" style="font-size: 34px; font-weight: bold; color: #333;">0.00</div>
-          <div style="font-size: 11px; color: #777; text-align:center;">YTD CPM<br>Dietlikon</div>
+          <div style="font-size: 14px; font-weight: 600; color: #555; text-align:center; margin-top: 5px;">YTD CPM<br>Dietlikon</div>
         </div>
       </div>
 
@@ -931,7 +931,7 @@
         <div style="flex: 3; min-width: 300px; height: 200px; position: relative;"><canvas id="cpmValsBar"></canvas></div>
         <div style="width: 150px; display:flex; flex-direction:column; justify-content:center; align-items:center;">
           <div id="cpmValsKpi" style="font-size: 34px; font-weight: bold; color: #333;">0.00</div>
-          <div style="font-size: 11px; color: #777; text-align:center;">YTD CPM<br>Vals</div>
+          <div style="font-size: 14px; font-weight: 600; color: #555; text-align:center; margin-top: 5px;">YTD CPM<br>Vals</div>
         </div>
       </div>
 
@@ -941,7 +941,7 @@
         <div style="flex: 3; min-width: 300px; height: 200px; position: relative;"><canvas id="cpmImpBar"></canvas></div>
         <div style="width: 150px; display:flex; flex-direction:column; justify-content:center; align-items:center;">
           <div id="cpmImpKpi" style="font-size: 34px; font-weight: bold; color: #333;">0.00</div>
-          <div style="font-size: 11px; color: #777; text-align:center;">YTD CPM<br>Import</div>
+          <div style="font-size: 14px; font-weight: 600; color: #555; text-align:center; margin-top: 5px;">YTD CPM<br>Import</div>
         </div>
       </div>
 
@@ -976,12 +976,12 @@
       </div>
 
       <!-- CPM DEEP INSIGHTS -->
-      <hr style="border:none; border-top: 2px dashed #ddd; margin: 25px 0 15px 0;">
+      <hr style="border:none; border-top: 2px dashed #ddd; margin: 25px 0 / 15px 0;">
       <h3 style="font-size: 16px; margin-bottom: 12px; color:#1e1e1e;">&#129504; Deep Insights & Root Cause Analysis (CPM)</h3>
       
       <div style="display:flex; gap: 15px; flex-wrap: wrap; margin-bottom: 15px;">
         <div style="flex: 1; min-width: 300px; background: white; padding: 15px; border-radius: 8px; border: 1px solid #e0e0e0;">
-          <h4 style="font-size: 13px; color: #444; margin-bottom: 10px;">B2C (Consumer) vs. B2B (Customer) Complaints</h4>
+          <h4 style="font-size: 13px; color: #444; margin-bottom: 10px;">Consumer vs. Customer Complaints</h4>
           <div style="height: 250px; position: relative;"><canvas id="cpmB2bChart"></canvas></div>
         </div>
         <div style="flex: 1; min-width: 300px; background: white; padding: 15px; border-radius: 8px; border: 1px solid #e0e0e0;">
@@ -999,74 +999,19 @@
           <div style="height: 250px; position: relative;"><canvas id="cpmAgeChart"></canvas></div>
         </div>
       </div>
-      <!-- ========================================== -->
-      <!-- B2B COMPLAINTS (CUSTOMER) DETAIL DASHBOARD -->
-      <!-- ========================================== -->
-      <div id="sec-b2b-dash" class="sec-header">🏢 B2B Complaints Detailauswertung</div>
-      
-      <div style="background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px;">
-        <div style="display: flex; gap: 15px; align-items: center; margin-bottom: 15px;">
-          <label style="font-weight: 600; font-size: 13px;">Gruppieren nach:</label>
-          <select id="b2bGroupSel" onchange="renderB2BDash()" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc;">
-            <option value="Plant">Plant (Werk)</option>
-            <option value="Package">Package / Product</option>
-            <option value="Defect">Defect Class</option>
-            <option value="Origin">CH vs. Import</option>
-          </select>
-        </div>
 
-        <div style="display:flex; gap: 15px; flex-wrap: wrap; align-items: flex-start;">
-          <!-- Bar Chart -->
-          <div style="flex: 2; min-width: 400px; height: 250px; position: relative; border: 1px solid #eee; border-radius: 5px; padding: 10px;">
-            <canvas id="b2bGroupBar"></canvas>
-          </div>
-          <!-- Pie Chart -->
-          <div style="flex: 1; min-width: 200px; height: 250px; position: relative; border: 1px solid #eee; border-radius: 5px; padding: 10px;">
-            <canvas id="b2bGroupPie"></canvas>
-          </div>
-        </div>
-
-        <div style="display:flex; gap: 15px; flex-wrap: wrap; margin-top: 15px;">
-          <!-- YTD / PY Tabelle -->
-          <div style="flex: 1; min-width: 300px; overflow-x: auto;">
-            <h4 style="font-size: 13px; margin-bottom: 5px;">Monatsübersicht & YTD vs Previous Year</h4>
-            <table style="width: 100%; border-collapse: collapse; font-size: 11.5px; text-align: right;">
-              <thead style="background: #e8e6e3;"><tr id="b2bYtdHead"></tr></thead>
-              <tbody id="b2bYtdBody"></tbody>
-            </table>
-          </div>
-          <!-- Gruppen Übersicht Tabelle -->
-          <div style="flex: 1; min-width: 300px; overflow-x: auto;">
-            <h4 style="font-size: 13px; margin-bottom: 5px;">Complaints pro Gruppe (Gewähltes Jahr)</h4>
-            <table style="width: 100%; border-collapse: collapse; font-size: 11.5px; text-align: right;">
-              <thead style="background: #e8e6e3;">
-                <tr><th style="padding:5px;text-align:left;">Kategorie</th><th style="padding:5px;">Complaints</th><th style="padding:5px;">% Anteil</th></tr>
-              </thead>
-              <tbody id="b2bGroupBody"></tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- B2B Raw Data mit Spaltenauswahl -->
-        <div style="margin-top: 20px; border-top: 2px dashed #ddd; padding-top: 15px;">
-           <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-             <h4 style="font-size: 13px; margin: 0;">B2B Rohdaten (Gefiltert)</h4>
-             <button onclick="exportB2BTable()" style="background:#107c41; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:11px;">&#128229; Excel Export</button>
-           </div>
-           <div id="b2bColPicker" style="display:flex; flex-wrap:wrap; gap:5px; margin-bottom: 10px;"></div>
-           <div style="overflow-x: auto; max-height: 250px; border: 1px solid #ccc;">
-             <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
-               <thead id="b2bRawHead"></thead>
-               <tbody id="b2bRawBody"></tbody>
-             </table>
-           </div>
+      <!-- NEUES SUBCATEGORY 3 CHART -->
+      <div style="display:flex; gap: 15px; margin-bottom: 30px; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 100%; background: white; padding: 15px; border-radius: 8px; border: 1px solid #e0e0e0;">
+          <h4 style="font-size: 13px; color: #444; margin-bottom: 10px;">Consumer Complaints per Subcategory 3 by Plant / Origin</h4>
+          <div style="height: 400px; position: relative;"><canvas id="cpmSubcat3Chart"></canvas></div>
         </div>
       </div>
 
       <!-- ========================================== -->
-      <!-- B2C COMPLAINTS (CONSUMER) DETAIL DASHBOARD -->
+      <!-- CONSUMER COMPLAINTS DETAIL DASHBOARD (Ehemals B2C) -->
       <!-- ========================================== -->
-      <div id="sec-b2c-dash" class="sec-header">👤 B2C Complaints Detailauswertung</div>
+      <div id="sec-b2c-dash" class="sec-header">👤 Consumer Complaints Detailauswertung</div>
       
       <div style="background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px;">
         <div style="display: flex; gap: 15px; align-items: center; margin-bottom: 15px;">
@@ -1112,10 +1057,10 @@
           </div>
         </div>
 
-        <!-- B2C Raw Data mit Spaltenauswahl -->
+        <!-- Consumer Raw Data mit Spaltenauswahl -->
         <div style="margin-top: 20px; border-top: 2px dashed #ddd; padding-top: 15px;">
            <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-             <h4 style="font-size: 13px; margin: 0;">B2C Rohdaten (Gefiltert)</h4>
+             <h4 style="font-size: 13px; margin: 0;">Consumer Raw Data (Gefiltert)</h4>
              <button onclick="exportB2CTable()" style="background:#107c41; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:11px;">&#128229; Excel Export</button>
            </div>
            <div id="b2cColPicker" style="display:flex; flex-wrap:wrap; gap:5px; margin-bottom: 10px;"></div>
@@ -1130,10 +1075,10 @@
 
       <div id="sec-cpm-matrix"></div>
       <!-- ========================================== -->
-      <!-- CPM HIERARCHIE MATRIX (Neu!)               -->
+      <!-- CPM HIERARCHIE MATRIX                      -->
       <!-- ========================================== -->
       <div style="margin-bottom: 20px; background: white; padding: 15px; border-radius: 8px; border: 1px solid #e0e0e0; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-        <h3 style="font-size: 15px; margin-bottom: 10px;">CPM Breakdown (Herkunft &#10142; Brand)</h3>
+        <h3 style="font-size: 15px; margin-bottom: 10px;">CPM Breakdown (Herkunft ➔ Brand)</h3>
         <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: right;">
           <thead>
             <tr style="background: #e8e6e3; border-bottom: 2px solid #0078d4;">
@@ -1146,8 +1091,9 @@
           <tbody id="cpmMatrixBody"></tbody>
         </table>
       </div>
+
       <!-- TABELLE UNTEN INKL. EXPORT BUTTON & SPALTEN-AUSWAHL -->
-      <div style="margin-top: 20px; background: white; padding: 15px; border-radius: 8px; border: 1px solid #e0e0e0; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+      <div style="margin-top: 20px; background: white; padding: 15px; border-radius: 8px; border: 1px solid #e0e0e0; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px;">
         <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap:wrap; gap:10px;">
           <h3 id="cpmRawTableTitle" style="font-size: 15px; margin: 0;">Übersicht Pro Material (Gefiltert nach Jahr & Monat)</h3>
           
@@ -1161,7 +1107,7 @@
               <option value="Import">Import</option>
             </select>
             
-            <button onclick="exportCpmTable()" style="background:#107c41; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:12px;">&#128229; Excel Export</button>
+            <button onclick="exportCpmTable()" style="background:#107c41; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:12px;">🗎 Excel Export</button>
           </div>
         </div>
 
@@ -1185,9 +1131,73 @@
         </div>
       </div>
 
-    </div>
-  </div>
-</div>
+      <!-- ========================================== -->
+      <!-- CUSTOMER COMPLAINTS DETAIL DASHBOARD (Ehemals B2B) -->
+      <!-- ========================================== -->
+      <div id="sec-b2b-dash" class="sec-header">🏢 Customer Complaints Detailauswertung</div>
+      
+      <div style="background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px;">
+        <div style="display: flex; gap: 15px; align-items: center; margin-bottom: 15px;">
+          <label style="font-weight: 600; font-size: 13px;">Gruppieren nach:</label>
+          <select id="b2bGroupSel" onchange="renderB2BDash()" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc;">
+            <option value="Plant">Plant (Werk)</option>
+            <option value="Package">Package / Product</option>
+            <option value="Defect">Defect Class</option>
+            <option value="Origin">CH vs. Import</option>
+          </select>
+        </div>
+
+        <div style="display:flex; gap: 15px; flex-wrap: wrap; align-items: flex-start;">
+          <!-- Bar Chart -->
+          <div style="flex: 2; min-width: 400px; height: 250px; position: relative; border: 1px solid #eee; border-radius: 5px; padding: 10px;">
+            <canvas id="b2bGroupBar"></canvas>
+          </div>
+          <!-- Pie Chart -->
+          <div style="flex: 1; min-width: 200px; height: 250px; position: relative; border: 1px solid #eee; border-radius: 5px; padding: 10px;">
+            <canvas id="b2bGroupPie"></canvas>
+          </div>
+        </div>
+
+        <div style="display:flex; gap: 15px; flex-wrap: wrap; margin-top: 15px;">
+          <!-- YTD / PY Tabelle -->
+          <div style="flex: 1; min-width: 300px; overflow-x: auto;">
+            <h4 style="font-size: 13px; margin-bottom: 5px;">Monatsübersicht & YTD vs Previous Year</h4>
+            <table style="width: 100%; border-collapse: collapse; font-size: 11.5px; text-align: right;">
+              <thead style="background: #e8e6e3;"><tr id="b2bYtdHead"></tr></thead>
+              <tbody id="b2bYtdBody"></tbody>
+            </table>
+          </div>
+          <!-- Gruppen Übersicht Tabelle -->
+          <div style="flex: 1; min-width: 300px; overflow-x: auto;">
+            <h4 style="font-size: 13px; margin-bottom: 5px;">Complaints pro Gruppe (Gewähltes Jahr)</h4>
+            <table style="width: 100%; border-collapse: collapse; font-size: 11.5px; text-align: right;">
+              <thead style="background: #e8e6e3;">
+                <tr><th style="padding:5px;text-align:left;">Kategorie</th><th style="padding:5px;">Complaints</th><th style="padding:5px;">% Anteil</th></tr>
+              </thead>
+              <tbody id="b2bGroupBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Customer Raw Data mit Spaltenauswahl -->
+        <div style="margin-top: 20px; border-top: 2px dashed #ddd; padding-top: 15px;">
+           <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+             <h4 style="font-size: 13px; margin: 0;">Customer Raw Data (Gefiltert)</h4>
+             <button onclick="exportB2BTable()" style="background:#107c41; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:11px;">🗎 Excel Export</button>
+           </div>
+           <div id="b2bColPicker" style="display:flex; flex-wrap:wrap; gap:5px; margin-bottom: 10px;"></div>
+           <div style="overflow-x: auto; max-height: 250px; border: 1px solid #ccc;">
+             <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+               <thead id="b2bRawHead"></thead>
+               <tbody id="b2bRawBody"></tbody>
+             </table>
+           </div>
+        </div>
+      </div>
+
+    </div> <!-- Schliesst dash-chart -->
+  </div> <!-- Schliesst dash-layout -->
+</div> <!-- Ende tab-pane pCPM -->
 <!-- ============================================================ -->
 <!-- TAB: WATER & ENV DASHBOARD                                   -->
 <!-- ============================================================ -->
@@ -5508,7 +5518,13 @@ function updateCPM() {
     cpmCharts[ctxId] = new Chart(document.getElementById(ctxId).getContext('2d'), {
       type: 'doughnut', plugins: [ChartDataLabels],
       data: { labels: ['Justified', 'Not Justified', 'Not yet defined'], datasets: [{ data: data, backgroundColor: ['#d83b01', '#107c41', '#a9a9a9'] }] },
-      options: { responsive: true, maintainAspectRatio: false, cutout: '60%', plugins: { legend: { display: false }, datalabels: { color: 'white', font: {weight: 'bold'}, formatter: (v)=>v>0?v:'' } } }
+      options: { 
+        responsive: true, maintainAspectRatio: false, cutout: '60%', 
+        plugins: { 
+          legend: { display: true, position: 'bottom', labels: { boxWidth: 10, font: { size: 9 } } }, 
+          datalabels: { color: 'white', font: {weight: 'bold'}, formatter: (v)=>v>0?v:'' } 
+        } 
+      }
     });
   };
 
@@ -5519,23 +5535,35 @@ function updateCPM() {
       data: {
         labels: monthsKeys,
         datasets: [
-          { type: 'line', label: 'CPM', data: chartData.cpm[plantKey], borderColor: '#000', borderWidth: 2, yAxisID: 'y1',
+          { type: 'bar', label: 'CPM', data: chartData.cpm[plantKey], backgroundColor: colorHex, yAxisID: 'y',
             complaints: chartData.comp[plantKey], sales: chartData.sales[plantKey], 
-            datalabels: { align: 'top', anchor: 'end', color: '#000', font:{weight:'bold'}, offset: 6, formatter: v => v>0 ? v.toFixed(3) : '' }
+            datalabels: { align: 'top', anchor: 'end', color: '#000', font:{weight:'bold', size: 10}, offset: 6, formatter: v => v>0 ? v.toFixed(3) : '' }
           },
-          { type: 'bar', label: "Sales", data: chartData.sales[plantKey], backgroundColor: colorHex, yAxisID: 'y', datalabels: dlblBase }
+          { type: 'line', label: "Sales", data: chartData.sales[plantKey], borderColor: '#555', borderWidth: 2, yAxisID: 'y1', pointRadius: 2, fill: false,
+            datalabels: { display: false }
+          }
         ]
       },
       options: {
         responsive: true, maintainAspectRatio: false, 
         plugins: { 
-          legend: { display: false },
+          legend: { display: true, position: 'top', labels: { boxWidth: 10, font: { size: 10 } } },
           tooltip: { callbacks: { label: function(ctx) {
-            if(ctx.dataset.type === 'line') return [`CPM: ${ctx.raw.toFixed(3)}`, `Complaints: ${ctx.dataset.complaints[ctx.dataIndex]}`, `Sales: ${Math.round(ctx.dataset.sales[ctx.dataIndex]/1000).toLocaleString('de-CH')}k pieces`];
+            if(ctx.dataset.type === 'bar') {
+              return [
+                `CPM: ${ctx.raw.toFixed(3)}`,
+                `Complaints: ${ctx.dataset.complaints[ctx.dataIndex]}`,
+                `Sales: ${Math.round(ctx.dataset.sales[ctx.dataIndex]/1000).toLocaleString('de-CH')}k pieces`
+              ];
+            }
             return `Sales: ${Math.round(ctx.raw/1000).toLocaleString('de-CH')}k pieces`;
           }}}
         },
-        scales: { x: { grid: { display: false } }, y: { display: false, suggestedMax: Math.max(...chartData.sales[plantKey]) * 1.3 }, y1: { position: 'right', display: false, suggestedMax: Math.max(...chartData.cpm[plantKey]) * 1.3 } }
+        scales: { 
+          x: { grid: { display: false } }, 
+          y: { display: false, suggestedMax: Math.max(...chartData.cpm[plantKey]) * 1.3 }, 
+          y1: { position: 'right', display: false, suggestedMax: Math.max(...chartData.sales[plantKey]) * 1.3 } 
+        }
       }
     });
   };
@@ -5566,7 +5594,8 @@ function updateCPM() {
       ]
     },
     options: {
-      responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+      responsive: true, maintainAspectRatio: false, 
+      plugins: { legend: { display: true, position: 'bottom', labels: { boxWidth: 12, font: { size: 10 } } } },
       scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, display: false, suggestedMax: Math.max(...cpmTotalLineArr) * 1.25 } }
     }
   });
@@ -5632,7 +5661,7 @@ function updateCPM() {
   if(cpmCharts['b2b']) cpmCharts['b2b'].destroy();
   cpmCharts['b2b'] = new Chart(document.getElementById('cpmB2bChart').getContext('2d'), {
     type: 'bar', plugins: [ChartDataLabels],
-    data: { labels: monthsKeys, datasets: [{ label: 'B2C', data: b2cAgg, backgroundColor: '#0078d4', datalabels:{color:'white', formatter:v=>v>0?v:''} }, { label: 'B2B', data: b2bAgg, backgroundColor: '#d83b01', datalabels:{color:'white', formatter:v=>v>0?v:''} }]},
+    data: { labels: monthsKeys, datasets: [{ label: 'Consumer', data: b2cAgg, backgroundColor: '#0078d4', datalabels:{color:'white', formatter:v=>v>0?v:''} }, { label: 'Customer', data: b2bAgg, backgroundColor: '#d83b01', datalabels:{color:'white', formatter:v=>v>0?v:''} }]},
     options: { responsive:true, maintainAspectRatio:false, scales:{x:{stacked:true}, y:{stacked:true}} }
   });
 
@@ -5658,6 +5687,77 @@ function updateCPM() {
     type: 'bar', plugins: [ChartDataLabels],
     data: { labels: ageData.map(d=>d.label), datasets: [{ data: ageData.map(d=>d.avgAge), backgroundColor: '#5c2d91', datalabels:{color:'white', align:'right', anchor:'start', offset:4, formatter:v=>v+' d'} }] },
     options: { indexAxis: 'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}} }
+  });
+  // ==========================================
+  // NEUES CHART: SUB-KATEGORIE 3 PRO WERK/STANDORT (HORIZONTAL STACKED BAR)
+  // ==========================================
+  let subcat3Groups = {}; 
+  let allPlantsSet = new Set();
+  
+  globalConsumerData.forEach(row => {
+      let subcat3 = String(row['Complaint Subcategory 3'] || 'Unknown').trim();
+      let plantVal = String(row['Plant'] || 'Unknown').trim();
+      if (!subcat3 || subcat3 === 'null' || subcat3 === '') subcat3 = 'Unknown';
+      if (!plantVal || plantVal === 'null' || plantVal === '') plantVal = 'Unknown';
+      
+      let d = parseDateSafely(row['Req. start']);
+      let rowYear = d ? String(d.getFullYear()) : ""; 
+      if (yearSel !== 'All' && rowYear !== yearSel) return;
+      
+      let justifiedRaw = String(row['Justified?'] || '').trim().toLowerCase();
+      let justified = 'Not yet defined';
+      if (justifiedRaw === 'yes') justified = 'Yes';
+      else if (justifiedRaw === 'no') justified = 'No';
+      if (justSel !== 'All' && justified !== justSel) return;
+      
+      let cmIdx = getCCHBCMonthIdx(d);
+      if (monthSel !== 'All' && cmIdx > parseInt(monthSel)) return;
+
+      if (!subcat3Groups[subcat3]) subcat3Groups[subcat3] = {};
+      subcat3Groups[subcat3][plantVal] = (subcat3Groups[subcat3][plantVal] || 0) + 1;
+      allPlantsSet.add(plantVal);
+  });
+
+  let sortedSubcats = Object.keys(subcat3Groups).sort((a, b) => {
+      let sumA = Object.values(subcat3Groups[a]).reduce((s, v) => s + v, 0);
+      let sumB = Object.values(subcat3Groups[b]).reduce((s, v) => s + v, 0);
+      return sumB - sumA;
+  });
+
+  let sortedPlants = Array.from(allPlantsSet).sort();
+  let subcatDatasets = sortedPlants.map((plant, pIdx) => {
+      return {
+          label: plant,
+          data: sortedSubcats.map(subcat => subcat3Groups[subcat][plant] || 0),
+          backgroundColor: dashColors[pIdx % dashColors.length],
+          datalabels: {
+              color: 'white',
+              font: { weight: 'bold', size: 10 },
+              formatter: (v) => v > 0 ? v : '' 
+          }
+      };
+  });
+
+  if (cpmCharts['subcat3']) cpmCharts['subcat3'].destroy();
+  cpmCharts['subcat3'] = new Chart(document.getElementById('cpmSubcat3Chart').getContext('2d'), {
+      type: 'bar',
+      plugins: [ChartDataLabels],
+      data: {
+          labels: sortedSubcats,
+          datasets: subcatDatasets
+      },
+      options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+              x: { stacked: true, beginAtZero: true },
+              y: { stacked: true }
+          },
+          plugins: {
+              legend: { position: 'right', labels: { boxWidth: 12, font: { size: 11 } } }
+          }
+      }
   });
 // --- AUFRUF DER NEUEN DETAIL DASHBOARDS ---
   renderB2BDash();
