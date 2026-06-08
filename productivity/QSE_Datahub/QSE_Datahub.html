@@ -8,113 +8,448 @@
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <style>
+    /* Systemweit einheitlicher HBC-Schriftstil mit Fokus auf 'Effra' */
     *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;padding:20px;background:#f4f7f6}
+    body {
+      font-family: 'Effra', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+      padding: 20px;
+      background: #f4f7f6;
+      color: #21313D;
+      line-height: 1.5;
+    }
 
-    /* TOP BAR */
-    .top-bar{display:flex;align-items:center;gap:12px;background:white;padding:12px 18px;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.06);margin-bottom:14px;flex-wrap:wrap}
-    .top-bar h1{font-size:17px;color:#1e1e1e;white-space:nowrap}
-    .year-input{display:flex;align-items:center;gap:6px;font-weight:600;font-size:13px}
-    input[type="number"]{padding:6px 8px;border:1px solid #ccc;border-radius:4px;width:72px;font-size:13px}
-    .top-bar button,.top-bar label.btn{background:#0078d4;color:white;border:none;padding:8px 16px;font-size:13px;font-weight:600;border-radius:5px;cursor:pointer;transition:.15s;white-space:nowrap}
-    .top-bar button:hover,.top-bar label.btn:hover{background:#005a9e}
-    .top-bar button:disabled{background:#ccc;cursor:not-allowed}
-    .btn-excel{background:#107c41 !important}
-    .btn-excel:hover{background:#0c5e31 !important}
-    .btn-import{background:#5c2d91 !important}
-    .btn-import:hover{background:#401f6e !important}
-    #status{font-weight:600;color:#d83b01;font-size:12px;flex:1;min-width:120px}
+    h1, h2, h3, h4, h5, h6, .sec-header, #execTitle {
+      font-family: 'Effra', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+      color: #21313D;
+      font-weight: bold;
+    }
 
-    /* TABS */
-    .tabs{display:flex;gap:3px;margin-bottom:0}
-    .tab-btn{padding:8px 18px;border:none;background:#ddd;color:#444;border-radius:7px 7px 0 0;cursor:pointer;font-size:13px;font-weight:600;transition:.15s}
-    .tab-btn.active{background:white;color:#0078d4;border-bottom:2px solid white}
-    .tab-btn:hover:not(.active){background:#ccc}
-    .tab-pane{display:none;background:white;border-radius:0 8px 8px 8px;box-shadow:0 3px 8px rgba(0,0,0,0.09);padding:18px;margin-bottom:14px}
-    .tab-pane.active{display:block}
+    /* TOP BAR (Kompakter HBC Header) */
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: white;
+      padding: 8px 16px;
+      border-radius: var(--r);
+      box-shadow: var(--shadow);
+      margin-bottom: 15px;
+      flex-wrap: wrap;
+      border-bottom: 3px solid var(--coke-red);
+      gap: 10px;
+    }
+    .top-bar h1 {
+      font-size: 16px;
+      margin: 0;
+    }
+
+    /* DEZENTE & KOMPAKTE BUTTONS */
+    .top-bar button, .env-actions button, .modal-content button, .btn-import, .btn-unmatched {
+      font-family: inherit;
+      background: #21313D;
+      color: white;
+      border: none;
+      padding: 6px 12px; /* Deutlich kompakter */
+      font-size: 12px;    /* Kleinere, dezentere Schrift */
+      font-weight: 600;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+      white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      height: 30px; /* Einheitliche, diskrete Höhe */
+    }
+    .top-bar button:hover, .btn-import:hover {
+      background: #152028;
+    }
+    .top-bar button:active {
+      transform: scale(0.98);
+    }
+    
+    .btn-excel {
+      background: #61A9A4 !important;
+    }
+    .btn-excel:hover {
+      background: #4e8f8a !important;
+    }
+    .btn-import {
+      background: #667C8B !important;
+    }
+    .btn-import:hover {
+      background: #51616c !important;
+    }
+
+   /* DYNAMISCHE, MEHRZEILIGE REGISTERKARTEN (Brand Guidelines konform) */
+    .tabs {
+      display: flex;
+      flex-wrap: wrap; /* Erlaubt das Umbrechen der Tabs auf eine neue Zeile */
+      gap: 3px;
+      margin-bottom: 15px;
+      border-bottom: 2px solid #D0D4D9;
+      padding-top: 5px;
+    }
+    
+    .tab-btn {
+      flex: 1 1 calc(12.5% - 4px); /* Verteilt die Tabs gleichmäßig und flexibel über die Fensterbreite */
+      min-width: 110px;            /* Verhindert, dass Tabs unleserlich schmal gequetscht werden */
+      max-width: 160px;            /* Obere Grenze für ein harmonisches HBC-Seitenbild */
+      padding: 6px 10px;           /* Kompakter Innenabstand für zweizeiligen Text */
+      border: 1px solid #D0D4D9;
+      border-bottom: none;
+      background: #EAF0F6;
+      color: #667C8B;
+      border-radius: 6px 6px 0 0;
+      cursor: pointer;
+      font-size: 11px;             /* Optimierte Größe für mehrzeilige Labels */
+      font-weight: 700;
+      text-align: center;
+      line-height: 1.25;           /* Enge Zeilenhöhe für kompakten Textumbruch */
+      white-space: normal;         /* Aktiviert den automatischen Zeilenumbruch */
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s ease;
+      position: relative;
+      top: 2px;                    /* Richtet die Tabs bündig auf der Grenzlinie aus */
+      min-height: 38px;            /* Garantiert die gleiche Höhe für ein- und zweizeilige Tabs */
+    }
+    
+    .tab-btn:hover {
+      background: #DCE5EE;
+      color: #21313D;
+    }
+    
+    .tab-btn.active {
+      background: white;
+      color: var(--coke-red);
+      border-top: 3px solid var(--coke-red);
+      border-left: 1px solid #D0D4D9;
+      border-right: 1px solid #D0D4D9;
+      border-bottom: 2px solid white; /* Überdeckt sauber die graue Grenzlinie */
+      font-weight: 800;
+    }
+    .tab-pane {
+      display: none;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(33, 49, 61, 0.04);
+      padding: 20px;
+      margin-bottom: 14px;
+    }
+    .tab-pane.active {
+      display: block;
+    }
 
     /* DASHBOARD LAYOUT */
-    .dash-layout{display:flex;gap:0;align-items:stretch}
-    .dash-filters{width:170px;min-width:170px;padding-right:16px;border-right:1px solid #e4e4e4;display:flex;flex-direction:column;gap:12px}
-    .dash-filters .filter-title{font-size:11px;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:.6px;margin-bottom:2px}
-    .dash-filters label{font-size:12px;font-weight:600;color:#444;display:block;margin-bottom:3px}
-    .dash-filters select{width:100%;padding:6px 8px;border:1px solid #d0d0d0;border-radius:5px;font-size:12px;outline:none;color:#222;background:white;cursor:pointer}
-    .dash-filters select:focus{border-color:#0078d4}
-    .dash-filters hr{border:none;border-top:1px solid #eee;margin:2px 0}
-    .dash-chart{flex:1;min-width:0;padding-left:20px;display:flex;flex-direction:column}
-    .dash-chart-title{font-size:13px;font-weight:600;color:#444;margin-bottom:10px;min-height:18px}
-    .dash-chart-wrap{flex:1;position:relative;min-height:380px}
+    .dash-layout {
+      display: flex;
+      gap: 20px;
+      align-items: stretch;
+    }
+    .dash-filters {
+      width: 200px;
+      min-width: 200px;
+      padding: 18px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(33, 49, 61, 0.05);
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+    .dash-filters .filter-title {
+      font-size: 11px;
+      font-weight: 800;
+      color: #667C8B;
+      text-transform: uppercase;
+      letter-spacing: .8px;
+      border-bottom: 1px solid #E2E4E8;
+      padding-bottom: 6px;
+    }
+    .dash-filters label {
+      font-size: 12px;
+      font-weight: 700;
+      color: #21313D;
+      display: block;
+      margin-bottom: 5px;
+    }
+    .dash-filters select, .form-group select, .form-group input, .form-group textarea {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #D0D4D9;
+      border-radius: 6px;
+      font-size: 13px;
+      outline: none;
+      color: #21313D;
+      background: white;
+      cursor: pointer;
+      font-family: inherit;
+      transition: border-color 0.15s;
+    }
+    .dash-filters select:focus, .form-group select:focus, .form-group input:focus {
+      border-color: #E41E2B;
+    }
+    .dash-filters hr {
+      border: none;
+      border-top: 1px solid #eee;
+      margin: 2px 0;
+    }
+    .dash-chart {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+    }
+    .dash-chart-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #444;
+      margin-bottom: 10px;
+      min-height: 18px;
+    }
+    .dash-chart-wrap {
+      flex: 1;
+      position: relative;
+      min-height: 380px;
+    }
 
-    /* FILTER BAR (Produktionsdaten) */
-    .filter-bar{display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap;align-items:center}
-    .filter-bar input[type="text"]{padding:7px 11px;border:1px solid #ccc;border-radius:5px;font-size:13px;width:250px;outline:none}
-    .filter-bar input[type="text"]:focus{border-color:#0078d4}
-    .filter-bar select{padding:7px 10px;border:1px solid #ccc;border-radius:5px;font-size:13px;outline:none}
-    .row-count{font-size:12px;color:#888;margin-left:auto}
-    .btn-unmatched{background:#d83b01;font-size:12px;padding:6px 12px;color:white;border:none;border-radius:5px;cursor:pointer;font-weight:600}
-    .btn-unmatched.active{background:#a80000}
+    /* FILTER BAR */
+    .filter-bar {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .filter-bar input[type="text"] {
+      padding: 7px 11px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 13px;
+      width: 250px;
+      outline: none;
+    }
+    .filter-bar input[type="text"]:focus {
+      border-color: #E41E2B;
+    }
+    .filter-bar select {
+      padding: 7px 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 13px;
+      outline: none;
+    }
+    .row-count {
+      font-size: 12px;
+      color: #888;
+      margin-left: auto;
+    }
 
     /* PAGINATION */
-    .pagination{display:flex;align-items:center;gap:8px;margin-top:10px;justify-content:center}
-    .pagination button{padding:5px 12px;font-size:12px;background:#eee;color:#333;border:none;border-radius:4px;cursor:pointer}
-    .pagination button:hover:not(:disabled){background:#0078d4;color:white}
-    .pagination button:disabled{background:#f0f0f0;color:#aaa;cursor:default}
-    .pagination span{font-size:12px;color:#555}
+    .pagination {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 10px;
+      justify-content: center;
+    }
+    .pagination button {
+      padding: 5px 12px;
+      font-size: 12px;
+      background: #eee;
+      color: #333;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .pagination button:hover:not(:disabled) {
+      background: #E41E2B;
+      color: white;
+    }
+    .pagination button:disabled {
+      background: #f0f0f0;
+      color: #aaa;
+      cursor: default;
+    }
+    .pagination span {
+      font-size: 12px;
+      color: #555;
+    }
 
     /* TABLE */
-    .table-wrap{overflow-x:auto;max-height:52vh;border:1px solid #e0e0e0;border-radius:5px}
-    table{width:100%;border-collapse:collapse;font-size:12.5px}
-    th,td{padding:6px 9px;text-align:left;border-bottom:1px solid #eee;white-space:nowrap}
-    th{background:#e8e6e3;position:sticky;top:0;z-index:1;font-weight:600;font-size:11.5px}
-    tr:hover td{background:#f5f4f1}
-    .mat-col{background:#f0f7f0}
-    th.mat-col{background:#c8e6c9}
-    .row-unmatched td{background:#fff0ee !important;border-left:3px solid #d83b01}
-    .no-data{text-align:center;padding:32px;color:#999;font-size:14px}
-    .badge{display:inline-block;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:600;background:#e1f0ff;color:#0078d4}
-    /* CPM NAVIGATION (ToC) */
-    html { scroll-behavior: smooth; }
-    .cpm-toc { margin-top: 20px; padding: 10px; background: #f4f7f6; border: 1px solid #ccc; border-radius: 6px; font-size: 11.5px; }
-    .cpm-toc h4 { margin-bottom: 8px; color: #1e1e1e; font-size: 12px; }
-    .cpm-toc a { display: block; color: #0078d4; text-decoration: none; padding: 4px 0; font-weight: 600; border-bottom: 1px solid #eaeaea; }
-    .cpm-toc a:hover { color: #005a9e; background: #e1f0ff; padding-left: 5px; transition: 0.2s; }
-    
-    .sec-header { padding: 10px; background: #0078d4; color: white; border-radius: 6px; margin: 30px 0 15px 0; font-size: 16px; }
+    .table-wrap {
+      overflow-x: auto;
+      max-height: 52vh;
+      border: 1px solid #E2E4E8;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(33, 49, 61, 0.02);
+    }
+    th, td {
+      padding: 8px 12px;
+      text-align: left;
+      border-bottom: 1px solid #E2E4E8;
+      white-space: nowrap;
+    }
+    th {
+      background: #F4F5F7;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      font-weight: 700;
+      font-size: 12px;
+      color: #21313D;
+      border-bottom: 2px solid #D0D4D9;
+    }
+    tr:hover td {
+      background: #F8F9FA;
+    }
+    .mat-col {
+      background: #FAFDFB;
+    }
+    th.mat-col {
+      background: #EAF7F2;
+      color: #0E6245;
+    }
+    .row-unmatched td {
+      background: #FFF5F4 !important;
+      border-left: 3px solid #E41E2B;
+    }
+    .no-data {
+      text-align: center;
+      padding: 32px;
+      color: #667C8B;
+      font-size: 13.5px;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 700;
+      background: #EAF0F6;
+      color: #21313D;
+    }
+
+    /* SECTION HEADER */
+    .sec-header {
+      padding: 12px 18px;
+      background: #21313D;
+      color: white;
+      border-radius: 8px;
+      margin: 35px 0 15px 0;
+      font-size: 15px;
+      letter-spacing: 0.3px;
+      border-left: 4px solid #E41E2B;
+    }
+
     /* FILE INSIGHTS & AKKORDEON */
-    details.insight-group { background: white; margin-bottom: 12px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid #e0e0e0; }
-    details.insight-group summary { padding: 12px 15px; font-size: 14px; font-weight: bold; color: #333; cursor: pointer; list-style: none; background: #fdfdfd; border-radius: 6px; transition: background 0.2s; user-select: none; }
-    details.insight-group summary::-webkit-details-marker { display: none; }
-    details.insight-group summary:hover { background: #f0f5fa; color: #0078d4; }
-    details.insight-group[open] summary { border-bottom: 1px solid #eee; border-radius: 6px 6px 0 0; color: #0078d4; }
-    details.insight-group summary::after { content: '\25BC'; float: right; font-size: 12px; color: #888; transition: transform 0.2s; }
-    details.insight-group[open] summary::after { transform: rotate(180deg); }
-    .insight-content { padding: 15px; background: #fff; border-radius: 0 0 6px 6px; }
+    details.insight-group {
+      background: white;
+      margin-bottom: 12px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(33, 49, 61, 0.05);
+      border: 1px solid #E2E4E8;
+      overflow: hidden;
+    }
+    details.insight-group summary {
+      padding: 14px 20px;
+      font-size: 14px;
+      font-weight: 700;
+      color: #21313D;
+      cursor: pointer;
+      list-style: none;
+      background: white;
+      transition: background 0.15s;
+      user-select: none;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    details.insight-group summary::-webkit-details-marker {
+      display: none;
+    }
+    details.insight-group summary:hover {
+      background: #F8F9FA;
+      color: #E41E2B;
+    }
+    details.insight-group[open] summary {
+      border-bottom: 1px solid #E2E4E8;
+      color: #E41E2B;
+      background: #F8F9FA;
+    }
+    details.insight-group summary::after {
+      content: '\25BC';
+      font-size: 10px;
+      color: #667C8B;
+      transition: transform 0.2s;
+    }
+    details.insight-group[open] summary::after {
+      transform: rotate(180deg);
+    }
+    .insight-content {
+      padding: 20px;
+      background: white;
+    }
+
     /* ============================================================ */
-    /* NEUES ENV DASHBOARD STYLING (Isoliert)                       */
+    /* ENV DASHBOARD STYLING (Isoliert)                             */
     /* ============================================================ */
-    #pWater { --bg:#f4f5f7; --surface:#ffffff; --surface2:#f9fafb; --border:#e2e4e8; --text:#1a1d23; --muted:#6b7280; --primary:#0d5c8f; --primary-light:#e8f2fb; --green:#16a34a; --red:#dc2626; --blue:#2563eb; --r:6px; --shadow:0 1px 4px rgba(0,0,0,.08); background: var(--bg); color: var(--text); padding: 0; }
-    #pWater[data-theme="dark"] { --bg:#0f1117; --surface:#1a1d24; --surface2:#22262e; --border:#2d3139; --text:#e4e6ea; --muted:#8b95a1; --primary:#4a9fd4; --primary-light:#1a2d3d; --green:#4ade80; --red:#f87171; --blue:#60a5fa; --shadow:0 1px 4px rgba(0,0,0,.4); }
+    #pWater {
+      --bg: #F4F5F7;
+      --surface: #ffffff;
+      --surface2: #F8F9FA;
+      --border: #E2E4E8;
+      --text: #21313D;
+      --muted: #667C8B;
+      --primary: #E41E2B;
+      --primary-light: #FFF0EE;
+      --green: #107c41;
+      --red: #E41E2B;
+      --blue: #0078d4;
+      --r: 8px;
+      --shadow: 0 4px 12px rgba(33, 49, 61, 0.05);
+      background: var(--bg);
+      color: var(--text);
+      padding: 0;
+    }
+    #pWater[data-theme="dark"] {
+      --bg: #0F1115;
+      --surface: #181A20;
+      --surface2: #20242B;
+      --border: #2D323B;
+      --text: #E3E6EB;
+      --muted: #8B949E;
+      --primary: #FF4D58;
+      --primary-light: #2A1719;
+      --green: #4ADE80;
+      --red: #FF4D58;
+      --blue: #58A6FF;
+      --shadow: 0 4px 15px rgba(0,0,0,0.3);
+    }
     
     .env-app { display:flex; min-height: 80vh; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); }
     .env-sidebar { width: 220px; background: var(--surface); border-right: 1px solid var(--border); padding: 15px; display: flex; flex-direction: column; gap: 15px; flex-shrink: 0; }
     .env-main { flex: 1; padding: 20px; background: var(--bg); overflow-y: auto; }
     
     .env-sidebar-label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 8px; }
-    .env-tab-btn { width: 100%; text-align: left; padding: 8px 12px; border: none; border-radius: var(--r); background: none; color: var(--text); font-size: 13px; font-weight: 500; cursor: pointer; transition: 0.2s; margin-bottom: 4px; }
+    .env-tab-btn { width: 100%; text-align: left; padding: 8px 12px; border: none; border-radius: 8px; background: none; color: var(--text); font-size: 13px; font-weight: 500; cursor: pointer; transition: 0.2s; margin-bottom: 4px; }
     .env-tab-btn:hover { background: var(--surface2); }
     .env-tab-btn.active { background: var(--primary-light); color: var(--primary); font-weight: 600; }
     
     .env-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-    .env-btn-sm { border: 1px solid var(--border); border-radius: var(--r); background: none; color: var(--text); font-size: 12px; padding: 6px; cursor: pointer; transition: 0.2s; text-align: center; }
+    .env-btn-sm { border: 1px solid var(--border); border-radius: 8px; background: none; color: var(--text); font-size: 12px; padding: 6px; cursor: pointer; transition: 0.2s; text-align: center; }
     .env-btn-sm:hover { border-color: var(--primary); color: var(--primary); }
     .env-btn-sm.active { background: var(--primary); color: #fff; border-color: var(--primary); }
     
     .env-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
     .env-title { font-size: 18px; font-weight: 700; color: var(--text); }
-    .env-actions button { padding: 8px 14px; border-radius: var(--r); border: 1px solid var(--primary); background: var(--primary); color: white; font-size: 12px; cursor: pointer; font-weight: 600; }
+    .env-actions button { padding: 8px 14px; border-radius: 8px; border: 1px solid var(--primary); background: var(--primary); color: white; font-size: 12px; cursor: pointer; font-weight: 600; }
     .env-actions button.secondary { background: var(--surface); color: var(--primary); }
     
-    .env-card { background: var(--surface); border-radius: var(--r); border: 1px solid var(--border); box-shadow: var(--shadow); padding: 15px; margin-bottom: 20px; }
+    .env-card { background: var(--surface); border-radius: 8px; border: 1px solid var(--border); box-shadow: var(--shadow); padding: 15px; margin-bottom: 20px; }
     .env-card h4 { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; margin-bottom: 15px; }
     
     .env-table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: right; }
@@ -125,24 +460,26 @@
     .env-val-red { color: var(--red); font-weight: bold; }
     
     .env-narrative { background: var(--primary-light); border-left: 4px solid var(--primary); padding: 15px; border-radius: 4px; font-size: 13px; line-height: 1.6; color: var(--text); }
+
     /* RISK MATRIX STYLING */
-    .risk-matrix { border-collapse: collapse; width: 100%; max-width: 400px; text-align: center; font-size: 13px; margin: 0 auto; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    .risk-matrix { border-collapse: collapse; width: 100%; max-width: 400px; text-align: center; font-size: 13px; margin: 0 auto; box-shadow: 0 4px 10px rgba(33, 49, 61, 0.08); }
     .risk-matrix th { background: #fdfcfb; padding: 10px; border: 1px solid #ccc; font-weight: bold; color: #333; }
     .risk-matrix td { border: 1px solid #999; padding: 12px; font-size: 16px; font-weight: bold; cursor: pointer; transition: transform 0.1s; }
     .risk-matrix td:hover { transform: scale(1.05); box-shadow: inset 0 0 10px rgba(0,0,0,0.2); }
     .risk-matrix td.active-cell { border: 3px solid #000; transform: scale(1.05); }
-    .risk-red { background-color: #d83b01; color: white; }
-    .risk-orange { background-color: #f0a500; color: white; }
-    .risk-green { background-color: #107c41; color: white; }
+    .risk-red { background-color: var(--coke-red); color: white; }
+    .risk-orange { background-color: var(--hbc-orange); color: white; }
+    .risk-green { background-color: var(--green); color: white; }
     .risk-empty { background-color: #f9f9f9; color: #ccc; font-weight: normal; }
+
     /* DEVIATION MODAL */
-    .modal-overlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:999; justify-content:center; align-items:center; }
+    .modal-overlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(33, 49, 61, 0.4); z-index:999; justify-content:center; align-items:center; backdrop-filter: blur(2px); }
     .modal-overlay.active { display:flex; }
-    .modal-content { background:white; width: 600px; max-height: 90vh; overflow-y: auto; padding: 25px; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
-    .modal-header { display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px; border-bottom: 2px solid #f0f0f0; padding-bottom: 10px; }
-    .modal-header h2 { font-size: 18px; color: #003366; margin: 0; }
+    .modal-content { background:white; width: 600px; max-height: 90vh; overflow-y: auto; padding: 25px; border-radius: 8px; box-shadow: 0 10px 25px rgba(33, 49, 61, 0.15); border-top: 5px solid var(--coke-red); }
+    .modal-header { display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px; border-bottom: 2px solid #E2E4E8; padding-bottom: 10px; }
+    .modal-header h2 { font-size: 18px; color: #21313D; margin: 0; }
     .modal-close { background:none; border:none; font-size: 24px; cursor:pointer; color: #999; }
-    .modal-close:hover { color: #d83b01; }
+    .modal-close:hover { color: var(--coke-red); }
     
     .form-group { margin-bottom: 15px; }
     .form-group label { display:block; font-size: 12px; font-weight: 600; color: #444; margin-bottom: 5px; }
@@ -154,39 +491,37 @@
     .reason-row textarea { flex: 3; height: 60px; resize: vertical; }
     .reason-row .attr-input { flex: 1; display:flex; flex-direction:column; }
     .reason-row .attr-input input { text-align: right; }
-    /* ============================================================ */
-    /* LOGIN SCREEN                                                 */
-    /* ============================================================ */
+
+    /* LOGIN SCREEN */
     #loginContainer {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: #f4f7f6; z-index: 9999; display: flex;
+        background: var(--hbc-bg); z-index: 9999; display: flex;
         justify-content: center; align-items: center;
     }
     .login-box {
         background: white; padding: 40px 30px; border-radius: 8px;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 350px; text-align: center;
+        box-shadow: 0 10px 30px rgba(33, 49, 61, 0.08); width: 350px; text-align: center; border-top: 5px solid var(--coke-red);
     }
-    .login-box h2 { font-size: 20px; color: #0078d4; margin-bottom: 25px; }
+    .login-box h2 { font-size: 20px; color: var(--hbc-dark); margin-bottom: 25px; }
     .login-input {
         width: 100%; padding: 10px 12px; margin-bottom: 15px; border: 1px solid #ccc;
         border-radius: 4px; font-size: 14px; box-sizing: border-box; outline: none;
     }
-    .login-input:focus { border-color: #0078d4; }
+    .login-input:focus { border-color: var(--coke-red); }
     .login-btn {
-        width: 100%; background: #0078d4; color: white; border: none; padding: 12px;
+        width: 100%; background: var(--coke-red) !important; color: white; border: none; padding: 12px;
         border-radius: 4px; font-size: 14px; font-weight: bold; cursor: pointer; transition: 0.2s;
     }
-    .login-btn:hover { background: #005a9e; }
-    .login-btn:disabled { background: #ccc; cursor: not-allowed; }
-    .login-error { color: #d83b01; font-size: 12px; margin-bottom: 15px; min-height: 15px; font-weight: 600; }
+    .login-btn:hover { background: #c51824 !important; }
+    .login-error { color: var(--coke-red); font-size: 12px; margin-bottom: 15px; min-height: 15px; font-weight: 600; }
     .remember-row {
         display: flex; align-items: center; justify-content: flex-start;
         margin-bottom: 20px; font-size: 13px; color: #555; cursor: pointer;
     }
     @keyframes pulse-btn {
-        0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(92, 45, 145, 0.7); }
-        70% { transform: scale(1.05); box-shadow: 0 0 0 8px rgba(92, 45, 145, 0); }
-        100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(92, 45, 145, 0); }
+        0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(228, 30, 43, 0.4); }
+        70% { transform: scale(1.05); box-shadow: 0 0 0 8px rgba(228, 30, 43, 0); }
+        100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(228, 30, 43, 0); }
     }
     .remember-row input { margin-right: 8px; cursor: pointer; }
   </style>
@@ -210,42 +545,66 @@
 <!-- HAUPT-APP (Standardmäßig versteckt, wird nach Login sichtbar) -->
 <div id="mainApp" style="display:none;">
 
+  <!-- HBC Brand Guidelines konforme, aufgeräumte Top-Bar -->
   <div class="top-bar">
-    <h1>&#128202; QSE Datahub</h1>
-    
-    <!-- TOGGLE BUTTON FÜR SYNC PANEL -->
-    <button id="toggleSyncBtn" onclick="toggleSyncPanel()" style="background:#0078d4; padding:8px 14px;">⚙️ Sync einblenden</button>
-
-    <!-- AUFGERÄUMTE SYNC BUTTONS (Standardmäßig ausgeblendet) -->
-    <div id="syncPanel" style="display:none; gap:6px; align-items:center; background:#f0f5fa; padding:6px 12px; border-radius:6px; border:1px solid #cce3f5;">
-      <span style="font-size:11px; font-weight:bold; color:#0078d4; margin-right:5px; text-transform:uppercase;">Daten Sync:</span>
-      <button id="btn" onclick="ladeDaten()">&#128260; Master</button>
-      <button id="btnEnv" onclick="ladeEnvDaten()" style="background:#107c41;">&#127757; Env.</button>
-      <button id="btnWaste" onclick="ladeWasteDaten()" style="background:#5c2d91;">&#128465;&#65039; Waste</button>
-      <button id="btnRisk" onclick="ladeRiskDaten()" style="background:#d83b01;">&#9888; Risk</button>
-      <button id="btnChem" onclick="ladeChemicals()" style="background:#4a9fd4; color:white;">☣️ Gefahrstoffe</button>
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <h1 style="font-family: 'Effra', 'Segoe UI', Arial, sans-serif; font-size: 22px; font-weight: bold; color: #21313D; margin: 0; letter-spacing: -0.5px;">QSE Datahub</h1>
     </div>
-
-    <label class="btn btn-import" title="Excel oder CSV importieren (ohne Sync)">
-      &#128194; Import
-      <input type="file" id="importFile" accept=".xlsx,.xls,.csv" onchange="importiereExcel(event)" style="display:none">
-    </label>
-    <button id="exportBtn" class="btn-excel" onclick="exportiereExcel()" style="display:none">&#128229; Export</button>
     
-    <!-- AUFKLAPPBARES STATUS & SYNC LOG PANEL (ACCORDION) -->
-    <details id="syncLogPanel" style="background:#fff; padding:6px 12px; border-radius:6px; border:1px solid #ccc; font-size:11.5px; cursor:pointer; min-width: 260px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-      <summary style="font-weight:bold; color:#555; outline:none; user-select:none;">🕒 Sync- & Lade-Status</summary>
-      <div style="margin-top:6px; display:flex; flex-direction:column; gap:3px; color:#444;" id="syncLogDetails">
-         <!-- Wird dynamisch befüllt -->
-      </div>
-    </details>
-
-    <!-- Verstecktes Status-Element für alte Funktionsaufrufe zur Sicherheit -->
-    <p id="status" style="display:none;"></p>
-    
-    <!-- LOGOUT -->
-    <button onclick="logout()" style="background:#d83b01; margin-left:auto;">&#128682; Logout</button>
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <!-- Zentrale Schaltfläche für administrativen Zugriff -->
+      <button onclick="toggleControlCenter()" style="background: #21313D; color: white; border: none; padding: 10px 18px; font-size: 13px; font-weight: 600; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: 0.2s;">
+        ⚙️ System &amp; Datenverwaltung
+      </button>
+      
+      <button onclick="logout()" style="background: #E41E2B; color: white; border: none; padding: 10px 18px; font-size: 13px; font-weight: 600; border-radius: 6px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 6px;">
+        &#128682; Logout
+      </button>
+    </div>
   </div>
+
+  <!-- Einklappbares Kontrollzentrum (Horizontales HBC Design) -->
+  <div id="controlCenter" style="display: none; background: white; border: 1px solid #A3B2C0; border-radius: 8px; padding: 15px 20px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(33, 49, 61, 0.06); border-top: 3px solid #E41E2B;">
+    <div style="display: flex; gap: 24px; align-items: stretch; justify-content: space-between; flex-wrap: nowrap;">
+      
+      <!-- Spalte 1: Smartsheet-Synchronisationen -->
+      <div style="flex: 1.2; min-width: 0; border-right: 1px solid #E2E4E8; padding-right: 20px;">
+        <h4 style="font-family: inherit; font-size: 13px; color: #21313D; margin-bottom: 8px; font-weight: bold; padding-bottom: 4px; border-bottom: 1.5px solid #667C8B;">🔄 Smartsheet-Sync</h4>
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px; margin-bottom: 6px;">
+          <button id="btn" onclick="ladeDaten()" style="background: #21313D; color: white; border: none; padding: 4px; border-radius: 4px; font-size: 11px; cursor: pointer; font-weight: 600; height: 26px;">Master</button>
+          <button id="btnEnv" onclick="ladeEnvDaten()" style="background: #61A9A4; color: white; border: none; padding: 4px; border-radius: 4px; font-size: 11px; cursor: pointer; font-weight: 600; height: 26px;">Environment</button>
+          <button id="btnWaste" onclick="ladeWasteDaten()" style="background: #DD612C; color: white; border: none; padding: 4px; border-radius: 4px; font-size: 11px; cursor: pointer; font-weight: 600; height: 26px;">Waste</button>
+          <button id="btnRisk" onclick="ladeRiskDaten()" style="background: #AE0F1A; color: white; border: none; padding: 4px; border-radius: 4px; font-size: 11px; cursor: pointer; font-weight: 600; height: 26px;">Risk Matrix</button>
+          <button id="btnChem" onclick="ladeChemicals()" style="background: #770009; color: white; border: none; padding: 4px; border-radius: 4px; font-size: 11px; cursor: pointer; font-weight: 600; grid-column: span 2; height: 26px;">Gefahrstoffe</button>
+        </div>
+        <button id="btnSyncAll" onclick="syncAllDatasets()" style="background: #E41E2B; color: white; border: none; padding: 5px; border-radius: 4px; font-size: 11.5px; cursor: pointer; font-weight: bold; width: 100%; height: 28px;">
+          🔄 Alle nacheinander synchronisieren
+        </button>
+      </div>
+
+      <!-- Spalte 2: Manuelle Aktionen -->
+      <div style="flex: 1; min-width: 0; border-right: 1px solid #E2E4E8; padding-right: 20px; display: flex; flex-direction: column; gap: 6px;">
+        <h4 style="font-family: inherit; font-size: 13px; color: #21313D; margin-bottom: 8px; font-weight: bold; padding-bottom: 4px; border-bottom: 1.5px solid #667C8B;">💾 Daten-Interaktion</h4>
+        <label class="btn btn-import" style="background: #667C8B; color: white; border: none; padding: 4px; border-radius: 4px; font-size: 11px; text-align: center; cursor: pointer; font-weight: 600; display: block; margin: 0; height: 26px; line-height: 18px;">
+          &#128194; Datei importieren
+          <input type="file" id="importFile" accept=".xlsx,.xls,.csv" onchange="importiereExcel(event)" style="display:none">
+        </label>
+        <button id="exportBtn" class="btn-excel" onclick="exportiereExcel()" style="display:none; background: #107c41; color: white; border: none; padding: 4px; border-radius: 4px; font-size: 11px; cursor: pointer; font-weight: 600; width: 100%; height: 26px;">&#128229; Excel Export</button>
+        <button onclick="forceResetCache()" style="background: #E41E2B; color: white; border: none; padding: 4px; border-radius: 4px; font-size: 11px; cursor: pointer; font-weight: 600; width: 100%; height: 26px;">🔄 Cache leeren</button>
+      </div>
+
+      <!-- Spalte 3: Letzte Synchronisationen (Diskreter & schmaler) -->
+      <div style="flex: 1.3; min-width: 0;">
+        <h4 style="font-family: inherit; font-size: 13px; color: #21313D; margin-bottom: 8px; font-weight: bold; padding-bottom: 4px; border-bottom: 1.5px solid #667C8B;">🕒 Sync-Zeitstempel</h4>
+        <div id="syncLogDetails" style="font-size: 11px; color: #667C8B; display: flex; flex-direction: column; gap: 3px;">
+          <!-- Wird zur Laufzeit dynamisch befüllt -->
+        </div>
+      </div>
+
+    </div>
+  </div>
+  <!-- Verstecktes Hilfselement für alte Code-Referenzen -->
+  <p id="status" style="display:none;"></p>
 
 <div class="tabs">
   <button class="tab-btn active" onclick="showTab('pDashboard',this)">&#128200; Master Dashboard</button>
@@ -1273,13 +1632,15 @@
         </div>
 
         <div style="display:flex; gap: 15px; flex-wrap: wrap; margin-bottom: 25px;">
-          <div style="flex: 1; min-width: 300px; background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-            <h4 style="color: #003366; margin-bottom: 10px; border-bottom: 2px solid #0078d4; padding-bottom:5px;">Energy Performance Narrative</h4>
-            <div id="env-narrative-energy" style="font-size: 13px; line-height: 1.5; color: #333;"></div>
-          </div>
+          <!-- Water Narrative (jetzt links) -->
           <div style="flex: 1; min-width: 300px; background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
             <h4 style="color: #003366; margin-bottom: 10px; border-bottom: 2px solid #0078d4; padding-bottom:5px;">Water Performance Narrative</h4>
             <div id="env-narrative-water" style="font-size: 13px; line-height: 1.5; color: #333;"></div>
+          </div>
+          <!-- Energy Narrative (jetzt rechts) -->
+          <div style="flex: 1; min-width: 300px; background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+            <h4 style="color: #003366; margin-bottom: 10px; border-bottom: 2px solid #0078d4; padding-bottom:5px;">Energy Performance Narrative</h4>
+            <div id="env-narrative-energy" style="font-size: 13px; line-height: 1.5; color: #333;"></div>
           </div>
         </div>
 
@@ -1554,9 +1915,16 @@
     <!-- RECHTE SEITE: Visuals -->
     <div class="dash-chart" style="flex:1; background: #e8eaed; padding: 15px; border-radius: 8px; min-width: 0; margin-left: 15px;">
       
-      <!-- TAXONOMY MATRIX (Wie Screenshot 2) -->
+      <!-- TAXONOMY MATRIX -->
       <div style="background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px;">
-        <h3 id="taxTitle" style="font-size: 18px; margin-bottom: 15px; color:#1e1e1e; text-align:left; border-bottom: 2px solid #eee; padding-bottom:10px;">What are the Food Waste Categories (YTD % Split)</h3>
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom:10px; margin-bottom:15px; flex-wrap: wrap; gap:10px;">
+          <h3 id="taxTitle" style="font-size: 18px; color:#1e1e1e; margin:0;">What are the Food Waste Categories (YTD % Split)</h3>
+          <div style="display: flex; gap: 8px;">
+            <span style="font-size:12px; font-weight:bold; color:#777; align-self:center;">📂 Quell-Smartsheets:</span>
+            <a href="https://app.smartsheet.eu/sheets/5GwWfr5W5GcVxr34wMWMQVGww8vFR4FgmcFvhwV1" target="_blank" style="font-size:11px; color:#c00000; font-weight:bold; text-decoration:none; background:#fff0f0; border:1px solid #fcc; padding:4px 8px; border-radius:4px;">Write-Offs 2025</a>
+            <a href="https://app.smartsheet.eu/sheets/mCRVrHGW48jjrQfV9xJHFMgHhg2M3chWJpjp94g1" target="_blank" style="font-size:11px; color:#c00000; font-weight:bold; text-decoration:none; background:#fff0f0; border:1px solid #fcc; padding:4px 8px; border-radius:4px;">Write-Offs 2026</a>
+          </div>
+        </div>
         
         <div style="display:flex; gap: 20px; align-items: stretch;">
             <!-- FOOD LOSS SECTION -->
@@ -1566,38 +1934,38 @@
                 <div style="display:flex; gap: 15px; align-items:flex-start;">
                     <!-- Col 1: Quality -->
                     <div style="flex:1; display:flex; flex-direction:column; gap:10px;">
-                        <div style="background:#fde989; padding:8px; border-radius:3px; font-size:11px;"><b>3</b> Quality Issue <div id="tax_3" style="font-weight:bold; font-size:13px; color:#c00000; margin-top:3px;">0.0%</div></div>
-                        <div style="background:#fde989; padding:8px; border-radius:3px; font-size:11px;"><b>62</b> Quality Issue 3rd Party <div id="tax_62" style="font-weight:bold; font-size:13px; color:#c00000; margin-top:3px;">0.0%</div></div>
+                        <div style="background:#fde989; padding:8px; border-radius:3px; font-size:11px; cursor:help;" title="Code 3 - Quality Issue: Interne Abweichungen der Spezifikation (Brix, CO2, Mikrobiologie) während des Abfüllprozesses."><b>3</b> Quality Issue <div id="tax_3" style="font-weight:bold; font-size:13px; color:#c00000; margin-top:3px;">0.0%</div></div>
+                        <div style="background:#fde989; padding:8px; border-radius:3px; font-size:11px; cursor:help;" title="Code 62 - Quality Issue 3rd Party: Durch Drittpartner, Lieferanten oder Co-Packer verursachte Qualitätsprobleme."><b>62</b> Quality Issue 3rd Party <div id="tax_62" style="font-weight:bold; font-size:13px; color:#c00000; margin-top:3px;">0.0%</div></div>
                         <div style="margin-top:auto; font-weight:bold; color:#c00000; font-size:16px; padding-top:10px; border-top:1px solid #eee;" id="tax_col1">0%</div>
                     </div>
                     
                     <!-- Col 2: Expired -->
                     <div style="flex:1; display:flex; flex-direction:column; gap:10px;">
-                        <div style="background:#fde989; padding:8px; border-radius:3px; font-size:11px;"><b>10</b> Expired WH <div id="tax_10" style="font-weight:bold; font-size:13px; color:#c00000; margin-top:3px;">0.0%</div></div>
-                        <div style="background:#fde989; padding:8px; border-radius:3px; font-size:11px;"><b>43</b> Expired Forecasting Error <div id="tax_43" style="font-weight:bold; font-size:13px; color:#c00000; margin-top:3px;">0.0%</div></div>
-                        <div style="background:#fde989; padding:8px; border-radius:3px; font-size:11px;"><b>42</b> Expired Planning Error <div id="tax_42" style="font-weight:bold; font-size:13px; color:#c00000; margin-top:3px;">0.0%</div></div>
-                        <div style="background:#fde989; padding:8px; border-radius:3px; font-size:11px;"><b>44</b> Expired New Prod. Launches <div id="tax_44" style="font-weight:bold; font-size:13px; color:#c00000; margin-top:3px;">0.0%</div></div>
-                        <div style="background:#fde989; padding:8px; border-radius:3px; font-size:11px;"><b>45</b> Expired De-listed <div id="tax_45" style="font-weight:bold; font-size:13px; color:#c00000; margin-top:3px;">0.0%</div></div>
-                        <div style="background:#fde989; padding:8px; border-radius:3px; font-size:11px;"><b>53</b> Expired End of useful life <div id="tax_53" style="font-weight:bold; font-size:13px; color:#c00000; margin-top:3px;">0.0%</div></div>
+                        <div style="background:#fde989; padding:8px; border-radius:3px; font-size:11px; cursor:help;" title="Code 10 - Expired WH: Im Lager abgelaufenes Mindesthaltbarkeitsdatum (MHD) ohne direkte Planungsfehler-Zuweisung."><b>10</b> Expired WH <div id="tax_10" style="font-weight:bold; font-size:13px; color:#c00000; margin-top:3px;">0.0%</div></div>
+                        <div style="background:#fde989; padding:8px; border-radius:3px; font-size:11px; cursor:help;" title="Code 43 - Expired Forecasting Error: MHD-Ablauf durch Abweichungen zwischen der Absatzprognose (Forecasting) und dem reellen Verkauf."><b>43</b> Expired Forecasting Error <div id="tax_43" style="font-weight:bold; font-size:13px; color:#c00000; margin-top:3px;">0.0%</div></div>
+                        <div style="background:#fde989; padding:8px; border-radius:3px; font-size:11px; cursor:help;" title="Code 42 - Expired Planning Error: Planungsbedingter MHD-Verfall durch Überproduktion oder falsche Reichweitenberechnung."><b>42</b> Expired Planning Error <div id="tax_42" style="font-weight:bold; font-size:13px; color:#c00000; margin-top:3px;">0.0%</div></div>
+                        <div style="background:#fde989; padding:8px; border-radius:3px; font-size:11px; cursor:help;" title="Code 44 - Expired New Prod. Launches: Überhang bei Produktneuheiten (Launches), deren Marktannahme die Erwartungen unterschritt."><b>44</b> Expired New Prod. Launches <div id="tax_44" style="font-weight:bold; font-size:13px; color:#c00000; margin-top:3px;">0.0%</div></div>
+                        <div style="background:#fde989; padding:8px; border-radius:3px; font-size:11px; cursor:help;" title="Code 45 - Expired De-listed: MHD-Ablauf von Produkten nach deren Auslistung aus dem aktiven Verkaufs-Portfolio."><b>45</b> Expired De-listed <div id="tax_45" style="font-weight:bold; font-size:13px; color:#c00000; margin-top:3px;">0.0%</div></div>
+                        <div style="background:#fde989; padding:8px; border-radius:3px; font-size:11px; cursor:help;" title="Code 53 - Expired End of useful life: Erreichen des Verfallsdatums von gelagerten Konzentraten, Sirupen oder Zusatzstoffen."><b>53</b> Expired End of useful life <div id="tax_53" style="font-weight:bold; font-size:13px; color:#c00000; margin-top:3px;">0.0%</div></div>
                         <div style="margin-top:auto; font-weight:bold; color:#c00000; font-size:16px; padding-top:10px; border-top:1px solid #eee;" id="tax_col2">0%</div>
                     </div>
                     
                     <!-- Col 3: Damages WH -->
                     <div style="flex:1; display:flex; flex-direction:column; gap:10px;">
-                        <div style="background:#fde989; padding:8px; border-radius:3px; font-size:11px;"><b>21</b> Damage in WH <div id="tax_21" style="font-weight:bold; font-size:13px; color:#c00000; margin-top:3px;">0.0%</div></div>
-                        <div style="background:#fde989; padding:8px; border-radius:3px; font-size:11px;"><b>22</b> Leakage in WH <div id="tax_22" style="font-weight:bold; font-size:13px; color:#c00000; margin-top:3px;">0.0%</div></div>
-                        <div style="background:#fde989; padding:8px; border-radius:3px; font-size:11px;"><b>23</b> Damages in prep. zone <div id="tax_23" style="font-weight:bold; font-size:13px; color:#c00000; margin-top:3px;">0.0%</div></div>
-                        <div style="background:#fde989; padding:8px; border-radius:3px; font-size:11px;"><b>31</b> Damages Truck Un/loading <div id="tax_31" style="font-weight:bold; font-size:13px; color:#c00000; margin-top:3px;">0.0%</div></div>
-                        <div style="background:#fde989; padding:8px; border-radius:3px; font-size:11px;"><b>51</b> Damages unloading prod. <div id="tax_51" style="font-weight:bold; font-size:13px; color:#c00000; margin-top:3px;">0.0%</div></div>
+                        <div style="background:#fde989; padding:8px; border-radius:3px; font-size:11px; cursor:help;" title="Code 21 - Damage in WH: Mechanische Beschädigung von Fertigwarenpaletten oder Kartons innerhalb des Werkslagers."><b>21</b> Damage in WH <div id="tax_21" style="font-weight:bold; font-size:13px; color:#c00000; margin-top:3px;">0.0%</div></div>
+                        <div style="background:#fde989; padding:8px; border-radius:3px; font-size:11px; cursor:help;" title="Code 22 - Leakage in WH: Undichtigkeiten oder Auslaufen von Gebinden während des Lagerzeitraums."><b>22</b> Leakage in WH <div id="tax_22" style="font-weight:bold; font-size:13px; color:#c00000; margin-top:3px;">0.0%</div></div>
+                        <div style="background:#fde989; padding:8px; border-radius:3px; font-size:11px; cursor:help;" title="Code 23 - Damages in prep. zone: Beschädigungen beim Picking, Umlagern oder Palettieren in der Bereitstellungszone."><b>23</b> Damages in prep. zone <div id="tax_23" style="font-weight:bold; font-size:13px; color:#c00000; margin-top:3px;">0.0%</div></div>
+                        <div style="background:#fde989; padding:8px; border-radius:3px; font-size:11px; cursor:help;" title="Code 31 - Damages Truck Un/loading: Be- und Entladeschäden an Gebinden direkt am Transportfahrzeug."><b>31</b> Damages Truck Un/loading <div id="tax_31" style="font-weight:bold; font-size:13px; color:#c00000; margin-top:3px;">0.0%</div></div>
+                        <div style="background:#fde989; padding:8px; border-radius:3px; font-size:11px; cursor:help;" title="Code 51 - Damages unloading prod.: Transportschäden, die beim direkten Abtransport von der Produktionsabfüllung entstehen."><b>51</b> Damages unloading prod. <div id="tax_51" style="font-weight:bold; font-size:13px; color:#c00000; margin-top:3px;">0.0%</div></div>
                         <div style="margin-top:auto; font-weight:bold; color:#c00000; font-size:16px; padding-top:10px; border-top:1px solid #eee;" id="tax_col3">0%</div>
                     </div>
                     
                     <!-- Col 4: Damages Ext -->
                     <div style="flex:1; display:flex; flex-direction:column; gap:10px;">
-                        <div style="background:#fde989; padding:8px; border-radius:3px; font-size:11px;"><b>41</b> Damages Force Majeure <div id="tax_41" style="font-weight:bold; font-size:13px; color:#c00000; margin-top:3px;">0.0%</div></div>
-                        <div style="background:#fde989; padding:8px; border-radius:3px; font-size:11px;"><b>61</b> Damages 3rd party <div id="tax_61" style="font-weight:bold; font-size:13px; color:#c00000; margin-top:3px;">0.0%</div></div>
-                        <div style="background:#fde989; padding:8px; border-radius:3px; font-size:11px;"><b>63</b> Damages own drivers <div id="tax_63" style="font-weight:bold; font-size:13px; color:#c00000; margin-top:3px;">0.0%</div></div>
-                        <div style="background:#fde989; padding:8px; border-radius:3px; font-size:11px;"><b>64</b> Theft <div id="tax_64" style="font-weight:bold; font-size:13px; color:#c00000; margin-top:3px;">0.0%</div></div>
+                        <div style="background:#fde989; padding:8px; border-radius:3px; font-size:11px; cursor:help;" title="Code 41 - Damages Force Majeure: Außergewöhnliche, nicht abwendbare Einwirkungen wie Unwetter oder Naturereignisse."><b>41</b> Damages Force Majeure <div id="tax_41" style="font-weight:bold; font-size:13px; color:#c00000; margin-top:3px;">0.0%</div></div>
+                        <div style="background:#fde989; padding:8px; border-radius:3px; font-size:11px; cursor:help;" title="Code 61 - Damages 3rd party: Transport- oder Handlingverluste durch beauftragte, externe Dritttransportunternehmen."><b>61</b> Damages 3rd party <div id="tax_61" style="font-weight:bold; font-size:13px; color:#c00000; margin-top:3px;">0.0%</div></div>
+                        <div style="background:#fde989; padding:8px; border-radius:3px; font-size:11px; cursor:help;" title="Code 63 - Damages own drivers: Beschädigungen der Ladung durch Fehler eigener CCHBC-Auslieferungsfahrer."><b>63</b> Damages own drivers <div id="tax_63" style="font-weight:bold; font-size:13px; color:#c00000; margin-top:3px;">0.0%</div></div>
+                        <div style="background:#fde989; padding:8px; border-radius:3px; font-size:11px; cursor:help;" title="Code 64 - Theft: Verluste im Lagerbestand durch Diebstahl oder ungeklärten physischen Schwund."><b>64</b> Theft <div id="tax_64" style="font-weight:bold; font-size:13px; color:#c00000; margin-top:3px;">0.0%</div></div>
                         <div style="margin-top:auto; font-weight:bold; color:#c00000; font-size:16px; padding-top:10px; border-top:1px solid #eee;" id="tax_col4">0%</div>
                     </div>
                 </div>
@@ -1608,19 +1976,13 @@
                 <div style="background:#c00000; color:#fff; font-weight:bold; padding:6px; border-radius:4px; margin-bottom:15px; text-align:center;">Food Waste</div>
                 
                 <div style="display:flex; flex-direction:column; gap:10px;">
-                    <div style="border:1px solid #c00000; padding:8px; border-radius:3px; font-size:11px; background:#fff;"><b>11</b> Returned Short SLED <div id="tax_11" style="font-weight:bold; font-size:13px; color:#c00000; margin-top:3px;">0.0%</div></div>
-                    <div style="border:1px solid #c00000; padding:8px; border-radius:3px; font-size:11px; background:#fff;"><b>12</b> Returned Expired <div id="tax_12" style="font-weight:bold; font-size:13px; color:#c00000; margin-top:3px;">0.0%</div></div>
+                    <div style="border:1px solid #c00000; padding:8px; border-radius:3px; font-size:11px; background:#fff; cursor:help;" title="Code 11 - Returned Short SLED: Vom Handel zurückgewiesene Ware wegen Unterschreitung der vertraglich garantierten Restlaufzeit (SLED)."><b>11</b> Returned Short SLED <div id="tax_11" style="font-weight:bold; font-size:13px; color:#c00000; margin-top:3px;">0.0%</div></div>
+                    <div style="border:1px solid #c00000; padding:8px; border-radius:3px; font-size:11px; background:#fff; cursor:help;" title="Code 12 - Returned Expired: Im Markt abgelaufenes Vollgut, das über Retouren zurückgenommen und vernichtet werden muss."><b>12</b> Returned Expired <div id="tax_12" style="font-weight:bold; font-size:13px; color:#c00000; margin-top:3px;">0.0%</div></div>
                     <div style="font-weight:bold; color:#c00000; font-size:16px; padding-top:10px; border-top:1px solid #eee; margin-bottom: 10px;" id="tax_col5">0%</div>
                     
-                    <!-- SUMMARY BOX MTD & YTD -->
-                    <div style="border:1px solid #c00000; padding:10px; border-radius:3px; font-size:12px; line-height: 1.6; background:#fef8f8;">
-                        <b style="font-size:14px;" id="sumTitleYTD">YTD Summary</b><br>
-                        Volume: <b id="sumYtdKg" style="float:right;">0 Kg</b><br>
-                        Cost: <b id="sumYtdChf" style="float:right;">0 CHF</b><br>
-                        <hr style="border:none; border-top:1px dashed #ccc; margin:5px 0;">
-                        <b style="font-size:14px;" id="sumTitleMTD">MTD Summary</b><br>
-                        Volume: <b id="sumMtdKg" style="float:right;">0 Kg</b><br>
-                        Cost: <b id="sumMtdChf" style="float:right;">0 CHF</b>
+                    <!-- DYNAMISCHE SUMMARY BOX MTD & YTD (INKL. OVERHEAD) -->
+                    <div id="wasteSummaryBox" style="border:1px solid #c00000; padding:10px; border-radius:3px; font-size:12px; line-height: 1.6; background:#fef8f8;">
+                        <!-- Wird via updateWasteDashboard() dynamisch befüllt -->
                     </div>
                 </div>
             </div>
@@ -2818,7 +3180,87 @@ function openCacheDB() {
         request.onerror = e => reject(e.target.error);
     });
 }
-
+// Erzwingt das Leeren aller Browser-Daten-Caches und lädt die Seite komplett neu
+async function forceResetCache() {
+    if(confirm("Möchtest du den Cache komplett leeren und die App neu laden?\n\nAlle offline zwischengespeicherten Daten werden bereinigt und beim nächsten Start frisch geladen.")) {
+        try {
+            // LocalStorage und SessionStorage zurücksetzen
+            localStorage.clear();
+            sessionStorage.clear();
+            
+            // IndexedDB leeren
+            const dbs = await indexedDB.databases();
+            if(dbs && dbs.length > 0) {
+                for(let db of dbs) {
+                    indexedDB.deleteDatabase(db.name);
+                }
+            } else {
+                indexedDB.deleteDatabase('QSEDatahubDB');
+            }
+            
+            alert("Cache erfolgreich bereinigt. Die Seite wird jetzt neu geladen.");
+            window.location.reload(true);
+        } catch(e) {
+            console.error("Fehler beim Cache-Reset:", e);
+            // Fallback Reload
+            indexedDB.deleteDatabase('QSEDatahubDB');
+            window.location.reload(true);
+        }
+    }
+}
+// Schaltet die Sichtbarkeit des administrativen Control Centers um
+window.toggleControlCenter = function() {
+    const center = document.getElementById('controlCenter');
+    if (!center) return;
+    
+    if (center.style.display === 'none') {
+        center.style.display = 'block';
+        // Sanfter Scrollvorgang zum Control Center
+        center.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    } else {
+        center.style.display = 'none';
+    }
+};
+// Führt alle Daten-Synchronisationen sicher nacheinander aus (Sequentiell)
+async function syncAllDatasets() {
+    const btn = document.getElementById('btnSyncAll');
+    if (!btn) return;
+    
+    const originalText = btn.innerText;
+    btn.disabled = true;
+    btn.style.background = '#888';
+    btn.style.cursor = 'not-allowed';
+    
+    try {
+        setStatus("Starte automatischen Komplett-Sync aller Datensätze...");
+        
+        btn.innerText = "⏳ 1/5: Masterdaten laden...";
+        await ladeDaten();
+        
+        btn.innerText = "⏳ 2/5: Umweltdaten laden...";
+        await ladeEnvDaten();
+        
+        btn.innerText = "⏳ 3/5: Waste & Loss laden...";
+        await ladeWasteDaten();
+        
+        btn.innerText = "⏳ 4/5: Risikomatrix laden...";
+        await ladeRiskDaten();
+        
+        btn.innerText = "⏳ 5/5: Gefahrstoffe laden...";
+        await ladeChemicals();
+        
+        setStatus("✓ Alle Datenquellen erfolgreich nacheinander synchronisiert!");
+        alert("Daten-Synchronisation abgeschlossen:\nAlle 5 Datensätze wurden nacheinander aktualisiert.");
+    } catch (e) {
+        setStatus("⚠ Abbruch während des Komplett-Syncs: " + e.message);
+        alert("Fehler während des Komplett-Syncs: " + e.message);
+    } finally {
+        btn.innerText = originalText;
+        btn.disabled = false;
+        btn.style.background = '#E41E2B';
+        btn.style.cursor = 'pointer';
+    }
+}
 async function saveToCache(key, data) {
     try {
         const db = await openCacheDB();
@@ -2920,6 +3362,7 @@ async function loadAppFromCache() {
 
             // 4. ALLE DASHBOARDS ZUM SCHLUSS AKTUALISIEREN
             updateEnvDashboard();
+            setWasteDefaultMonth();
             updateWasteDashboard();
             updateProjectDash();
             updateRiskDashboard();
@@ -4200,7 +4643,8 @@ async function ladeRiskDaten() {
         tsRisk = nowRisk;
         
         updateRiskDashboard();
-        updateStatusForCurrentTab(); // NEU
+        updateStatusForCurrentTab();
+        setStatus("✓ Risk-Sync erfolgreich abgeschlossen!");
     } catch(e) {
         setStatus('Fehler beim Risk Sync: ' + e.message);
         console.error(e);
@@ -6470,20 +6914,21 @@ async function ladeWasteDaten() {
         const parseNum = (val) => {
             if (val === null || val === undefined || val === '') return 0;
             if (typeof val === 'number') return val;
-            let s = String(val).replace(/['’\s]/g, ''); // Entferne alle Hochkommas und Leerschläge
-            // Tausenderpunkt-Erkennung: Wenn z.B. 17.685 vom System kommt
+            
+            // Filtert Buchstaben (wie CHF), Symbole und Hochkommas aus dem String
+            let s = String(val).replace(/[A-Za-z$’'\s]/g, '');
+            
             if (s.includes('.') && !s.includes(',')) {
                 let parts = s.split('.');
-                // Wenn genau 3 Ziffern nach dem letzen Punkt kommen -> Wahrscheinlich Tausender-Trenner
                 if (parts[parts.length - 1].length === 3) s = s.replace(/\./g, '');
             } else if (s.includes(',') && !s.includes('.')) {
                 let parts = s.split(',');
                 if (parts[parts.length - 1].length === 3) s = s.replace(/,/g, '');
                 else s = s.replace(',', '.');
             } else if (s.indexOf(',') > s.indexOf('.')) {
-                s = s.replace(/\./g, '').replace(',', '.'); // Format 1.000,50
+                s = s.replace(/\./g, '').replace(',', '.');
             } else if (s.indexOf('.') > s.indexOf(',')) {
-                s = s.replace(/,/g, ''); // Format 1,000.50
+                s = s.replace(/,/g, '');
             }
             return parseFloat(s) || 0;
         };
@@ -6492,7 +6937,10 @@ async function ladeWasteDaten() {
         const processWriteoffs = (data, year) => {
             data.forEach(r => {
                 let cost = Math.abs(parseNum(r['Cost CHF']));
-                let kg = Math.abs(parseNum(r['Net Weight total in kg = Beverage'] || r['Quantity']));
+                
+                // Hier wird das Bruttogewicht vorrangig ausgelesen
+                let kg = Math.abs(parseNum(r['Gross Weight total in kg'] || r['Net Weight total in kg = Beverage'] || r['Quantity']));
+                
                 if (cost === 0 && kg === 0) return;
 
                 let catRaw = String(r['Kategorie Validierung'] || r['Product Category'] || 'Other').trim();
@@ -6514,6 +6962,10 @@ async function ladeWasteDaten() {
                 let pkg = String(r['Package Type'] || r['Package type'] || r['Packaging Type'] || r['Package'] || 'Unknown').trim();
                 if (pkg === '' || pkg.toLowerCase() === 'undefined' || pkg.toLowerCase() === 'null') pkg = 'Unknown';
 
+                // Sucht fehlertolerant nach der Bruttogewichts-Spalte (mit doppeltem oder einfachem Leerzeichen)
+                let grossWeightColumn = r['Gross Weight total in  kg'] || r['Gross Weight total in kg'] || r['Net Weight total in kg = Beverage'] || r['Quantity'];
+                kg = Math.abs(parseNum(grossWeightColumn));
+
                 combinedData.push({
                     Year: year, // <--- DAS HAT GEFEHLT!
                     Month: parseInt(r['Month Nr.']) || parseInt(r['Monat']) || parseInt(r['Month']) || 0,
@@ -6531,12 +6983,36 @@ async function ladeWasteDaten() {
         // --- 2. LONGTERM VERARBEITEN ---
         globalWasteLT = [];
         ltData.forEach(r => {
-            let year = String(r['Year'] || '').trim();
-            if (year.toLowerCase().includes('total')) return;
-            let cat = String(r['Category'] || '').trim(); 
-            let pkg = String(r['Packaging Type'] || '').trim();
-            let cost = parseNum(r['Total Cost in CHF']);
-            let kg = parseNum(r['Total in kg']);
+            // Interne Hilfsfunktion für tolerante Spaltennamen-Suchen
+            const getVal = (row, colName) => {
+                const keys = Object.keys(row);
+                const norm = colName.replace(/\s+/g, '').toLowerCase();
+                const found = keys.find(k => k.replace(/\s+/g, '').toLowerCase() === norm);
+                return found ? row[found] : '';
+            };
+
+            let year = String(getVal(r, 'Year')).trim();
+            if (year.toLowerCase().includes('total') || !year) return;
+            
+            // Detektion von Destruction & Transportation Costs im Historical Sheet
+            let capkg = String(getVal(r, 'Category & Packaging Type')).trim().toLowerCase();
+            if (capkg.includes('destruction cost') || capkg.includes('transportation cost')) {
+                let costVal = getVal(r, 'Total Cost in CHF');
+                let cost = parseNum(costVal);
+                globalWasteLT.push({
+                    Year: year,
+                    Category: "Overhead",
+                    Type: capkg.includes('destruction') ? "Destruction" : "Transportation",
+                    Cost: cost,
+                    Kg: 0
+                });
+                return; // Beendet diese Iteration
+            }
+            
+            let cat = String(getVal(r, 'Category')).trim(); 
+            let pkg = String(getVal(r, 'Packaging Type')).trim();
+            let cost = parseNum(getVal(r, 'Total Cost in CHF'));
+            let kg = parseNum(getVal(r, 'Total in kg'));
             
             if (cat.toLowerCase().includes('total') || pkg.toLowerCase() === 'warehouse' || cat.toLowerCase().endsWith(' total')) return; 
             
@@ -6629,8 +7105,10 @@ async function ladeWasteDaten() {
         await saveToCache('lastSyncWaste', nowWaste);
         tsWaste = nowWaste;
 
+        setWasteDefaultMonth(); // Aktualisiert die Default-Auswahl basierend auf neuen Daten
         updateWasteDashboard();
-        updateStatusForCurrentTab(); // NEU
+        updateStatusForCurrentTab();
+        setStatus("✓ Waste-Sync erfolgreich abgeschlossen!");
     } catch (e) {
         setStatus("Fehler beim Laden: " + e.message);
         console.error(e);
@@ -10399,6 +10877,29 @@ function updateCO2Dashboard() {
     });
 
 }
+// Ermittelt den letzten Monat mit Realdaten für das gewählte Jahr und setzt den Filter darauf
+function setWasteDefaultMonth() {
+    const yearSel = document.getElementById('wasteYear');
+    const monthSel = document.getElementById('wasteMonth');
+    if (!yearSel || !monthSel || !globalWasteData || globalWasteData.length === 0) return;
+    
+    let activeYear = yearSel.value;
+    if (!activeYear) {
+        let availableYears = [...new Set(globalWasteData.map(r => String(r.Year || r.year)).filter(y => y && y !== 'undefined'))].sort((a,b) => b - a);
+        activeYear = availableYears[0];
+    }
+    
+    // Filtert alle Monate, für die tatsächliche Datensätze im aktiven Jahr vorhanden sind
+    let activeMonths = globalWasteData
+        .filter(r => String(r.Year || r.year) === String(activeYear))
+        .map(r => parseInt(r.Month))
+        .filter(m => m > 0 && m <= 12);
+        
+    if (activeMonths.length > 0) {
+        let maxMonth = Math.max(...activeMonths);
+        monthSel.value = maxMonth.toString();
+    }
+}
 function updateWasteDashboard() {
     // 1. Prüfen, ob Daten da sind
     if (!globalWasteData || globalWasteData.length === 0) {
@@ -10492,13 +10993,48 @@ function updateWasteDashboard() {
     const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     document.getElementById('taxTitle').innerText = `What are the Food Waste Categories (YTD ${MONTH_NAMES[cutoffMonth-1]} ${cy} % Split)`;
     
-    document.getElementById('sumTitleYTD').innerText = `YTD ${cy} (Jan-${MONTH_NAMES[cutoffMonth-1]})`;
-    document.getElementById('sumYtdKg').innerText = formatLargeNumbers(sumKg(taxonomyDataCY)) + ' Kg';
-    document.getElementById('sumYtdChf').innerText = formatLargeNumbers(sumCost(taxonomyDataCY)) + ' CHF';
+    // Extrahieren der Overhead-Kosten (Destruction & Transportation) für das gewählte Jahr
+    let destructionCost = 0;
+    let transportationCost = 0;
+    
+    if (globalWasteLT && globalWasteLT.length > 0) {
+        let destRow = globalWasteLT.find(r => String(r.Year) === String(cy) && r.Category === "Overhead" && r.Type === "Destruction");
+        let transRow = globalWasteLT.find(r => String(r.Year) === String(cy) && r.Category === "Overhead" && r.Type === "Transportation");
+        if (destRow) destructionCost = destRow.Cost;
+        if (transRow) transportationCost = transRow.Cost;
+    }
 
-    document.getElementById('sumTitleMTD').innerText = `MTD ${cy} (Nur ${MONTH_NAMES[cutoffMonth-1]})`;
-    document.getElementById('sumMtdKg').innerText = formatLargeNumbers(sumKg(taxonomyDataMTD)) + ' Kg';
-    document.getElementById('sumMtdChf').innerText = formatLargeNumbers(sumCost(taxonomyDataMTD)) + ' CHF';
+    let ytdMatCost = sumCost(taxonomyDataCY);
+    let totalFinancialImpact = ytdMatCost + destructionCost + transportationCost;
+
+    // Dynamischer Aufbau der Summary Box
+    let sumBoxHtml = `
+        <b style="font-size:14px;">YTD ${cy} (Jan-${MONTH_NAMES[cutoffMonth-1]})</b><br>
+        Volume (Beverage): <b style="float:right;">${Math.round(sumKg(taxonomyDataCY)).toLocaleString('de-CH')} Kg</b><br>
+        Write-Off Cost: <b style="float:right;">${Math.round(ytdMatCost).toLocaleString('de-CH')} CHF</b><br>
+    `;
+
+    if (destructionCost > 0) {
+        sumBoxHtml += `Destruction Cost: <b style="float:right; color:#d83b01;">+${Math.round(destructionCost).toLocaleString('de-CH')} CHF</b><br>`;
+    }
+    if (transportationCost > 0) {
+        sumBoxHtml += `Transportation Cost: <b style="float:right; color:#d83b01;">+${Math.round(transportationCost).toLocaleString('de-CH')} CHF</b><br>`;
+    }
+    if (destructionCost > 0 || transportationCost > 0) {
+        sumBoxHtml += `
+            <hr style="border:none; border-top:1px solid #c00000; margin:4px 0;">
+            Total Fin. Impact: <b style="float:right; color:#c00000; font-weight:bold;">${Math.round(totalFinancialImpact).toLocaleString('de-CH')} CHF</b><br>
+        `;
+    }
+
+    sumBoxHtml += `
+        <hr style="border:none; border-top:1px dashed #ccc; margin:5px 0;">
+        <b style="font-size:14px;">MTD ${cy} (Nur ${MONTH_NAMES[cutoffMonth-1]})</b><br>
+        Volume: <b style="float:right;">${Math.round(sumKg(taxonomyDataMTD)).toLocaleString('de-CH')} Kg</b><br>
+        Cost: <b style="float:right;">${Math.round(sumCost(taxonomyDataMTD)).toLocaleString('de-CH')} CHF</b>
+    `;
+
+    document.getElementById('wasteSummaryBox').innerHTML = sumBoxHtml;
 
     // Prozente für die einzelnen Code-Boxen berechnen
     let totalTaxMetric = sumMetric(taxonomyDataCY);
@@ -10510,11 +11046,42 @@ function updateWasteDashboard() {
         }
     });
 
+    const parentDescriptions = {
+        '3': "Code 3 - Quality Issue: Interne Abweichungen der Spezifikation (Brix, CO2, Mikrobiologie) während des Abfüllprozesses.",
+        '62': "Code 62 - Quality Issue 3rd Party: Durch Drittpartner, Lieferanten oder Co-Packer verursachte Qualitätsprobleme.",
+        '10': "Code 10 - Expired WH: Im Lager abgelaufenes Mindesthaltbarkeitsdatum (MHD) ohne direkte Planungsfehler-Zuweisung.",
+        '43': "Code 43 - Expired Forecasting Error: MHD-Ablauf durch Abweichungen zwischen der Absatzprognose (Forecasting) und dem reellen Verkauf.",
+        '42': "Code 42 - Expired Planning Error: Planungsbedingter MHD-Verfall durch Überproduktion oder falsche Reichweitenberechnung.",
+        '44': "Code 44 - Expired New Prod. Launches: Überhang bei Produktneuheiten (Launches), deren Marktannahme die Erwartungen unterschritt.",
+        '45': "Code 45 - Expired De-listed: MHD-Ablauf von Produkten nach deren Auslistung aus dem aktiven Verkaufs-Portfolio.",
+        '53': "Code 53 - Expired End of useful life: Erreichen des Verfallsdatums von gelagerten Konzentraten, Sirupen oder Zusatzstoffen.",
+        '21': "Code 21 - Damage in WH: Mechanische Beschädigung von Fertigwarenpaletten oder Kartons innerhalb des Werkslagers.",
+        '22': "Code 22 - Leakage in WH: Undichtigkeiten oder Auslaufen von Gebinden während des Lagerzeitraums.",
+        '23': "Code 23 - Damages in prep. zone: Beschädigungen beim Picking, Umlagern oder Palettieren in der Bereitstellungszone.",
+        '31': "Code 31 - Damages Truck Un/loading: Be- und Entladeschäden an Gebinden direkt am Transportfahrzeug.",
+        '51': "Code 51 - Damages unloading prod.: Transportschäden, die beim direkten Abtransport von der Produktionsabfüllung entstehen.",
+        '41': "Code 41 - Damages Force Majeure: Außergewöhnliche, nicht abwendbare Einwirkungen wie Unwetter oder Naturereignisse.",
+        '61': "Code 61 - Damages 3rd party: Transport- oder Handlingverluste durch beauftragte, externe Dritttransportunternehmen.",
+        '63': "Code 63 - Damages own drivers: Beschädigungen der Ladung durch Fehler eigener CCHBC-Auslieferungsfahrer.",
+        '64': "Code 64 - Theft: Verluste im Lagerbestand durch Diebstahl oder ungeklärten physischen Schwund.",
+        '11': "Code 11 - Returned Short SLED: Vom Handel zurückgewiesene Ware wegen Unterschreitung der vertraglich garantierten Restlaufzeit (SLED).",
+        '12': "Code 12 - Returned Expired: Im Markt abgelaufene Ware, die über Retouren zurückgenommen und vernichtet werden muss."
+    };
+
     const updateBox = (code) => {
         let el = document.getElementById('tax_' + code);
         if (el) {
-            let pct = totalTaxMetric > 0 ? (codeSums[code] / totalTaxMetric) * 100 : 0;
+            let val = codeSums[code] || 0;
+            let pct = totalTaxMetric > 0 ? (val / totalTaxMetric) * 100 : 0;
             el.innerText = pct.toFixed(1) + '%';
+            
+            let desc = parentDescriptions[code] || "";
+            let unit = metric === 'Cost' ? 'CHF' : 'Kg';
+            
+            // Setzt das Hover-Tooltip auf der übergeordneten Box
+            if (el.parentNode) {
+                el.parentNode.title = `${desc}\n\n• YTD-Wert: ${Math.round(val).toLocaleString('de-CH')} ${unit}\n• Herleitung: (${Math.round(val).toLocaleString('de-CH')} ${unit} / ${Math.round(totalTaxMetric).toLocaleString('de-CH')} ${unit} Gesamt) * 100 = ${pct.toFixed(2)}%`;
+            }
         }
     };
 
@@ -11815,6 +12382,7 @@ async function ladeChemicals() {
 
         updateChemicals();
         updateStatusForCurrentTab();
+        setStatus("✓ Gefahrstoff-Sync erfolgreich abgeschlossen!");
     } catch(e) {
         setStatus('Fehler beim Gefahrstoff-Sync: ' + e.message);
         console.error(e);
@@ -12271,17 +12839,26 @@ function updateChemicals() {
         const container = document.getElementById('syncLogDetails');
         if (!container) return;
         
-        let statusText = currentLoadingMsg 
-            ? `<div style="color:#d83b01; font-weight:bold; margin-bottom:5px; animation: pulse-btn 1.5s infinite;">⏳ Status: ${currentLoadingMsg}</div>` 
-            : `<div style="color:#107c41; font-weight:bold; margin-bottom:5px;">✓ System bereit (Ruhezustand)</div>`;
+        let isDone = !currentLoadingMsg || 
+                     currentLoadingMsg.includes("✓") || 
+                     currentLoadingMsg.includes("erfolgreich") || 
+                     currentLoadingMsg.includes("bereit") || 
+                     currentLoadingMsg.includes("OK");
+        
+        let statusText = "";
+        if (isDone) {
+            statusText = `<div style="color:#107c41; font-weight:bold; margin-bottom:4px; font-size: 11px;">✓ ${currentLoadingMsg || "System bereit (Ruhezustand)"}</div>`;
+        } else {
+            statusText = `<div style="color:#d83b01; font-weight:bold; margin-bottom:4px; font-size: 11px; animation: pulse-btn 1.5s infinite;">⏳ Status: ${currentLoadingMsg}</div>`;
+        }
         
         container.innerHTML = `
             ${statusText}
-            <div style="display:flex; justify-content:space-between; gap:15px; border-bottom:1px solid #eee; padding-bottom:2px;"><span>Master-Sync:</span><b style="color:#0078d4;">${tsMaster}</b></div>
-            <div style="display:flex; justify-content:space-between; gap:15px; border-bottom:1px solid #eee; padding-bottom:2px;"><span>Environment (Smartsheet):</span><b style="color:#107c41;">${tsEnv}</b></div>
-            <div style="display:flex; justify-content:space-between; gap:15px; border-bottom:1px solid #eee; padding-bottom:2px;"><span>Waste & Abfall (Smartsheet):</span><b style="color:#5c2d91;">${tsWaste}</b></div>
-            <div style="display:flex; justify-content:space-between; gap:15px; border-bottom:1px solid #eee; padding-bottom:2px;"><span>Risikomatrix (Smartsheet):</span><b style="color:#d83b01;">${tsRisk}</b></div>
-            <div style="display:flex; justify-content:space-between; gap:15px;"><span>Gefahrstoffe (Smartsheet):</span><b style="color:#4a9fd4;">${tsChemicals}</b></div>
+            <div style="display:flex; justify-content:space-between; gap:10px; border-bottom:1px solid #f0f0f0; padding-bottom:1px; font-size: 11px;"><span>Master:</span><span style="color:#21313D; font-weight:500;">${tsMaster}</span></div>
+            <div style="display:flex; justify-content:space-between; gap:10px; border-bottom:1px solid #f0f0f0; padding-bottom:1px; font-size: 11px;"><span>Environment:</span><span style="color:#21313D; font-weight:500;">${tsEnv}</span></div>
+            <div style="display:flex; justify-content:space-between; gap:10px; border-bottom:1px solid #f0f0f0; padding-bottom:1px; font-size: 11px;"><span>Waste:</span><span style="color:#21313D; font-weight:500;">${tsWaste}</span></div>
+            <div style="display:flex; justify-content:space-between; gap:10px; border-bottom:1px solid #f0f0f0; padding-bottom:1px; font-size: 11px;"><span>Risk:</span><span style="color:#21313D; font-weight:500;">${tsRisk}</span></div>
+            <div style="display:flex; justify-content:space-between; gap:10px; font-size: 11px;"><span>Gefahrstoffe:</span><span style="color:#21313D; font-weight:500;">${tsChemicals}</span></div>
         `;
     };
 </script>
