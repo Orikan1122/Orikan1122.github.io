@@ -8,6 +8,15 @@
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <style>
+    /* Globale Farb- und Designvariablen */
+    :root {
+      --coke-red: #E41E2B;
+      --hbc-orange: #DD612C;
+      --green: #107C41;
+      --hbc-bg: #f4f7f6;
+      --hbc-dark: #21313D;
+    }
+
     /* Systemweit einheitlicher HBC-Schriftstil mit Fokus auf 'Effra' */
     *{box-sizing:border-box;margin:0;padding:0}
     body {
@@ -429,6 +438,24 @@
       --blue: #58A6FF;
       --shadow: 0 4px 15px rgba(0,0,0,0.3);
     }
+    /* Absicherung der Hintergrundfarben für die Risikomatrix */
+        .risk-matrix td.risk-red {
+          background-color: #E41E2B !important;
+          color: white !important;
+        }
+        .risk-matrix td.risk-orange {
+          background-color: #DD612C !important;
+          color: white !important;
+        }
+        .risk-matrix td.risk-green {
+          background-color: #107C41 !important;
+          color: white !important;
+        }
+        .risk-matrix td.risk-empty {
+          background-color: #F8F9FA !important;
+          color: #ccc !important;
+          font-weight: normal !important;
+        }
     
     .env-app { display:flex; min-height: 80vh; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); }
     .env-sidebar { width: 220px; background: var(--surface); border-right: 1px solid var(--border); padding: 15px; display: flex; flex-direction: column; gap: 15px; flex-shrink: 0; }
@@ -467,10 +494,10 @@
     .risk-matrix td { border: 1px solid #999; padding: 12px; font-size: 16px; font-weight: bold; cursor: pointer; transition: transform 0.1s; }
     .risk-matrix td:hover { transform: scale(1.05); box-shadow: inset 0 0 10px rgba(0,0,0,0.2); }
     .risk-matrix td.active-cell { border: 3px solid #000; transform: scale(1.05); }
-    .risk-red { background-color: var(--coke-red); color: white; }
-    .risk-orange { background-color: var(--hbc-orange); color: white; }
-    .risk-green { background-color: var(--green); color: white; }
-    .risk-empty { background-color: #f9f9f9; color: #ccc; font-weight: normal; }
+    .risk-red { background-color: #E41E2B !important; color: white !important; }
+    .risk-orange { background-color: #DD612C !important; color: white !important; }
+    .risk-green { background-color: #107C41 !important; color: white !important; }
+    .risk-empty { background-color: #f9f9f9 !important; color: #ccc !important; font-weight: normal !important; }
 
     /* DEVIATION MODAL */
     .modal-overlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(33, 49, 61, 0.4); z-index:999; justify-content:center; align-items:center; backdrop-filter: blur(2px); }
@@ -524,6 +551,24 @@
         100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(228, 30, 43, 0); }
     }
     .remember-row input { margin-right: 8px; cursor: pointer; }
+
+    /* Hochspezifische Farbdefinitionen für die Risikomatrix */
+    table.risk-matrix tbody td.risk-red {
+        background-color: #E41E2B !important;
+        color: #ffffff !important;
+    }
+    table.risk-matrix tbody td.risk-orange {
+        background-color: #DD612C !important;
+        color: #ffffff !important;
+    }
+    table.risk-matrix tbody td.risk-green {
+        background-color: #107C41 !important;
+        color: #ffffff !important;
+    }
+    table.risk-matrix tbody td.risk-empty {
+        background-color: #f9f9f9 !important;
+        color: #cccccc !important;
+    }
   </style>
 </head>
 <body>
@@ -4723,58 +4768,101 @@ function getMatrixColor(likelihood, severity) {
 }
 
 function updateRiskDashboard() {
-    if (!globalRiskData || globalRiskData.length === 0) return;
+    const rows = ['A','B','C','D','E'];
+    const cols = ['I','II','III','IV','V'];
+
+    const matrixInlineStyles = {
+        'risk-red': 'background-color: #E41E2B !important; color: #ffffff !important;',
+        'risk-orange': 'background-color: #DD612C !important; color: #ffffff !important;',
+        'risk-green': 'background-color: #107C41 !important; color: #ffffff !important;',
+        'risk-empty': 'background-color: #f9f9f9 !important; color: #cccccc !important;'
+    };
+
+    const safeRiskData = Array.isArray(globalRiskData) ? globalRiskData : [];
+
+    const searchEl = document.getElementById('riskSearch');
+    const locEl = document.getElementById('riskLoc');
+    const areaEl = document.getElementById('riskArea');
+
+    const search = searchEl ? searchEl.value.toLowerCase().trim() : '';
+    const loc = locEl ? locEl.value : 'All';
+    const area = areaEl ? areaEl.value : 'All';
 
     const areaSel = document.getElementById('riskArea');
-    if (areaSel.options.length <= 1) {
-        let areas = [...new Set(globalRiskData.map(r => r.area))].sort();
-        areaSel.innerHTML = '<option value="All">Alle Kategorien</option>' + areas.map(a => `<option value="${a}">${a}</option>`).join('');
+    if (areaSel && areaSel.options.length <= 1 && safeRiskData.length > 0) {
+        let areas = [...new Set(safeRiskData.map(r => r.area).filter(Boolean))].sort();
+        areaSel.innerHTML =
+            '<option value="All">Alle Kategorien</option>' +
+            areas.map(a => `<option value="${a}">${a}</option>`).join('');
     }
 
-    const search = document.getElementById('riskSearch').value.toLowerCase().trim();
-    const loc = document.getElementById('riskLoc').value;
-    const area = document.getElementById('riskArea').value;
-
-    let matrixData = globalRiskData.filter(r => {
+    let matrixData = safeRiskData.filter(r => {
         if (loc !== 'All' && r.location !== loc) return false;
         if (area !== 'All' && r.area !== area) return false;
+
         if (search) {
-            let txt = `${r.desc} ${r.riskDesc} ${r.action} ${r.owner}`.toLowerCase();
+            let txt = `${r.desc || ''} ${r.riskDesc || ''} ${r.action || ''} ${r.owner || ''}`.toLowerCase();
             if (!txt.includes(search)) return false;
         }
+
         return true;
     });
 
     let counts = {};
     let uncatCount = 0;
+
     matrixData.forEach(r => {
         let k = r.colorIdent;
-        if (k === 'Uncategorized') uncatCount++;
-        else counts[k] = (counts[k] || 0) + 1;
+        if (k === 'Uncategorized') {
+            uncatCount++;
+        } else if (k) {
+            counts[k] = (counts[k] || 0) + 1;
+        }
     });
 
-    // Unkategorisiert anzeigen
-    document.getElementById('kpiRiskUncat').innerText = uncatCount;
-    document.getElementById('kpiRiskTotal').innerText = matrixData.length;
+    const kpiRiskUncat = document.getElementById('kpiRiskUncat');
+    const kpiRiskTotal = document.getElementById('kpiRiskTotal');
 
-    const rows = ['A','B','C','D','E'];
-    const cols = ['I','II','III','IV','V'];
+    if (kpiRiskUncat) kpiRiskUncat.innerText = uncatCount;
+    if (kpiRiskTotal) kpiRiskTotal.innerText = matrixData.length;
+
     let html = '';
 
     rows.forEach(r => {
         html += `<tr><th>${r}</th>`;
+
         cols.forEach(c => {
             let key = r + c;
             let val = counts[key] || 0;
             let colorClass = getMatrixColor(r, c);
-            if (val === 0) colorClass = 'risk-empty';
-            
+            let inlineStyle = matrixInlineStyles[colorClass] || '';
             let isActive = activeRiskCell === key ? 'active-cell' : '';
-            html += `<td class="${colorClass} ${isActive}" onclick="toggleRiskCell('${key}', '${r}', '${c}')">${val > 0 ? val : ''}</td>`;
+
+            html += `
+                <td class="${colorClass} ${isActive}"
+                    style="${inlineStyle}"
+                    onclick="toggleRiskCell('${key}', '${r}', '${c}')">
+                    ${val > 0 ? val : ''}
+                </td>`;
         });
+
         html += '</tr>';
     });
-    document.getElementById('riskMatrixBody').innerHTML = html;
+
+    const matrixBody = document.getElementById('riskMatrixBody');
+    if (matrixBody) {
+        matrixBody.innerHTML = html;
+    }
+
+    // Wenn keine Daten vorhanden sind, hier sauber beenden.
+    // Matrix bleibt trotzdem farbig sichtbar.
+    if (safeRiskData.length === 0) {
+        const riskTableBody = document.getElementById('riskTableBody');
+        if (riskTableBody) {
+            riskTableBody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 20px;">Keine Daten geladen. Bitte klicke oben auf "System & Datenverwaltung" und synchronisiere die "Risk Matrix".</td></tr>';
+        }
+        return;
+    }
 
     // Tabelle filtern
     let tableData = matrixData.filter(r => {
@@ -4782,17 +4870,20 @@ function updateRiskDashboard() {
         return true;
     });
 
-    document.getElementById('kpiRiskMatrixFilter').innerText = activeRiskCell ? `Gefiltert auf: ${activeRiskCell}` : '';
+    const filterLabel = document.getElementById('kpiRiskMatrixFilter');
+    if (filterLabel) {
+        filterLabel.innerText = activeRiskCell ? `Gefiltert auf: ${activeRiskCell}` : '';
+    }
 
     let tHtml = '';
     tableData.forEach(r => {
         let lvlColor = '#888';
         let cClass = getMatrixColor(r.likelihood, r.severity);
-        if (cClass === 'risk-red') lvlColor = '#d83b01';
-        if (cClass === 'risk-orange') lvlColor = '#f0a500';
+        if (cClass === 'risk-red') lvlColor = '#E41E2B';
+        if (cClass === 'risk-orange') lvlColor = '#DD612C';
         if (cClass === 'risk-green') lvlColor = '#107c41';
 
-        let shortRiskDesc = r.riskDesc && r.riskDesc.length > 80 ? r.riskDesc.substring(0, 80) + '...' : (r.riskDesc || '-');
+        let shortRiskDesc = r.riskDesc && r.riskDesc.length > 80 ? r.riskDesc.substring(0, 80) + '..' : (r.riskDesc || '-');
 
         tHtml += `
         <tr style="border-bottom: 1px solid #eee; transition: background 0.2s;" onmouseover="this.style.background='#f0f5fa'" onmouseout="this.style.background='transparent'" onclick="showRiskCard('${r._rowId}')">
@@ -4804,8 +4895,15 @@ function updateRiskDashboard() {
         </tr>`;
     });
 
-    document.getElementById('riskTableBody').innerHTML = tHtml || `<tr><td colspan="5" style="text-align:center; padding: 20px;">Keine Risiken gefunden.</td></tr>`;
-    document.getElementById('riskDetailCard').style.display = 'none';
+    const riskTableBody = document.getElementById('riskTableBody');
+    if (riskTableBody) {
+        riskTableBody.innerHTML = tHtml || `<tr><td colspan="5" style="text-align:center; padding: 20px;">Keine Risiken gefunden.</td></tr>`;
+    }
+    
+    const riskDetailCard = document.getElementById('riskDetailCard');
+    if (riskDetailCard) {
+        riskDetailCard.style.display = 'none';
+    }
 }
 
 function toggleRiskCell(key, likeKey = null, sevKey = null) {
