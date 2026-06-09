@@ -822,6 +822,13 @@
         </select>
         <div style="font-size:9.5px; color:#555; margin-top:4px;">Beeinflusst KPIs, Waterfall & Tabelle.</div>
       </div>
+      
+      <!-- Interaktiver Short Run Regler -->
+      <div style="margin-top: 10px; background: #FFF5F4; padding: 8px; border-radius: 5px; border: 1px solid var(--coke-red);">
+        <label style="color: var(--coke-red); font-weight: bold;">Short Run Limit (h)</label>
+        <input type="number" id="volShortRunThresholdInput" value="5.0" min="0.5" max="24.0" step="0.5" onchange="updateVolumeAnalysis()" style="width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; margin-top: 4px; box-sizing: border-box; font-family: inherit; font-weight: bold; text-align: right;">
+        <div style="font-size:9px; color:#667C8B; margin-top:4px;">Kurze Abfüllzeit in Stunden definieren.</div>
+      </div>
       <hr style="margin: 15px 0;">
       <div>
         <label>Werk (Plant)</label>
@@ -969,8 +976,9 @@
       <hr style="border:none; border-top: 2px dashed #ccc; margin: 30px 0;">
       <h3 style="font-size: 16px; margin-bottom: 15px; color:#1e1e1e;">&#128450; Produktionsaufträge Detail-Analyse (CY)</h3>
       
-      <div style="display:flex; gap: 20px; flex-wrap: wrap; margin-bottom: 20px;">
-        <div style="flex: 1; min-width: 100%; background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+      <div style="display:flex; gap: 20px; flex-wrap: wrap; margin-bottom: 20px; align-items: stretch;">
+        <!-- Links: Wochen-Diagramm & Tabelle -->
+        <div style="flex: 1.5; min-width: 450px; background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
           <h4 style="font-size: 14px; color: #333; margin-bottom: 10px;">Anzahl Produktionsaufträge pro Brand & Woche</h4>
           <div style="height: 300px; position: relative;"><canvas id="volChartOrders"></canvas></div>
           
@@ -989,6 +997,44 @@
               </thead>
               <tbody id="volOrdersTableBody"></tbody>
             </table>
+          </div>
+        </div>
+
+        <!-- Rechts: Short Run Trend & Detailtabelle -->
+        <div style="flex: 1; min-width: 350px; background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; flex-direction: column; gap: 15px;">
+          <div>
+            <h4 style="font-size: 14px; color: #333; margin-bottom: 10px;">Monatlicher Short Run Trend (CY vs. PY)</h4>
+            <div style="height: 240px; position: relative;"><canvas id="volChartShortRuns"></canvas></div>
+          </div>
+          
+          <div style="padding: 10px; background: #FFF5F4; border-left: 4px solid var(--coke-red); font-size: 11px; line-height: 1.4; border-radius: 0 4px 4px 0; color: var(--hbc-dark); margin-bottom: 5px;">
+            <strong>Definition Short Run (Kurze Abfüllzeit):</strong><br>
+            Ein Produktionsauftrag mit einer berechneten Gesamtlaufzeit von &lt; <span id="lblShortRunThreshold">5</span> <span id="lblShortRunUnit">Stunden</span>.<br>
+            <span style="font-size: 10px; color: #555;">(Laufzeit = Liter / avg. Liter pro Stunde. Klicke auf einen Balken zum Filtern)</span>
+          </div>
+
+          <!-- Detail-Tabelle der kurzen Läufe -->
+          <div style="flex: 1; display: flex; flex-direction: column; min-height: 200px;">
+            <h5 id="lblShortRunTableTitle" style="font-size: 12px; color: #21313D; margin-bottom: 6px; font-weight: bold; border-bottom: 1.5px solid #667C8B; padding-bottom: 4px;">
+              Kurze Abfüllungen (Alle Monate)
+            </h5>
+            <div style="overflow-y: auto; max-height: 220px; border: 1px solid #eee; border-radius: 4px;">
+              <table style="width: 100%; border-collapse: collapse; font-size: 10px; text-align: left;">
+                <thead style="background: #f4f7f6; position: sticky; top: 0; z-index: 2; border-bottom: 1px solid #ddd;">
+                  <tr>
+                    <th style="padding: 6px; font-weight: bold;">Brand</th>
+                    <th style="padding: 6px; font-weight: bold;">Auftrag</th>
+                    <th style="padding: 6px; font-weight: bold;">Produkt (Material)</th>
+                    <th style="padding: 6px; font-weight: bold;">Tag</th>
+                    <th style="padding: 6px; font-weight: bold; text-align: right;">Laufzeit</th>
+                    <th style="padding: 6px; font-weight: bold; text-align: right;">Liter</th>
+                  </tr>
+                </thead>
+                <tbody id="volShortRunsTableBody">
+                  <tr><td colspan="6" style="text-align:center; padding:15px; color:#999;">Keine Daten geladen.</td></tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
@@ -3014,6 +3060,44 @@
 // URL für die neuen Office-Scripts (Complaints & Sales)
 const PA_EXTRA_URL = "https://default7a67a0708ce94692b1afbf788306bc.66.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/c3bcec36dc8a40789fa6a78a92f2ccf4/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=5Qdz4jpgxOdrbpb0YunHy1GlHjLSGgp62FsXPwNWu2Y";
 
+// --- GLOBAL BRAND COLOR MAPPING SYSTEM ---
+const BRAND_COLOR_MAP = {
+    'coca-cola': '#E41E2B',
+    'coca-cola zero': '#000000',
+    'coke': '#E41E2B',
+    'coke zero': '#000000',
+    'valser': '#107C41',
+    'fanta': '#DD612C',
+    'sprite': '#0E6245',
+    'mezzo mix': '#a04000',
+    'monster': '#5c2d91',
+    'fuze tea': '#00a896',
+    'fusetea': '#00a896',
+    'powerade': '#00bcf2',
+    'nestea': '#0078d4'
+};
+const FALLBACK_COLORS = ['#0078d4', '#e3008c', '#107c41', '#d83b01', '#5c2d91', '#ffb900', '#00bcf2', '#004b8b', '#bad80a', '#a80000', '#555555'];
+const assignedBrandColors = {};
+let fallbackColorCounter = 0;
+
+function getBrandColor(brandName) {
+    if (!brandName) return '#888888';
+    const cleanName = String(brandName).trim().toLowerCase();
+    
+    // Direkten Treffer ermitteln
+    for (let key in BRAND_COLOR_MAP) {
+        if (cleanName === key || cleanName.includes(key)) {
+            return BRAND_COLOR_MAP[key];
+        }
+    }
+    
+    // Stabil zuweisen bei unbekannten Marken
+    if (!assignedBrandColors[cleanName]) {
+        assignedBrandColors[cleanName] = FALLBACK_COLORS[fallbackColorCounter % FALLBACK_COLORS.length];
+        fallbackColorCounter++;
+    }
+    return assignedBrandColors[cleanName];
+}
 // Dedizierte URL für den Gefahrstoff-Anhänge-Abruf (SDB)
 const PA_ATTACHMENTS_URL = "https://default7a67a0708ce94692b1afbf788306bc.66.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/cbb876a9171a4c19a0168d60dbd67dce/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=AKL9FW7njF2R9be9xeY_UY27AfNk4UPsf1f08yaJE_g";
 // Globale Variablen für die neuen Datensätze
@@ -4280,7 +4364,7 @@ function updateCharts() {
   } else {
       const barColor = isDPMO
         ? keys.map(k => finalAgg[k] > 6210 ? '#d83b01' : finalAgg[k] > 1350 ? '#f0a500' : '#107c41')
-        : (plantSel === '5511' ? '#107c41' : '#0078d4');
+        : (xAxisCol === 'cbrand_desc' ? keys.map(k => getBrandColor(k)) : (plantSel === '5511' ? '#107c41' : '#0078d4'));
 
       chartDatasets = [{
           label: metricLabel, 
@@ -8484,6 +8568,9 @@ let volCharts = {};
 function updateVolumeAnalysis() {
   if (!globalRows || globalRows.length === 0) return;
 
+  // Lokales Sicherheits-Fallback-Array für Legacy-Referenzen
+  const brandColorsArr = ['#0078d4', '#e3008c', '#107c41', '#d83b01', '#5c2d91', '#ffb900', '#00bcf2', '#004b8b', '#bad80a', '#a80000', '#555555'];
+
   const yIdx       = globalColumns.findIndex(c => c.name === 'Year');
   const pIdx       = globalColumns.findIndex(c => c.name === 'plant');
   const lIdx       = globalColumns.findIndex(c => c.name === 'plant_workcenter_key');
@@ -9028,15 +9115,14 @@ function updateVolumeAnalysis() {
   let sortedBrands = Object.keys(brandMonthly).sort((a, b) => brandTotals[b] - brandTotals[a]);
 
   let brandDatasets = [];
-  let brandColorsArr = ['#0078d4', '#e3008c', '#107c41', '#d83b01', '#5c2d91', '#ffb900', '#00bcf2', '#004b8b', '#bad80a', '#a80000', '#555555'];
 
   sortedBrands.forEach((b, i) => {
       brandDatasets.push({
           label: b,
           data: brandMonthly[b],
-          backgroundColor: brandColorsArr[i % brandColorsArr.length],
+          backgroundColor: getBrandColor(b), // Nutzen des stabilen Mappers
           borderRadius: 2,
-          datalabels: { display: false } // Ausgeblendet, da nebeneinander zu wenig Platz ist. Werte stehen in der Tabelle!
+          datalabels: { display: false }
       });
   });
 
@@ -9066,7 +9152,7 @@ function updateVolumeAnalysis() {
 
   let tbHtml = '';
   sortedBrands.forEach((b, i) => {
-      let color = brandColorsArr[i % brandColorsArr.length];
+      let color = getBrandColor(b); // Nutzen des stabilen Mappers
       tbHtml += `<tr style="border-bottom: 1px solid #eee; hover:background:#f5f4f1;">
                    <td style="padding: 6px; text-align: left; font-weight: 600; color: ${color}; white-space:nowrap;">${b}</td>`;
       let rTot = 0;
@@ -9116,7 +9202,7 @@ function updateVolumeAnalysis() {
           type: 'bar',
           label: b,
           data: data,
-          backgroundColor: brandColorsArr[i % brandColorsArr.length],
+          backgroundColor: getBrandColor(b), // Nutzen des stabilen Mappers
           borderRadius: 2,
           datalabels: { display: false }
       });
@@ -9146,7 +9232,7 @@ function updateVolumeAnalysis() {
 
   let tbLtHtml = '';
   topBrandsLT.forEach((b, i) => {
-      let color = brandColorsArr[i % brandColorsArr.length];
+      let color = getBrandColor(b); // Nutzen des stabilen Mappers
       tbLtHtml += `<tr style="border-bottom: 1px solid #eee; hover:background:#f5f4f1;">
                    <td style="padding: 6px; text-align: left; font-weight: 600; color: ${color}; white-space:nowrap;">${b}</td>`;
       availableYearsLT.forEach(y => {
@@ -9297,11 +9383,289 @@ function updateVolumeAnalysis() {
       orderDatasets.push({
           label: b,
           data: data,
-          backgroundColor: brandColorsArr[i % brandColorsArr.length],
+          backgroundColor: getBrandColor(b), // Nutzen des stabilen Mappers
           borderRadius: 2,
           datalabels: { display: false }
       });
   });
+
+  // --- SHORT RUN CALCULATION BY RUNTIME (CY & PY) ---
+  let orderRuntimeMap = {}; 
+  let orderRuntimeMapPY = {}; 
+  const srLiterIdx = globalColumns.findIndex(c => c.name === 'total Liters'); // Kollisionsfreier Index
+  const srDateIdx = globalColumns.findIndex(c => c.name === 'calday' || c.name.toLowerCase() === 'datum' || c.name.toLowerCase() === 'date');
+
+  // Helfer zur Daten-Verarbeitung (CY)
+  dataCY.forEach(r => {
+      let srPo = poIdx > -1 ? r[poIdx] : null;
+      if (!srPo || String(srPo).trim() === '') return;
+      let srMonth = extractMonthIdx(r);
+      
+      let srBrand = '';
+      let srMatNr = matIdx > -1 ? String(r[matIdx]) : 'Unknown';
+      if (matIdx > -1 && globalMatMap) {
+          let matNo = normalizeMatNo(r[matIdx]);
+          let matInfo = globalMatMap[matNo];
+          if (matInfo) {
+              srBrand = matInfo['Brand'];
+          }
+      }
+      if (!srBrand && brIdx > -1) srBrand = r[brIdx];
+      srBrand = srBrand || 'Unknown';
+
+      let srDesc = matDescIdx > -1 ? String(r[matDescIdx]) : srMatNr;
+      let rawDate = srDateIdx > -1 ? r[srDateIdx] : '';
+      let formattedDate = formatCell('calday', rawDate) || '—';
+
+      let rowLiters = srLiterIdx > -1 ? (parseFloat(r[srLiterIdx]) || 0) : 0;
+      let lph = 0;
+      if (matIdx > -1 && globalMatMap) {
+          let matNo = normalizeMatNo(r[matIdx]);
+          let matInfo = globalMatMap[matNo];
+          if (matInfo) {
+              lph = parseFloat(matInfo['avg. Liter per hour']) || 0;
+          }
+      }
+      let rowRuntime = lph > 0 ? (rowLiters / lph) : 0;
+
+      if (!orderRuntimeMap[srPo]) {
+          orderRuntimeMap[srPo] = { 
+              po: srPo, 
+              vol: 0, 
+              runtime: 0, 
+              month: srMonth, 
+              brand: srBrand,
+              prodDesc: srDesc,
+              prodDate: formattedDate
+          };
+      }
+      orderRuntimeMap[srPo].vol += rowLiters;
+      orderRuntimeMap[srPo].runtime += rowRuntime;
+  });
+
+  // Helfer zur Daten-Verarbeitung (PY)
+  dataPY.forEach(r => {
+      let srPo = poIdx > -1 ? r[poIdx] : null;
+      if (!srPo || String(srPo).trim() === '') return;
+      let srMonth = extractMonthIdx(r);
+      
+      let srBrand = '';
+      if (matIdx > -1 && globalMatMap) {
+          let matNo = normalizeMatNo(r[matIdx]);
+          let matInfo = globalMatMap[matNo];
+          if (matInfo) {
+              srBrand = matInfo['Brand'];
+          }
+      }
+      if (!srBrand && brIdx > -1) srBrand = r[brIdx];
+      srBrand = srBrand || 'Unknown';
+
+      let rowLiters = srLiterIdx > -1 ? (parseFloat(r[srLiterIdx]) || 0) : 0;
+      let lph = 0;
+      if (matIdx > -1 && globalMatMap) {
+          let matNo = normalizeMatNo(r[matIdx]);
+          let matInfo = globalMatMap[matNo];
+          if (matInfo) {
+              lph = parseFloat(matInfo['avg. Liter per hour']) || 0;
+          }
+      }
+      let rowRuntime = lph > 0 ? (rowLiters / lph) : 0;
+
+      if (!orderRuntimeMapPY[srPo]) {
+          orderRuntimeMapPY[srPo] = { po: srPo, vol: 0, runtime: 0, month: srMonth, brand: srBrand };
+      }
+      orderRuntimeMapPY[srPo].vol += rowLiters;
+      orderRuntimeMapPY[srPo].runtime += rowRuntime;
+  });
+
+  // Schwellenwert auslesen
+  const thresholdInput = document.getElementById('volShortRunThresholdInput');
+  const SHORT_RUN_LIMIT_HOURS = thresholdInput ? (parseFloat(thresholdInput.value) || 5.0) : 5.0; 
+  
+  const elThreshold = document.getElementById('lblShortRunThreshold');
+  const elUnit = document.getElementById('lblShortRunUnit');
+  if (elThreshold) elThreshold.innerText = SHORT_RUN_LIMIT_HOURS.toFixed(1);
+  if (elUnit) elUnit.innerText = "Stunden";
+
+  // Arrays initialisieren
+  let monthlyShortRuns = Array(12).fill(0);
+  let monthlyTotalRuns = Array(12).fill(0);
+  let monthlyShortRunsPY = Array(12).fill(0);
+  let monthlyTotalRunsPY = Array(12).fill(0);
+
+  let allShortRunsList = [];
+
+  // CY Filterung
+  Object.values(orderRuntimeMap).forEach(ord => {
+      if (ord.month >= 0 && ord.month < 12 && ord.runtime > 0) {
+          monthlyTotalRuns[ord.month]++;
+          if (ord.runtime < SHORT_RUN_LIMIT_HOURS) {
+              monthlyShortRuns[ord.month]++;
+              allShortRunsList.push(ord);
+          }
+      }
+  });
+
+  // PY Filterung
+  Object.values(orderRuntimeMapPY).forEach(ord => {
+      if (ord.month >= 0 && ord.month < 12 && ord.runtime > 0) {
+          monthlyTotalRunsPY[ord.month]++;
+          if (ord.runtime < SHORT_RUN_LIMIT_HOURS) {
+              monthlyShortRunsPY[ord.month]++;
+          }
+      }
+  });
+
+  let shortRunPercentages = monthlyTotalRuns.map((tot, idx) => tot > 0 ? (monthlyShortRuns[idx] / tot) * 100 : 0);
+  let shortRunPercentagesPY = monthlyTotalRunsPY.map((tot, idx) => tot > 0 ? (monthlyShortRunsPY[idx] / tot) * 100 : 0);
+
+  let activeShortRunMonthFilter = null;
+
+  const renderShortRunsTable = () => {
+      let html = '';
+      let filteredRuns = allShortRunsList.filter(r => {
+          if (activeShortRunMonthFilter !== null && r.month !== activeShortRunMonthFilter) return false;
+          return true;
+      }).sort((a, b) => a.runtime - b.runtime);
+
+      filteredRuns.forEach(r => {
+          html += `
+          <tr style="border-bottom: 1px solid #eee; hover:background:#f5f4f1;">
+              <td style="padding: 5px 6px; font-weight: bold; color: ${getBrandColor(r.brand)};">${r.brand}</td>
+              <td style="padding: 5px 6px; color:#555;">${r.po}</td>
+              <td style="padding: 5px 6px; max-width: 130px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color:#444;" title="${escapeHTML(r.prodDesc)}">${escapeHTML(r.prodDesc)}</td>
+              <td style="padding: 5px 6px; color:#666; font-size:9px; white-space:nowrap;">${r.prodDate}</td>
+              <td style="padding: 5px 6px; text-align: right; font-weight: bold; color: var(--coke-red);">${r.runtime.toFixed(1)} h</td>
+              <td style="padding: 5px 6px; text-align: right;">${formatLargeNumbers(r.vol)} L</td>
+          </tr>`;
+      });
+
+      const titleEl = document.getElementById('lblShortRunTableTitle');
+      if (titleEl) {
+          titleEl.innerHTML = activeShortRunMonthFilter !== null 
+              ? `Kurze Abfüllungen in <b>${MONTH_NAMES_SHORT[activeShortRunMonthFilter]}</b> (${filteredRuns.length} Läufe)` 
+              : `Kurze Abfüllungen (Alle Monate: ${filteredRuns.length} Läufe)`;
+      }
+
+      document.getElementById('volShortRunsTableBody').innerHTML = html || `<tr><td colspan="6" style="text-align:center; padding:15px; color:#999;">Keine kurzen Läufe in diesem Zeitraum.</td></tr>`;
+  };
+
+  // --- RENDER SHORT RUN TREND CHART (CY VS PY) ---
+  if (volCharts['shortRuns']) volCharts['shortRuns'].destroy();
+  volCharts['shortRuns'] = new Chart(document.getElementById('volChartShortRuns').getContext('2d'), {
+      type: 'bar',
+      plugins: [ChartDataLabels],
+      data: {
+          labels: MONTH_NAMES_SHORT,
+          datasets: [
+              {
+                  type: 'line',
+                  label: `Anteil CY (${cy}) (%)`,
+                  data: shortRunPercentages,
+                  borderColor: '#E41E2B',
+                  backgroundColor: '#E41E2B',
+                  borderWidth: 1.5,
+                  pointRadius: 2.5,
+                  yAxisID: 'yPercentage',
+                  fill: false,
+                  datalabels: {
+                      align: 'top',
+                      anchor: 'end',
+                      color: '#000000', // Textfarbe auf Schwarz umgestellt
+                      font: { weight: 'bold', size: 8 },
+                      formatter: v => v > 0 ? v.toFixed(0) + '%' : ''
+                  }
+              },
+              {
+                  type: 'line',
+                  label: `Anteil PY (${py}) (%)`,
+                  data: shortRunPercentagesPY,
+                  borderColor: '#777777',
+                  backgroundColor: '#777777',
+                  borderWidth: 1.5,
+                  borderDash: [3, 3], // Gestrichelte Linie für PY
+                  pointRadius: 2,
+                  yAxisID: 'yPercentage',
+                  fill: false,
+                  datalabels: { display: false } // Keine doppelten Zahlen auf Linien
+              },
+              {
+                  type: 'bar',
+                  label: `Abfüllungen CY (${cy})`,
+                  data: monthlyShortRuns,
+                  backgroundColor: '#DD612C',
+                  borderRadius: 2,
+                  yAxisID: 'yCount',
+                  datalabels: {
+                      align: 'end',
+                      anchor: 'start',
+                      color: 'white',
+                      font: { weight: 'bold', size: 9 },
+                      formatter: v => v > 0 ? v : ''
+                  }
+              },
+              {
+                  type: 'bar',
+                  label: `Abfüllungen PY (${py})`,
+                  data: monthlyShortRunsPY,
+                  backgroundColor: '#D0D4D9', // Neutrales Hellgrau für PY-Balken
+                  borderRadius: 2,
+                  yAxisID: 'yCount',
+                  datalabels: { display: false } // Keine Labels auf PY-Balken
+              }
+          ]
+      },
+      options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+              x: { grid: { display: false }, ticks: { font: { size: 9 } } },
+              yCount: {
+                  type: 'linear',
+                  position: 'left',
+                  beginAtZero: true,
+                  ticks: { font: { size: 8 } },
+                  grid: { drawOnChartArea: false }
+              },
+              yPercentage: {
+                  type: 'linear',
+                  position: 'right',
+                  beginAtZero: true,
+                  max: 100,
+                  ticks: { font: { size: 8 } },
+                  grid: { drawOnChartArea: false }
+              }
+          },
+          plugins: {
+              legend: { position: 'bottom', labels: { boxWidth: 8, font: { size: 8 } } },
+              tooltip: {
+                  callbacks: {
+                      label: (ctx) => {
+                          if (ctx.datasetIndex === 0 || ctx.datasetIndex === 1) {
+                              return `${ctx.dataset.label}: ${ctx.raw.toFixed(1)}%`;
+                          }
+                          return `${ctx.dataset.label}: ${ctx.raw} Abfüllungen`;
+                      }
+                  }
+              }
+          },
+          onHover: (evt, elements) => {
+              evt.native.target.style.cursor = elements.length > 0 ? 'pointer' : 'default';
+          },
+          onClick: (evt, elements) => {
+              if (elements.length > 0) {
+                  const el = elements[0];
+                  activeShortRunMonthFilter = (activeShortRunMonthFilter === el.index) ? null : el.index;
+              } else {
+                  activeShortRunMonthFilter = null;
+              }
+              renderShortRunsTable();
+          }
+      }
+  });
+
+  // Tabelle rendern
+  renderShortRunsTable();
 
   // Filter-Status für Tabelle (Wird beim Klick gefüllt)
   let activeOrderFilter = { week: null, brand: null };
@@ -10037,6 +10401,54 @@ function updateAttributions() {
     totalDisplay.innerText = `Total: ${finalSum}%`;
     totalDisplay.style.color = finalSum === 100 ? '#107c41' : '#d83b01';
 }
+// Neue Kernfunktion: Prüft im Hintergrund, ob für die gewählte Kombination bereits Daten existieren
+function onDeviationContextChange() {
+    const plant = document.getElementById('devPlant').value;
+    const year = document.getElementById('devYear').value;
+    const monthStr = document.getElementById('devMonth').value;
+    const kpi = document.getElementById('devKpi').value;
+
+    const monthMap = {'Jan':'1','Feb':'2','Mar':'3','Apr':'4','May':'5','Jun':'6','Jul':'7','Aug':'8','Sep':'9','Oct':'10','Nov':'11','Dec':'12'};
+    const monthNum = monthMap[monthStr];
+
+    const title = `${plant}_${kpi}_${monthNum}_${year}`;
+    const targetRow = (globalEnvDeviations && globalEnvDeviations.length > 0) 
+        ? globalEnvDeviations.find(r => r['Titel'] === title) 
+        : null;
+
+    if (targetRow) {
+        // EINTRAG EXISTIERT BEREITS -> Automatischer Wechsel in den Editier-Modus
+        for(let i=1; i<=4; i++) {
+            let r = targetRow[`reason${i}`] || '';
+            let act = targetRow[`Action${i}`] || '';
+            let a = targetRow[`attribution${i}`] || '';
+            
+            document.getElementById(`devR${i}`).value = r;
+            document.getElementById(`devAct${i}`).value = act;
+            
+            if (r || act || a) {
+                document.getElementById(`devActive${i}`).checked = true;
+                document.getElementById(`devA${i}`).value = a;
+                document.getElementById(`devFix${i}`).checked = true; // Fixieren aktivieren
+            } else {
+                document.getElementById(`devActive${i}`).checked = false;
+                document.getElementById(`devA${i}`).value = '';
+                document.getElementById(`devFix${i}`).checked = false;
+            }
+        }
+    } else {
+        // KEIN EINTRAG EXISTIERT -> Formular leeren für Neuerfassung
+        for(let i=1; i<=4; i++) {
+            document.getElementById(`devR${i}`).value = '';
+            document.getElementById(`devAct${i}`).value = '';
+            document.getElementById(`devA${i}`).value = '';
+            document.getElementById(`devActive${i}`).checked = (i === 1); // Grund 1 standardmäßig aktiv
+            document.getElementById(`devFix${i}`).checked = false;
+        }
+    }
+    updateAttributions();
+}
+
 function openDeviationModal() {
     const plant = document.getElementById('envPlant').value;
     const year = document.getElementById('envYear').value;
@@ -10062,21 +10474,15 @@ function openDeviationModal() {
         return;
     }
 
-    // --- MODAL BEFÜLLEN & ZURÜCKSETZEN ---
+    // --- MODAL BEFÜLLEN ---
     document.getElementById('devPlant').value = plant;
-    document.getElementById('devMonthYear').value = `${month} ${year}`;
+    document.getElementById('devYear').value = year;
+    document.getElementById('devMonth').value = month;
     document.getElementById('devKpi').disabled = false;
     
-    // Reset Form
-    for(let i=1; i<=4; i++) {
-        document.getElementById(`devR${i}`).value = '';
-        document.getElementById(`devAct${i}`).value = '';
-        document.getElementById(`devA${i}`).value = '';
-        document.getElementById(`devActive${i}`).checked = (i === 1); // Nur 1 ist standardmäßig aktiv
-        document.getElementById(`devFix${i}`).checked = false;
-    }
+    // Prüfen, ob bereits Daten für diesen Monat existieren und Formular entsprechend laden
+    onDeviationContextChange();
     
-    updateAttributions(); // Berechnet automatisch 100% für Grund 1
     document.getElementById('deviationModal').classList.add('active');
 }
 
@@ -10084,36 +10490,35 @@ function editDeviation(title) {
     const row = globalEnvDeviations.find(r => r['Titel'] === title);
     if (!row) return alert("Fehler: Datensatz im Speicher nicht gefunden.");
 
-    document.getElementById('devPlant').value = row['Location'];
+    // --- BERECHTIGUNGSPRÜFUNG ---
+    const plant = row['Location'];
+    let userRole = currentUser ? (currentUser.role || '').toLowerCase() : '';
+    let pLow = plant.toLowerCase();
+    
+    let canEdit = false;
+    if (userRole === 'admin') canEdit = true;
+    else if (userRole === 'vals editor' && pLow === 'vals') canEdit = true;
+    else if (userRole === 'dietlikon editor' && pLow === 'dietlikon') canEdit = true;
+
+    if (!canEdit) {
+        let currentRoleName = currentUser ? (currentUser.role || 'Ohne Rolle') : 'Nicht eingeloggt';
+        alert(`Deine Rolle ("${currentRoleName}") hat keine Berechtigung, Abweichungen für ${plant} zu bearbeiten.`);
+        return;
+    }
+
+    document.getElementById('devPlant').value = plant;
+    document.getElementById('devYear').value = row['Year'];
     
     const monthMapRev = {'1':'Jan','2':'Feb','3':'Mar','4':'Apr','5':'May','6':'Jun','7':'Jul','8':'Aug','9':'Sep','10':'Oct','11':'Nov','12':'Dec'};
     const monthStr = monthMapRev[row['Month']] || row['Month'];
-    document.getElementById('devMonthYear').value = `${monthStr} ${row['Year']}`;
+    document.getElementById('devMonth').value = monthStr;
     
     document.getElementById('devKpi').value = row['KPI'];
-    document.getElementById('devKpi').disabled = true; 
+    document.getElementById('devKpi').disabled = false; // KPI änderbar lassen für dynamischen Context-Wechsel
 
-    // Befüllen und bestehende Werte "einfrieren" (fixieren)
-    for(let i=1; i<=4; i++) {
-        let r = row[`reason${i}`] || '';
-        let act = row[`Action${i}`] || '';
-        let a = row[`attribution${i}`] || '';
-        
-        document.getElementById(`devR${i}`).value = r;
-        document.getElementById(`devAct${i}`).value = act;
-        
-        if (r || act || a) {
-            document.getElementById(`devActive${i}`).checked = true;
-            document.getElementById(`devA${i}`).value = a;
-            document.getElementById(`devFix${i}`).checked = true; // Bereits vorhandene Daten werden fixiert
-        } else {
-            document.getElementById(`devActive${i}`).checked = false;
-            document.getElementById(`devA${i}`).value = '';
-            document.getElementById(`devFix${i}`).checked = false;
-        }
-    }
-
-    updateAttributions();
+    // Bestehende Daten laden
+    onDeviationContextChange();
+    
     document.getElementById('deviationModal').classList.add('active');
 }
 
@@ -10123,8 +10528,8 @@ function closeDeviationModal() {
 
 async function submitDeviation() {
     const plant = document.getElementById('devPlant').value;
-    const year = document.getElementById('envYear').value;
-    const monthStr = document.getElementById('envMonth').value;
+    const year = document.getElementById('devYear').value; // Liest jetzt das gewählte Jahr aus dem Modal
+    const monthStr = document.getElementById('devMonth').value; // Liest jetzt den gewählten Monat aus dem Modal
     const kpi = document.getElementById('devKpi').value;
     const author = currentUser ? currentUser.username : "Unbekannt";
     const flowUrl = document.getElementById('syncPowerAutomateUrl').value.trim();
@@ -12975,13 +13380,29 @@ function updateChemicals() {
             </div>
             <div class="form-group">
                 <label>Monat / Jahr</label>
-                <input type="text" id="devMonthYear" readonly style="background:#e9ecef;">
+                <div style="display: flex; gap: 8px;">
+                    <select id="devMonth" onchange="onDeviationContextChange()" style="flex: 1.5;">
+                        <option value="Jan">Januar</option>
+                        <option value="Feb">Februar</option>
+                        <option value="Mar">März</option>
+                        <option value="Apr">April</option>
+                        <option value="May">Mai</option>
+                        <option value="Jun">Juni</option>
+                        <option value="Jul">Juli</option>
+                        <option value="Aug">August</option>
+                        <option value="Sep">September</option>
+                        <option value="Oct">Oktober</option>
+                        <option value="Nov">November</option>
+                        <option value="Dec">Dezember</option>
+                    </select>
+                    <input type="text" id="devYear" readonly style="flex: 1; background:#e9ecef; text-align: center;">
+                </div>
             </div>
         </div>
         
         <div class="form-group">
             <label>KPI (Welcher Wert wurde verfehlt?)</label>
-            <select id="devKpi">
+            <select id="devKpi" onchange="onDeviationContextChange()">
                 <option value="Water Ratio">Water Ratio</option>
                 <option value="Energy Ratio">Energy Ratio</option>
                 <option value="Waste Ratio">Waste Ratio</option>
