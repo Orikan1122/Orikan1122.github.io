@@ -6040,7 +6040,8 @@ function updateCPM() {
           let rowYear = d ? String(d.getFullYear()) : "";
           if (yearSel === 'All' || rowYear === yearSel) {
               let cmIdx = getCCHBCMonthIdx(d);
-              if (d && (monthSel === 'All' || String(cmIdx) === monthSel)) b2bAgg[cmIdx] += 1;
+              // Nutzt nun mIdx <= selected cutoff für ein echtes YTD-Verhalten
+              if (d && (monthSel === 'All' || cmIdx <= parseInt(monthSel))) b2bAgg[cmIdx] += 1;
           }
       });
   }
@@ -6565,6 +6566,9 @@ function processDetailData(data, dateCol, groupKeyLogic) {
         let rYear = d.getFullYear();
         let mIdx = getCCHBCMonthIdx(d);
 
+        // Filtert Datensätze, die nach dem YTD Cutoff-Monat liegen, frühzeitig heraus
+        if (monthSel !== 'All' && mIdx > parseInt(monthSel)) return;
+
         if(rYear === cy && mIdx >= 0) monthlyData.cy[mIdx]++;
         if(rYear === py && mIdx >= 0) monthlyData.py[mIdx]++;
 
@@ -6574,10 +6578,7 @@ function processDetailData(data, dateCol, groupKeyLogic) {
                 if(!groupedData[group]) groupedData[group] = Array(12).fill(0);
                 groupedData[group][mIdx]++;
             }
-            // NEU: Tabelle / Export nach YTD filtern
-            if (monthSel === 'All' || mIdx <= parseInt(monthSel)) {
-                rawFiltered.push(row);
-            }
+            rawFiltered.push(row);
         }
     });
 
@@ -6586,10 +6587,14 @@ function processDetailData(data, dateCol, groupKeyLogic) {
 
 function buildYtdPyTable(bodyId, headId, monthlyData, cy, py) {
     const mNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const monthSel = document.getElementById('cpmMonth').value;
+    const limit = monthSel === 'All' ? 12 : parseInt(monthSel) + 1;
     
     // Header
     let hHtml = `<th style="padding:5px;text-align:left;">Metrik</th>`;
-    mNames.forEach(m => hHtml += `<th style="padding:5px;">${m}</th>`);
+    for (let i = 0; i < limit; i++) {
+        hHtml += `<th style="padding:5px;">${mNames[i]}</th>`;
+    }
     document.getElementById(headId).innerHTML = hHtml;
 
     // Body
@@ -6598,22 +6603,32 @@ function buildYtdPyTable(bodyId, headId, monthlyData, cy, py) {
     
     // Monthly CY
     html += `<tr style="border-bottom:1px solid #eee;"><td style="padding:5px;text-align:left;font-weight:bold;">Monthly ${cy}</td>`;
-    monthlyData.cy.forEach(v => html += `<td style="padding:5px;">${v}</td>`);
+    for (let i = 0; i < limit; i++) {
+        html += `<td style="padding:5px;">${monthlyData.cy[i]}</td>`;
+    }
     html += `</tr>`;
     
     // YTD CY
     html += `<tr style="border-bottom:2px solid #ccc; background:#f9f9f9;"><td style="padding:5px;text-align:left;font-weight:bold;">YTD ${cy}</td>`;
-    monthlyData.cy.forEach(v => { cumCy += v; html += `<td style="padding:5px;font-weight:bold;color:#0078d4;">${cumCy}</td>`; });
+    for (let i = 0; i < limit; i++) {
+        cumCy += monthlyData.cy[i];
+        html += `<td style="padding:5px;font-weight:bold;color:#0078d4;">${cumCy}</td>`;
+    }
     html += `</tr>`;
 
     // Monthly PY
     html += `<tr style="border-bottom:1px solid #eee;"><td style="padding:5px;text-align:left;">Monthly ${py}</td>`;
-    monthlyData.py.forEach(v => html += `<td style="padding:5px;color:#777;">${v}</td>`);
+    for (let i = 0; i < limit; i++) {
+        html += `<td style="padding:5px;color:#777;">${monthlyData.py[i]}</td>`;
+    }
     html += `</tr>`;
 
     // YTD PY
     html += `<tr><td style="padding:5px;text-align:left;">YTD ${py}</td>`;
-    monthlyData.py.forEach(v => { cumPy += v; html += `<td style="padding:5px;color:#777;">${cumPy}</td>`; });
+    for (let i = 0; i < limit; i++) {
+        cumPy += monthlyData.py[i];
+        html += `<td style="padding:5px;color:#777;">${cumPy}</td>`;
+    }
     html += `</tr>`;
 
     document.getElementById(bodyId).innerHTML = html;
@@ -6768,15 +6783,24 @@ function exportB2CTable() {
 // =====================================
 function drawGroupChartsAndTable(barId, pieId, tableBodyId, groupedData) {
     const mNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const monthSel = document.getElementById('cpmMonth').value;
+    const limit = monthSel === 'All' ? 12 : parseInt(monthSel) + 1;
+    
+    // Schneidet das Monats-Label-Array passend zum YTD-Cutoff ab
+    const displayMonths = mNames.slice(0, limit);
     let keys = Object.keys(groupedData);
     
-    // Sort keys by total volume descending
-    keys.sort((a,b) => groupedData[b].reduce((s,v)=>s+v,0) - groupedData[a].reduce((s,v)=>s+v,0));
+    // Sortiert die Keys anhand des aufsummierten Volumens innerhalb des YTD-Zeitraums
+    keys.sort((a,b) => {
+        let sumA = groupedData[a].slice(0, limit).reduce((s,v)=>s+v,0);
+        let sumB = groupedData[b].slice(0, limit).reduce((s,v)=>s+v,0);
+        return sumB - sumA;
+    });
     
-    // Table Build
+    // Tabellen-Berechnung (YTD summiert)
     let totalComplaints = 0;
     let categoryTotals = keys.map(k => {
-        let sum = groupedData[k].reduce((s,v)=>s+v,0);
+        let sum = groupedData[k].slice(0, limit).reduce((s,v)=>s+v,0);
         totalComplaints += sum;
         return { key: k, sum: sum };
     });
@@ -6793,18 +6817,18 @@ function drawGroupChartsAndTable(barId, pieId, tableBodyId, groupedData) {
     });
     document.getElementById(tableBodyId).innerHTML = tblHtml || `<tr><td colspan="3">Keine Daten</td></tr>`;
 
-    // Charts Build
+    // Charts-Daten auf das Limit zuschneiden
     let datasets = keys.map((k, i) => ({
         label: k,
-        data: groupedData[k],
+        data: groupedData[k].slice(0, limit),
         backgroundColor: dashColors[i % dashColors.length],
-        datalabels: { display: false } // Zuviele Labels bei Stacked Bar unleserlich
+        datalabels: { display: false }
     }));
 
     if(cpmCharts[barId]) cpmCharts[barId].destroy();
     cpmCharts[barId] = new Chart(document.getElementById(barId).getContext('2d'), {
         type: 'bar',
-        data: { labels: mNames, datasets: datasets },
+        data: { labels: displayMonths, datasets: datasets },
         options: { 
             responsive: true, maintainAspectRatio: false, 
             scales: { x: { stacked: true }, y: { stacked: true } },
@@ -6826,7 +6850,7 @@ function drawGroupChartsAndTable(barId, pieId, tableBodyId, groupedData) {
                 legend: { display: false },
                 datalabels: { color: '#fff', font: { weight: 'bold' }, formatter: (v, ctx) => {
                     let p = ((v / totalComplaints)*100).toFixed(0);
-                    return p >= 5 ? p + '%' : ''; // Nur ab 5% anzeigen
+                    return p >= 5 ? p + '%' : '';
                 }}
             }
         }
