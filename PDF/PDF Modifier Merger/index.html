@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="de">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF Tool with Preview & Rotate</title>
+    <title>PDF-Tool mit Vorschau, Rotation & Drag-and-Drop</title>
     
     <!-- Load pdf-lib (for manipulation/merging) -->
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
@@ -24,7 +24,7 @@
             padding: 25px;
             border-radius: 8px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            max-width: 850px; /* Increased width */
+            max-width: 850px;
             margin: 20px auto;
         }
         h1 {
@@ -36,39 +36,49 @@
         .file-input-area, .file-list-area, .actions-area {
             margin-bottom: 20px;
         }
-         /* --- File Input --- */
-        label {
+         /* --- File Input / Drag & Drop Zone --- */
+        .file-input-area {
+            border: 2px dashed #ccc;
+            padding: 30px 20px;
+            border-radius: 8px;
+            text-align: center;
+            background-color: #fafafa;
+            transition: background-color 0.2s, border-color 0.2s;
+            cursor: pointer;
+        }
+        .file-input-area:hover, .file-input-area.dragover {
+            background-color: #e6f7ff;
+            border-color: #1890ff;
+        }
+        .file-input-area label {
             display: block;
-            margin-bottom: 8px;
-            font-weight: bold;
+            margin-bottom: 0;
+            font-weight: normal;
             color: #555;
+            cursor: pointer;
         }
-        input[type="file"] {
-            display: block;
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            box-sizing: border-box;
+        .file-input-area label strong {
+            color: #1890ff;
         }
+        
          /* --- File List --- */
         #fileList {
             list-style: none;
             padding: 0;
             border: 1px solid #eee;
             border-radius: 4px;
-            max-height: 450px; /* Increased height */
+            max-height: 450px;
             overflow-y: auto;
         }
         #fileList li {
             padding: 10px 15px;
             border-bottom: 1px solid #eee;
             display: flex;
-            align-items: center; /* Align items vertically center */
+            align-items: center;
             justify-content: space-between;
             background-color: #fff;
             transition: background-color 0.2s;
-            min-height: 100px; /* Ensure space for preview */
+            min-height: 100px;
         }
         #fileList li:last-child { border-bottom: none; }
         #fileList li:hover { background-color: #f9f9f9; }
@@ -77,26 +87,26 @@
         .file-item-content {
             display: flex;
             align-items: center;
-            flex-grow: 1; /* Take available space */
-            gap: 15px; /* Space between elements */
+            flex-grow: 1;
+            gap: 15px;
         }
 
         /* --- Preview --- */
         .preview-container {
-            width: 80px; /* Fixed width for preview area */
-            height: 100px; /* Fixed height */
+            width: 80px;
+            height: 100px;
             border: 1px solid #ddd;
             display: flex;
             align-items: center;
             justify-content: center;
             background-color: #f0f0f0;
-            position: relative; /* For potential loading indicator */
-            overflow: hidden; /* Hide parts of canvas if needed */
+            position: relative;
+            overflow: hidden;
         }
          .preview-canvas {
             max-width: 100%;
             max-height: 100%;
-            display: block; /* Remove extra space below canvas */
+            display: block;
          }
          .preview-loading {
             font-size: 0.8em;
@@ -106,27 +116,27 @@
         /* --- File Info & Controls --- */
         .file-details {
             display: flex;
-            flex-direction: column; /* Stack checkbox/name and rotate buttons */
-            justify-content: center; /* Vertically center */
-            flex-grow: 1; /* Take remaining space */
-            min-width: 0; /* Prevent text overflow issues */
+            flex-direction: column;
+            justify-content: center;
+            flex-grow: 1;
+            min-width: 0;
         }
         .file-info {
             display: flex;
             align-items: center;
-            margin-bottom: 5px; /* Space between name and rotate buttons */
+            margin-bottom: 5px;
             word-break: break-all;
         }
         .file-info input[type="checkbox"] {
             margin-right: 10px;
             transform: scale(1.2);
-            flex-shrink: 0; /* Prevent checkbox shrinking */
+            flex-shrink: 0;
         }
         .file-name {
-             flex-grow: 1; /* Allow name to take space */
-             overflow: hidden; /* Hide overflow */
-             text-overflow: ellipsis; /* Add ellipsis */
-             white-space: nowrap; /* Prevent wrapping */
+             flex-grow: 1;
+             overflow: hidden;
+             text-overflow: ellipsis;
+             white-space: nowrap;
         }
 
         /* --- Rotation Controls --- */
@@ -146,10 +156,10 @@
         /* --- File Actions (Download/Remove) --- */
         .file-actions {
             display: flex;
-            flex-direction: column; /* Stack buttons vertically */
-            gap: 5px; /* Space between buttons */
-            margin-left: 10px; /* Space from main content */
-            flex-shrink: 0; /* Prevent shrinking */
+            flex-direction: column;
+            gap: 5px;
+            margin-left: 10px;
+            flex-shrink: 0;
         }
         .file-actions button {
             padding: 5px 10px;
@@ -158,7 +168,7 @@
             border: none;
             border-radius: 4px;
             transition: background-color 0.2s;
-            min-width: 80px; /* Ensure buttons have minimum width */
+            min-width: 100px;
             text-align: center;
         }
         .download-btn { background-color: #5cb85c; color: white; }
@@ -203,22 +213,25 @@
 </head>
 <body>
     <div class="container">
-        <h1>PDF Tool with Preview & Rotate</h1>
+        <h1>PDF-Tool mit Vorschau, Rotation & Drag-and-Drop</h1>
 
-        <div class="file-input-area">
-            <label for="pdfFiles">Select PDF files:</label>
-            <input type="file" id="pdfFiles" accept=".pdf" multiple>
+        <!-- Drag & Drop Zone -->
+        <div class="file-input-area" id="dropZone">
+            <label for="pdfFiles">
+                <strong>PDF-Dateien hierher ziehen</strong> oder hier klicken, um Dateien auszuwählen
+            </label>
+            <input type="file" id="pdfFiles" accept=".pdf" multiple style="display: none;">
         </div>
 
         <div class="file-list-area">
-            <label>Loaded Files:</label>
+            <label>Geladene Dateien:</label>
             <ul id="fileList">
                 <!-- File items will be added here -->
             </ul>
         </div>
 
         <div class="actions-area">
-            <button id="mergeBtn" class="main-action-btn" disabled>Merge Selected PDFs</button>
+            <button id="mergeBtn" class="main-action-btn" disabled>Ausgewählte PDFs zusammenführen</button>
         </div>
 
         <div id="status"></div>
@@ -228,52 +241,82 @@
 
     <script>
         // Access pdf-lib functions
-        const { PDFDocument, degrees } = PDFLib; // degrees is needed for rotation
+        const { PDFDocument, degrees } = PDFLib;
 
         // Configure pdf.js worker
         if (window.pdfjsLib) {
-             // Check if running from file:// URL which might cause CORS issues for worker
             let workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
             if (window.location.protocol === 'file:') {
-                 console.warn("pdf.js worker might not load correctly from file:// protocol due to CORS restrictions. Previews may fail. Consider running from a local web server.");
-                 // You might need to download the worker and reference it locally,
-                 // or use a different approach if file:// is mandatory.
-                 // workerSrc = './pdf.worker.min.js'; // If downloaded locally
+                 console.warn("pdf.js-Worker lädt unter file:// eventuell nicht korrekt. Nutzen Sie ggf. einen lokalen Webserver.");
             }
             window.pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc;
         } else {
-             console.error("pdf.js library not loaded!");
-             alert("Error: pdf.js library failed to load. Previews will not work.");
+             console.error("pdf.js Bibliothek nicht geladen!");
+             alert("Fehler: pdf.js konnte nicht geladen werden.");
         }
 
 
         const fileInput = document.getElementById('pdfFiles');
+        const dropZone = document.getElementById('dropZone');
         const fileList = document.getElementById('fileList');
         const mergeBtn = document.getElementById('mergeBtn');
         const statusDiv = document.getElementById('status');
         const mergedLinkContainer = document.getElementById('mergedLinkContainer');
 
-        let loadedFiles = []; // Array to hold file objects, state, and rotation
+        let loadedFiles = []; // Array für Datei-Objekte, Status und Rotation
 
+        // File-Input Event Listener
         fileInput.addEventListener('change', handleFileSelect);
         mergeBtn.addEventListener('click', handleMerge);
 
+        // Drag & Drop Event Listener
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, preventDefaults, false);
+            document.body.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => dropZone.classList.add('dragover'), false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => dropZone.classList.remove('dragover'), false);
+        });
+
+        dropZone.addEventListener('drop', handleDrop, false);
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            handleFiles(files);
+        }
+
         function handleFileSelect(event) {
             const files = event.target.files;
+            handleFiles(files);
+            event.target.value = null; // Zurücksetzen für erneute Auswahl derselben Datei
+        }
+
+        function handleFiles(files) {
             if (!files.length) return;
 
             statusDiv.textContent = '';
             mergedLinkContainer.innerHTML = '';
 
-            const newFiles = []; // Process new files separately
+            const newFiles = [];
 
             for (const file of files) {
                 if (file.type !== 'application/pdf') {
-                    updateStatus(`Skipped non-PDF file: ${file.name}`, 'error');
+                    updateStatus(`Nicht-PDF-Datei übersprungen: ${file.name}`, 'error');
                     continue;
                 }
                 if (loadedFiles.some(f => f.file.name === file.name)) {
-                     updateStatus(`File already loaded: ${file.name}`, 'info');
+                     updateStatus(`Datei bereits geladen: ${file.name}`, 'info');
                      continue;
                 }
 
@@ -282,22 +325,18 @@
                     id: fileId,
                     file: file,
                     selected: true,
-                    rotation: 0 // Initial rotation
+                    rotation: 0 // Benutzerdefinierter Rotations-Offset
                 };
                 loadedFiles.push(fileData);
-                newFiles.push(fileData); // Add to new files to render preview
+                newFiles.push(fileData);
             }
 
-            // Add elements and render previews asynchronously
             newFiles.forEach(fileData => {
                 addFileToList(fileData);
-                // Render preview AFTER the element is in the DOM
                 setTimeout(() => renderPreview(fileData.id), 0);
             });
 
-
             updateMergeButtonState();
-            event.target.value = null; // Clear input
         }
 
         function addFileToList(fileData) {
@@ -314,10 +353,10 @@
             previewCanvas.id = `canvas-${fileData.id}`;
             previewCanvas.classList.add('preview-canvas');
             const loadingText = document.createElement('span');
-            loadingText.textContent = 'Loading...';
+            loadingText.textContent = 'Lädt...';
             loadingText.classList.add('preview-loading');
-            previewContainer.appendChild(loadingText); // Show loading initially
-            previewContainer.appendChild(previewCanvas); // Canvas is ready but hidden by CSS until drawn
+            previewContainer.appendChild(loadingText);
+            previewContainer.appendChild(previewCanvas);
 
             // File Details (Checkbox, Name, Rotate Buttons)
             const detailsDiv = document.createElement('div');
@@ -336,7 +375,7 @@
 
             const fileNameSpan = document.createElement('span');
             fileNameSpan.textContent = fileData.file.name;
-            fileNameSpan.title = fileData.file.name; // Tooltip for long names
+            fileNameSpan.title = fileData.file.name;
             fileNameSpan.classList.add('file-name');
 
             fileInfoDiv.appendChild(checkbox);
@@ -347,13 +386,13 @@
             rotateDiv.classList.add('rotate-controls');
 
             const rotateCWBtn = document.createElement('button');
-            rotateCWBtn.textContent = 'Rotate  CW';
-            rotateCWBtn.title = 'Rotate Clockwise 90°';
+            rotateCWBtn.textContent = '90° Rechts';
+            rotateCWBtn.title = 'Im Uhrzeigersinn drehen';
             rotateCWBtn.addEventListener('click', () => rotateFile(fileData.id, 90));
 
             const rotateCCWBtn = document.createElement('button');
-            rotateCCWBtn.textContent = 'Rotate CCW';
-            rotateCCWBtn.title = 'Rotate Counter-Clockwise 90°';
+            rotateCCWBtn.textContent = '90° Links';
+            rotateCCWBtn.title = 'Gegen den Uhrzeigersinn drehen';
             rotateCCWBtn.addEventListener('click', () => rotateFile(fileData.id, -90));
 
             rotateDiv.appendChild(rotateCCWBtn);
@@ -376,7 +415,7 @@
             downloadBtn.addEventListener('click', () => downloadSingleFile(fileData));
 
             const removeBtn = document.createElement('button');
-            removeBtn.textContent = 'Remove';
+            removeBtn.textContent = 'Entfernen';
             removeBtn.classList.add('remove-btn');
             removeBtn.addEventListener('click', () => removeFile(fileData.id));
 
@@ -402,45 +441,50 @@
             const ctx = canvas.getContext('2d');
 
             try {
-                 // Show loading indicator during processing
                  if (loadingIndicator) loadingIndicator.style.display = 'inline';
-                 canvas.style.display = 'none'; // Hide canvas while loading/clearing
+                 canvas.style.display = 'none';
 
-                 // Clear previous rendering
+                 // Vorheriges Rendering löschen
                  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
                 const arrayBuffer = await fileData.file.arrayBuffer();
                 const pdfDoc = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-                const page = await pdfDoc.getPage(1); // Get the first page
+                const page = await pdfDoc.getPage(1); // Erste Seite für die Vorschau holen
 
-                const desiredWidth = 80; // Match container width
-                const viewport = page.getViewport({ scale: 1 });
-                const scale = desiredWidth / viewport.width;
-                const scaledViewport = page.getViewport({ scale: scale, rotation: fileData.rotation });
+                // Die inhärente PDF-Rotation berücksichtigen und mit der Benutzer-Rotation addieren
+                const pageInherentRotation = page.rotate || 0;
+                const finalRotation = (pageInherentRotation + fileData.rotation) % 360;
+
+                const desiredWidth = 80; // Vorschau-Breite
+                
+                // Vorab-Viewport berechnen, um die Dimensionen nach der Rotation zu ermitteln
+                const tempViewport = page.getViewport({ scale: 1, rotation: finalRotation });
+                
+                // Skalierung basierend auf der tatsächlichen, rotierten Breite berechnen
+                const scale = desiredWidth / tempViewport.width;
+                const scaledViewport = page.getViewport({ scale: scale, rotation: finalRotation });
 
                 canvas.height = scaledViewport.height;
                 canvas.width = scaledViewport.width;
 
-                // Adjust canvas size within container if rotation makes it taller than wide
-                 if (scaledViewport.height > container.clientHeight) {
+                // Falls die rotierte Höhe die Containerhöhe (100px) überschreitet, nachkorrigieren
+                if (scaledViewport.height > container.clientHeight) {
                     const heightScale = container.clientHeight / scaledViewport.height;
-                    const adjustedViewport = page.getViewport({ scale: scale * heightScale, rotation: fileData.rotation });
+                    const adjustedViewport = page.getViewport({ scale: scale * heightScale, rotation: finalRotation });
                     canvas.height = adjustedViewport.height;
                     canvas.width = adjustedViewport.width;
                      await page.render({ canvasContext: ctx, viewport: adjustedViewport }).promise;
-                 } else {
+                } else {
                      await page.render({ canvasContext: ctx, viewport: scaledViewport }).promise;
-                 }
+                }
 
-
-                 // Hide loading, show canvas
                  if (loadingIndicator) loadingIndicator.style.display = 'none';
                  canvas.style.display = 'block';
 
             } catch (error) {
-                console.error(`Error rendering preview for ${fileData.file.name}:`, error);
-                 if (loadingIndicator) loadingIndicator.textContent = 'Preview Error';
-                 else container.innerHTML = '<span style="font-size:0.8em; color:red;">Preview Error</span>'; // Fallback
+                console.error(`Fehler bei der Vorschau-Generierung für ${fileData.file.name}:`, error);
+                 if (loadingIndicator) loadingIndicator.textContent = 'Vorschau-Fehler';
+                 else container.innerHTML = '<span style="font-size:0.8em; color:red;">Fehler</span>';
             }
         }
 
@@ -449,16 +493,16 @@
             const fileData = loadedFiles.find(f => f.id === fileId);
             if (!fileData) return;
 
-            // Calculate new rotation (0, 90, 180, 270)
+            // Neuen Benutzer-Rotations-Offset berechnen
             let newRotation = (fileData.rotation + angle) % 360;
             if (newRotation < 0) {
-                newRotation += 360; // Ensure positive angle
+                newRotation += 360;
             }
             fileData.rotation = newRotation;
 
-            // Update the preview immediately
+            // Vorschau umgehend aktualisieren
             renderPreview(fileId);
-            updateStatus(`Rotated ${fileData.file.name}. New angle: ${newRotation}°`, 'info');
+            updateStatus(`Rotation geändert für ${fileData.file.name}. Zusätzlicher Winkel: ${newRotation}°`, 'info');
         }
 
 
@@ -470,15 +514,14 @@
             }
             updateMergeButtonState();
             if (loadedFiles.length === 0) {
-                statusDiv.textContent = ''; // Clear status if list is empty
-                 mergedLinkContainer.innerHTML = '';
+                statusDiv.textContent = '';
+                mergedLinkContainer.innerHTML = '';
             } else {
-                 updateStatus(`File removed.`, 'info');
+                 updateStatus(`Datei entfernt.`, 'info');
             }
         }
 
         function downloadSingleFile(fileData) {
-            // No changes needed here, download the original unmodified file
             try {
                 const url = URL.createObjectURL(fileData.file);
                 const a = document.createElement('a');
@@ -488,33 +531,27 @@
                 a.click();
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
-                updateStatus(`Downloaded original: ${fileData.file.name}`, 'success');
+                updateStatus(`Original heruntergeladen: ${fileData.file.name}`, 'success');
             } catch (error) {
-                console.error("Error creating download link:", error);
-                updateStatus(`Error downloading ${fileData.file.name}: ${error.message}`, 'error');
+                console.error("Download-Fehler:", error);
+                updateStatus(`Fehler beim Herunterladen von ${fileData.file.name}: ${error.message}`, 'error');
             }
         }
 
         function updateMergeButtonState() {
             const selectedFilesCount = loadedFiles.filter(f => f.selected).length;
-            mergeBtn.disabled = selectedFilesCount < 1; // Allow merging even a single file (if rotated)
-            // Or keep requirement for 2+ files: mergeBtn.disabled = selectedFilesCount < 2;
+            mergeBtn.disabled = selectedFilesCount < 1;
         }
 
         async function handleMerge() {
             const filesToMerge = loadedFiles.filter(f => f.selected);
 
             if (filesToMerge.length === 0) {
-                 updateStatus('Please select at least one PDF file.', 'error');
+                 updateStatus('Bitte wählen Sie mindestens eine PDF-Datei aus.', 'error');
                  return;
             }
-            // if (filesToMerge.length < 2) { // Keep if you require 2+ for merging
-            //     updateStatus('Please select at least two PDF files to merge.', 'error');
-            //     return;
-            // }
 
-
-            updateStatus('Processing PDFs... Please wait.', 'info');
+            updateStatus('PDFs werden verarbeitet... Bitte warten.', 'info');
             mergeBtn.disabled = true;
             mergedLinkContainer.innerHTML = '';
 
@@ -522,84 +559,85 @@
                 const mergedPdf = await PDFDocument.create();
 
                 for (const fileData of filesToMerge) {
-                    updateStatus(`Processing: ${fileData.file.name}...`, 'info');
+                    updateStatus(`Verarbeite: ${fileData.file.name}...`, 'info');
                     const arrayBuffer = await fileData.file.arrayBuffer();
                     let pdfToCopy;
                     try {
                          pdfToCopy = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
                     } catch (loadError){
-                         console.error(`Error loading ${fileData.file.name}:`, loadError);
-                         updateStatus(`Skipping file ${fileData.file.name} due to loading error: ${loadError.message}`, 'error');
-                         continue; // Skip this file
+                         console.error(`Fehler beim Laden von ${fileData.file.name}:`, loadError);
+                         updateStatus(`Fehler beim Laden von ${fileData.file.name}: ${loadError.message}`, 'error');
+                         continue;
                     }
 
-
                     if (pdfToCopy.isEncrypted) {
-                         updateStatus(`Skipping encrypted file: ${fileData.file.name}.`, 'error');
-                         continue; // Skip encrypted files
+                         updateStatus(`Verschlüsselte Datei übersprungen: ${fileData.file.name}.`, 'error');
+                         continue;
                     }
 
                     const pageIndices = pdfToCopy.getPageIndices();
 
-                    // Apply rotation if needed BEFORE copying pages
+                    // Wenn eine zusätzliche Rotation angewendet werden soll
                     if (fileData.rotation !== 0) {
-                        updateStatus(`Applying ${fileData.rotation}° rotation to ${fileData.file.name}...`, 'info');
+                        updateStatus(`Wende ${fileData.rotation}° Rotation auf ${fileData.file.name} an...`, 'info');
                         pageIndices.forEach(index => {
                             const page = pdfToCopy.getPage(index);
-                            const currentRotation = page.getRotation().angle;
-                            // Calculate final rotation, ensuring it stays within 0-359
+                            
+                            // Inhärente Rotation aus pdf-lib auslesen
+                            const rotationObj = page.getRotation();
+                            const currentRotation = rotationObj ? (rotationObj.angle || 0) : 0;
+                            
                             let finalRotation = (currentRotation + fileData.rotation) % 360;
                             if (finalRotation < 0) finalRotation += 360;
+                            
                             page.setRotation(degrees(finalRotation));
                         });
                     }
 
-                    // Copy the pages (original or rotated)
+                    // Seiten kopieren
                     const copiedPages = await mergedPdf.copyPages(pdfToCopy, pageIndices);
                     copiedPages.forEach((page) => {
                         mergedPdf.addPage(page);
                     });
-                    updateStatus(`Added ${pageIndices.length} pages from ${fileData.file.name}.`, 'info');
+                    updateStatus(`${pageIndices.length} Seiten aus ${fileData.file.name} hinzugefügt.`, 'info');
                 }
 
                 if (mergedPdf.getPageCount() === 0) {
-                    updateStatus('No pages were added. Check if files were skipped (e.g., encrypted or load errors).', 'error');
-                    updateMergeButtonState(); // Re-enable based on remaining files
+                    updateStatus('Es wurden keine Seiten hinzugefügt. Überprüfen Sie, ob Dateien übersprungen wurden.', 'error');
+                    updateMergeButtonState();
                     return;
                 }
 
                 const mergedPdfBytes = await mergedPdf.save();
 
-                displayDownloadLink(mergedPdfBytes, 'merged_document.pdf');
-                updateStatus(`Successfully processed ${filesToMerge.length} files. Click the link below to download.`, 'success');
+                displayDownloadLink(mergedPdfBytes, 'zusammengefuegtes_dokument.pdf');
+                updateStatus(`Erfolgreich verarbeitet. Klicken Sie auf den Link unten, um die Datei herunterzuladen.`, 'success');
 
             } catch (error) {
-                console.error("Error during PDF processing:", error);
-                updateStatus(`Processing failed: ${error.message}`, 'error');
+                console.error("Fehler beim Zusammenführen der PDFs:", error);
+                updateStatus(`Fehler beim Zusammenführen: ${error.message}`, 'error');
             } finally {
-                 updateMergeButtonState(); // Re-enable button correctly
+                 updateMergeButtonState();
             }
         }
 
         function displayDownloadLink(bytes, filename) {
-            // No changes needed here
             const blob = new Blob([bytes], { type: 'application/pdf' });
             const url = URL.createObjectURL(blob);
             mergedLinkContainer.innerHTML = '';
             const a = document.createElement('a');
             a.href = url;
             a.download = filename;
-            a.textContent = `Download Merged PDF (${(bytes.length / 1024 / 1024).toFixed(2)} MB)`;
+            a.textContent = `Zusammengeführte PDF herunterladen (${(bytes.length / 1024 / 1024).toFixed(2)} MB)`;
             mergedLinkContainer.appendChild(a);
         }
 
         function updateStatus(message, type = 'info') {
-            // No changes needed here
             statusDiv.textContent = message;
             statusDiv.className = `status-${type}`;
         }
 
-        // Initial state
+        // Initialer Zustand
         updateMergeButtonState();
 
     </script>
