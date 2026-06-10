@@ -2865,7 +2865,7 @@
 
             html += `
                 <div class="input-group">
-                    <label>Expire Date</label>
+                    <label>Best before Date</label>
                     <div style="display: flex; gap: 10px;">
                         <input type="text" class="date-input" id="vi_expire" value="${expireVal}" placeholder="DD.MM.YYYY" maxlength="10" oninput="vExpireCheck(this.value, '${v.prod}')" style="flex: 1;">
                         <input type="date" onchange="syncDate(this.value, 'vi_expire')" style="width: 50px; padding: 5px; cursor: pointer; border: 1px solid var(--border); border-radius: 6px; background: #fff;">
@@ -3992,7 +3992,7 @@
                     <tr style="background: #f2f2f2;">
                         <th style="padding: 5px; border: 1px solid #ddd; text-align: left;">Product</th>
                         <th style="padding: 5px; border: 1px solid #ddd; text-align: left;">Qty</th>
-                        <th style="padding: 5px; border: 1px solid #ddd; text-align: left;">MHD / Expire Date</th>
+                        <th style="padding: 5px; border: 1px solid #ddd; text-align: left;">MHD / Best before Date</th>
                     </tr>`;
             tagesAudit[16].split(';').forEach(item => {
                 if(!item.trim()) return;
