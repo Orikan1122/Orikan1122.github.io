@@ -620,7 +620,8 @@
           <button id="btnEnv" onclick="ladeEnvDaten()" style="background: #61A9A4; color: white; border: none; padding: 4px; border-radius: 4px; font-size: 11px; cursor: pointer; font-weight: 600; height: 26px;">Environment</button>
           <button id="btnWaste" onclick="ladeWasteDaten()" style="background: #DD612C; color: white; border: none; padding: 4px; border-radius: 4px; font-size: 11px; cursor: pointer; font-weight: 600; height: 26px;">Waste</button>
           <button id="btnRisk" onclick="ladeRiskDaten()" style="background: #AE0F1A; color: white; border: none; padding: 4px; border-radius: 4px; font-size: 11px; cursor: pointer; font-weight: 600; height: 26px;">Risk Matrix</button>
-          <button id="btnChem" onclick="ladeChemicals()" style="background: #770009; color: white; border: none; padding: 4px; border-radius: 4px; font-size: 11px; cursor: pointer; font-weight: 600; grid-column: span 2; height: 26px;">Gefahrstoffe</button>
+          <button id="btnChem" onclick="ladeChemicals()" style="background: #770009; color: white; border: none; padding: 4px; border-radius: 4px; font-size: 11px; cursor: pointer; font-weight: 600; height: 26px;">Gefahrstoffe</button>
+          <button id="btnMaterialClass" onclick="ladeMaterialClassDaten()" style="background: #5c2d91; color: white; border: none; padding: 4px; border-radius: 4px; font-size: 11px; cursor: pointer; font-weight: 600; height: 26px;">Material Klass.</button>
         </div>
         <button id="btnSyncAll" onclick="syncAllDatasets()" style="background: #E41E2B; color: white; border: none; padding: 5px; border-radius: 4px; font-size: 11.5px; cursor: pointer; font-weight: bold; width: 100%; height: 28px;">
           🔄 Alle nacheinander synchronisieren
@@ -665,6 +666,7 @@
   <button class="tab-btn" onclick="showTab('pProjects',this); updateProjectDash();">&#128640; Projekt Portfolio</button>
   <button class="tab-btn" onclick="showTab('pRisk',this); updateRiskDashboard();">&#127919; Risk Matrix</button>
   <button class="tab-btn" onclick="showTab('pChemicals',this); updateChemicals();">☣️ Gefahrstoffe</button>
+  <button class="tab-btn" onclick="showTab('pMaterialClass',this); updateMaterialClassDashboard();">&#128230; Material Klassifizierung</button>
   <button class="tab-btn" onclick="showTab('pRohdaten',this)">&#128194; File Insights & Rohdaten</button>
 </div>
 
@@ -2907,6 +2909,208 @@
 </div>
 
 <!-- ============================================================ -->
+<!-- TAB: MATERIAL KLASSIFIZIERUNG & MONITORING (NEU)             -->
+<!-- ============================================================ -->
+<div class="tab-pane" id="pMaterialClass">
+  <div class="dash-layout" style="flex-direction: row; align-items: flex-start;">
+    
+    <!-- LINKE SEITE: Filter & Sensitivitäts-Steuerung -->
+    <div class="dash-filters" style="width: 200px; min-width: 200px; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); position: sticky; top: 15px; max-height: 90vh; overflow-y: auto;">
+      <div class="filter-title">Material Filters</div>
+      <div>
+        <label>Jahr</label>
+        <select id="mcFilterYear" onchange="updateMaterialClassDashboard()"></select>
+      </div>
+      <div style="margin-top: 10px;">
+        <label>Monat</label>
+        <select id="mcFilterMonth" onchange="updateMaterialClassDashboard()">
+          <option value="All">Alle Monate</option>
+          <option value="1">Januar</option><option value="2">Februar</option><option value="3">März</option>
+          <option value="4">April</option><option value="5">Mai</option><option value="6">Juni</option>
+          <option value="7">Juli</option><option value="8">August</option><option value="9">September</option>
+          <option value="10">Oktober</option><option value="11">November</option><option value="12">Dezember</option>
+        </select>
+      </div>
+      <div style="margin-top: 10px;">
+        <label>Werk / Plant</label>
+        <select id="mcFilterPlant" onchange="updateMaterialClassDashboard()">
+          <option value="All">Alle Werke</option>
+          <option value="5501">5501 - Vals</option>
+          <option value="5511">5511 - Dietlikon</option>
+        </select>
+      </div>
+      <div style="margin-top: 10px;">
+        <label>Kategorie</label>
+        <select id="mcFilterCategory" onchange="updateMaterialClassDashboard()">
+          <option value="All">Alle Kategorien</option>
+        </select>
+      </div>
+      <div style="margin-top: 10px;">
+        <label>Vendor</label>
+        <select id="mcFilterVendor" onchange="updateMaterialClassDashboard()">
+          <option value="All">Alle Vendors</option>
+        </select>
+      </div>
+      
+      <!-- INTERAKTIVER AUSREISSER REGLER (Toleranz in % vom Durchschnitt) -->
+      <div style="margin-top: 15px; background: #FFF5F4; padding: 10px; border-radius: 6px; border: 1px solid var(--coke-red);">
+        <label style="color: var(--coke-red); font-weight: bold; font-size: 11px;">Ausreißer-Toleranz (%)</label>
+        <input type="number" id="mcOutlierThresholdInput" value="10" min="1" max="1000" step="5" onchange="updateMaterialClassDashboard()" style="width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; margin-top: 4px; box-sizing: border-box; font-weight: bold; text-align: right;">
+        <div style="font-size:9.5px; color:#667C8B; margin-top:4px; line-height: 1.2;">Maximale Abweichung nach oben vom Kategorie-Mittelwert.</div>
+      </div>
+      
+      <div style="margin-top: 10px;">
+        <label style="display:flex; align-items:center; gap:5px; font-weight:normal; font-size:11.5px; cursor:pointer;">
+          <input type="checkbox" id="mcFilterOutliersOnly" onchange="updateMaterialClassDashboard()">
+          Nur Ausreißer anzeigen
+        </label>
+      </div>
+    </div>
+
+    <!-- RECHTE SEITE: Charts, Diagramme und Tabellen-Breakdowns -->
+    <div class="dash-chart" style="flex:1; background: #e8eaed; padding: 15px; border-radius: 8px; min-width: 0; margin-left: 15px; display: flex; flex-direction: column; gap: 20px;">
+      
+      <!-- KPI KARTEN -->
+      <div style="display:flex; gap: 15px; flex-wrap: wrap;">
+        <div style="flex: 1; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); text-align:center; border-top: 4px solid #0078d4;">
+          <h4 style="font-size: 13px; color: #777; margin-bottom: 5px;">Gefilterte Materialien</h4>
+          <div id="kpiMcTotalCount" style="font-size: 28px; font-weight: bold; color: #333;">0</div>
+        </div>
+        <div style="flex: 1; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); text-align:center; border-top: 4px solid #107c41;">
+          <h4 style="font-size: 13px; color: #777; margin-bottom: 5px;">Gesamtgewicht (t)</h4>
+          <div id="kpiMcTotalWeight" style="font-size: 28px; font-weight: bold; color: #107c41;">0 t</div>
+        </div>
+        <div style="flex: 1; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); text-align:center; border-top: 4px solid #d83b01;">
+          <h4 style="font-size: 13px; color: #777; margin-bottom: 5px;">Geflaggte Ausreißer</h4>
+          <div id="kpiMcOutliers" style="font-size: 28px; font-weight: bold; color: #d83b01;">0</div>
+        </div>
+      </div>
+
+      <!-- ZEILE 1: VARIANZ-TABELLE (VOLLE BREITE) -->
+      <div style="background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); font-family: inherit; display: flex; flex-direction: column; margin-bottom: 20px; width: 100%;">
+        <h4 style="font-size: 14px; color: #333; margin-bottom: 10px;">📊 YoY Gewichts-Varianz vs. Vorjahr (MTD &amp; YTD)</h4>
+        <div style="overflow-x: auto; flex: 1;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 11px; text-align: right;">
+            <thead style="background: #f4f7f6; border-bottom: 2px solid #ccc; position: sticky; top: 0; z-index: 5;">
+              <tr>
+                <th style="padding: 6px 8px; text-align: left;">Kategorie</th>
+                <th style="padding: 6px 8px;">Month CY</th>
+                <th style="padding: 6px 8px;">Month PY</th>
+                <th style="padding: 6px 8px;">Month Δ (KG)</th>
+                <th style="padding: 6px 8px; border-right: 1px solid #ddd;">Month Δ %</th>
+                <th style="padding: 6px 8px;">YTD CY</th>
+                <th style="padding: 6px 8px;">YTD PY</th>
+                <th style="padding: 6px 8px;">YTD Δ (KG)</th>
+                <th style="padding: 6px 8px;">YTD Δ %</th>
+              </tr>
+            </thead>
+            <tbody id="mcVarTableBody">
+              <tr><td colspan="9" style="text-align:center; padding: 15px; color:#999;">Keine Daten geladen.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ZEILE 1b: MONATS-DIAGRAMME -->
+      <div style="display:flex; gap: 20px; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 280px; background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); font-family: inherit; width: 100%;">
+          <h4 style="font-size: 14px; color: #333; margin-bottom: 10px;">📅 Monatliche Übersicht (KG)</h4>
+          <div style="height: 250px; position: relative;"><canvas id="mcChartMonthly"></canvas></div>
+        </div>
+      </div>
+
+      <!-- ZEILE 2: GEWICHTSDISTRIBUTION & DIREKTE AUSREISSER-ANALYSE -->
+      <div style="display:flex; gap: 20px; flex-wrap: wrap;">
+        <div style="flex: 1.5; min-width: 400px; background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); font-family: inherit;">
+          <h4 style="font-size: 14px; color: #333; margin-bottom: 10px;">⚠️ Gewichtsüberwachung: Materialien vs. Kategorie-Durchschnitt</h4>
+          <div style="height: 250px; position: relative;"><canvas id="mcChartOutliers"></canvas></div>
+        </div>
+        
+        <!-- DIREKTE AUSREISSER TABELLE -->
+        <div style="flex: 1; min-width: 280px; background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; flex-direction: column; font-family: inherit;">
+          <h4 style="font-size: 14px; color: #d83b01; margin-bottom: 10px; font-weight: bold;">🚨 Identifizierte Ausreißer</h4>
+          <div style="overflow-y: auto; max-height: 250px; border: 1px solid #ffe3e3; border-radius: 4px; flex: 1;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 10px; text-align: left;">
+              <thead style="background: #fff0f0; border-bottom: 1px solid #ffd1d1; position: sticky; top: 0; z-index: 5;">
+                <tr>
+                  <th style="padding: 6px;">Kategorie</th>
+                  <th style="padding: 6px;">Material</th>
+                  <th style="padding: 6px; text-align: right;">Nettogewicht</th>
+                  <th style="padding: 6px; text-align: right; color:#d83b01;">Abweichung</th>
+                </tr>
+              </thead>
+              <tbody id="mcOutliersTableBody">
+                <tr><td colspan="4" style="text-align:center; padding:15px; color:#999;">Keine Ausreißer erfasst.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ZEILE 2b: GEWICHTSVARIANTEN PRO KATEGORIE -->
+      <div style="background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); font-family: inherit; margin-bottom: 20px;">
+        <h4 style="font-size: 14px; color: #333; margin-bottom: 10px; font-weight: bold;">⚖️ Gewichtsvarianten pro Kategorie – schwerste bis leichteste</h4>
+        <div style="font-size: 11px; color: #667C8B; margin-bottom: 8px;">
+          Jeder Balken steht für ein eindeutiges Nettogewicht innerhalb einer Kategorie. Sortierung: schwerstes Gewicht oben bis leichtestes Gewicht unten.
+        </div>
+        <div style="height: 430px; position: relative;">
+          <canvas id="mcChartCategoryScatter"></canvas>
+        </div>
+      </div>
+
+      <!-- ZEILE 3: HIERARCHISCHER BREAKDOWN (AUFKLAPPBAR) -->
+      <div style="background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); font-family: inherit;">
+        <h4 style="font-size: 14px; color: #333; margin-bottom: 10px; font-weight: bold;">🗂️ Gewichts-Breakdown (Kategorie ➔ Vendor ➔ Material)</h4>
+        <div style="overflow-x: auto; max-height: 400px; border: 1px solid #eee; border-radius: 4px;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 11.5px; text-align: left;">
+            <thead style="background: #e8f0fe; position: sticky; top: 0; z-index: 10; border-bottom: 2px solid #0078d4;">
+              <tr>
+                <th style="padding: 10px; width: 45%;">Stufe: Kategorie / Vendor / Material</th>
+                <th style="padding: 10px; text-align: right; width: 15%;">Gewicht (Total)</th>
+                <th style="padding: 10px; text-align: right; width: 10%;">Anteil %</th>
+                <th style="padding: 10px; text-align: center; width: 15%;">Ausreißer</th>
+                <th style="padding: 10px; text-align: right; width: 15%;">Nettogewicht</th>
+              </tr>
+            </thead>
+            <tbody id="mcHierarchyTableBody">
+              <tr><td colspan="5" style="text-align:center; padding:15px; color:#999;">Lade Struktur...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ZEILE 4: FLACHE DATENTABELLE -->
+      <div style="background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 10px; font-family: inherit;">
+        <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <h4 style="font-size: 14px; color: #333; margin: 0;">📋 Detaillierter Daten-Auszug</h4>
+          <button onclick="exportMaterialClassTable()" style="background:#107c41; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:12px;">🗎 Excel Export (Auszug)</button>
+        </div>
+        <div style="overflow-x: auto; max-height: 250px; border: 1px solid #eee; border-radius: 4px;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 11.5px; text-align: left;">
+            <thead style="background: #f4f7f6; position: sticky; top: 0; z-index: 10;">
+              <tr style="border-bottom: 2px solid #ccc;">
+                <th style="padding: 10px;">Periode</th>
+                <th style="padding: 10px;">Werk</th>
+                <th style="padding: 10px;">Kategorie</th>
+                <th style="padding: 10px;">Vendor</th>
+                <th style="padding: 10px;">Material (Code & Desc)</th>
+                <th style="padding: 10px; text-align: right;">Nettogewicht</th>
+                <th style="padding: 10px; text-align: right;">Total Weight (KG)</th>
+                <th style="padding: 10px; text-align: center;">Status</th>
+              </tr>
+            </thead>
+            <tbody id="mcTableBody">
+              <tr><td colspan="8" style="text-align:center; padding:15px; color:#999;">Keine Daten geladen. Bitte synchronisieren Sie die Material Klassifizierung.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
 <!-- TAB: FILE INSIGHTS & ROHDATEN (Gebündelt & Klappbar)         -->
 <!-- ============================================================ -->
 <div class="tab-pane" id="pRohdaten">
@@ -3105,12 +3309,15 @@ let globalConsumerData = [];
 let globalCustomerData = [];
 let globalSalesData    = [];
 let globalProduktData  = [];
+let globalMaterialClassData = [];
 let cpmAllCols = [];
 let cpmSelectedCols = new Set();
 let tsMaster = "Nie";
 let tsEnv = "Nie";
 let tsWaste = "Nie";
 let tsRisk = "Nie";
+let tsMaterialClass = "Nie";
+
 
 const lineNames = {
   '5501/0000460':'PET Linie','5501/0000462':'RGB Linie','5501/0000461':'KEG Linie',
@@ -3363,23 +3570,26 @@ async function syncAllDatasets() {
     try {
         setStatus("Starte automatischen Komplett-Sync aller Datensätze...");
         
-        btn.innerText = "⏳ 1/5: Masterdaten laden...";
+        btn.innerText = "⏳ 1/6: Masterdaten laden...";
         await ladeDaten();
         
-        btn.innerText = "⏳ 2/5: Umweltdaten laden...";
+        btn.innerText = "⏳ 2/6: Umweltdaten laden...";
         await ladeEnvDaten();
         
-        btn.innerText = "⏳ 3/5: Waste & Loss laden...";
+        btn.innerText = "⏳ 3/6: Waste & Loss laden...";
         await ladeWasteDaten();
         
-        btn.innerText = "⏳ 4/5: Risikomatrix laden...";
+        btn.innerText = "⏳ 4/6: Risikomatrix laden...";
         await ladeRiskDaten();
         
-        btn.innerText = "⏳ 5/5: Gefahrstoffe laden...";
+        btn.innerText = "⏳ 5/6: Gefahrstoffe laden...";
         await ladeChemicals();
+
+        btn.innerText = "⏳ 6/6: Material Klassifizierung laden...";
+        await ladeMaterialClassDaten();
         
         setStatus("✓ Alle Datenquellen erfolgreich nacheinander synchronisiert!");
-        alert("Daten-Synchronisation abgeschlossen:\nAlle 5 Datensätze wurden nacheinander aktualisiert.");
+        alert("Daten-Synchronisation abgeschlossen:\nAlle 6 Datensätze wurden nacheinander aktualisiert.");
     } catch (e) {
         setStatus("⚠ Abbruch während des Komplett-Syncs: " + e.message);
         alert("Fehler während des Komplett-Syncs: " + e.message);
@@ -3426,9 +3636,10 @@ async function loadAppFromCache() {
         tsWaste  = await loadFromCache('lastSyncWaste')  || "Nie";
         tsRisk   = await loadFromCache('lastSyncRisk')   || "Nie";
         tsChemicals = await loadFromCache('lastSyncChemicals') || "Nie";
+        tsMaterialClass = await loadFromCache('lastSyncMaterialClass') || "Nie";
 
         // Prüfen, ob überhaupt irgendwelche Daten im Cache liegen
-        if (tsMaster !== "Nie" || tsEnv !== "Nie" || tsWaste !== "Nie" || tsRisk !== "Nie") {
+        if (tsMaster !== "Nie" || tsEnv !== "Nie" || tsWaste !== "Nie" || tsRisk !== "Nie" || tsMaterialClass !== "Nie") {
             
             // 1. ALLE DATEN AUS DEM CACHE LADEN
             const pData = await loadFromCache('prodData');
@@ -3452,6 +3663,7 @@ async function loadAppFromCache() {
             globalEnvHist = await loadFromCache('envHistData') || [];
             globalEnvDeviations = await loadFromCache('envDevData') || [];
             globalChemicals = await loadFromCache('chemicalData') || [];
+            globalMaterialClassData = await loadFromCache('materialClassData') || [];
             globalHistColMap = await loadFromCache('globalHistColMap') || {}; // Lädt das Spalten-Verzeichnis
             
 
@@ -3487,6 +3699,9 @@ async function loadAppFromCache() {
             }
             if (globalChemicals.length > 0) {
                   updateChemicals();
+              }
+            if (globalMaterialClassData.length > 0) {
+                  updateMaterialClassDashboard();
               }
 
             // 4. ALLE DASHBOARDS ZUM SCHLUSS AKTUALISIEREN
@@ -3605,6 +3820,8 @@ function updateStatusForCurrentTab() {
         text = `Letzter Sync: ${tsRisk} | 🔄 Klicke auf "⚠️ Risk" für Update`;
     } else if (tabId === 'pChemicals') {
         text = `Letzter Sync: ${tsChemicals} | 🔄 Klicke auf "☣️ Gefahrstoffe" für Update`;
+    } else if (tabId === 'pMaterialClass') {
+        text = `Letzter Sync: ${tsMaterialClass} | 🔄 Klicke auf "Material Klass." für Update`;
     } else {
         // Dashboard, DPMO, CPM, Volumen, Projekte, Rohdaten
         text = `Letzter Sync: ${tsMaster} | 🔄 Klicke auf "🔄 Master" für Update`;
@@ -13386,7 +13603,939 @@ function updateChemicals() {
             <div style="display:flex; justify-content:space-between; gap:10px; border-bottom:1px solid #f0f0f0; padding-bottom:1px; font-size: 11px;"><span>Waste:</span><span style="color:#21313D; font-weight:500;">${tsWaste}</span></div>
             <div style="display:flex; justify-content:space-between; gap:10px; border-bottom:1px solid #f0f0f0; padding-bottom:1px; font-size: 11px;"><span>Risk:</span><span style="color:#21313D; font-weight:500;">${tsRisk}</span></div>
             <div style="display:flex; justify-content:space-between; gap:10px; font-size: 11px;"><span>Gefahrstoffe:</span><span style="color:#21313D; font-weight:500;">${tsChemicals}</span></div>
+            <div style="display:flex; justify-content:space-between; gap:10px; font-size: 11px;"><span>Material Klass.:</span><span style="color:#21313D; font-weight:500;">${tsMaterialClass}</span></div>
         `;
+    };
+
+    // ============================================================
+    // MATERIAL KLASSIFIZIERUNG UND GEWICHTSMONITORING CORE (NEU)
+    // ============================================================
+    
+    // Normalisierungsfunktion zur Resilienz gegen inkonsistente Column-Names und Sap-Duplikate [17]
+    window.normalizeMaterialClassRow = function(r) {
+        if (!r) return null;
+        const keys = Object.keys(r);
+        
+        const findVal = (patterns) => {
+            for (let p of patterns) {
+                let k = keys.find(key => key.toLowerCase().replace(/[^a-z0-9]/g, '').includes(p.toLowerCase().replace(/[^a-z0-9]/g, '')));
+                if (k && r[k] !== undefined && r[k] !== null) return r[k];
+            }
+            return '';
+        };
+
+        // Resiliente Zuweisung für duplizierte Header-Spalten (z.B. Vendor Nr. und Name, Material Nr. und Desc)
+        let vendorNo = '';
+        let vendorName = '';
+        let matNo = '';
+        let matDesc = '';
+
+        let vendorKeys = keys.filter(k => k.toLowerCase().includes('vendor'));
+        if (vendorKeys.length >= 2) {
+            vendorKeys.sort(); // "vendor" vor "vendor_1"
+            let v0 = String(r[vendorKeys[0]] || '').trim();
+            let v1 = String(r[vendorKeys[1]] || '').trim();
+            if (!isNaN(Number(v0)) || v0 === '#') { vendorNo = v0; vendorName = v1; } 
+            else { vendorNo = v1; vendorName = v0; }
+        } else if (vendorKeys.length === 1) {
+            let v0 = String(r[vendorKeys[0]] || '').trim();
+            if (!isNaN(Number(v0)) || v0 === '#') { vendorNo = v0; vendorName = 'Nicht zugeordnet'; } 
+            else { vendorNo = '#'; vendorName = v0; }
+        } else {
+            vendorNo = findVal(['vendor nr', 'vendorcode']);
+            vendorName = findVal(['vendor name', 'lieferant']);
+        }
+
+        // Material Mapping
+        // Wichtig: Im Material_Report.xlsx gibt es zwei Spalten mit dem Header "Raw Material":
+        // 1) Materialnummer, 2) Materialbezeichnung. Je nach Parser wird die zweite Spalte z.B.
+        // als "Raw Material_1", "Raw Material.1" oder ähnlich geliefert.
+        const normMatHeader = (v) => String(v || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const cleanMatVal = (v) => String(v ?? '').trim();
+
+        const isMaterialNumber = (v) => {
+            const s = cleanMatVal(v);
+            return s !== '' && (/^\d+$/.test(s) || (s.length < 15 && !isNaN(Number(s))));
+        };
+
+        let matKeys = keys.filter(k => {
+            const nk = normMatHeader(k);
+            return (
+                nk.includes('rawmaterial') ||
+                nk.includes('material') ||
+                nk.includes('matnr') ||
+                nk.includes('matno') ||
+                nk.includes('sku')
+            );
+        });
+
+        // Reihenfolge stabilisieren: echte Raw-Material-Spalten zuerst, damit Nummer + Beschreibung sauber erkannt werden
+        matKeys.sort((a, b) => {
+            const na = normMatHeader(a);
+            const nb = normMatHeader(b);
+            const rank = (n) => {
+                if (n === 'rawmaterial') return 0;
+                if (/^rawmaterial\d+$/.test(n)) return 1;
+                if (n.includes('rawmaterial')) return 2;
+                if (n.includes('description') || n.includes('desc') || n.includes('bezeichnung')) return 3;
+                return 4;
+            };
+            return rank(na) - rank(nb) || na.localeCompare(nb);
+        });
+
+        matKeys.forEach(k => {
+            const val = cleanMatVal(r[k]);
+            if (!val) return;
+
+            if (isMaterialNumber(val)) {
+                if (!matNo) matNo = val;
+            } else {
+                if (!matDesc) matDesc = val;
+            }
+        });
+
+        // Expliziter Fallback auf typische zweite Raw-Material-Spalten aus Excel/Office Script/SheetJS
+        if (!matDesc) {
+            const descFallback = findVal([
+                'raw material 1',
+                'raw material_1',
+                'raw material.1',
+                'rawmaterial1',
+                'material description',
+                'material desc',
+                'materialbezeichnung',
+                'description',
+                'bezeichnung'
+            ]);
+
+            if (descFallback && !isMaterialNumber(descFallback)) {
+                matDesc = cleanMatVal(descFallback);
+            }
+        }
+
+        if (!matNo) {
+            const noFallback = findVal([
+                'raw material',
+                'material nr',
+                'material no',
+                'material number',
+                'materialcode',
+                'matnr',
+                'matno',
+                'sku'
+            ]);
+
+            if (noFallback && isMaterialNumber(noFallback)) {
+                matNo = cleanMatVal(noFallback);
+            }
+        }
+
+        // Falls nur eine Raw-Material-Spalte vorhanden ist:
+        // - numerisch = Materialnummer
+        // - Text = Materialbezeichnung
+        if (!matNo && !matDesc && matKeys.length === 1) {
+            const onlyVal = cleanMatVal(r[matKeys[0]]);
+            if (isMaterialNumber(onlyVal)) {
+                matNo = onlyVal;
+            } else {
+                matDesc = onlyVal;
+            }
+        }
+
+        // Nettogewicht und Total-Gewichte extrahieren
+        let netWeightStr = findVal(['nettogewicht', 'net weight', 'unit weight']);
+        let totalWeightStr = findVal(['total', 'gesamtmenge', 'sum weight']);
+
+        let netWeightKg = 0;
+        let totalWeightKg = 0;
+
+        // Domänen-Heuristik: Nettogewicht extrahieren und an europäische Komma-Notation anpassen
+        if (netWeightStr) {
+            let s = String(netWeightStr).toUpperCase().trim();
+            // Wenn der String ein "G" oder "GRAMM" enthält (aber nicht "KG")
+            let isG = (s.includes('G') || s.includes('GRAMM')) && !s.includes('KG');
+            s = s.replace(/G|KG|RAMM/g, '').replace(/\s/g, '').trim();
+            if (s.includes(',') && s.includes('.')) {
+                s = s.replace(/\./g, '').replace(',', '.');
+            } else if (s.includes(',')) {
+                s = s.replace(',', '.');
+            }
+            let val = parseFloat(s) || 0;
+            netWeightKg = isG ? (val / 1000) : val;
+        }
+
+        if (totalWeightStr) {
+            let s = String(totalWeightStr).toUpperCase().trim();
+            let isG = (s.includes('G') || s.includes('GRAMM')) && !s.includes('KG');
+            s = s.replace(/G|KG|RAMM/g, '').replace(/\s/g, '').trim();
+            if (s.includes(',') && s.includes('.')) {
+                s = s.replace(/\./g, '').replace(',', '.');
+            } else if (s.includes(',')) {
+                s = s.replace(',', '.');
+            }
+            let val = parseFloat(s) || 0;
+            totalWeightKg = isG ? (val / 1000) : val;
+        }
+
+        // Perioden-Auswertung "1.2023" -> Monat 1, Jahr 2023
+        let periodStr = findVal(['periode', 'periode', 'fisc month', 'geschaftsj']);
+        let month = 1;
+        let year = 2023;
+        if (periodStr) {
+            let parts = String(periodStr).split('.');
+            if (parts.length === 2) {
+                month = parseInt(parts[0]) || 1;
+                year = parseInt(parts[1]) || 2023;
+            }
+        }
+
+        let plant = findVal(['plant', 'werk', 'cr360 plant']);
+
+        return {
+            period: periodStr || `${month}.${year}`,
+            month: month,
+            year: year,
+            plant: plant || 'Unknown',
+            category: String(findVal(['katergorie', 'kategorie', 'cat']) || 'Other').trim(),
+            vendorNo: vendorNo || '#',
+            vendorName: vendorName || 'Nicht zugeordnet',
+            matNo: matNo || 'Unknown',
+            matDesc: matDesc || 'Unknown',
+            netWeightStr: netWeightStr,
+            totalWeightStr: totalWeightStr,
+            netWeightKg: netWeightKg,
+            totalWeightKg: totalWeightKg,
+            isOutlier: false
+        };
+    };
+
+    // Dynamischer Outlier-Detektor basierend auf dem prozentualen Schwellenwert vom Kategorie-Durchschnitt
+    window.detectOutliers = function(data, thresholdPct = 10) {
+        let categories = {};
+        data.forEach(r => {
+            if (!categories[r.category]) categories[r.category] = [];
+            if (r.netWeightKg > 0) {
+                categories[r.category].push(r.netWeightKg);
+            }
+        });
+
+        window._mcAverages = {};
+        for (let cat in categories) {
+            let weights = categories[cat];
+            if (weights.length > 0) {
+                let sum = weights.reduce((s, w) => s + w, 0);
+                window._mcAverages[cat] = sum / weights.length;
+            } else {
+                window._mcAverages[cat] = 0;
+            }
+        }
+
+        data.forEach(r => {
+            let avg = window._mcAverages[r.category] || 0;
+            // Ausreißer, wenn das Gewicht um mehr als thresholdPct % über dem Durchschnitt liegt
+            if (avg > 0 && r.netWeightKg > avg * (1 + thresholdPct / 100)) {
+                r.isOutlier = true;
+            } else {
+                r.isOutlier = false;
+            }
+        });
+    };
+
+    // Datenabruf-Routine
+    window.ladeMaterialClassDaten = async function() {
+        const btn = document.getElementById('btnMaterialClass');
+        if (btn) { btn.disabled = true; btn.innerText = "⏳ Lädt..."; }
+
+        try {
+            setStatus("Sende Request an Office Script API (Material_Data)...");
+            
+            const responseData = await fetchBulkData('Material_Data', 'DataFile');
+            const rawRows = Array.isArray(responseData["DataFile"]) ? responseData["DataFile"] : [];
+            
+            console.log(`[Material_Data] Erfolgreich geladen: ${rawRows.length} Zeilen.`);
+            
+            let parsed = rawRows.map(r => normalizeMaterialClassRow(r)).filter(Boolean);
+
+            globalMaterialClassData = parsed;
+            
+            await saveToCache('materialClassData', globalMaterialClassData);
+            let now = new Date().toLocaleString('de-CH');
+            await saveToCache('lastSyncMaterialClass', now);
+            tsMaterialClass = now;
+
+            updateMaterialClassDashboard();
+            updateStatusForCurrentTab();
+            setStatus("✓ Material-Klassifizierung erfolgreich aktualisiert!");
+        } catch (e) {
+            setStatus("Fehler beim Abruf der Materialdaten: " + e.message);
+            console.error(e);
+        } finally {
+            if (btn) { btn.disabled = false; btn.innerText = "Material Klass."; }
+        }
+    };
+
+    let mcCharts = {};
+    window.updateMaterialClassDashboard = function() {
+        if (!globalMaterialClassData || globalMaterialClassData.length === 0) return;
+
+        const MONTH_NAMES_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+        // Toleranzwert für Ausreißer auslesen
+        const thresholdInput = document.getElementById('mcOutlierThresholdInput');
+        const thresholdPct = thresholdInput ? (parseFloat(thresholdInput.value) || 10.0) : 10.0;
+
+        // Berechne Ausreißer dynamisch neu auf dem gesamten Datensatz
+        detectOutliers(globalMaterialClassData, thresholdPct);
+
+        // Filter Dropdowns befüllen
+        const fillDropdown = (id, prop, prependAll) => {
+            const sel = document.getElementById(id);
+            if (!sel || sel.options.length > 1) return;
+            let vals = [...new Set(globalMaterialClassData.map(r => String(r[prop] || '').trim()).filter(Boolean))].sort();
+            sel.innerHTML = `<option value="All">${prependAll}</option>` + 
+                vals.map(v => `<option value="${v}">${v}</option>`).join('');
+        };
+
+        fillDropdown('mcFilterYear', 'year', 'Alle Jahre');
+        fillDropdown('mcFilterCategory', 'category', 'Alle Kategorien');
+        fillDropdown('mcFilterVendor', 'vendorName', 'Alle Vendors');
+
+        // Standard-Jahr setzen falls leer
+        const selYear = document.getElementById('mcFilterYear');
+        if (selYear && !selYear.value) {
+            let years = [...new Set(globalMaterialClassData.map(r => r.year))].sort((a,b)=>b-a);
+            if (years.length > 0) selYear.value = years[0];
+        }
+
+        const year = document.getElementById('mcFilterYear').value;
+        const month = document.getElementById('mcFilterMonth').value;
+        const plant = document.getElementById('mcFilterPlant').value;
+        const category = document.getElementById('mcFilterCategory').value;
+        const vendor = document.getElementById('mcFilterVendor').value;
+        const outliersOnly = document.getElementById('mcFilterOutliersOnly').checked;
+
+        const cy = year === 'All' ? new Date().getFullYear().toString() : year;
+        const py = (parseInt(cy) - 1).toString();
+        const cutoffMonth = month === 'All' ? 12 : parseInt(month);
+
+        // Filter für CY YTD (Current Year)
+        let filtered = globalMaterialClassData.filter(r => {
+            if (String(r.year) !== cy) return false;
+            if (r.month > cutoffMonth) return false;
+            if (plant !== 'All' && String(r.plant) !== plant) return false;
+            if (category !== 'All' && r.category !== category) return false;
+            if (vendor !== 'All' && r.vendorName !== vendor) return false;
+            if (outliersOnly && !r.isOutlier) return false;
+            return true;
+        });
+
+        // Filter für PY YTD (Previous Year für Abgleich im Waterfall-Vergleich)
+        let filteredPY = globalMaterialClassData.filter(r => {
+            if (String(r.year) !== py) return false;
+            if (r.month > cutoffMonth) return false;
+            if (plant !== 'All' && String(r.plant) !== plant) return false;
+            if (category !== 'All' && r.category !== category) return false;
+            if (vendor !== 'All' && r.vendorName !== vendor) return false;
+            return true;
+        });
+
+        // KPI Berechnung
+        let totalCount = filtered.length;
+        let totalWeightKg = filtered.reduce((sum, r) => sum + r.totalWeightKg, 0);
+        let totalWeightTons = totalWeightKg / 1000;
+        let outliersCount = filtered.filter(r => r.isOutlier).length;
+
+        document.getElementById('kpiMcTotalCount').innerText = totalCount.toLocaleString('de-CH');
+        document.getElementById('kpiMcTotalWeight').innerText = totalWeightTons.toLocaleString('de-CH', { maximumFractionDigits: 1 }) + ' t';
+        document.getElementById('kpiMcOutliers').innerText = outliersCount.toLocaleString('de-CH');
+
+        // ==========================================
+        // NEU: YTD & MTD MONATLICHES BRÜCKEN-BERECHNEN (TABELLE)
+        // ==========================================
+        let catWeightsCY_YTD = {};
+        let catWeightsPY_YTD = {};
+        let catWeightsCY_MTD = {};
+        let catWeightsPY_MTD = {};
+
+        // Berechne die MTD und YTD Gewichte je Kategorie für CY und PY
+        globalMaterialClassData.forEach(r => {
+            if (plant !== 'All' && String(r.plant) !== plant) return;
+            if (category !== 'All' && r.category !== category) return;
+            if (vendor !== 'All' && r.vendorName !== vendor) return;
+
+            let rYear = String(r.year);
+            let rMonth = r.month;
+            let rCat = r.category;
+            let rWeight = r.totalWeightKg;
+
+            // YTD-Aggregation (bis zum Cutoff-Monat)
+            if (rMonth <= cutoffMonth) {
+                if (rYear === cy) {
+                    catWeightsCY_YTD[rCat] = (catWeightsCY_YTD[rCat] || 0) + rWeight;
+                } else if (rYear === py) {
+                    catWeightsPY_YTD[rCat] = (catWeightsPY_YTD[rCat] || 0) + rWeight;
+                }
+            }
+
+            // MTD-Aggregation (exakt im selektierten Monat)
+            if (rMonth === cutoffMonth) {
+                if (rYear === cy) {
+                    catWeightsCY_MTD[rCat] = (catWeightsCY_MTD[rCat] || 0) + rWeight;
+                } else if (rYear === py) {
+                    catWeightsPY_MTD[rCat] = (catWeightsPY_MTD[rCat] || 0) + rWeight;
+                }
+            }
+        });
+
+        let allCategoriesForVar = [...new Set([...Object.keys(catWeightsCY_YTD), ...Object.keys(catWeightsPY_YTD)])].sort();
+        
+        let varHtml = '';
+        let grandTotals = { mCy: 0, mPy: 0, yCy: 0, yPy: 0 };
+
+        allCategoriesForVar.forEach(cat => {
+            let mCy = catWeightsCY_MTD[cat] || 0;
+            let mPy = catWeightsPY_MTD[cat] || 0;
+            let yCy = catWeightsCY_YTD[cat] || 0;
+            let yPy = catWeightsPY_YTD[cat] || 0;
+
+            grandTotals.mCy += mCy;
+            grandTotals.mPy += mPy;
+            grandTotals.yCy += yCy;
+            grandTotals.yPy += yPy;
+
+            let mDelta = mCy - mPy;
+            let mPct = mPy > 0 ? (mDelta / mPy * 100) : 0;
+            let yDelta = yCy - yPy;
+            let yPct = yPy > 0 ? (yDelta / yPy * 100) : 0;
+
+            let mPctDisplay = mPy > 0 ? `${mDelta > 0 ? '+' : ''}${mPct.toFixed(1)}%` : (mCy > 0 ? 'NEU' : '-');
+            let yPctDisplay = yPy > 0 ? `${yDelta > 0 ? '+' : ''}${yPct.toFixed(1)}%` : (yCy > 0 ? 'NEU' : '-');
+
+            let colM = mDelta > 0 ? '#d83b01' : (mDelta < 0 ? '#107c41' : '#555');
+            let colY = yDelta > 0 ? '#d83b01' : (yDelta < 0 ? '#107c41' : '#555');
+
+            varHtml += `
+            <tr style="border-bottom: 1px solid #eee;">
+                <td style="padding: 6px 8px; text-align: left; font-weight: 600;">${escapeHTML(cat)}</td>
+                <td style="padding: 6px 8px;">${Math.round(mCy).toLocaleString('de-CH')}</td>
+                <td style="padding: 6px 8px; color: #777;">${Math.round(mPy).toLocaleString('de-CH')}</td>
+                <td style="padding: 6px 8px; font-weight: bold; color: ${colM};">${mDelta > 0 ? '+' : ''}${Math.round(mDelta).toLocaleString('de-CH')}</td>
+                <td style="padding: 6px 8px; font-weight: bold; color: ${colM}; border-right: 1px solid #ddd;">${mPctDisplay}</td>
+                <td style="padding: 6px 8px; font-weight: bold; color: #0078d4;">${Math.round(yCy).toLocaleString('de-CH')}</td>
+                <td style="padding: 6px 8px; color: #777;">${Math.round(yPy).toLocaleString('de-CH')}</td>
+                <td style="padding: 6px 8px; font-weight: bold; color: ${colY};">${yDelta > 0 ? '+' : ''}${Math.round(yDelta).toLocaleString('de-CH')}</td>
+                <td style="padding: 6px 8px; font-weight: bold; color: ${colY};">${yPctDisplay}</td>
+            </tr>`;
+        });
+
+        // Gesamtsumme (Total) Zeile
+        let gtMDelta = grandTotals.mCy - grandTotals.mPy;
+        let gtMPct = grandTotals.mPy > 0 ? (gtMDelta / grandTotals.mPy * 100) : 0;
+        let gtYDelta = grandTotals.yCy - grandTotals.yPy;
+        let gtYPct = grandTotals.yPy > 0 ? (gtYDelta / grandTotals.yPy * 100) : 0;
+
+        let colGM = gtMDelta > 0 ? '#d83b01' : (gtMDelta < 0 ? '#107c41' : '#555');
+        let colGY = gtYDelta > 0 ? '#d83b01' : (gtYDelta < 0 ? '#107c41' : '#555');
+
+        varHtml += `
+        <tr style="background: #e8f0fe; font-weight: bold; border-top: 2px solid #0078d4; position: sticky; bottom: 0;">
+            <td style="padding: 8px; text-align: left;">Total</td>
+            <td style="padding: 8px;">${Math.round(grandTotals.mCy).toLocaleString('de-CH')}</td>
+            <td style="padding: 8px; color: #555;">${Math.round(grandTotals.mPy).toLocaleString('de-CH')}</td>
+            <td style="padding: 8px; color: ${colGM};">${gtMDelta > 0 ? '+' : ''}${Math.round(gtMDelta).toLocaleString('de-CH')}</td>
+            <td style="padding: 8px; color: ${colGM}; border-right: 1px solid #ddd;">${grandTotals.mPy > 0 ? (gtMDelta > 0 ? '+' : '') + gtMPct.toFixed(1) + '%' : '-'}</td>
+            <td style="padding: 8px; color: #0078d4;">${Math.round(grandTotals.yCy).toLocaleString('de-CH')}</td>
+            <td style="padding: 8px; color: #555;">${Math.round(grandTotals.yPy).toLocaleString('de-CH')}</td>
+            <td style="padding: 8px; color: ${colGY};">${gtYDelta > 0 ? '+' : ''}${Math.round(gtYDelta).toLocaleString('de-CH')}</td>
+            <td style="padding: 8px; color: ${colGY};">${grandTotals.yPy > 0 ? (gtYDelta > 0 ? '+' : '') + gtYPct.toFixed(1) + '%' : '-'}</td>
+        </tr>`;
+
+        // Zerstöre Waterfall Chart Instanz falls noch vorhanden
+        if (mcCharts['waterfall']) { mcCharts['waterfall'].destroy(); mcCharts['waterfall'] = null; }
+        
+        document.getElementById('mcVarTableBody').innerHTML = varHtml;
+
+        // ==========================================
+        // DIAGRAMM 2: MONTHLY OVERVIEW (CY vs PY side-by-side)
+        // ==========================================
+        let monthlyWeightsCY = Array(12).fill(0);
+        let monthlyWeightsPY = Array(12).fill(0);
+        
+        globalMaterialClassData.forEach(r => {
+            if (plant !== 'All' && String(r.plant) !== plant) return;
+            if (category !== 'All' && r.category !== category) return;
+            if (vendor !== 'All' && r.vendorName !== vendor) return;
+            
+            if (String(r.year) === cy && r.month >= 1 && r.month <= 12) {
+                monthlyWeightsCY[r.month - 1] += r.totalWeightKg;
+            } else if (String(r.year) === py && r.month >= 1 && r.month <= 12) {
+                monthlyWeightsPY[r.month - 1] += r.totalWeightKg;
+            }
+        });
+
+        if (mcCharts['monthly']) mcCharts['monthly'].destroy();
+        mcCharts['monthly'] = new Chart(document.getElementById('mcChartMonthly').getContext('2d'), {
+            type: 'bar', plugins: [ChartDataLabels],
+            data: {
+                labels: MONTH_NAMES_SHORT,
+                datasets: [
+                    { label: `CY (${cy})`, data: monthlyWeightsCY, backgroundColor: '#0078d4', borderRadius: 2, datalabels: { display: false } },
+                    { label: `PY (${py})`, data: monthlyWeightsPY, backgroundColor: '#a9a9a9', borderRadius: 2, datalabels: { display: false } }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: {size: 10} } } },
+                scales: { y: { beginAtZero: true, ticks: { callback: formatLargeNumbers } }, x: { grid: { display: false } } }
+            }
+        });
+
+        // ==========================================
+        // DIAGRAMM 3: OUTLIER SCATTER / WEIGHT RATIOS
+        // ==========================================
+        let sortedForChart = [...filtered].sort((a,b) => b.netWeightKg - a.netWeightKg).slice(0, 30);
+        
+        let scatterLabels = sortedForChart.map(r => r.matDesc.substring(0, 15) + '...');
+        let scatterWeights = sortedForChart.map(r => r.netWeightKg);
+        let scatterColors = sortedForChart.map(r => r.isOutlier ? '#d83b01' : '#107c41');
+
+        let totalAvg = filtered.length > 0 ? (filtered.reduce((s, r) => s + r.netWeightKg, 0) / filtered.length) : 0;
+        let limitLine = totalAvg * (1 + thresholdPct / 100);
+
+        if (mcCharts['outliers']) mcCharts['outliers'].destroy();
+        mcCharts['outliers'] = new Chart(document.getElementById('mcChartOutliers').getContext('2d'), {
+            type: 'bar', plugins: [ChartDataLabels],
+            data: {
+                labels: scatterLabels,
+                datasets: [
+                    {
+                        type: 'line', label: 'Toleranzgrenze', data: Array(scatterLabels.length).fill(limitLine),
+                        borderColor: '#d83b01', borderWidth: 2, borderDash: [4, 4], pointRadius: 0, fill: false, order: 0,
+                        datalabels: { display: false }
+                    },
+                    {
+                        type: 'line', label: 'Ø Durchschnitt', data: Array(scatterLabels.length).fill(totalAvg),
+                        borderColor: '#0078d4', borderWidth: 1.5, pointRadius: 0, fill: false, order: 1,
+                        datalabels: { display: false }
+                    },
+                    {
+                        type: 'bar', label: 'Nettogewicht (KG)', data: scatterWeights,
+                        backgroundColor: scatterColors, borderRadius: 2, order: 2,
+                        datalabels: {
+                            color: '#fff', font: { weight:'bold', size:9 },
+                            anchor: 'end', align: 'start', rotation: -90, offset: 4,
+                            formatter: v => v < 1 ? (v*1000).toFixed(0)+'g' : v.toFixed(2)+'kg'
+                        }
+                    }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { boxWidth: 10, font: {size: 10} } },
+                    tooltip: {
+                        callbacks: {
+                            label: function(ctx) {
+                                if (ctx.datasetIndex === 2) {
+                                    let item = sortedForChart[ctx.dataIndex];
+                                    let unitStr = item.netWeightKg < 1 ? `${(item.netWeightKg*1000).toFixed(1)} G` : `${item.netWeightKg.toFixed(3)} KG`;
+                                    return [
+                                        `Material: ${item.matDesc}`,
+                                        `Gewicht: ${unitStr}`,
+                                        `Kategorie: ${item.category}`,
+                                        `Status: ${item.isOutlier ? 'Ausreißer! 🚨' : 'Standard'}`
+                                    ];
+                                }
+                                return `${ctx.dataset.label}: ${ctx.raw.toFixed(3)} KG`;
+                            }
+                        }
+                    }
+                },
+                scales: { y: { display: true, title:{display:true, text:'KG', font:{size:10}} }, x: { grid: { display: false }, ticks:{font:{size:9}} } }
+            }
+        });
+
+       // ==========================================
+        // DIAGRAMM 3b: GEWICHTSVARIANTEN PRO KATEGORIE
+        // ==========================================
+        let categoryColors = [
+            '#0078d4', '#107c41', '#d83b01', '#5c2d91', '#e41e2b',
+            '#00a6a6', '#ffb900', '#8a8886', '#498205', '#b146c2',
+            '#8764b8', '#038387', '#ca5010', '#6b69d6', '#bad80a'
+        ];
+
+        let colorByCategory = {};
+        [...new Set(filtered.map(r => r.category))].sort().forEach((cat, idx) => {
+            colorByCategory[cat] = categoryColors[idx % categoryColors.length];
+        });
+
+        const formatWeightVariant = (kg) => {
+            if (!kg || kg <= 0) return '0 KG';
+            return kg < 1 ? (kg * 1000).toFixed(2) + ' G' : kg.toFixed(3) + ' KG';
+        };
+
+        const normalizeWeightKey = (kg) => {
+            return Number(kg || 0).toFixed(6);
+        };
+
+        let weightVariantAgg = {};
+
+        filtered.forEach(r => {
+            if (!r.netWeightKg || r.netWeightKg <= 0) return;
+
+            let weightKey = normalizeWeightKey(r.netWeightKg);
+            let key = `${r.category}|${weightKey}`;
+
+            if (!weightVariantAgg[key]) {
+                weightVariantAgg[key] = {
+                    category: r.category,
+                    netWeightKg: Number(weightKey),
+                    labelWeight: formatWeightVariant(Number(weightKey)),
+                    materialSet: new Set(),
+                    totalWeightKg: 0,
+                    rowCount: 0,
+                    pieceCount: 0
+                };
+            }
+
+            weightVariantAgg[key].materialSet.add(`${r.matNo}|${r.matDesc}`);
+            weightVariantAgg[key].totalWeightKg += r.totalWeightKg;
+            weightVariantAgg[key].rowCount++;
+
+            // Stückzahl berechnet aus Total KG / Einzelgewicht KG.
+            // Math.abs(), damit Retouren/Korrekturbuchungen nicht negative Stückzahlen erzeugen.
+            if (r.netWeightKg > 0 && r.totalWeightKg) {
+                weightVariantAgg[key].pieceCount += Math.abs(r.totalWeightKg) / r.netWeightKg;
+            }
+        });
+
+        let weightVariants = Object.values(weightVariantAgg)
+            .map(r => ({
+                ...r,
+                materialCount: r.materialSet.size
+            }))
+            .sort((a, b) => b.netWeightKg - a.netWeightKg || a.category.localeCompare(b.category));
+
+        let chartLabels = weightVariants.map(r => `${r.labelWeight} | ${r.category}`);
+        let chartValues = weightVariants.map(r => Math.abs(r.totalWeightKg));
+        let chartColors = weightVariants.map(r => colorByCategory[r.category] || '#667C8B');
+
+        if (mcCharts['categoryScatter']) mcCharts['categoryScatter'].destroy();
+
+        const scatterCanvas = document.getElementById('mcChartCategoryScatter');
+        if (scatterCanvas) {
+            mcCharts['categoryScatter'] = new Chart(scatterCanvas.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: chartLabels,
+                    datasets: [{
+                        label: 'Total KG Menge je Gewicht',
+                        data: chartValues,
+                        backgroundColor: chartColors,
+                        borderColor: chartColors,
+                        borderWidth: 1,
+                        borderRadius: 3,
+                        datalabels: { display: false }
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                title: function(ctx) {
+                                    let item = weightVariants[ctx[0].dataIndex];
+                                    return `${item.category} | ${item.labelWeight}`;
+                                },
+                                label: function(ctx) {
+                                    let item = weightVariants[ctx.dataIndex];
+
+                                    return [
+                                        `Gewicht: ${item.labelWeight}`,
+                                        `Kategorie: ${item.category}`,
+                                        `Unterschiedliche Materialien: ${item.materialCount.toLocaleString('de-CH')}`,
+                                        `Total KG Menge: ${item.totalWeightKg.toLocaleString('de-CH', { maximumFractionDigits: 1 })} KG`,
+                                        `Stückzahl berechnet: ${Math.round(item.pieceCount).toLocaleString('de-CH')}`,
+                                        `Datensätze/Buchungen: ${item.rowCount.toLocaleString('de-CH')}`
+                                    ];
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Total KG Menge je Gewicht'
+                            },
+                            ticks: {
+                                callback: formatLargeNumbers
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Gewicht | Kategorie – schwerste bis leichteste'
+                            },
+                            ticks: {
+                                font: { size: 10 },
+                                autoSkip: false
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // ==========================================
+        // DIREKTE OUTLIERS-TABELLE (🚨 Identifizierte Ausreißer)
+        // ==========================================
+        let outlierHtml = '';
+        let onlyOutliers = filtered.filter(r => r.isOutlier).sort((a,b) => b.netWeightKg - a.netWeightKg);
+        
+        onlyOutliers.forEach(r => {
+            let catAvg = window._mcAverages[r.category] || 0;
+            let devPct = catAvg > 0 ? ((r.netWeightKg - catAvg) / catAvg * 100) : 0;
+            let netFormat = r.netWeightKg < 1 ? (r.netWeightKg * 1000).toFixed(1) + ' G' : r.netWeightKg.toFixed(3) + ' KG';
+            
+            outlierHtml += `
+            <tr style="border-bottom: 1px solid #ffe3e3; background:#fff5f4;">
+                <td style="padding:6px; font-weight:bold; max-width: 100px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${escapeHTML(r.category)}">${escapeHTML(r.category)}</td>
+                <td style="padding:6px; max-width: 120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${escapeHTML(r.matDesc)}">${escapeHTML(r.matDesc)}</td>
+                <td style="padding:6px; text-align:right; font-weight:bold;">${netFormat}</td>
+                <td style="padding:6px; text-align:right; font-weight:bold; color:#d83b01;">+${devPct.toFixed(0)}%</td>
+            </tr>`;
+        });
+        document.getElementById('mcOutliersTableBody').innerHTML = outlierHtml || `<tr><td colspan="4" style="text-align:center; padding:15px; color:#107c41; font-weight:bold;">✓ Keine Ausreißer in dieser Auswahl</td></tr>`;
+
+        // ==========================================
+        // HIERARCHISCHER BREAKDOWN RENDERING
+        // ==========================================
+        let hierarchy = {};
+        filtered.forEach(r => {
+            let c = r.category;
+            let vCode = r.vendorNo;
+            let vName = r.vendorName;
+            let vKey = `${vCode}|${vName}`;
+            let m = r.matNo;
+            let mDesc = r.matDesc;
+            let mKey = `${m}|${mDesc}`;
+
+            if (!hierarchy[c]) {
+                hierarchy[c] = { totalWeight: 0, count: 0, outliers: 0, vendors: {} };
+            }
+            hierarchy[c].totalWeight += r.totalWeightKg;
+            hierarchy[c].count++;
+            if (r.isOutlier) hierarchy[c].outliers++;
+
+            if (!hierarchy[c].vendors[vKey]) {
+                hierarchy[c].vendors[vKey] = { totalWeight: 0, count: 0, outliers: 0, name: vName, code: vCode, materials: {} };
+            }
+            hierarchy[c].vendors[vKey].totalWeight += r.totalWeightKg;
+            hierarchy[c].vendors[vKey].count++;
+            if (r.isOutlier) hierarchy[c].vendors[vKey].outliers++;
+
+            if (!hierarchy[c].vendors[vKey].materials[mKey]) {
+                hierarchy[c].vendors[vKey].materials[mKey] = {
+                    totalWeight: 0,
+                    netWeight: r.netWeightKg,
+                    netWeightSum: 0,
+                    count: 0,
+                    desc: mDesc,
+                    code: m,
+                    isOutlier: r.isOutlier
+                };
+            }
+
+            hierarchy[c].vendors[vKey].materials[mKey].totalWeight += r.totalWeightKg;
+            hierarchy[c].vendors[vKey].materials[mKey].netWeightSum += r.netWeightKg;
+            hierarchy[c].vendors[vKey].materials[mKey].count++;
+            hierarchy[c].vendors[vKey].materials[mKey].netWeight =
+                hierarchy[c].vendors[vKey].materials[mKey].netWeightSum / hierarchy[c].vendors[vKey].materials[mKey].count;
+
+            if (r.isOutlier) {
+                hierarchy[c].vendors[vKey].materials[mKey].isOutlier = true;
+            };
+        });
+
+        renderHierarchicalTable(hierarchy, totalWeightKg);
+
+        // ==========================================
+        // FLACHE TABELLE RENDERING (Auszug)
+        // ==========================================
+        let tblHtml = '';
+        filtered.slice(0, 100).forEach(r => { // Begrenzt auf die ersten 100 Zeilen für flüssiges Rendering
+            let plantDisplay = r.plant === '5501' ? 'Vals (5501)' : (r.plant === '5511' ? 'Dietlikon (5511)' : r.plant);
+            let statusBadge = r.isOutlier 
+                ? `<span class="badge" style="background:#feebeb; color:#d83b01; border: 1px solid #fcc;">⚠️ Ausreißer</span>`
+                : `<span class="badge" style="background:#eafaf1; color:#107c41;">✓ Standard</span>`;
+
+            let netFormat = r.netWeightKg < 1 ? (r.netWeightKg * 1000).toFixed(2) + ' G' : r.netWeightKg.toFixed(3) + ' KG';
+
+            let catAvg = window._mcAverages && window._mcAverages[r.category] ? window._mcAverages[r.category] : 0;
+            let avgFormat = catAvg < 1 ? (catAvg * 1000).toFixed(2) + ' G' : catAvg.toFixed(3) + ' KG';
+            let devPct = catAvg > 0 ? ((r.netWeightKg - catAvg) / catAvg * 100) : 0;
+            let devDisplay = catAvg > 0 ? `${devPct >= 0 ? '+' : ''}${devPct.toFixed(1)}%` : 'n/a';
+
+            let materialTooltip =
+                `Material: ${r.matNo} - ${r.matDesc}\n` +
+                `Ø Kategorie: ${avgFormat}\n` +
+                `Nettogewicht Material: ${netFormat}\n` +
+                `Abweichung: ${devDisplay}\n` +
+                `Kategorie: ${r.category}`;
+
+            tblHtml += `
+            <tr style="border-bottom: 1px solid #eee; background: ${r.isOutlier ? '#fff5f4' : 'transparent'};">
+                <td style="padding: 8px 10px;">${escapeHTML(r.period)}</td>
+                <td style="padding: 8px 10px;">${escapeHTML(plantDisplay)}</td>
+                <td style="padding: 8px 10px; font-weight: 500;">${escapeHTML(r.category)}</td>
+                <td style="padding: 8px 10px; font-size: 11px; max-width: 150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${escapeHTML(r.vendorName)}">
+                    <span style="color:#777; font-weight: bold;">[${escapeHTML(r.vendorNo)}]</span> ${escapeHTML(r.vendorName)}
+                </td>
+                <td style="padding: 8px 10px; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHTML(materialTooltip)}">
+                    <span style="color:#0078d4; font-weight: bold;">${escapeHTML(r.matNo)}</span> - ${escapeHTML(r.matDesc)}
+                </td>
+                <td style="padding: 8px 10px; text-align: right; font-weight: bold;">${netFormat}</td>
+                <td style="padding: 8px 10px; text-align: right; font-weight: bold; color: #107c41;">${r.totalWeightKg.toLocaleString('de-CH', { maximumFractionDigits: 1 })} KG</td>
+                <td style="padding: 8px 10px; text-align: center;">${statusBadge}</td>
+            </tr>`;
+        });
+
+        document.getElementById('mcTableBody').innerHTML = tblHtml || `<tr><td colspan="8" style="text-align:center; padding:15px; color:#999;">Keine Daten vorhanden.</td></tr>`;
+    };
+
+    // Stufen-Breakdown Renderer für Kategorien, Vendors und Materialien
+    function renderHierarchicalTable(hierarchy, totalWeightAll) {
+        let html = '';
+        let catIndex = 0;
+        
+        for (let cat in hierarchy) {
+            let catId = `cat_${catIndex}`;
+            let cData = hierarchy[cat];
+            let catPct = totalWeightAll > 0 ? (cData.totalWeight / totalWeightAll * 100).toFixed(1) : 0;
+            
+            // Kategorie Zeile (Level 0)
+            html += `
+            <tr style="background: #eef3f7; font-weight: bold; border-bottom: 2px solid #ccc;">
+                <td style="padding: 10px; text-align: left; cursor: pointer; color: #0078d4;" onclick="toggleMcRow('${catId}')">
+                    <span id="icon_${catId}">&#43;</span> ${escapeHTML(cat)}
+                </td>
+                <td style="padding: 10px; text-align: right;">${Math.round(cData.totalWeight).toLocaleString('de-CH')} KG</td>
+                <td style="padding: 10px; text-align: right;">${catPct}%</td>
+                <td style="padding: 10px; text-align: center; color: ${cData.outliers > 0 ? '#d83b01' : '#107c41'};">
+                    ${cData.outliers > 0 ? `⚠️ ${cData.outliers} Ausreißer` : '✓ 0'}
+                </td>
+                <td style="padding: 10px; text-align: right;">-</td>
+            </tr>`;
+            
+            let vendIndex = 0;
+            for (let vendKey in cData.vendors) {
+                let vData = cData.vendors[vendKey];
+                let vId = `${catId}_v_${vendIndex}`;
+                let vendPct = totalWeightAll > 0 ? (vData.totalWeight / totalWeightAll * 100).toFixed(1) : 0;
+                
+                // Vendor Zeile (Level 1) - standardmäßig versteckt
+                html += `
+                <tr class="${catId}" data-child-class="${vId}" style="display: none; background: #fafafa; border-bottom: 1px solid #ddd;">
+                    <td style="padding: 8px 10px; padding-left: 25px; text-align: left; cursor: pointer; color: #107c41;" onclick="toggleMcRow('${vId}')">
+                        <span id="icon_${vId}">&#43;</span> <span style="color:#777;">[${escapeHTML(vData.code)}]</span> ${escapeHTML(vData.name)}
+                    </td>
+                    <td style="padding: 8px 10px; text-align: right;">${Math.round(vData.totalWeight).toLocaleString('de-CH')} KG</td>
+                    <td style="padding: 8px 10px; text-align: right; color: #555;">${vendPct}%</td>
+                    <td style="padding: 8px 10px; text-align: center; color: ${vData.outliers > 0 ? '#d83b01' : '#107c41'};">
+                        ${vData.outliers > 0 ? `⚠️ ${vData.outliers}` : '✓ 0'}
+                    </td>
+                    <td style="padding: 8px 10px; text-align: right;">-</td>
+                </tr>`;
+                
+                for (let matKey in vData.materials) {
+                    let mData = vData.materials[matKey];
+                    let matPct = totalWeightAll > 0 ? (mData.totalWeight / totalWeightAll * 100).toFixed(1) : 0;
+                    let netFormat = mData.netWeight < 1 ? (mData.netWeight * 1000).toFixed(2) + ' G' : mData.netWeight.toFixed(3) + ' KG';
+
+                    let catAvg = window._mcAverages && window._mcAverages[cat] ? window._mcAverages[cat] : 0;
+                    let avgFormat = catAvg < 1 ? (catAvg * 1000).toFixed(2) + ' G' : catAvg.toFixed(3) + ' KG';
+                    let devPct = catAvg > 0 ? ((mData.netWeight - catAvg) / catAvg * 100) : 0;
+                    let devDisplay = catAvg > 0 ? `${devPct >= 0 ? '+' : ''}${devPct.toFixed(1)}%` : 'n/a';
+
+                    let materialTooltip =
+                        `Material: ${mData.code} - ${mData.desc}\n` +
+                        `Ø Kategorie: ${avgFormat}\n` +
+                        `Ø Material: ${netFormat}\n` +
+                        `Abweichung: ${devDisplay}\n` +
+                        `Kategorie: ${cat}`;
+                    
+                    // Material Zeile (Level 2) - standardmäßig versteckt, verweist auf Outlier-Farbe
+                    html += `
+                    <tr class="${catId} ${vId}" style="display: none; border-bottom: 1px dashed #eee; background: ${mData.isOutlier ? '#fff5f4' : 'transparent'};">
+                        <td style="padding: 6px 10px; padding-left: 50px; text-align: left; color: #555;" title="${escapeHTML(materialTooltip)}">
+                            <span style="color:#0078d4; font-weight: bold;">${escapeHTML(mData.code)}</span> - ${escapeHTML(mData.desc)}
+                        </td>
+                        <td style="padding: 6px 10px; text-align: right;">${Math.round(mData.totalWeight).toLocaleString('de-CH')} KG</td>
+                        <td style="padding: 6px 10px; text-align: right; font-size: 11px; color: #888;">${matPct}%</td>
+                        <td style="padding: 6px 10px; text-align: center;">
+                            ${mData.isOutlier ? `<span class="badge" style="background:#feebeb; color:#d83b01; font-size:10px;">⚠️ Outlier</span>` : '<span style="color:#aaa;">✓</span>'}
+                        </td>
+                        <td style="padding: 6px 10px; text-align: right; font-weight: 500;">${netFormat}</td>
+                    </tr>`;
+                }
+                vendIndex++;
+            }
+            catIndex++;
+        }
+        
+        document.getElementById('mcHierarchyTableBody').innerHTML = html || '<tr><td colspan="5" style="text-align:center; padding:15px; color:#999;">Keine Daten vorhanden.</td></tr>';
+    }
+
+    // Toggle-Funktion für Stufen ( Category -> Vendor -> Material )
+    window.toggleMcRow = function(id) {
+        let rows = document.querySelectorAll('.' + id);
+        let icon = document.getElementById('icon_' + id);
+        if (!rows || rows.length === 0) return;
+        let isHidden = rows[0].style.display === 'none';
+        
+        rows.forEach(r => {
+            r.style.display = isHidden ? 'table-row' : 'none';
+            // Falls eine Kategorie zugeklappt wird, müssen alle Vendor-Unterzeilen ebenfalls kollabiert werden
+            if (!isHidden) {
+                let childClass = r.getAttribute('data-child-class');
+                if (childClass) {
+                    let subRows = document.querySelectorAll('.' + childClass);
+                    subRows.forEach(sr => sr.style.display = 'none');
+                    let subIcon = document.getElementById('icon_' + childClass);
+                    if (subIcon) subIcon.innerHTML = '&#43;';
+                }
+            }
+        });
+        if (icon) icon.innerHTML = isHidden ? '&#8722;' : '&#43;';
+    };
+
+    window.exportMaterialClassTable = function() {
+        if (!globalMaterialClassData || globalMaterialClassData.length === 0) return alert("Keine Daten zum Exportieren!");
+        
+        let exportRows = globalMaterialClassData.map(r => ({
+            "Geschäftsj./Periode": r.period,
+            "Werk": r.plant,
+            "Kategorie": r.category,
+            "Vendor Nr.": r.vendorNo,
+            "Vendor Name": r.vendorName,
+            "Material Nr.": r.matNo,
+            "Material Description": r.matDesc,
+            "Nettogewicht (KG)": r.netWeightKg,
+            "Total (KG)": r.totalWeightKg,
+            "Status": r.isOutlier ? "Ausreißer" : "Standard"
+        }));
+
+        const ws = XLSX.utils.json_to_sheet(exportRows);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Material Klassifizierung");
+        XLSX.writeFile(wb, "Material_Klassifizierung_Export.xlsx");
     };
 </script>
 <!-- DEVIATION EINGABE MODAL -->
