@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Terrassen-Planer | Professionelle Verlege- & Stelzenlagerberechnung</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- CSS Link -->
+  <link rel="stylesheet" href="styles.css">
+  <!-- Lucide Icons (CDN) -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="dark-theme">
+  <!-- Ambient Background Glows -->
+  <div class="bg-glow bg-glow-1"></div>
+  <div class="bg-glow bg-glow-2"></div>
+
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="header-logo">
+        <div class="logo-icon">
+          <i data-lucide="layout-grid"></i>
+        </div>
+        <div class="logo-text">
+          <h1>Terrassen<span>Planer</span></h1>
+          <p>Unterkonstruktion & Stelzenlager Rechner</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button id="btnPrint" class="btn btn-secondary">
+          <i data-lucide="printer"></i> Drucken / PDF Export
+        </button>
+        <button id="themeToggle" class="btn btn-icon" title="Design wechseln">
+          <i data-lucide="sun"></i>
+        </button>
+      </div>
+    </header>
+
+    <div class="main-layout">
+      <!-- Left Sidebar: Controls & Inputs -->
+      <aside class="sidebar left-sidebar card">
+        <div class="sidebar-section">
+          <h2><i data-lucide="sliders"></i> 1. Terrassenmaße</h2>
+          <div class="input-grid">
+            <div class="input-group">
+              <label for="terraceWidth">Breite (W) <span class="unit">m</span></label>
+              <input type="number" id="terraceWidth" value="4.00" step="0.05" min="0.5">
+            </div>
+            <div class="input-group">
+              <label for="terraceLength">Länge (L) <span class="unit">m</span></label>
+              <input type="number" id="terraceLength" value="3.00" step="0.05" min="0.5">
+            </div>
+          </div>
+        </div>
+
+        <div class="sidebar-section">
+          <h2><i data-lucide="layers"></i> 2. Obere Platten (Belag)</h2>
+          <div class="input-grid">
+            <div class="input-group">
+              <label for="tileWidth">Breite <span class="unit">cm</span></label>
+              <input type="number" id="tileWidth" value="60" step="1" min="10">
+            </div>
+            <div class="input-group">
+              <label for="tileLength">Länge <span class="unit">cm</span></label>
+              <input type="number" id="tileLength" value="60" step="1" min="10">
+            </div>
+            <div class="input-group span-2">
+              <label for="jointWidth">Fugenbreite (Stelzenfuge) <span class="unit">mm</span></label>
+              <input type="number" id="jointWidth" value="4" step="0.5" min="0" max="20">
+            </div>
+          </div>
+        </div>
+
+        <div class="sidebar-section">
+          <h2><i data-lucide="box"></i> 3. Unterkonstruktion (Betonplatten)</h2>
+          <div class="input-grid">
+            <div class="input-group">
+              <label for="subWidth">Breite <span class="unit">cm</span></label>
+              <input type="number" id="subWidth" value="40" step="1" min="10">
+            </div>
+            <div class="input-group">
+              <label for="subLength">Länge <span class="unit">cm</span></label>
+              <input type="number" id="subLength" value="40" step="1" min="10">
+            </div>
+            <div class="input-group span-2">
+              <label for="pedestalDiameter">Stelzenlager-Ø <span class="unit">cm</span></label>
+              <input type="number" id="pedestalDiameter" value="12" step="1" min="5" max="30">
+            </div>
+            <div class="input-group span-2 margin-top-xs">
+              <label class="toggle-control">
+                <input type="checkbox" id="cutSubEdges" checked>
+                <span class="toggle-label"><i data-lucide="scissors" class="icon-inline"></i> Platten am Rand schneiden</span>
+              </label>
+            </div>
+            <div class="input-group span-2 margin-top-xs">
+              <label class="toggle-control">
+                <input type="checkbox" id="cutSubOverlaps" checked>
+                <span class="toggle-label"><i data-lucide="split" class="icon-inline"></i> Überlappende Platten schneiden</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="sidebar-section">
+          <h2><i data-lucide="align-center"></i> 4. Verlege-Optionen</h2>
+          <div class="input-group">
+            <label for="layoutPattern">Ausrichtung</label>
+            <select id="layoutPattern">
+              <option value="corner" selected>Ecke (Unten-Links starten)</option>
+              <option value="centered">Zentriert (Symmetrischer Rand)</option>
+            </select>
+          </div>
+          <div class="input-group margin-top-sm">
+            <label for="layoutOrientation">Plattenausrichtung</label>
+            <select id="layoutOrientation">
+              <option value="0" selected>Standard (0°)</option>
+              <option value="90">Gedreht (90°)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="info-alert">
+          <i data-lucide="info"></i>
+          <p>Änderungen werden sofort in Echtzeit berechnet und visualisiert.</p>
+        </div>
+
+        <div id="errorAlert" class="info-alert warning-alert margin-top-sm" style="display: none;">
+          <i data-lucide="alert-triangle"></i>
+          <p id="errorText">Eingabefehler</p>
+        </div>
+      </aside>
+
+      <!-- Center: Visualizer Canvas -->
+      <main class="canvas-area card">
+        <!-- Canvas Header / Layer Toolbar -->
+        <div class="canvas-toolbar">
+          <div class="toolbar-group">
+            <span class="toolbar-title">Ebenen:</span>
+            <label class="toggle-control">
+              <input type="checkbox" id="toggleUpperSlabs" checked>
+              <span class="toggle-label"><i data-lucide="layers" class="icon-inline"></i> Belagplatten</span>
+            </label>
+            <label class="toggle-control">
+              <input type="checkbox" id="togglePedestals" checked>
+              <span class="toggle-label"><i data-lucide="disc" class="icon-inline"></i> Stelzenlager</span>
+            </label>
+            <label class="toggle-control">
+              <input type="checkbox" id="toggleLowerSlabs" checked>
+              <span class="toggle-label"><i data-lucide="layout" class="icon-inline"></i> Betonplatten</span>
+            </label>
+            <label class="toggle-control">
+              <input type="checkbox" id="toggleDimensions" checked>
+              <span class="toggle-label"><i data-lucide="ruler" class="icon-inline"></i> Maße</span>
+            </label>
+          </div>
+          <div class="toolbar-divider"></div>
+          <div class="toolbar-group">
+            <button id="btnZoomIn" class="btn btn-icon-sm" title="Vergrößern"><i data-lucide="zoom-in"></i></button>
+            <button id="btnZoomOut" class="btn btn-icon-sm" title="Verkleinern"><i data-lucide="zoom-out"></i></button>
+            <button id="btnZoomReset" class="btn btn-icon-sm" title="Zoom zurücksetzen"><i data-lucide="maximize"></i></button>
+          </div>
+        </div>
+
+        <!-- The SVG Canvas -->
+        <div class="svg-container-wrapper" id="canvasWrapper">
+          <svg id="visualizerSvg" width="100%" height="100%" viewBox="0 0 800 600">
+            <!-- Grid Background -->
+            <defs>
+              <pattern id="gridPattern" width="40" height="40" patternUnits="userSpaceOnUse">
+                <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255, 255, 255, 0.03)" stroke-width="1"/>
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#gridPattern)" />
+            
+            <!-- Root transformation group for pan and zoom -->
+            <g id="zoomGroup">
+              <!-- Rendered components will be injected here -->
+              <g id="lowerSlabsGroup"></g>
+              <g id="upperSlabsGroup"></g>
+              <g id="pedestalsGroup"></g>
+              <g id="dimensionsGroup"></g>
+              <g id="terraceBoundaryGroup"></g>
+            </g>
+          </svg>
+          
+          <!-- Instructions overlay for navigation -->
+          <div class="canvas-help">
+            <i data-lucide="mouse-pointer"></i> Ziehen zum Verschieben | Mausrad zum Zoomen
+          </div>
+        </div>
+
+        <!-- Element Detail Panel (Visible on Hover/Select) -->
+        <div id="detailPanel" class="detail-panel hidden">
+          <div class="detail-header">
+            <h3 id="detailTitle">Element-Details</h3>
+            <button id="detailClose" class="btn-close">&times;</button>
+          </div>
+          <div id="detailContent" class="detail-content">
+            <!-- Dynamic Content -->
+          </div>
+        </div>
+      </main>
+
+      <!-- Right Sidebar: Results & Materials -->
+      <aside class="sidebar right-sidebar card">
+        <h2><i data-lucide="shopping-cart"></i> Materialbedarf</h2>
+        
+        <!-- Summary Cards -->
+        <div class="stats-grid">
+          <div class="stat-box cyan">
+            <span class="stat-label">Belagplatten (Oben)</span>
+            <span class="stat-value" id="statUpperSlabsCount">0</span>
+            <span class="stat-sub" id="statUpperSlabsWaste">0m² Gesamtfläche</span>
+          </div>
+          <div class="stat-box purple">
+            <span class="stat-label">Stelzenlager</span>
+            <span class="stat-value" id="statPedestalsCount">0</span>
+            <span class="stat-sub" id="statPedestalsSub">0 Stk. gesamt</span>
+          </div>
+          <div class="stat-box orange">
+            <span class="stat-label">Betonplatten (Unten)</span>
+            <span class="stat-value" id="statLowerSlabsCount">0</span>
+            <span class="stat-sub" id="statLowerSlabsSub">Für stabile Auflage</span>
+          </div>
+        </div>
+
+        <!-- Accordion Details -->
+        <div class="accordion">
+          <!-- Upper Slabs detail -->
+          <div class="accordion-item active">
+            <button class="accordion-trigger">
+              <span><i data-lucide="layers" class="icon-inline"></i> Zuschnitt Belagplatten</span>
+              <i data-lucide="chevron-down" class="chevron"></i>
+            </button>
+            <div class="accordion-content">
+              <div class="material-summary">
+                <div class="summary-line">
+                  <span>Ganze Platten:</span>
+                  <strong id="summaryUpperFull">0</strong>
+                </div>
+                <div class="summary-line">
+                  <span>Geschnittene Platten:</span>
+                  <strong id="summaryUpperCut">0</strong>
+                </div>
+                <div class="summary-line text-warning">
+                  <span>Verschnitt-Schätzung:</span>
+                  <strong id="summaryUpperWastePercent">0%</strong>
+                </div>
+              </div>
+              <h4 class="cut-list-title">Erforderliche Zuschnitte:</h4>
+              <ul class="cut-list" id="upperCutList">
+                <li>Keine Zuschnitte erforderlich</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Pedestal detail -->
+          <div class="accordion-item">
+            <button class="accordion-trigger">
+              <span><i data-lucide="disc" class="icon-inline"></i> Details Stelzenlager</span>
+              <i data-lucide="chevron-down" class="chevron"></i>
+            </button>
+            <div class="accordion-content">
+              <div class="material-summary">
+                <div class="summary-line">
+                  <span>Fugenkreuz (Innerer Bereich):</span>
+                  <strong id="summaryPedestalsInner">0</strong>
+                </div>
+                <div class="summary-line">
+                  <span>T-Stück (Am Rand):</span>
+                  <strong id="summaryPedestalsEdge">0</strong>
+                </div>
+                <div class="summary-line">
+                  <span>L-Stück (In der Ecke):</span>
+                  <strong id="summaryPedestalsCorner">0</strong>
+                </div>
+              </div>
+              <div class="info-alert warning-alert margin-top-xs" id="pedestalWarning" style="display: none;">
+                <i data-lucide="alert-triangle"></i>
+                <p>Einige Stelzenlager haben extrem kleine Unterplatten und stehen instabil!</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Lower Slabs detail -->
+          <div class="accordion-item">
+            <button class="accordion-trigger">
+              <span><i data-lucide="layout" class="icon-inline"></i> Zuschnitt Betonplatten</span>
+              <i data-lucide="chevron-down" class="chevron"></i>
+            </button>
+            <div class="accordion-content">
+              <div class="material-summary">
+                <div class="summary-line">
+                  <span>Ganze Platten (unbearbeitet):</span>
+                  <strong id="summaryLowerFull">0</strong>
+                </div>
+                <div class="summary-line">
+                  <span>Geschnittene Platten:</span>
+                  <strong id="summaryLowerCut">0</strong>
+                </div>
+                <div class="summary-line">
+                  <span>Durch Überlappung gekürzt:</span>
+                  <strong id="summaryLowerOverlapCut">0</strong>
+                </div>
+              </div>
+              <h4 class="cut-list-title">Erforderliche Zuschnitte:</h4>
+              <ul class="cut-list" id="lowerCutList">
+                <li>Keine Zuschnitte erforderlich</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- Print View Container (Hidden in browser, visible during print) -->
+  <div id="printContainer" class="print-only">
+    <!-- Will be dynamically filled during print preparation -->
+  </div>
+
+  <!-- App Script -->
+  <script src="app.js"></script>
+</body>
+</html>
