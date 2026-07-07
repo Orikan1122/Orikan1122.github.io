@@ -2965,12 +2965,143 @@
           Nur Ausreißer anzeigen
         </label>
       </div>
+      
+      <div style="margin-top: 15px; border-top: 1px solid #E2E4E8; padding-top: 15px;">
+        <button onclick="openBPInput()"
+          style="width:100%; background:#E41E2B; color:white; border:none; padding:10px; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; box-shadow: 0 2px 4px rgba(228,30,43,0.2); transition: background 0.15s; height: auto; white-space: normal;">
+          📋 BP Forecast einlesen
+        </button>
+      </div>
     </div>
 
     <!-- RECHTE SEITE: Charts, Diagramme und Tabellen-Breakdowns -->
     <div class="dash-chart" style="flex:1; background: #e8eaed; padding: 15px; border-radius: 8px; min-width: 0; margin-left: 15px; display: flex; flex-direction: column; gap: 20px;">
       
       <!-- KPI KARTEN -->
+       <!-- ========================================= -->
+      <!-- BP FORECAST (SEPARAT) -->
+      <!-- ========================================= -->
+      <div id="bpPanel" style="display:none; background:white; border-radius:8px; padding:15px; border-left:4px solid #5c2d91;">
+
+        <h4 style="font-size:14px; color:#333; margin-bottom:6px;">🧾 BP Rohmaterial Forecast vs. Actual / PY</h4>
+        <div style="font-size:11px; color:#667C8B; margin-bottom:12px;">
+          BP-Mengen werden monatlich aus dem eingefügten BP-Text gelesen. Item wird gegen historisches Raw Material gemappt; Kategorie und Nettogewicht kommen aus den historischen Materialdaten.
+        </div>
+
+        <!-- KPIs -->
+        <div style="display:flex; gap:10px; margin-bottom:12px; flex-wrap:wrap;">
+          <div style="flex:1; min-width:130px; background:#f4f7f6; padding:8px; text-align:center; border-radius:6px;">
+            <div style="font-size:11px; color:#667C8B;">BP Full Year KG</div>
+            <div id="bpTotalKg" style="font-size:20px; font-weight:bold; color:#5c2d91;">0</div>
+          </div>
+          <div style="flex:1; min-width:130px; background:#eafaf1; padding:8px; text-align:center; border-radius:6px;">
+            <div style="font-size:11px; color:#667C8B;">Actual CY KG</div>
+            <div id="bpActualKg" style="font-size:20px; font-weight:bold; color:#107c41;">0</div>
+          </div>
+          <div style="flex:1; min-width:130px; background:#fff5f4; padding:8px; text-align:center; border-radius:6px;">
+            <div style="font-size:11px; color:#667C8B;">BP vs Actual</div>
+            <div id="bpDelta" style="font-size:20px; font-weight:bold;">0%</div>
+          </div>
+          <div style="flex:1; min-width:130px; background:#eef3f7; padding:8px; text-align:center; border-radius:6px;">
+            <div style="font-size:11px; color:#667C8B;">PY Full Year KG</div>
+            <div id="bpTotalPY" style="font-size:20px; font-weight:bold; color:#21313D;">0</div>
+          </div>
+        </div>
+
+        <!-- CHART -->
+        <div style="height:300px; border:1px solid #E2E4E8; border-radius:6px; padding:10px; margin-bottom:12px;">
+          <canvas id="bpChart"></canvas>
+        </div>
+
+        <!-- TABLE 1: Kategorie Full Year -->
+        <div style="margin-top:10px;">
+          <h5 style="font-size:12px; color:#333; margin-bottom:6px;">📊 Kategorie-Übersicht Full Year</h5>
+          <div style="max-height:280px; overflow:auto; border:1px solid #E2E4E8; border-radius:6px;">
+            <table style="width:100%; font-size:11px; border-collapse: collapse;">
+              <thead>
+                <tr style="background:#f4f7f6; position:sticky; top:0; z-index:5; border-bottom: 2px solid #ccc;">
+                  <th style="padding: 6px 8px; text-align: left;">Werk</th>
+                  <th style="padding: 6px 8px; text-align: left;">Kategorie</th>
+                  <th style="padding: 6px 8px; text-align: right;">BP Full Year KG</th>
+                  <th style="padding: 6px 8px; text-align: right;">Actual CY KG</th>
+                  <th style="padding: 6px 8px; text-align: right;">BP vs Actual KG</th>
+                  <th style="padding: 6px 8px; text-align: right;">BP vs Actual %</th>
+                  <th style="padding: 6px 8px; text-align: right;">PY Full Year KG</th>
+                  <th style="padding: 6px 8px; text-align: right;">BP vs PY %</th>
+                </tr>
+              </thead>
+              <tbody id="bpTable"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- TABLE 2: Monatliche Details -->
+        <div style="margin-top:14px;">
+          <h5 style="font-size:12px; color:#333; margin-bottom:6px;">📅 Monatliche BP vs Actual Details</h5>
+          <div style="max-height:300px; overflow:auto; border:1px solid #E2E4E8; border-radius:6px;">
+            <table style="width:100%; font-size:11px; border-collapse: collapse;">
+              <thead>
+                <tr style="background:#f4f7f6; position:sticky; top:0; z-index:5; border-bottom: 2px solid #ccc;">
+                  <th style="padding: 6px 8px; text-align: left;">Monat</th>
+                  <th style="padding: 6px 8px; text-align: left;">Werk</th>
+                  <th style="padding: 6px 8px; text-align: left;">Kategorie</th>
+                  <th style="padding: 6px 8px; text-align: right;">BP KG</th>
+                  <th style="padding: 6px 8px; text-align: right;">Actual KG</th>
+                  <th style="padding: 6px 8px; text-align: right;">Δ KG</th>
+                  <th style="padding: 6px 8px; text-align: right;">Δ %</th>
+                  <th style="padding: 6px 8px; text-align: center;">Status</th>
+                </tr>
+              </thead>
+              <tbody id="bpMonthTable"></tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+      <div id="bpAnalysePanel" style="display:none; background:white; border-radius:8px; padding:15px; border-left:4px solid #5c2d91;">
+
+        <h4 style="margin-bottom:10px;">🧾 BP Forecast Analyse</h4>
+
+        <!-- KPIs -->
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:15px;">
+          <div style="flex:1; background:#f4f7f6; padding:8px; border-radius:5px; text-align:center;">
+            <div>Forecast Total KG</div>
+            <div id="bpKpiTotalKg" style="font-weight:bold;">0</div>
+          </div>
+          <div style="flex:1; background:#eafaf1; padding:8px; border-radius:5px; text-align:center;">
+            <div>Matched</div>
+            <div id="bpKpiMatched">0</div>
+          </div>
+          <div style="flex:1; background:#fff5f4; padding:8px; border-radius:5px; text-align:center;">
+            <div>Unmatched</div>
+            <div id="bpKpiUnmatched">0</div>
+          </div>
+        </div>
+
+        <!-- CHART -->
+        <div style="height:300px;">
+          <canvas id="bpChartMonthly"></canvas>
+        </div>
+
+        <!-- TABLE -->
+        <div style="margin-top:10px; max-height:300px; overflow:auto;">
+          <table style="width:100%; font-size:11px;">
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Loc</th>
+                <th>Kategorie</th>
+                <th>Forecast KG</th>
+                <th>PY KG</th>
+                <th>Δ vs PY</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="bpTableBody"></tbody>
+          </table>
+        </div>
+      </div>
       <div style="display:flex; gap: 15px; flex-wrap: wrap;">
         <div style="flex: 1; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); text-align:center; border-top: 4px solid #0078d4;">
           <h4 style="font-size: 13px; color: #777; margin-bottom: 5px;">Gefilterte Materialien</h4>
@@ -3261,9 +3392,127 @@
 <!-- ============================================================ -->
 <script>
 // URL für die neuen Office-Scripts (Complaints & Sales)
-// URL für die neuen Office-Scripts (Complaints & Sales)
 const PA_EXTRA_URL = "https://default7a67a0708ce94692b1afbf788306bc.66.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/c3bcec36dc8a40789fa6a78a92f2ccf4/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=5Qdz4jpgxOdrbpb0YunHy1GlHjLSGgp62FsXPwNWu2Y";
 
+function normalizeMatNo(v) {
+    if (v === null || v === undefined) return '';
+    let s = String(v).trim();
+    if (s.endsWith('.0')) s = s.replace(/\.0$/, '');
+    return s.replace(/^0+(?=\d)/, ''); // Entfernt führende Nullen, behält aber mindestens eine Ziffer
+}
+
+function normalizeMaterialText(v) {
+    if (v === null || v === undefined) return '';
+    return String(v)
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .toUpperCase()
+        .replace(/&/g, ' AND ')
+        .replace(/[_/\\-]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function buildHistoricalMaterialLookup() {
+    const lookup = {
+        plants: new Set(),
+        byPlantMatNo: {},
+        byPlantDesc: {},
+        byMatNo: {},
+        byDesc: {}
+    };
+
+    const scoreEntry = (entry) => {
+        let score = 0;
+        if (entry.category && entry.category !== 'N/A' && entry.category !== 'Other') score += 10;
+        if (Number(entry.netWeightKg) > 0) score += 5;
+        if (entry.matDesc) score += 2;
+        return score;
+    };
+
+    const upsertBest = (bucket, key, entry) => {
+        if (!key) return;
+        if (!bucket[key] || scoreEntry(entry) > scoreEntry(bucket[key])) {
+            bucket[key] = entry;
+        }
+    };
+
+    (globalMaterialClassData || []).forEach(r => {
+        const plant = typeof normalizeLoc === 'function'
+            ? normalizeLoc(r.plant || r.loc || r.location || '')
+            : String(r.plant || '').trim();
+
+        const matNo = typeof normalizeBPItemKey === 'function'
+            ? normalizeBPItemKey(r.matNo)
+            : String(r.matNo || '').trim();
+
+        const matDesc = normalizeMaterialText(r.matDesc);
+
+        const entry = {
+            plant: plant || 'Unknown',
+            matNo: String(r.matNo || '').trim(),
+            matDesc: String(r.matDesc || '').trim(),
+            category: r.category || "N/A",
+            netWeightKg: parseFloat(r.netWeightKg) || 0
+        };
+
+        if (entry.plant && entry.plant !== 'Unknown') {
+            lookup.plants.add(entry.plant);
+        }
+
+        if (matNo) {
+            upsertBest(lookup.byPlantMatNo, `${entry.plant}||${matNo}`, entry);
+            upsertBest(lookup.byMatNo, matNo, entry);
+        }
+
+        if (matDesc) {
+            upsertBest(lookup.byPlantDesc, `${entry.plant}||${matDesc}`, entry);
+            upsertBest(lookup.byDesc, matDesc, entry);
+        }
+    });
+
+    return lookup;
+}
+
+
+function resolveHistoricalMaterialMatch(lookup, loc, itemRaw, itemDescrRaw) {
+    const normalizedLoc = typeof normalizeLoc === 'function'
+        ? normalizeLoc(loc)
+        : String(loc || '').trim();
+
+    const normalizedItem = typeof normalizeBPItemKey === 'function'
+        ? normalizeBPItemKey(itemRaw)
+        : String(itemRaw || '').trim();
+
+    const normalizedDesc = normalizeMaterialText(itemDescrRaw);
+    const plantExists = !!(lookup && lookup.plants && lookup.plants.has(normalizedLoc));
+
+    let hist = null;
+    let matchSource = '';
+    let unmatchedReason = '';
+
+    if (lookup.byPlantMatNo[`${normalizedLoc}||${normalizedItem}`]) {
+        hist = lookup.byPlantMatNo[`${normalizedLoc}||${normalizedItem}`];
+        matchSource = 'plant+matNo';
+    } else if (lookup.byPlantDesc[`${normalizedLoc}||${normalizedDesc}`]) {
+        hist = lookup.byPlantDesc[`${normalizedLoc}||${normalizedDesc}`];
+        matchSource = 'plant+matDesc';
+    } else if (normalizedLoc && !plantExists) {
+        unmatchedReason = `Plant ${normalizedLoc} kommt im Material_Report nicht vor`;
+    } else if (lookup.byMatNo[normalizedItem] || lookup.byDesc[normalizedDesc]) {
+        unmatchedReason = 'Treffer nur in anderer Plant vorhanden';
+    } else {
+        unmatchedReason = 'Kein Treffer über Plant + Materialnummer / Beschreibung';
+    }
+
+    return {
+        hist,
+        matchSource,
+        unmatchedReason,
+        normalizedLoc,
+        normalizedItem,
+        normalizedDesc
+    };
+}
 // --- GLOBAL BRAND COLOR MAPPING SYSTEM ---
 const BRAND_COLOR_MAP = {
     'coca-cola': '#E41E2B',
@@ -3403,7 +3652,126 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     }
 });
+function normalizeMaterialText(v) {
+    if (v === null || v === undefined) return '';
+    return String(v)
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .toUpperCase()
+        .replace(/&/g, ' AND ')
+        .replace(/[_/\\-]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
 
+function buildHistoricalMaterialLookup() {
+    const lookup = {
+        plants: new Set(),
+        byPlantMatNo: {},
+        byPlantDesc: {},
+        byMatNo: {},
+        byDesc: {}
+    };
+
+    const scoreEntry = (entry) => {
+        let score = 0;
+        if (entry.category && entry.category !== 'N/A' && entry.category !== 'Other') score += 10;
+        if (Number(entry.netWeightKg) > 0) score += 5;
+        if (entry.matDesc) score += 2;
+        return score;
+    };
+
+    const upsertBest = (bucket, key, entry) => {
+        if (!key) return;
+        if (!bucket[key] || scoreEntry(entry) > scoreEntry(bucket[key])) {
+            bucket[key] = entry;
+        }
+    };
+
+    (globalMaterialClassData || []).forEach(r => {
+        const plant = typeof normalizeLoc === 'function'
+            ? normalizeLoc(r.plant || r.loc || r.location || '')
+            : String(r.plant || '').trim();
+
+        const matNo = typeof normalizeBPItemKey === 'function'
+            ? normalizeBPItemKey(r.matNo)
+            : String(r.matNo || '').trim();
+
+        const matDesc = normalizeMaterialText(r.matDesc);
+
+        const entry = {
+            plant: plant || 'Unknown',
+            matNo: String(r.matNo || '').trim(),
+            matDesc: String(r.matDesc || '').trim(),
+            category: r.category || "N/A",
+            netWeightKg: parseFloat(r.netWeightKg) || 0
+        };
+
+        if (entry.plant && entry.plant !== 'Unknown') {
+            lookup.plants.add(entry.plant);
+        }
+
+        upsertBest(lookup.byPlantMatNo, `${entry.plant}||${matNo}`, entry);
+        upsertBest(lookup.byPlantDesc, `${entry.plant}||${matDesc}`, entry);
+        upsertBest(lookup.byMatNo, matNo, entry);
+        upsertBest(lookup.byDesc, matDesc, entry);
+    });
+
+    return lookup;
+}
+
+function resolveHistoricalMaterialMatch(lookup, loc, itemRaw, itemDescrRaw) {
+    const safeLookup = lookup || {};
+    const byPlantMatNo = safeLookup.byPlantMatNo || {};
+    const byPlantDesc = safeLookup.byPlantDesc || {};
+    const byMatNo = safeLookup.byMatNo || {};
+    const byDesc = safeLookup.byDesc || {};
+    const plants = safeLookup.plants || new Set();
+
+    const normalizedLoc = typeof normalizeLoc === 'function'
+        ? normalizeLoc(loc)
+        : String(loc || '').trim();
+
+    const normalizedItem = typeof normalizeBPItemKey === 'function'
+        ? normalizeBPItemKey(itemRaw)
+        : String(itemRaw || '').trim();
+
+    const normalizedDesc = normalizeMaterialText(itemDescrRaw);
+    const plantExists = !!(plants && typeof plants.has === 'function' && plants.has(normalizedLoc));
+
+    let hist = null;
+    let matchSource = '';
+    let unmatchedReason = '';
+
+    if (byPlantMatNo[`${normalizedLoc}||${normalizedItem}`]) {
+        hist = byPlantMatNo[`${normalizedLoc}||${normalizedItem}`];
+        matchSource = 'plant+matNo';
+    } else if (byPlantDesc[`${normalizedLoc}||${normalizedDesc}`]) {
+        hist = byPlantDesc[`${normalizedLoc}||${normalizedDesc}`];
+        matchSource = 'plant+matDesc';
+    } else if (normalizedLoc && !plantExists) {
+        unmatchedReason = `Plant ${normalizedLoc} kommt im Material_Report nicht vor`;
+    } else if (byMatNo[normalizedItem] || byDesc[normalizedDesc]) {
+        unmatchedReason = 'Treffer nur in anderer Plant vorhanden';
+    } else {
+        unmatchedReason = 'Kein Treffer über Plant + Materialnummer / Beschreibung';
+    }
+
+    return {
+        hist,
+        matchSource,
+        unmatchedReason,
+        normalizedLoc,
+        normalizedItem,
+        normalizedDesc
+    };
+}
+window.openBPInput = function () {
+    document.getElementById('bpForecastModal').classList.add('active');
+};
+
+window.closeBPInput = function () {
+    document.getElementById('bpForecastModal').classList.remove('active');
+};
 async function handleLogin() {
     const user = document.getElementById('loginUser').value.trim();
     const pass = document.getElementById('loginPass').value;
@@ -3835,11 +4203,60 @@ function fmtName(n) {
   return (n||'').split('_').map(w=>w.charAt(0).toUpperCase()+w.slice(1)).join(' ');
 }
 
-function normalizeMatNo(val) {
-  if (val === null || val === undefined || val === '') return '';
-  const n = parseInt(val, 10);
-  return isNaN(n) ? String(val) : String(n);
-}
+function normalizeLoc(loc) {
+        const raw = String(loc || '').trim();
+        const l = raw.toLowerCase();
+
+        if (l === '5501' || l === 'vals' || l.includes('vals')) return '5501';
+        if (l === '5511' || l === 'dietlikon' || l.includes('dietlikon')) return '5511';
+        if (l === '5502') return '5502';
+        if (l === '5521') return '5521';
+
+        return raw;
+    }
+
+    function mapBpMaterialGroupToHistoricalCategory(bpGroupDescr, itemDescr, baseUom) {
+        const g = String(bpGroupDescr || '').toUpperCase().trim();
+        const d = String(itemDescr || '').toUpperCase().trim();
+        const u = String(baseUom || '').toUpperCase().trim();
+
+        if (g.includes('RM&P_IGR_CO2') || d.includes('CARBON DIOXIDE')) return 'CO2 in product';
+        if (g.includes('RM&P_SPA_PAPER LABEL') || d.startsWith('LAB PAP')) return 'Paper labels (KG)';
+        if (g.includes('RM&P_SPA_PLAST LABEL') || d.startsWith('LAB OPP')) return 'Plastic labels (KG)';
+        if (g.includes('RM&P_SPA_FILM STRECH') || g.includes('RM&P_SPA_FLM SHRK') || g.includes('RM&P_SPA_FLMSHRKPRTD') || d.startsWith('SHRF') || d.startsWith('SHRFLM')) return 'PE stretch and shrink film';
+        if (g.includes('RM&P_SPA_TRAY/PAD') || d.startsWith('TRAY') || d.startsWith('DIVIDER')) return 'Cardboard';
+        if (g.includes('RM&P_PPA_PETPREFORM') || d.startsWith('PREF_MONO')) return 'Total PET  (KG) ';
+        if (d.startsWith('CLS_PLAS')) return 'Plastic closures (PE and PP) (KG)';
+        if (d.startsWith('CLS_METAL')) return 'Aluminium (cans or caps) (KG)';
+        if (d.startsWith('CROWN')) return 'Steel (crowns or cans) (KG)';
+        if (d.includes('SUGAR')) return 'Sugar';
+        if (d.includes('FRUCTOSE')) return 'Other sweeteners';
+
+        if (g.includes('RM&P_IGR_CONC TCCC') || g.includes('RM&P_IGR_CONC OTHER') || g.includes('RM&P_IGR_JUICE TCCC')) {
+            return 'BP Fallback – Concentrates';
+        }
+        if (g.includes('RM&P_IGR_ADD')) {
+            return 'BP Fallback – Additives';
+        }
+        if (g.includes('RM&P_SPA_GLUE')) {
+            return 'BP Fallback – Glue';
+        }
+        if (g.includes('RM&P_SPA_HANDLES')) {
+            return 'BP Fallback – Handles';
+        }
+        if (g.includes('RM&P_IGR_WATER')) {
+            return 'BP Fallback – Water';
+        }
+        if (g.includes('RM&P_IGR_SYRUP')) {
+            return 'BP Fallback – Syrup';
+        }
+
+        if (u === 'KG' || u === 'KGM') {
+            return 'BP Fallback – KG Material';
+        }
+
+        return '';
+    }
 
 function excelSerialToDate(serial) {
   if (!serial || isNaN(serial)) return serial;
@@ -7272,6 +7689,9 @@ async function ladeEnvDaten() {
     tsEnv = nowEnv;
 
     updateEnvDashboard();
+    if (typeof generateCompareData === 'function') {
+        generateCompareData();
+    }
     updateStatusForCurrentTab();
 
     const totalDuration = ((performance.now() - startTime) / 1000).toFixed(2);
@@ -7652,14 +8072,16 @@ function processEnvironmentalData() {
 
 function updateEnvDashboard() {
     if (!globalEnvHist || globalEnvHist.length === 0) return;
-    Chart.register(ChartDataLabels);
+    if (typeof ChartDataLabels !== 'undefined') {
+        Chart.register(ChartDataLabels);
+    }
 
     document.getElementById('envWarning').style.display = 'none';
-    document.getElementById('envDashboardContent').style.display = 'block';
+        document.getElementById('envDashboardContent').style.display = 'block';
 
-    if(unifiedEnvData.monthly.length === 0) processEnvironmentalData();
+        processEnvironmentalData();
 
-    const yearSelect = document.getElementById('envYear');
+        const yearSelect = document.getElementById('envYear');
     if (yearSelect.options.length <= 1) { 
         // NEU: Holt Jahre aus Monats- UND YTD-Daten, damit ältere Jahre auftauchen
         let years = [...new Set([
@@ -8575,6 +8997,7 @@ const KPI_TO_HIST_MAPPING = {
     'electricity total cr360 | mj': 'Total Electrical Energy Act. [MJ]',
     'cr360 total electricity consumption | mj': 'Total Electrical Energy Act. [MJ]',
     'electricity | mj': 'Total Electrical Energy Act. [MJ]',
+    'electricity total | mj': 'Total Electrical Energy Act. [MJ]',
     'electricity energy all ttl | mj': 'Total Electrical Energy Act. [MJ]',
     
     // Thermal Energy / Heating (Inklusive Heizöl für Vals)
@@ -8646,8 +9069,8 @@ function generateCompareData() {
             let plant = plantRaw;
             if (plantRaw.includes('dietlikon')) plant = 'Dietlikon';
             else if (plantRaw.includes('vals')) plant = 'Vals';
-            else if (plantRaw === 'total') plant = 'National Total';
-            else if (plantRaw === 'national') plant = 'National';
+            else if (plantRaw === 'total' || plantRaw.includes('total')) plant = 'National Total';
+            else if (plantRaw.includes('national')) plant = 'National';
 
             // Erzeuge ein Array von Zielwerken. Bei Volumen für National fügen wir National Total als Duplikat hinzu (Fehlertolerante Prüfung).
                 let normCol = actualHistCol.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -14408,7 +14831,13 @@ function updateChemicals() {
         });
 
         document.getElementById('mcTableBody').innerHTML = tblHtml || `<tr><td colspan="8" style="text-align:center; padding:15px; color:#999;">Keine Daten vorhanden.</td></tr>`;
+
+        // BP Forecast-Auswertung ebenfalls aktualisieren, damit Werk- und Kategorie-Filter direkt wirken
+        if (window.bpData && window.bpData.length > 0 && typeof renderBPPanel === 'function') {
+            renderBPPanel();
+        }
     };
+
 
     // Stufen-Breakdown Renderer für Kategorien, Vendors und Materialien
     function renderHierarchicalTable(hierarchy, totalWeightAll) {
@@ -14515,7 +14944,695 @@ function updateChemicals() {
         });
         if (icon) icon.innerHTML = isHidden ? '&#8722;' : '&#43;';
     };
+    window.renderBP = function() {
 
+        const data = window.globalBPValidationData || [];
+        if (data.length === 0) return;
+
+        const hist = globalMaterialClassData || [];
+
+        let totalKg = 0;
+        let matched = 0;
+
+        let tableHtml = '';
+
+        let monthlyAgg = {};
+
+        data.forEach(r => {
+
+            if (r.matched) matched++;
+
+            totalKg += r.bpKgTotal || 0;
+
+            // PY berechnen
+            let pyKg = hist
+                .filter(h => h.matNo == r.item)
+                .reduce((s, h) => s + (h.totalWeightKg || 0), 0);
+
+            let delta = pyKg > 0 ? ((r.bpKgTotal - pyKg) / pyKg * 100) : 0;
+
+            // Chart aggregieren
+            Object.keys(r.monthly || {}).forEach(m => {
+                if (!monthlyAgg[m]) monthlyAgg[m] = 0;
+                monthlyAgg[m] += r.monthly[m].kg;
+            });
+
+            tableHtml += `
+            <tr>
+                <td>${r.item}</td>
+                <td>${r.loc}</td>
+                <td>${r.category}</td>
+                <td style="text-align:right">${Math.round(r.bpKgTotal)}</td>
+                <td style="text-align:right">${Math.round(pyKg)}</td>
+                <td style="text-align:right; color:${delta>0?'#d83b01':'#107c41'}">
+                    ${delta>0?'+':''}${delta.toFixed(1)}%
+                </td>
+                <td>${r.matched ? '✓' : '⚠️'}</td>
+            </tr>`;
+        });
+
+        document.getElementById('bpAnalysePanel').style.display = 'block';
+        document.getElementById('bpKpiTotalKg').innerText = Math.round(totalKg);
+        document.getElementById('bpKpiMatched').innerText = matched;
+        document.getElementById('bpKpiUnmatched').innerText = data.length - matched;
+
+        document.getElementById('bpTableBody').innerHTML = tableHtml;
+
+        // CHART
+        // CHART
+        let labels = Object.keys(monthlyAgg).sort();
+        let displayLabels = labels.map(l => {
+            let parts = l.split('-');
+            if (parts.length === 2) {
+                return `${parts[1]}/${parts[0].substring(2)}`;
+            }
+            return l;
+        });
+        let values = labels.map(m => monthlyAgg[m]);
+
+        if (window.bpChart) window.bpChart.destroy();
+
+        const ctx = document.getElementById('bpChartMonthly').getContext('2d');
+
+        window.bpChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: displayLabels,
+                datasets: [{
+                    label: 'Forecast KG',
+                    data: values,
+                    backgroundColor: '#5c2d91'
+                }]
+            },
+            options: {
+                plugins: {
+                    datalabels: false,
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => ctx.raw.toLocaleString('de-CH') + ' KG'
+                        }
+                    }
+                }
+            }
+        });
+    };
+    // ==========================================
+    // BP HISTORICAL LOOKUP
+    // ==========================================
+    function normalizeBPItemKey(v) {
+        if (v === null || v === undefined) return '';
+
+        let s = String(v)
+            .replace(/\u00A0/g, ' ')
+            .trim();
+
+        if (/^\d+(\.0+)?$/.test(s)) {
+            s = s.replace(/\.0+$/, '');
+        }
+
+        s = s.replace(/\s+/g, '');
+        s = s.replace(/^0+(?=\d)/, '');
+
+        return s.toUpperCase();
+    }
+
+    // Die Funktion buildHistoricalMaterialLookup() wird an dieser Stelle entfernt,
+    // da die korrekte, plant-aware Version bereits weiter oben im Code definiert ist.
+    // Dies verhindert, dass die korrekte Logik durch eine veraltete Version überschrieben wird.
+
+    // ==========================================
+    // HELPER: MONATSSPALTE ERKENNEN
+    // ==========================================
+    function parseMonthColumn(header) {
+        let clean = header.trim();
+        
+        // Muster 1: MM YY oder MM YYYY (z.B. "04 26", "04.26", "04/2026")
+        let m1 = clean.match(/^(\d{1,2})[\s\.\/-]+(\d{2,4})$/);
+        if (m1) {
+            let month = parseInt(m1[1], 10);
+            let yearRaw = m1[2];
+            if (month >= 1 && month <= 12) {
+                let year = yearRaw.length === 2 ? 2000 + parseInt(yearRaw, 10) : parseInt(yearRaw, 10);
+                return { month, year, label: `${year}-${String(month).padStart(2, '0')}` };
+            }
+        }
+        
+        // Muster 2: YYYY MM (z.B. "2026-04", "2026.04")
+        let m2 = clean.match(/^(\d{4})[\s\.\/-]+(\d{1,2})$/);
+        if (m2) {
+            let year = parseInt(m2[1], 10);
+            let month = parseInt(m2[2], 10);
+            if (month >= 1 && month <= 12) {
+                return { month, year, label: `${year}-${String(month).padStart(2, '0')}` };
+            }
+        }
+        
+        // Muster 3: YYYYMM (z.B. "202604")
+        let m3 = clean.match(/^(\d{4})(\d{2})$/);
+        if (m3) {
+            let year = parseInt(m3[1], 10);
+            let month = parseInt(m3[2], 10);
+            if (month >= 1 && month <= 12) {
+                return { month, year, label: `${year}-${String(month).padStart(2, '0')}` };
+            }
+        }
+        return null;
+    }
+
+    // ==========================================
+    // BP TEXT IMPORT & PARSER
+    // ==========================================
+    function parseBPNumber(v) {
+        if (v === null || v === undefined || v === '') return 0;
+
+        let s = String(v).trim().replace(/'/g, '');
+
+        if (s.includes(',') && s.includes('.')) {
+            s = s.replace(/,/g, '');
+        } else if (s.includes(',') && !s.includes('.')) {
+            s = s.replace(',', '.');
+        }
+
+        let n = parseFloat(s);
+        return isNaN(n) ? 0 : n;
+    }
+
+    function normalizeBPUom(v) {
+        return String(v || '').trim().toUpperCase();
+    }
+
+    function bpNormHeader(v) {
+        return String(v || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    }
+
+    function bpGetVal(row, headerNames) {
+        const keys = Object.keys(row || {});
+        for (let h of headerNames) {
+            const wanted = bpNormHeader(h);
+            const found = keys.find(k => bpNormHeader(k) === wanted);
+            if (found && row[found] !== undefined && row[found] !== null) {
+                return row[found];
+            }
+        }
+        return '';
+    }
+
+    function convertBPQtyToKg(qty, baseUom, hist) {
+        const uom = normalizeBPUom(baseUom);
+        const netWeightKg = hist && hist.netWeightKg ? Number(hist.netWeightKg) : 0;
+
+        if (uom === 'KG' || uom === 'KGM') {
+            return {
+                kg: qty,
+                factorKg: 1,
+                mode: 'UOM=KG: BP Monatswert direkt als KG übernommen'
+            };
+        }
+
+        if (uom === 'G' || uom === 'GR' || uom === 'GRAM') {
+            return {
+                kg: qty / 1000,
+                factorKg: 0.001,
+                mode: 'UOM=G: BP Monatswert von G nach KG umgerechnet'
+            };
+        }
+
+        if (hist && netWeightKg > 0) {
+            return {
+                kg: qty * netWeightKg,
+                factorKg: netWeightKg,
+                mode: `UOM=${uom || 'leer'}: BP Menge × plant-spezifisches historisches Nettogewicht`
+            };
+        }
+
+        return {
+            kg: 0,
+            factorKg: 0,
+            mode: `Keine KG-Umrechnung möglich: UOM=${uom || 'leer'}, kein plant-spezifisches historisches Nettogewicht`
+        };
+    }
+
+    window.processBPText = function () {
+        let raw = document.getElementById('bpTextInput').value;
+        if (!raw) return alert("Bitte fügen Sie BP Rohmaterial-Daten in das Textfeld ein.");
+
+        // HTML-Entities bereinigen, falls Daten aus Browser/HTML kopiert wurden
+        raw = raw.replace(/&amp;/g, '&');
+
+        let lines = raw.split(/\r?\n/).filter(l => l.trim());
+
+        if (lines.length < 2) {
+            alert("Zu wenig BP-Daten erkannt. Bitte Kopfzeile und mindestens eine Datenzeile einfügen.");
+            return;
+        }
+
+        // WICHTIG:
+        // Excel Copy/Paste liefert echte Tabulatoren. Für BP-Daten mit Textspalten darf NICHT nach einfachen Leerzeichen gesplittet werden.
+        let headers = lines[0].split(/\t/).map(h => h.trim());
+
+        let rows = [];
+
+        for (let i = 1; i < lines.length; i++) {
+            let parts = lines[i].split(/\t/);
+
+            if (parts.length < 3) continue;
+
+            let obj = {};
+            headers.forEach((h, idx) => {
+                obj[h] = parts[idx] !== undefined ? String(parts[idx]).trim() : '';
+            });
+
+            rows.push(obj);
+        }
+
+        const histLookup = buildHistoricalMaterialLookup();
+
+        // Monatsspalten dynamisch erkennen, z. B. "04 26", "05 26", "2026-04"
+        let parsedMonthCols = [];
+
+        headers.forEach(h => {
+            let parsedCol = parseMonthColumn(h);
+            if (parsedCol) {
+                parsedCol.originalHeader = h;
+                parsedMonthCols.push(parsedCol);
+            }
+        });
+
+        if (parsedMonthCols.length === 0) {
+            return alert("Fehler: Keine gültigen Monatsspalten gefunden. Erwartet wird z. B. '04 26', '05 26' oder '2026-04'.");
+        }
+
+        let parsed = rows.map(r => {
+            try {
+                let itemRaw = bpGetVal(r, ['Item']);
+                let loc = bpGetVal(r, ['Loc', 'Location', 'Werk', 'Plant']) || 'Unknown';
+                let itemDescr = bpGetVal(r, ['ItemDescr(Item)', 'ItemDescr', 'Item Description', 'Description']);
+
+                const match = resolveHistoricalMaterialMatch(histLookup, loc, itemRaw, itemDescr);
+
+                let itemKey = match.normalizedItem || (
+                    typeof normalizeBPItemKey === 'function'
+                        ? normalizeBPItemKey(itemRaw)
+                        : String(itemRaw || '').trim().replace(/^0+/, '')
+                );
+
+                let hist = match.hist;
+
+                let baseUom = bpGetVal(r, [
+                'U_BASE_UOM(Item)',
+                'U_BASE_UOM',
+                'Base UOM',
+                'BASE_UOM',
+                'UOM'
+            ]);
+
+            
+            let bpMaterialGroupDescr = bpGetVal(r, [
+                'U_MATERIAL_GROUP_DESCR(Item)',
+                'U_MATERIAL_GROUP_DESCR',
+                'Material Group',
+                'Material Group Description'
+            ]);
+
+            const fallbackCategory = mapBpMaterialGroupToHistoricalCategory(
+                bpMaterialGroupDescr,
+                itemDescr,
+                baseUom
+            );
+
+                let monthly = {};
+                let bpQtyTotal = 0;
+                let bpKgTotal = 0;
+                let conversionModes = new Set();
+                let maxFactorKg = 0;
+
+                parsedMonthCols.forEach(col => {
+                    let qty = parseBPNumber(r[col.originalHeader]);
+                    let conversion = convertBPQtyToKg(qty, baseUom, hist);
+                    let kg = conversion.kg;
+
+                    monthly[col.label] = {
+                        qty: qty,
+                        kg: kg,
+                        month: col.month,
+                        year: col.year,
+                        originalHeader: col.originalHeader,
+                        baseUom: baseUom,
+                        conversionMode: conversion.mode,
+                        factorKg: conversion.factorKg
+                    };
+
+                    bpQtyTotal += qty;
+                    bpKgTotal += kg;
+                    maxFactorKg = Math.max(maxFactorKg, conversion.factorKg || 0);
+                    conversionModes.add(conversion.mode);
+                });
+
+                const resolvedCategory = hist
+                ? hist.category
+                : (fallbackCategory || "Nicht gematcht");
+
+            const resolvedReason = hist
+                ? ''
+                : (fallbackCategory
+                    ? `Keine Historie in Material_Report; Kategorie aus BP-Materialgruppe übernommen (${bpMaterialGroupDescr || 'n/a'})`
+                    : (match.unmatchedReason || ''));
+
+            return {
+                item: String(itemRaw || '').trim(),
+                itemKey: itemKey,
+                originalLoc: loc,
+                loc: match.normalizedLoc || loc,
+                itemDescr: itemDescr,
+                baseUom: baseUom,
+                bpMaterialGroupDescr: bpMaterialGroupDescr,
+                category: resolvedCategory,
+                histMatDesc: hist ? hist.matDesc : '',
+                forecastKg: bpKgTotal,
+                bpQtyTotal: bpQtyTotal,
+                netWeight: hist ? hist.netWeightKg : 0,
+                maxFactorKg: maxFactorKg,
+                monthly: monthly,
+                matched: !!hist,
+                categoryFallbackUsed: !hist && !!fallbackCategory,
+                matchSource: hist ? (match.matchSource || '') : (fallbackCategory ? 'bp-material-group' : ''),
+                unmatchedReason: resolvedReason,
+                conversionMode: Array.from(conversionModes).join(' / ')
+            };
+            } catch (err) {
+                console.error('❌ Fehler beim BP-Mapping für Zeile:', r, err);
+                return {
+                    item: String(bpGetVal(r, ['Item']) || '').trim(),
+                    itemKey: '',
+                    originalLoc: bpGetVal(r, ['Loc', 'Location', 'Werk', 'Plant']) || 'Unknown',
+                    loc: bpGetVal(r, ['Loc', 'Location', 'Werk', 'Plant']) || 'Unknown',
+                    itemDescr: bpGetVal(r, ['ItemDescr(Item)', 'ItemDescr', 'Item Description', 'Description']) || '',
+                    baseUom: bpGetVal(r, ['U_BASE_UOM(Item)', 'U_BASE_UOM', 'Base UOM', 'BASE_UOM', 'UOM']) || '',
+                    category: "Nicht gematcht",
+                    histMatDesc: '',
+                    forecastKg: 0,
+                    bpQtyTotal: 0,
+                    netWeight: 0,
+                    maxFactorKg: 0,
+                    monthly: {},
+                    matched: false,
+                    matchSource: '',
+                    unmatchedReason: `Fehler im Mapping: ${err.message}`,
+                    conversionMode: 'Fehler'
+                };
+            }
+        });
+
+        console.log("✅ BP Rohmaterialdaten geladen:", parsed);
+        console.table(parsed.map(x => ({
+            item: x.item,
+            loc: x.loc,
+            itemDescr: x.itemDescr,
+            bpMaterialGroupDescr: x.bpMaterialGroupDescr || '',
+            category: x.category,
+            matched: x.matched,
+            categoryFallbackUsed: x.categoryFallbackUsed || false,
+            matchSource: x.matchSource || '',
+            unmatchedReason: x.unmatchedReason || '',
+            netWeight: x.netWeight,
+            forecastKg: x.forecastKg,
+            conversionMode: x.conversionMode
+        })));
+
+
+        window.bpData = parsed;
+
+        closeBPInput();
+        renderBPPanel();
+    };
+
+    // Robuster Fallback für bestehenden Button im Modal
+    window.importBPFromText = window.processBPText;
+
+    // Debug-Hilfe für die Konsole
+    window.debugBP = () => console.table(window.bpData);
+
+      
+    // ==========================================
+    // BP PANEL RENDER (PY + FULL YEAR)
+    // ==========================================
+    function normalizeLoc(loc) {
+        const raw = String(loc || '').trim();
+        const l = raw.toLowerCase();
+
+        if (l === '5501' || l === 'vals' || l.includes('vals')) return '5501';
+        if (l === '5511' || l === 'dietlikon' || l.includes('dietlikon')) return '5511';
+        if (l === '5502') return '5502';
+
+        return raw;
+    }
+
+    window.renderBPPanel = function () {
+        let data = window.bpData || [];
+        if (data.length === 0) return;
+
+        let hist = globalMaterialClassData || [];
+
+        const yearSel = document.getElementById('mcFilterYear');
+        const plantSel = document.getElementById('mcFilterPlant');
+        const categorySel = document.getElementById('mcFilterCategory');
+
+        const selectedYearRaw = yearSel && yearSel.value && yearSel.value !== 'All'
+            ? yearSel.value
+            : (data[0] && data[0].monthly ? Object.values(data[0].monthly)[0]?.year : new Date().getFullYear());
+
+        const cy = parseInt(selectedYearRaw, 10);
+        const py = cy - 1;
+
+        const plantFilter = plantSel ? plantSel.value : 'All';
+        const categoryFilter = categorySel ? categorySel.value : 'All';
+
+        const isPlantMatch = (plantVal) => {
+            if (plantFilter === 'All') return true;
+            return String(plantVal) === String(plantFilter) || String(normalizeLoc(plantVal)) === String(normalizeLoc(plantFilter));
+        };
+
+        const isCategoryMatch = (catVal) => {
+            if (categoryFilter === 'All') return true;
+            return String(catVal) === String(categoryFilter);
+        };
+
+        let filteredBP = data.filter(r => isPlantMatch(r.loc) && isCategoryMatch(r.category));
+        let filteredHistCY = hist.filter(r => String(r.year) === String(cy) && isPlantMatch(r.plant) && isCategoryMatch(r.category));
+        let filteredHistPY = hist.filter(r => String(r.year) === String(py) && isPlantMatch(r.plant) && isCategoryMatch(r.category));
+
+        let actualMonths = new Set(filteredHistCY.filter(r => (r.totalWeightKg || 0) !== 0).map(r => r.month));
+
+        let categoryStats = {};
+        let monthStats = {};
+
+        const ensureCategory = (loc, cat) => {
+            let key = `${loc}|${cat}`;
+            if (!categoryStats[key]) {
+                categoryStats[key] = { loc, cat, bpFullYear: 0, actualCY: 0, pyFullYear: 0 };
+            }
+            return categoryStats[key];
+        };
+
+        const ensureMonth = (month, loc, cat) => {
+            let key = `${month}|${loc}|${cat}`;
+            if (!monthStats[key]) {
+                monthStats[key] = { month, loc, cat, bpKg: 0, actualKg: 0, pyKg: 0 };
+            }
+            return monthStats[key];
+        };
+
+        // BP: komplette Full-Year Sicht aus den BP-Monaten
+        filteredBP.forEach(r => {
+            let loc = normalizeLoc(r.loc);
+            let cat = r.category;
+            let c = ensureCategory(loc, cat);
+
+            Object.keys(r.monthly || {}).forEach(mLabel => {
+                let mObj = r.monthly[mLabel];
+                let kg = typeof mObj === 'object' ? (mObj.kg || 0) : (mObj || 0);
+                let month = typeof mObj === 'object' ? mObj.month : parseInt(String(mLabel).split('-')[1], 10);
+
+                c.bpFullYear += kg;
+                ensureMonth(month, loc, cat).bpKg += kg;
+            });
+        });
+
+        // Actual CY: echte Ist-Daten aus historischer Materialdatei
+        filteredHistCY.forEach(r => {
+            let loc = normalizeLoc(r.plant);
+            let cat = r.category;
+            let kg = r.totalWeightKg || 0;
+
+            ensureCategory(loc, cat).actualCY += kg;
+            ensureMonth(r.month, loc, cat).actualKg += kg;
+        });
+
+        // PY Full Year: Vorjahr komplett
+        filteredHistPY.forEach(r => {
+            let loc = normalizeLoc(r.plant);
+            let cat = r.category;
+            let kg = r.totalWeightKg || 0;
+
+            ensureCategory(loc, cat).pyFullYear += kg;
+            ensureMonth(r.month, loc, cat).pyKg += kg;
+        });
+
+        let grand = { bpFullYear: 0, actualCY: 0, pyFullYear: 0 };
+
+        let tableHtml = '';
+        Object.values(categoryStats)
+            .sort((a, b) => b.bpFullYear - a.bpFullYear)
+            .forEach(s => {
+                if (s.bpFullYear === 0 && s.actualCY === 0 && s.pyFullYear === 0) return;
+
+                grand.bpFullYear += s.bpFullYear;
+                grand.actualCY += s.actualCY;
+                grand.pyFullYear += s.pyFullYear;
+
+                let diffActual = s.bpFullYear - s.actualCY;
+                let pctActual = s.actualCY > 0 ? (diffActual / s.actualCY * 100) : 0;
+                let diffPY = s.bpFullYear - s.pyFullYear;
+                let pctPY = s.pyFullYear > 0 ? (diffPY / s.pyFullYear * 100) : 0;
+
+                let colActual = diffActual > 0 ? '#d83b01' : (diffActual < 0 ? '#107c41' : '#555');
+                let colPY = diffPY > 0 ? '#d83b01' : (diffPY < 0 ? '#107c41' : '#555');
+
+                tableHtml += `
+                <tr style="border-bottom:1px solid #eee;">
+                    <td style="padding:6px 8px; text-align:left; font-weight:bold;">${escapeHTML(s.loc)}</td>
+                    <td style="padding:6px 8px; text-align:left;">${escapeHTML(s.cat)}</td>
+                    <td style="padding:6px 8px; text-align:right; font-weight:bold; color:#5c2d91;">${Math.round(s.bpFullYear).toLocaleString('de-CH')}</td>
+                    <td style="padding:6px 8px; text-align:right; color:#107c41;">${Math.round(s.actualCY).toLocaleString('de-CH')}</td>
+                    <td style="padding:6px 8px; text-align:right; font-weight:bold; color:${colActual};">${diffActual > 0 ? '+' : ''}${Math.round(diffActual).toLocaleString('de-CH')}</td>
+                    <td style="padding:6px 8px; text-align:right; font-weight:bold; color:${colActual};">${s.actualCY > 0 ? (diffActual > 0 ? '+' : '') + pctActual.toFixed(1) + '%' : '-'}</td>
+                    <td style="padding:6px 8px; text-align:right; color:#555;">${Math.round(s.pyFullYear).toLocaleString('de-CH')}</td>
+                    <td style="padding:6px 8px; text-align:right; font-weight:bold; color:${colPY};">${s.pyFullYear > 0 ? (diffPY > 0 ? '+' : '') + pctPY.toFixed(1) + '%' : '-'}</td>
+                </tr>`;
+            });
+
+        let totalDiffActual = grand.bpFullYear - grand.actualCY;
+        let totalPctActual = grand.actualCY > 0 ? (totalDiffActual / grand.actualCY * 100) : 0;
+        let totalDiffPY = grand.bpFullYear - grand.pyFullYear;
+        let totalPctPY = grand.pyFullYear > 0 ? (totalDiffPY / grand.pyFullYear * 100) : 0;
+
+        tableHtml += `
+        <tr style="background:#e8f0fe; font-weight:bold; border-top:2px solid #0078d4; position:sticky; bottom:0;">
+            <td colspan="2" style="padding:8px; text-align:left;">Total</td>
+            <td style="padding:8px; text-align:right; color:#5c2d91;">${Math.round(grand.bpFullYear).toLocaleString('de-CH')}</td>
+            <td style="padding:8px; text-align:right; color:#107c41;">${Math.round(grand.actualCY).toLocaleString('de-CH')}</td>
+            <td style="padding:8px; text-align:right;">${totalDiffActual > 0 ? '+' : ''}${Math.round(totalDiffActual).toLocaleString('de-CH')}</td>
+            <td style="padding:8px; text-align:right;">${grand.actualCY > 0 ? (totalDiffActual > 0 ? '+' : '') + totalPctActual.toFixed(1) + '%' : '-'}</td>
+            <td style="padding:8px; text-align:right;">${Math.round(grand.pyFullYear).toLocaleString('de-CH')}</td>
+            <td style="padding:8px; text-align:right;">${grand.pyFullYear > 0 ? (totalDiffPY > 0 ? '+' : '') + totalPctPY.toFixed(1) + '%' : '-'}</td>
+        </tr>`;
+
+        let monthHtml = '';
+        Object.values(monthStats)
+            .sort((a, b) => a.month - b.month || a.loc.localeCompare(b.loc) || a.cat.localeCompare(b.cat))
+            .forEach(s => {
+                if (s.bpKg === 0 && s.actualKg === 0 && s.pyKg === 0) return;
+
+                let diff = s.bpKg - s.actualKg;
+                let pct = s.actualKg > 0 ? (diff / s.actualKg * 100) : 0;
+                let status = s.actualKg > 0 ? 'Actual vorhanden' : 'Nur BP/PY';
+                let col = diff > 0 ? '#d83b01' : (diff < 0 ? '#107c41' : '#555');
+
+                monthHtml += `
+                <tr style="border-bottom:1px solid #eee;">
+                    <td style="padding:6px 8px;">${String(s.month).padStart(2, '0')}/${String(cy).substring(2)}</td>
+                    <td style="padding:6px 8px;">${escapeHTML(s.loc)}</td>
+                    <td style="padding:6px 8px;">${escapeHTML(s.cat)}</td>
+                    <td style="padding:6px 8px; text-align:right; font-weight:bold; color:#5c2d91;">${Math.round(s.bpKg).toLocaleString('de-CH')}</td>
+                    <td style="padding:6px 8px; text-align:right; color:#107c41;">${Math.round(s.actualKg).toLocaleString('de-CH')}</td>
+                    <td style="padding:6px 8px; text-align:right; font-weight:bold; color:${col};">${diff > 0 ? '+' : ''}${Math.round(diff).toLocaleString('de-CH')}</td>
+                    <td style="padding:6px 8px; text-align:right; font-weight:bold; color:${col};">${s.actualKg > 0 ? (diff > 0 ? '+' : '') + pct.toFixed(1) + '%' : '-'}</td>
+                    <td style="padding:6px 8px; text-align:center;">${status}</td>
+                </tr>`;
+            });
+
+        document.getElementById('bpPanel').style.display = 'block';
+        document.getElementById('bpTotalKg').innerText = Math.round(grand.bpFullYear).toLocaleString('de-CH');
+        document.getElementById('bpActualKg').innerText = Math.round(grand.actualCY).toLocaleString('de-CH');
+        document.getElementById('bpTotalPY').innerText = Math.round(grand.pyFullYear).toLocaleString('de-CH');
+        document.getElementById('bpDelta').innerHTML = `<span style="color:${totalDiffActual >= 0 ? '#d83b01' : '#107c41'};">${grand.actualCY > 0 ? (totalDiffActual > 0 ? '+' : '') + totalPctActual.toFixed(1) + '%' : '-'}</span>`;
+
+        document.getElementById('bpTable').innerHTML = tableHtml || `<tr><td colspan="8" style="padding:15px; text-align:center; color:#999;">Keine BP-/Actual-Daten für die aktuelle Filterauswahl.</td></tr>`;
+        document.getElementById('bpMonthTable').innerHTML = monthHtml || `<tr><td colspan="8" style="padding:15px; text-align:center; color:#999;">Keine Monatsdaten für die aktuelle Filterauswahl.</td></tr>`;
+
+        let monthLabels = [];
+        let bpValues = [];
+        let actualValues = [];
+        let pyValues = [];
+
+        for (let m = 1; m <= 12; m++) {
+            monthLabels.push(`${String(m).padStart(2, '0')}/${String(cy).substring(2)}`);
+
+            let monthRows = Object.values(monthStats).filter(x => x.month === m);
+            bpValues.push(monthRows.reduce((s, x) => s + x.bpKg, 0));
+            actualValues.push(monthRows.reduce((s, x) => s + x.actualKg, 0));
+            pyValues.push(monthRows.reduce((s, x) => s + x.pyKg, 0));
+        }
+
+        if (window.bpChartObj) window.bpChartObj.destroy();
+
+        window.bpChartObj = new Chart(document.getElementById('bpChart'), {
+            type: 'bar',
+            data: {
+                labels: monthLabels,
+                datasets: [
+                    {
+                        label: `BP Forecast ${cy} [KG]`,
+                        data: bpValues,
+                        backgroundColor: '#5c2d91',
+                        datalabels: { display: false }
+                    },
+                    {
+                        label: `Actual ${cy} [KG]`,
+                        data: actualValues,
+                        backgroundColor: '#107c41',
+                        datalabels: { display: false }
+                    },
+                    {
+                        type: 'line',
+                        label: `PY ${py} [KG]`,
+                        data: pyValues,
+                        borderColor: '#667C8B',
+                        backgroundColor: '#667C8B',
+                        borderWidth: 2,
+                        pointRadius: 3,
+                        fill: false,
+                        datalabels: { display: false }
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    datalabels: false,
+                    legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => `${ctx.dataset.label}: ${Number(ctx.raw || 0).toLocaleString('de-CH', { maximumFractionDigits: 1 })} KG`
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: { display: true, text: 'KG' },
+                        ticks: { callback: formatLargeNumbers }
+                    }
+                }
+            }
+        });
+    };
+
+
+    // ==========================================
+    // DEIN EXISTIERENDER CODE BLEIBT UNVERÄNDERT
+    // ==========================================
     window.exportMaterialClassTable = function() {
         if (!globalMaterialClassData || globalMaterialClassData.length === 0) return alert("Keine Daten zum Exportieren!");
         
@@ -14702,6 +15819,25 @@ function updateChemicals() {
         <div style="display:flex; justify-content:flex-end; gap:10px; margin-top: 15px;">
             <button onclick="document.getElementById('riskEditModal').classList.remove('active')" style="padding:8px 15px; background:#ddd; color:#333; border:none; border-radius:4px; cursor:pointer;">Abbrechen</button>
             <button id="btnSaveRisk" onclick="saveRiskEdit()" style="padding:8px 15px; background:#107c41; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">Speichern (Smartsheet)</button>
+        </div>
+    </div>
+</div>
+
+<!-- BP FORECAST IMPORT MODAL -->
+<div class="modal-overlay" id="bpForecastModal">
+    <div class="modal-content" style="width: 600px;">
+        <div class="modal-header">
+            <h2>BP Forecast / Validierung einlesen</h2>
+            <button class="modal-close" onclick="document.getElementById('bpForecastModal').classList.remove('active')">&times;</button>
+        </div>
+        <div class="form-group">
+            <textarea id="bpTextInput"
+              placeholder="BP Daten aus Excel hier einfügen (Copy/Paste)..."
+              style="width:100%; height:200px; font-size:10px; padding:6px; border:1px solid #ccc; border-radius:4px; font-family: monospace;"></textarea>
+        </div>
+        <div style="display:flex; justify-content:flex-end; gap:10px; margin-top: 15px;">
+            <button onclick="document.getElementById('bpForecastModal').classList.remove('active')" style="padding:8px 15px; background:#ddd; color:#333; border:none; border-radius:4px; cursor:pointer;">Abbrechen</button>
+            <button onclick="processBPText()" style="padding:8px 15px; background:#0078d4; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">📋 Text einlesen</button>
         </div>
     </div>
 </div>
