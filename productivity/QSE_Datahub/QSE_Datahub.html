@@ -1220,11 +1220,20 @@
       </div>
 
       <!-- MITTLERE REIHE: Pivot Matrix -->
-      <h3 style="font-size: 14px; margin-bottom: 8px;">DPMO Auswertungstabelle (Gefiltert)</h3>
+      <h3 style="font-size: 14px; margin-bottom: 8px;">DPMO Auswertungstabelle - Monatlich (Gefiltert)</h3>
       <div style="overflow-x: auto; border: 1px solid #ccc; border-radius: 5px; margin-bottom: 25px;">
         <table style="width: 100%; border-collapse: collapse; font-size: 12px; background: white;">
           <thead id="dpmoPivotHead"></thead>
           <tbody id="dpmoPivotBody"></tbody>
+        </table>
+      </div>
+
+      <!-- WÖCHENTLICHE PIVOT MATRIX -->
+      <h3 style="font-size: 14px; margin-bottom: 8px;">DPMO Auswertungstabelle - Wöchentlich (Gefiltert)</h3>
+      <div style="overflow-x: auto; border: 1px solid #ccc; border-radius: 5px; margin-bottom: 25px;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 12px; background: white;">
+          <thead id="dpmoWeeklyPivotHead"></thead>
+          <tbody id="dpmoWeeklyPivotBody"></tbody>
         </table>
       </div>
 
@@ -6054,18 +6063,19 @@ function updateDPMO() {
     });
   }
 
-  // ==========================================
+ // ==========================================
   // MITTLERE PIVOT MATRIX
   // ==========================================
-  let thHtml = '<tr style="background:#e8e6e3; border-bottom:2px solid #ccc;"><th style="padding:8px; text-align:left;">Indicator</th>';
+  let thHtml = '<tr style="background:#e8e6e3; border-bottom:2px solid #ccc;"><th style="padding:8px; text-align:left; position:sticky; left:0; background:#e8e6e3; z-index:5;">Indicator</th>';
   displayMonths.forEach(m => thHtml += `<th style="padding:8px; text-align:right;">${m}</th>`);
   thHtml += '</tr>';
   document.getElementById('dpmoPivotHead').innerHTML = thHtml;
 
   let tbHtml = '';
   function renderTableRow(title, isBold, indent, sourceRows) {
+    let bg = isBold ? '#fdfcfb' : '#ffffff';
     let html = `<tr style="border-bottom:1px solid #eee; ${isBold ? 'font-weight:600; background:#fdfcfb;' : ''}">`;
-    html += `<td style="padding:6px 8px; padding-left:${indent}px; border-right:1px solid #eee;">${title}</td>`;
+    html += `<td style="padding:6px 8px; padding-left:${indent}px; border-right:1px solid #eee; position:sticky; left:0; background:${bg}; z-index:2;">${title}</td>`;
     months.forEach(m => {
       const val = getDpmoValue(getRowsForMonth(sourceRows, m));
       let display = val !== null ? val.toLocaleString('de-CH') : '—';
@@ -6097,6 +6107,66 @@ function updateDPMO() {
     renderTableRow('Total', false, 24, activeRows);
   }
   document.getElementById('dpmoPivotBody').innerHTML = tbHtml;
+
+  // ==========================================
+  // WÖCHENTLICHE PIVOT MATRIX
+  // ==========================================
+  const wkIdx = globalColumns.findIndex(c => c.name.toLowerCase() === 'cchbc week' || c.name.toLowerCase() === 'week' || c.name.toLowerCase() === 'kalenderwoche');
+  const weeksSet = new Set();
+  activeRows.forEach(r => {
+    if (wkIdx > -1) {
+      let w = r[wkIdx];
+      if (w !== null && w !== undefined && w !== '') weeksSet.add(String(w));
+    }
+  });
+  const weeks = [...weeksSet].sort((a, b) => parseFloat(a) - parseFloat(b));
+
+  function getRowsForWeek(sourceRows, targetWeekStr) {
+    if (wkIdx === -1) return [];
+    return sourceRows.filter(r => String(r[wkIdx]) === targetWeekStr);
+  }
+
+  let thWkHtml = '<tr style="background:#e8e6e3; border-bottom:2px solid #ccc;"><th style="padding:8px; text-align:left; position:sticky; left:0; background:#e8e6e3; z-index:5;">Indicator</th>';
+  weeks.forEach(w => thWkHtml += `<th style="padding:8px; text-align:right;">Wo. ${w}</th>`);
+  thWkHtml += '</tr>';
+  document.getElementById('dpmoWeeklyPivotHead').innerHTML = thWkHtml;
+
+  let tbWkHtml = '';
+  function renderWeeklyTableRow(title, isBold, indent, sourceRows) {
+    let bg = isBold ? '#fdfcfb' : '#ffffff';
+    let html = `<tr style="border-bottom:1px solid #eee; ${isBold ? 'font-weight:600; background:#fdfcfb;' : ''}">`;
+    html += `<td style="padding:6px 8px; padding-left:${indent}px; border-right:1px solid #eee; position:sticky; left:0; background:${bg}; z-index:2;">${title}</td>`;
+    weeks.forEach(w => {
+      const val = getDpmoValue(getRowsForWeek(sourceRows, w));
+      let display = val !== null ? val.toLocaleString('de-CH') : '—';
+      let color = val !== null ? (val > 4000 ? '#d83b01' : '#107c41') : '#333';
+      html += `<td style="padding:6px 8px; text-align:right; color:${color};">${display}</td>`;
+    });
+    html += '</tr>';
+    tbWkHtml += html;
+  }
+
+  if (!plant || plant === '5501') {
+    const valsRows = activeRows.filter(r => String(r[pIdx]) === '5501');
+    renderWeeklyTableRow('Vals', true, 8, []);
+    const valsLines = [...new Set(valsRows.map(r => String(r[lIdx])))].filter(Boolean).sort();
+    valsLines.forEach(l => renderWeeklyTableRow(lineNames[l] || l, false, 24, valsRows.filter(r => String(r[lIdx]) === l)));
+    renderWeeklyTableRow('Total', false, 24, valsRows);
+  }
+
+  if (!plant || plant === '5511') {
+    const dietRows = activeRows.filter(r => String(r[pIdx]) === '5511');
+    renderWeeklyTableRow('Dietlikon', true, 8, []);
+    const dietLines = [...new Set(dietRows.map(r => String(r[lIdx])))].filter(Boolean).sort();
+    dietLines.forEach(l => renderWeeklyTableRow(lineNames[l] || l, false, 24, dietRows.filter(r => String(r[lIdx]) === l)));
+    renderWeeklyTableRow('Total', false, 24, dietRows);
+  }
+
+  if (!plant && !line) {
+    renderWeeklyTableRow('National', true, 8, []);
+    renderWeeklyTableRow('Total', false, 24, activeRows);
+  }
+  document.getElementById('dpmoWeeklyPivotBody').innerHTML = tbWkHtml;
 
   // ==========================================
   // OBERE CHARTS
