@@ -1228,14 +1228,7 @@
         </table>
       </div>
 
-      <!-- WÖCHENTLICHE PIVOT MATRIX -->
-      <h3 style="font-size: 14px; margin-bottom: 8px;">DPMO Auswertungstabelle - Wöchentlich (Gefiltert)</h3>
-      <div style="overflow-x: auto; border: 1px solid #ccc; border-radius: 5px; margin-bottom: 25px;">
-        <table style="width: 100%; border-collapse: collapse; font-size: 12px; background: white;">
-          <thead id="dpmoWeeklyPivotHead"></thead>
-          <tbody id="dpmoWeeklyPivotBody"></tbody>
-        </table>
-      </div>
+
 
       <!-- UNTERE REIHE: All Indicators (Mit Scrollbar und angepasstem Platz) -->
       <hr style="border:none; border-top: 2px dashed #ddd; margin-bottom: 15px;">
@@ -4841,6 +4834,7 @@ function updateCharts() {
   const brIdx      = globalColumns.findIndex(c => c.name === 'cbrand_desc');
   const matIdx     = globalColumns.findIndex(c => c.name === 'material');
   const fiscperIdx = globalColumns.findIndex(c => c.name.toLowerCase() === 'fiscper');
+  const dpmoFiscperIdx = globalColumns.findIndex(c => c.name.toLowerCase() === 'dpmo_fiscper');
   
   // Neue Spalten-Indizes für die Produktionsanalyse
   const poIdx      = globalColumns.findIndex(c => c.name === 'prodorder');
@@ -4848,6 +4842,28 @@ function updateCharts() {
   const unitIdx    = globalColumns.findIndex(c => c.name === 'total_units');
 
   const isDPMO = metric.startsWith('DPMO');
+
+  const effectiveChartFiscperIdx =
+    isDPMO && dpmoFiscperIdx > -1
+      ? dpmoFiscperIdx
+      : fiscperIdx;
+
+  const getChartPeriod = row =>
+    effectiveChartFiscperIdx > -1
+      ? formatFiscper(row[effectiveChartFiscperIdx])
+      : '—';
+
+  const getChartYear = row => {
+    const period = getChartPeriod(row);
+
+    return period !== '—'
+      ? period.split('-')[0]
+      : (
+          yIdx > -1
+            ? String(row[yIdx])
+            : ''
+        );
+  };
 
   const DPMO_PAIRS = {
     'DPMO_CO2':        { num: 'CO2_Value_SPCCO201',  den: 'CO2_Value_SPCCO202'  },
@@ -4876,25 +4892,65 @@ function updateCharts() {
   }
 
   const activeRows = globalRows.filter(row => {
-    if (plantSel && String(row[pIdx]) !== plantSel) return false;
-    if (yearSel  && yIdx  > -1 && String(row[yIdx])  !== yearSel)  return false;
-    if (lineSel  && lIdx  > -1 && String(row[lIdx])  !== lineSel)  return false;
+    if (
+      plantSel &&
+      String(row[pIdx]) !== plantSel
+    ) {
+      return false;
+    }
+
+    if (
+      yearSel &&
+      getChartYear(row) !== yearSel
+    ) {
+      return false;
+    }
+
+    if (
+      lineSel &&
+      lIdx > -1 &&
+      String(row[lIdx]) !== lineSel
+    ) {
+      return false;
+    }
     
     if (brandSel) {
       let rowBrand = '';
-      if (matIdx > -1 && globalMatMap[normalizeMatNo(row[matIdx])]) {
-        rowBrand = globalMatMap[normalizeMatNo(row[matIdx])]['Brand'];
+
+      if (
+        matIdx > -1 &&
+        globalMatMap[
+          normalizeMatNo(row[matIdx])
+        ]
+      ) {
+        rowBrand =
+          globalMatMap[
+            normalizeMatNo(row[matIdx])
+          ]['Brand'];
       }
-      if (!rowBrand && brIdx > -1) rowBrand = row[brIdx];
-      if (String(rowBrand) !== brandSel) return false;
+
+      if (
+        !rowBrand &&
+        brIdx > -1
+      ) {
+        rowBrand = row[brIdx];
+      }
+
+      if (
+        String(rowBrand) !== brandSel
+      ) {
+        return false;
+      }
     }
+
     return true;
   });
 
   activeRows.forEach(row => {
     let xVal;
+
     if (xAxisCol === '_fiscper_month') {
-      xVal = formatFiscper(row[fiscperIdx]);
+      xVal = getChartPeriod(row);
     } else {
       xVal = row[xIdx];
       if (xAxisCol === 'plant_workcenter_key') xVal = lineNames[xVal] || xVal;
@@ -5906,26 +5962,64 @@ function updateDPMO() {
 
   const pIdx = globalColumns.findIndex(c => c.name === 'plant');
   const lIdx = globalColumns.findIndex(c => c.name === 'plant_workcenter_key');
-  const yIdx = globalColumns.findIndex(c => c.name === 'Year');
-  const fiscperIdx = globalColumns.findIndex(c => c.name.toLowerCase() === 'fiscper');
+  const dpmoFiscperIdx = globalColumns.findIndex(c => c.name.toLowerCase() === 'dpmo_fiscper');
+  const productionFiscperIdx = globalColumns.findIndex(c => c.name.toLowerCase() === 'fiscper');
 
-  // 1. Jahr Dropdown befüllen
+  const effectiveDpmoFiscperIdx =
+    dpmoFiscperIdx > -1
+      ? dpmoFiscperIdx
+      : productionFiscperIdx;
+
+  if (effectiveDpmoFiscperIdx === -1) {
+    console.warn("Weder 'DPMO_fiscper' noch 'fiscper' wurde gefunden.");
+    return;
+  }
+
+  const getDpmoPeriod = row =>
+    formatFiscper(row[effectiveDpmoFiscperIdx]);
+
+  const getDpmoYear = row => {
+    const period = getDpmoPeriod(row);
+    return period !== '—'
+      ? period.split('-')[0]
+      : '';
+  };
+
+  // 1. Jahr Dropdown aus DPMO_fiscper befüllen
   const dpmoYearSel = document.getElementById('dpmoYear');
   if (dpmoYearSel.options.length <= 1) {
-    if (yIdx > -1) {
-      const years = [...new Set(globalRows.map(r => String(r[yIdx])).filter(Boolean))].sort();
-      const currYear = new Date().getFullYear().toString(); 
-      dpmoYearSel.innerHTML = '<option value="">Alle Jahre</option>' + 
-        years.map(y => `<option value="${y}" ${y === currYear ? 'selected' : ''}>${y}</option>`).join('');
-    }
+    const years = [
+      ...new Set(
+        globalRows
+          .map(getDpmoYear)
+          .filter(Boolean)
+      )
+    ].sort();
+
+    const currYear = new Date()
+      .getFullYear()
+      .toString();
+
+    dpmoYearSel.innerHTML =
+      '<option value="">Alle Jahre</option>' +
+      years
+        .map(
+          y =>
+            `<option value="${y}" ${y === currYear ? 'selected' : ''}>${y}</option>`
+        )
+        .join('');
   }
 
-  // NEU: Longterm Years Checkboxen befüllen & auslesen
+  // Longterm Years aus DPMO_fiscper befüllen und auslesen
   const dpmoLtContainer = document.getElementById('dpmoLtYears');
-  let allFoundYears = [];
-  if (yIdx > -1) {
-    allFoundYears = [...new Set(globalRows.map(r => String(r[yIdx])).filter(Boolean))].sort();
-  }
+
+  const allFoundYears = [
+    ...new Set(
+      globalRows
+        .map(getDpmoYear)
+        .filter(Boolean)
+    )
+  ].sort();
   if (dpmoLtContainer.innerHTML === '') {
     dpmoLtContainer.innerHTML = allFoundYears.map(y => `<label style="cursor:pointer;"><input type="checkbox" class="dpmo-lt-year-chk" value="${y}" checked> ${y}</label>`).join('');
     document.querySelectorAll('.dpmo-lt-year-chk').forEach(chk => chk.addEventListener('change', updateDPMO));
@@ -5941,19 +6035,50 @@ function updateDPMO() {
   const timeView  = document.getElementById('dpmoTimeView').value;
   const cutoff    = parseInt(document.getElementById('dpmoCutoff').value);
 
-  // 3. Dynamisches Monats-Dropdown befüllen (Abhängig vom Jahr & Cutoff)
-  const relevantForMonths = year && yIdx > -1 ? globalRows.filter(r => String(r[yIdx]) === year) : globalRows;
-  const monthsDropdown = [...new Set(relevantForMonths.map(r => formatFiscper(r[fiscperIdx])).filter(m => {
-      if (m === '—') return false;
-      let mVal = parseInt(m.split('-')[1]) - 1;
-      return mVal <= cutoff;
-  }))].sort();
-  document.getElementById('dpmoMonth').innerHTML = '<option value="">Alle Monate</option>' +
-    monthsDropdown.map(m => {
-      const display = new Date(m + '-01').toLocaleString('en-us', {month:'short', year:'numeric'});
-      return `<option value="${m}" ${m === month ? 'selected' : ''}>${m} (${display})</option>`;
-    }).join('');
-  month = document.getElementById('dpmoMonth').value; // Wert nach Rebuild neu auslesen
+  // 3. Dynamisches DPMO-Monats-Dropdown befüllen
+  const relevantForMonths =
+    year
+      ? globalRows.filter(r => getDpmoYear(r) === year)
+      : globalRows;
+
+  const monthsDropdown = [
+    ...new Set(
+      relevantForMonths
+        .map(getDpmoPeriod)
+        .filter(m => {
+          if (m === '—') return false;
+
+          const mVal =
+            parseInt(
+              m.split('-')[1],
+              10
+            ) - 1;
+
+          return mVal <= cutoff;
+        })
+    )
+  ].sort();
+
+  document.getElementById('dpmoMonth').innerHTML =
+    '<option value="">Alle Monate</option>' +
+    monthsDropdown
+      .map(m => {
+        const display =
+          new Date(m + '-01')
+            .toLocaleString(
+              'en-us',
+              {
+                month: 'short',
+                year: 'numeric'
+              }
+            );
+
+        return `<option value="${m}" ${m === month ? 'selected' : ''}>${m} (${display})</option>`;
+      })
+      .join('');
+
+  month =
+    document.getElementById('dpmoMonth').value;
 
   // 4. Dynamisches Linien-Dropdown befüllen (Abhängig vom Werk)
   const relevantForLines = plant && pIdx > -1 ? globalRows.filter(r => String(r[pIdx]) === plant) : globalRows;
@@ -5961,28 +6086,68 @@ function updateDPMO() {
   document.getElementById('dpmoLine').innerHTML = '<option value="">Alle Linien</option>' +
     linesDropdown.map(l => `<option value="${l}" ${l === line ? 'selected' : ''}>${lineNames[l] || l}</option>`).join('');
 
-  // 5. Aktive Zeilen filtern
+  // 5. Aktive DPMO-Zeilen über DPMO_fiscper filtern
   const activeRows = globalRows.filter(r => {
-    if (year  && yIdx > -1 && String(r[yIdx]) !== year) return false;
-    if (month && formatFiscper(r[fiscperIdx]) !== month) return false; // NEUER MONATSFILTER
-    if (plant && pIdx > -1 && String(r[pIdx]) !== plant) return false;
-    if (line  && lIdx > -1 && String(r[lIdx]) !== line) return false;
-    
-    // CutOff Filter-Logik
-    if (fiscperIdx > -1) {
-      let f = formatFiscper(r[fiscperIdx]);
-      if (f !== '—') {
-        let mVal = parseInt(f.split('-')[1]) - 1;
-        if (mVal > cutoff) return false;
+    const dpmoPeriod =
+      getDpmoPeriod(r);
+
+    const dpmoYear =
+      getDpmoYear(r);
+
+    if (
+      year &&
+      dpmoYear !== year
+    ) {
+      return false;
+    }
+
+    if (
+      month &&
+      dpmoPeriod !== month
+    ) {
+      return false;
+    }
+
+    if (
+      plant &&
+      pIdx > -1 &&
+      String(r[pIdx]) !== plant
+    ) {
+      return false;
+    }
+
+    if (
+      line &&
+      lIdx > -1 &&
+      String(r[lIdx]) !== line
+    ) {
+      return false;
+    }
+
+    if (dpmoPeriod !== '—') {
+      const mVal =
+        parseInt(
+          dpmoPeriod.split('-')[1],
+          10
+        ) - 1;
+
+      if (mVal > cutoff) {
+        return false;
       }
     }
+
     return true;
   });
 
   const monthsSet = new Set();
+
   activeRows.forEach(r => {
-    const m = formatFiscper(r[fiscperIdx]);
-    if (m !== '—') monthsSet.add(m);
+    const m =
+      getDpmoPeriod(r);
+
+    if (m !== '—') {
+      monthsSet.add(m);
+    }
   });
   const months = [...monthsSet].sort();
   const displayMonths = months.map(m => new Date(m + '-01').toLocaleString('en-us', {month:'short'}));
@@ -6055,11 +6220,21 @@ function updateDPMO() {
     return { co2: Math.round(d_co2), brix: Math.round(d_brix), nc: Math.round(d_nc), torq: Math.round(d_torq), total: total };
   }
 
-  function getRowsForMonth(sourceRows, targetMonthStr) {
+  function getRowsForMonth(
+    sourceRows,
+    targetMonthStr
+  ) {
     return sourceRows.filter(r => {
-      const m = formatFiscper(r[fiscperIdx]);
-      if (m === '—') return false;
-      return timeView === 'YTD' ? m <= targetMonthStr : m === targetMonthStr;
+      const m =
+        getDpmoPeriod(r);
+
+      if (m === '—') {
+        return false;
+      }
+
+      return timeView === 'YTD'
+        ? m <= targetMonthStr
+        : m === targetMonthStr;
     });
   }
 
@@ -6108,65 +6283,7 @@ function updateDPMO() {
   }
   document.getElementById('dpmoPivotBody').innerHTML = tbHtml;
 
-  // ==========================================
-  // WÖCHENTLICHE PIVOT MATRIX
-  // ==========================================
-  const wkIdx = globalColumns.findIndex(c => c.name.toLowerCase() === 'cchbc week' || c.name.toLowerCase() === 'week' || c.name.toLowerCase() === 'kalenderwoche');
-  const weeksSet = new Set();
-  activeRows.forEach(r => {
-    if (wkIdx > -1) {
-      let w = r[wkIdx];
-      if (w !== null && w !== undefined && w !== '') weeksSet.add(String(w));
-    }
-  });
-  const weeks = [...weeksSet].sort((a, b) => parseFloat(a) - parseFloat(b));
 
-  function getRowsForWeek(sourceRows, targetWeekStr) {
-    if (wkIdx === -1) return [];
-    return sourceRows.filter(r => String(r[wkIdx]) === targetWeekStr);
-  }
-
-  let thWkHtml = '<tr style="background:#e8e6e3; border-bottom:2px solid #ccc;"><th style="padding:8px; text-align:left; position:sticky; left:0; background:#e8e6e3; z-index:5;">Indicator</th>';
-  weeks.forEach(w => thWkHtml += `<th style="padding:8px; text-align:right;">Wo. ${w}</th>`);
-  thWkHtml += '</tr>';
-  document.getElementById('dpmoWeeklyPivotHead').innerHTML = thWkHtml;
-
-  let tbWkHtml = '';
-  function renderWeeklyTableRow(title, isBold, indent, sourceRows) {
-    let bg = isBold ? '#fdfcfb' : '#ffffff';
-    let html = `<tr style="border-bottom:1px solid #eee; ${isBold ? 'font-weight:600; background:#fdfcfb;' : ''}">`;
-    html += `<td style="padding:6px 8px; padding-left:${indent}px; border-right:1px solid #eee; position:sticky; left:0; background:${bg}; z-index:2;">${title}</td>`;
-    weeks.forEach(w => {
-      const val = getDpmoValue(getRowsForWeek(sourceRows, w));
-      let display = val !== null ? val.toLocaleString('de-CH') : '—';
-      let color = val !== null ? (val > 4000 ? '#d83b01' : '#107c41') : '#333';
-      html += `<td style="padding:6px 8px; text-align:right; color:${color};">${display}</td>`;
-    });
-    html += '</tr>';
-    tbWkHtml += html;
-  }
-
-  if (!plant || plant === '5501') {
-    const valsRows = activeRows.filter(r => String(r[pIdx]) === '5501');
-    renderWeeklyTableRow('Vals', true, 8, []);
-    const valsLines = [...new Set(valsRows.map(r => String(r[lIdx])))].filter(Boolean).sort();
-    valsLines.forEach(l => renderWeeklyTableRow(lineNames[l] || l, false, 24, valsRows.filter(r => String(r[lIdx]) === l)));
-    renderWeeklyTableRow('Total', false, 24, valsRows);
-  }
-
-  if (!plant || plant === '5511') {
-    const dietRows = activeRows.filter(r => String(r[pIdx]) === '5511');
-    renderWeeklyTableRow('Dietlikon', true, 8, []);
-    const dietLines = [...new Set(dietRows.map(r => String(r[lIdx])))].filter(Boolean).sort();
-    dietLines.forEach(l => renderWeeklyTableRow(lineNames[l] || l, false, 24, dietRows.filter(r => String(r[lIdx]) === l)));
-    renderWeeklyTableRow('Total', false, 24, dietRows);
-  }
-
-  if (!plant && !line) {
-    renderWeeklyTableRow('National', true, 8, []);
-    renderWeeklyTableRow('Total', false, 24, activeRows);
-  }
-  document.getElementById('dpmoWeeklyPivotBody').innerHTML = tbWkHtml;
 
   // ==========================================
   // OBERE CHARTS
@@ -6289,13 +6406,25 @@ function updateDPMO() {
     return true;
   });
   
-  // WICHTIG: Filtere die Jahre anhand der aktiven Checkboxen!
-  const allYears = [...new Set(ltRows.map(r => String(r[yIdx])).filter(Boolean))]
+  // DPMO-Jahre aus DPMO_fiscper filtern
+  const allYears = [
+    ...new Set(
+      ltRows
+        .map(getDpmoYear)
+        .filter(Boolean)
+    )
+  ]
     .sort()
-    .filter(y => activeDpmoLtYears.includes(y));
+    .filter(
+      y => activeDpmoLtYears.includes(y)
+    );
 
   const ltData = allYears.map(y => {
-    const yr = ltRows.filter(r => String(r[yIdx]) === y);
+    const yr =
+      ltRows.filter(
+        r => getDpmoYear(r) === y
+      );
+
     return getDpmoValue(yr) || 0;
   });
 
@@ -13305,9 +13434,15 @@ function renderExecutiveSummary() {
     // 2. QUALITÄT: DPMO (Master Data)
     // ==========================================
     if (globalRows && globalRows.length > 0) {
-        const yIdx = globalColumns.findIndex(c => c.name === 'Year');
         const pIdx = globalColumns.findIndex(c => c.name === 'plant');
-        const fiscperIdx = globalColumns.findIndex(c => c.name.toLowerCase() === 'fiscper');
+        const dpmoFiscperIdx = globalColumns.findIndex(c => c.name.toLowerCase() === 'dpmo_fiscper');
+        const productionFiscperIdx = globalColumns.findIndex(c => c.name.toLowerCase() === 'fiscper');
+
+        const effectiveDpmoFiscperIdx =
+            dpmoFiscperIdx > -1
+                ? dpmoFiscperIdx
+                : productionFiscperIdx;
+
         const pairIdx = {
             co2: { n: globalColumns.findIndex(c => c.name === 'CO2_Value_SPCCO201'), d: globalColumns.findIndex(c => c.name === 'CO2_Value_SPCCO202') },
             brix: { n: globalColumns.findIndex(c => c.name === 'Brix_Value_01'), d: globalColumns.findIndex(c => c.name === 'Brix_Value_02') },
@@ -13333,14 +13468,55 @@ function renderExecutiveSummary() {
         };
 
         const getDpmoFor = (yr, mthOnly) => {
-            let r = globalRows.filter(row => String(row[yIdx]) === yr);
-            if (plantCode) r = r.filter(row => String(row[pIdx]) === plantCode);
-            r = r.filter(row => {
-                let m = formatFiscper(row[fiscperIdx]);
-                if (m === '—') return false;
-                let mNumRow = parseInt(m.split('-')[1]);
-                return mthOnly ? mNumRow === mNum : mNumRow <= mNum;
+            if (effectiveDpmoFiscperIdx === -1) {
+                return null;
+            }
+
+            let r = globalRows.filter(row => {
+                const period =
+                    formatFiscper(
+                        row[effectiveDpmoFiscperIdx]
+                    );
+
+                if (period === '—') {
+                    return false;
+                }
+
+                const parts =
+                    period.split('-');
+
+                return parts[0] === yr;
             });
+
+            if (plantCode) {
+                r = r.filter(
+                    row =>
+                        String(row[pIdx]) ===
+                        plantCode
+                );
+            }
+
+            r = r.filter(row => {
+                const period =
+                    formatFiscper(
+                        row[effectiveDpmoFiscperIdx]
+                    );
+
+                if (period === '—') {
+                    return false;
+                }
+
+                const mNumRow =
+                    parseInt(
+                        period.split('-')[1],
+                        10
+                    );
+
+                return mthOnly
+                    ? mNumRow === mNum
+                    : mNumRow <= mNum;
+            });
+
             return calcDPMO(r);
         };
 
