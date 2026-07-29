@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Foto-Markierungsreport</title>
+<style>
+:root{--bg:#f4f7fb;--card:#fff;--ink:#172033;--muted:#667085;--blue:#2563eb;--red:#e11d48;--line:#d8dee9}
+*{box-sizing:border-box} body{margin:0;font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+header{position:sticky;top:0;z-index:20;display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:12px 18px;background:#0f172a;color:#fff;box-shadow:0 2px 12px #0003}
+header h1{font-size:18px;margin:0 auto 0 0}.btn,label.btn{display:inline-flex;align-items:center;gap:7px;border:0;border-radius:9px;padding:9px 12px;background:#334155;color:#fff;cursor:pointer;font-weight:650}.btn:hover{filter:brightness(1.12)}.primary{background:var(--blue)}.danger{background:#be123c}.btn input{display:none}
+main{display:grid;grid-template-columns:minmax(0,1fr) 370px;gap:16px;padding:16px;min-height:calc(100vh - 65px)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:0 4px 18px #1020400d}.workspace{padding:14px;display:flex;flex-direction:column;min-height:70vh}
+.toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px}.hint{color:var(--muted);font-size:13px}.stage{position:relative;flex:1;min-height:560px;border:2px dashed #b7c0cf;border-radius:12px;overflow:hidden;background:#eef2f7;display:flex;align-items:center;justify-content:center}
+.stage.empty:after{content:'Grundbild (JPEG) laden – danach auf das Bild klicken, um Punkte zu setzen';color:#64748b;text-align:center;padding:30px}.stage img{display:block;max-width:100%;max-height:75vh;object-fit:contain;user-select:none;-webkit-user-drag:none}.image-wrap{position:relative;line-height:0;max-width:100%;max-height:75vh}.marker{position:absolute;width:30px;height:30px;transform:translate(-50%,-50%);border-radius:50%;border:3px solid #fff;background:var(--red);color:#fff;font:700 13px/24px system-ui;text-align:center;box-shadow:0 2px 8px #0009;cursor:grab;line-height:24px}.marker.selected{outline:4px solid #60a5fa88}.side{padding:14px;overflow:auto}.side h2{margin:0 0 12px;font-size:18px}.empty-note{color:var(--muted);padding:22px 8px;text-align:center}
+.field{margin:12px 0}.field label{display:block;font-weight:700;margin-bottom:5px}.field textarea,.field input[type=text]{width:100%;border:1px solid #cbd5e1;border-radius:9px;padding:10px;font:inherit}.field textarea{min-height:130px;resize:vertical}.preview{width:100%;max-height:220px;object-fit:contain;background:#eef2f7;border-radius:10px;border:1px solid var(--line)}
+.row{display:flex;gap:8px;flex-wrap:wrap}.status{margin-left:auto;color:#cbd5e1;font-size:13px}.meta{color:var(--muted);font-size:13px;margin-bottom:10px}
+@media(max-width:900px){main{grid-template-columns:1fr}.stage{min-height:430px}.status{width:100%;margin:0}}
+</style>
+</head>
+<body>
+<header>
+<h1>Foto-Markierungsreport</h1>
+<label class="btn primary">Grundbild laden<input id="baseInput" type="file" accept="image/jpeg,image/jpg"></label>
+<button class="btn" id="saveJson">JSON speichern</button>
+<label class="btn">JSON öffnen<input id="loadJson" type="file" accept="application/json,.json"></label>
+<button class="btn primary" id="exportPdf">PDF-Report</button>
+<span class="status" id="status">Bereit</span>
+</header>
+<main>
+<section class="card workspace">
+<div class="toolbar"><strong>Übersichtsbild</strong><span class="hint">Klicken = Punkt setzen · Ziehen = verschieben · Punkt anklicken = bearbeiten</span></div>
+<div id="stage" class="stage empty"></div>
+</section>
+<aside class="card side">
+<h2>Markierung</h2>
+<div id="editorEmpty" class="empty-note">Noch keinen Punkt ausgewählt.</div>
+<div id="editor" hidden>
+<div class="meta" id="markerMeta"></div>
+<div class="field"><label for="title">Kurztitel</label><input id="title" type="text" placeholder="z. B. Beschädigung Fassade"></div>
+<div class="field"><label for="description">Beschreibung</label><textarea id="description" placeholder="Befund, Massnahme, Bemerkungen …"></textarea></div>
+<div class="field"><label>Detailfoto (JPEG)</label><label class="btn primary">Foto auswählen<input id="detailInput" type="file" accept="image/jpeg,image/jpg"></label></div>
+<img id="detailPreview" class="preview" alt="Detailfoto" hidden>
+<div class="row" style="margin-top:14px"><button class="btn danger" id="deleteMarker">Punkt löschen</button></div>
+</div>
+</aside>
+</main>
+<script>
+'use strict';
+const $=s=>document.querySelector(s);
+const state={version:1,projectTitle:'Foto-Markierungsreport',baseImage:null,markers:[],selected:null};
+const stage=$('#stage'),editor=$('#editor'),editorEmpty=$('#editorEmpty'),statusEl=$('#status');
+function status(t){statusEl.textContent=t;clearTimeout(status._t);status._t=setTimeout(()=>statusEl.textContent='Bereit',2500)}
+function readDataURL(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(file)})}
+function esc(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function render(){stage.innerHTML='';stage.classList.toggle('empty',!state.baseImage);if(!state.baseImage){showEditor();return}
+ const wrap=document.createElement('div');wrap.className='image-wrap';const img=document.createElement('img');img.src=state.baseImage;img.id='baseImg';wrap.appendChild(img);stage.appendChild(wrap);
+ img.onload=()=>{state.markers.forEach((m,i)=>{const b=document.createElement('button');b.className='marker'+(m.id===state.selected?' selected':'');b.textContent=i+1;b.style.left=(m.x*100)+'%';b.style.top=(m.y*100)+'%';b.title=m.title||('Punkt '+(i+1));b.dataset.id=m.id;wrap.appendChild(b);bindMarkerDrag(b,m,wrap)});};
+ wrap.addEventListener('click',e=>{if(e.target!==img)return;const r=img.getBoundingClientRect();addMarker((e.clientX-r.left)/r.width,(e.clientY-r.top)/r.height)});showEditor()}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
+function addMarker(x,y){const m={id:uid(),x:Math.max(0,Math.min(1,x)),y:Math.max(0,Math.min(1,y)),title:'',description:'',detailImage:null};state.markers.push(m);state.selected=m.id;render();status('Punkt '+state.markers.length+' erstellt')}
+function bindMarkerDrag(el,m,wrap){let moved=false;el.addEventListener('pointerdown',e=>{e.stopPropagation();moved=false;el.setPointerCapture(e.pointerId);const img=wrap.querySelector('img');const move=ev=>{moved=true;const r=img.getBoundingClientRect();m.x=Math.max(0,Math.min(1,(ev.clientX-r.left)/r.width));m.y=Math.max(0,Math.min(1,(ev.clientY-r.top)/r.height));el.style.left=m.x*100+'%';el.style.top=m.y*100+'%'};const up=()=>{el.removeEventListener('pointermove',move);el.removeEventListener('pointerup',up);state.selected=m.id;render()};el.addEventListener('pointermove',move);el.addEventListener('pointerup',up)});el.addEventListener('click',e=>{e.stopPropagation();state.selected=m.id;render()})}
+function current(){return state.markers.find(m=>m.id===state.selected)}
+function showEditor(){const m=current();editor.hidden=!m;editorEmpty.hidden=!!m;if(!m)return;const n=state.markers.indexOf(m)+1;$('#markerMeta').textContent='Referenzpunkt '+n+' · Position '+(m.x*100).toFixed(1)+'% / '+(m.y*100).toFixed(1)+'%';$('#title').value=m.title||'';$('#description').value=m.description||'';const p=$('#detailPreview');p.hidden=!m.detailImage;if(m.detailImage)p.src=m.detailImage}
+$('#title').addEventListener('input',e=>{const m=current();if(m)m.title=e.target.value});$('#description').addEventListener('input',e=>{const m=current();if(m)m.description=e.target.value});
+$('#baseInput').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;state.baseImage=await readDataURL(f);state.markers=[];state.selected=null;render();status('Grundbild geladen')});
+$('#detailInput').addEventListener('change',async e=>{const f=e.target.files[0],m=current();if(!f||!m)return;m.detailImage=await readDataURL(f);showEditor();status('Detailfoto hinzugefügt')});
+$('#deleteMarker').onclick=()=>{const i=state.markers.findIndex(m=>m.id===state.selected);if(i>=0){state.markers.splice(i,1);state.selected=null;render();status('Punkt gelöscht')}};
+function download(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)}
+$('#saveJson').onclick=()=>{if(!state.baseImage)return alert('Bitte zuerst ein Grundbild laden.');const out={...state,selected:null,exportedAt:new Date().toISOString()};download(new Blob([JSON.stringify(out,null,2)],{type:'application/json'}),'markierungsreport.json');status('JSON gespeichert')};
+$('#loadJson').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;try{const d=JSON.parse(await f.text());if(!d.baseImage||!Array.isArray(d.markers))throw Error();Object.assign(state,d,{selected:null});render();status('Projekt geladen')}catch{alert('Die JSON-Datei ist ungültig oder nicht kompatibel.')}});
+
+// Kleiner, eigenständiger PDF-Writer: variable Seitengrössen und eingebettete JPEGs.
+const enc=new TextEncoder();
+function latin(s){return String(s||'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[\u2018\u2019]/g,"'").replace(/[\u201c\u201d]/g,'"').replace(/[^\x20-\x7E\n]/g,'?')}
+function pdfEsc(s){return latin(s).replace(/([\\()])/g,'\\$1')}
+function wrapText(s,max){const out=[];for(const para of latin(s).split(/\n/)){let line='';for(const w of para.split(/\s+/)){if(!w)continue;if((line+' '+w).trim().length>max&&line){out.push(line);line=w}else line=(line+' '+w).trim()}out.push(line)}return out}
+async function imageInfo(dataUrl,maxPx=2200){const im=new Image();im.src=dataUrl;await im.decode();let w=im.naturalWidth,h=im.naturalHeight,scale=Math.min(1,maxPx/Math.max(w,h));const c=document.createElement('canvas');c.width=Math.round(w*scale);c.height=Math.round(h*scale);c.getContext('2d').drawImage(im,0,0,c.width,c.height);const url=c.toDataURL('image/jpeg',.86);const bin=atob(url.split(',')[1]);const bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);return{bytes,w:c.width,h:c.height}}
+function fit(iw,ih,x,y,w,h){const s=Math.min(w/iw,h/ih),dw=iw*s,dh=ih*s;return{x:x+(w-dw)/2,y:y+(h-dh)/2,w:dw,h:dh}}
+async function buildPdf(){
+ const base=await imageInfo(state.baseImage);const details=[];for(const m of state.markers)details.push(m.detailImage?await imageInfo(m.detailImage):null);
+ const objs=[null];const add=x=>(objs.push(x),objs.length-1);const font=add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');const bold=add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>');
+ const imgObj=(im)=>add({dict:`<< /Type /XObject /Subtype /Image /Width ${im.w} /Height ${im.h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${im.bytes.length} >>`,bytes:im.bytes});
+ const baseObj=imgObj(base),detailObjs=details.map(d=>d?imgObj(d):null);const pages=[];
+ function streamObj(s){const b=enc.encode(s);return add({dict:`<< /Length ${b.length} >>`,bytes:b})}
+ // A3 quer: 1190.55 x 841.89 pt
+ let pw=1190.55,ph=841.89,margin=42,head=55;let box=fit(base.w,base.h,margin,margin,pw-2*margin,ph-2*margin-head);let cs=`q ${box.w.toFixed(2)} 0 0 ${box.h.toFixed(2)} ${box.x.toFixed(2)} ${box.y.toFixed(2)} cm /Im0 Do Q\n`;
+ cs+=`BT /F2 20 Tf 42 ${ph-34} Td (${pdfEsc(state.projectTitle)}) Tj ET\n`;
+ state.markers.forEach((m,i)=>{const x=box.x+m.x*box.w,y=box.y+(1-m.y)*box.h;cs+=`1 0.08 0.2 rg ${x.toFixed(2)} ${y.toFixed(2)} 12 0 360 arc f\n`;/* arc replaced below */cs+=`1 1 1 rg BT /F2 10 Tf ${(x-3.3).toFixed(2)} ${(y-3.5).toFixed(2)} Td (${i+1}) Tj ET\n`});
+ // PDF has no arc operator: replace marker circles with red squares/diamonds for broad viewer compatibility
+ cs=cs.replace(/1 0\.08 0\.2 rg ([\d.]+) ([\d.]+) 12 0 360 arc f/g,(a,x,y)=>`1 0.08 0.2 rg ${(x-10).toFixed(2)} ${(y-10).toFixed(2)} 20 20 re f`);
+ let content=streamObj(cs);pages.push({w:pw,h:ph,content,resources:`<< /Font << /F1 ${font} 0 R /F2 ${bold} 0 R >> /XObject << /Im0 ${baseObj} 0 R >> >>`});
+ // A4 hoch pro Punkt
+ for(let i=0;i<state.markers.length;i++){const m=state.markers[i],di=details[i];pw=595.28;ph=841.89;let s=`BT /F2 20 Tf 42 795 Td (Referenzpunkt ${i+1}) Tj ET\n`;s+=`BT /F1 10 Tf 42 775 Td (Position im Uebersichtsbild: ${(m.x*100).toFixed(1)}% / ${(m.y*100).toFixed(1)}%) Tj ET\n`;let y=745;
+ if(m.title){s+=`BT /F2 14 Tf 42 ${y} Td (${pdfEsc(m.title)}) Tj ET\n`;y-=26}
+ if(di){const b=fit(di.w,di.h,42,y-350,511,330);s+=`q ${b.w.toFixed(2)} 0 0 ${b.h.toFixed(2)} ${b.x.toFixed(2)} ${b.y.toFixed(2)} cm /ImD Do Q\n`;y=b.y-28}else{s+=`0.93 g 42 ${y-180} 511 170 re f 0.4 g BT /F1 13 Tf 220 ${y-95} Td (Kein Detailfoto) Tj ET\n`;y-=210}
+ s+=`0 g BT /F2 12 Tf 42 ${y} Td (Beschreibung) Tj ET\n`;y-=20;for(const line of wrapText(m.description||'Keine Beschreibung erfasst.',82)){if(y<45)break;s+=`BT /F1 10 Tf 42 ${y} Td (${pdfEsc(line)}) Tj ET\n`;y-=14}
+ content=streamObj(s);let xo=detailObjs[i]?`/XObject << /ImD ${detailObjs[i]} 0 R >>`:'';pages.push({w:pw,h:ph,content,resources:`<< /Font << /F1 ${font} 0 R /F2 ${bold} 0 R >> ${xo} >>`})}
+ const pagesId=add('PAGES_PLACEHOLDER'),pageIds=[];for(const p of pages)pageIds.push(add(`<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 ${p.w} ${p.h}] /Resources ${p.resources} /Contents ${p.content} 0 R >>`));objs[pagesId]=`<< /Type /Pages /Count ${pageIds.length} /Kids [${pageIds.map(x=>x+' 0 R').join(' ')}] >>`;const catalog=add(`<< /Type /Catalog /Pages ${pagesId} 0 R >>`);
+ const chunks=[enc.encode('%PDF-1.4\n%\xE2\xE3\xCF\xD3\n')],offset=[0];let len=chunks[0].length;for(let i=1;i<objs.length;i++){offset[i]=len;const pre=enc.encode(`${i} 0 obj\n`),o=objs[i];chunks.push(pre);len+=pre.length;if(typeof o==='string'){const b=enc.encode(o+'\nendobj\n');chunks.push(b);len+=b.length}else{const d=enc.encode(o.dict+'\nstream\n'),e=enc.encode('\nendstream\nendobj\n');chunks.push(d,o.bytes,e);len+=d.length+o.bytes.length+e.length}}
+ const xref=len;let x=`xref\n0 ${objs.length}\n0000000000 65535 f \n`;for(let i=1;i<objs.length;i++)x+=String(offset[i]).padStart(10,'0')+' 00000 n \n';x+=`trailer\n<< /Size ${objs.length} /Root ${catalog} 0 R >>\nstartxref\n${xref}\n%%EOF`;chunks.push(enc.encode(x));return new Blob(chunks,{type:'application/pdf'})
+}
+$('#exportPdf').onclick=async()=>{if(!state.baseImage)return alert('Bitte zuerst ein Grundbild laden.');try{statusEl.textContent='PDF wird erstellt …';const pdf=await buildPdf();download(pdf,'foto-markierungsreport.pdf');status('PDF erstellt')}catch(e){console.error(e);alert('PDF konnte nicht erstellt werden: '+e.message);status('Fehler')}};
+render();
+</script>
+</body>
+</html>
