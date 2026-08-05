@@ -1,58 +1,136 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="de">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Weather Data Fetcher</title>
-    <link rel="stylesheet" href="style.css">
-    <!-- Leaflet CSS for the interactive map -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Single-Page-App zum Abrufen und Analysieren historischer Wetterdaten von Open-Meteo.">
+  <title>Weather Data Explorer</title>
+  <link rel="preconnect" href="https://unpkg.com">
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <style>
+    :root{--primary:#086f83;--primary-dark:#075666;--accent:#0d8f61;--bg:#eef4f5;--card:#fff;--text:#183238;--muted:#617277;--line:#d5e1e3;--danger:#a43333;--shadow:0 10px 30px rgba(19,61,70,.10)}
+    *{box-sizing:border-box} body{margin:0;background:linear-gradient(135deg,#eaf4f5,#f7faf8);color:var(--text);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;line-height:1.45}
+    .app{width:min(1180px,calc(100% - 28px));margin:24px auto 50px}.hero{padding:28px 32px;color:#fff;border-radius:20px;background:linear-gradient(120deg,#075f72,#0b8b75);box-shadow:var(--shadow)}
+    .hero h1{margin:0 0 6px;font-size:clamp(1.8rem,4vw,2.7rem)}.hero p{margin:0;max-width:850px;color:#e9fbfa}.grid{display:grid;grid-template-columns:1.05fr .95fr;gap:18px;margin-top:18px}
+    .card{background:var(--card);border:1px solid rgba(213,225,227,.9);border-radius:16px;padding:22px;box-shadow:var(--shadow)}.card h2{margin:0 0 16px;font-size:1.25rem}.card h3{margin:20px 0 10px;font-size:1rem}
+    label,.label{display:block;font-weight:650;font-size:.92rem;margin-bottom:6px}.hint{font-size:.82rem;color:var(--muted);margin-top:6px}.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}.field{margin-bottom:14px}
+    input,select,button{font:inherit}input[type=text],input[type=number],input[type=date],select{width:100%;padding:10px 11px;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--text);outline:none}input:focus,select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(8,111,131,.12)}
+    .segmented{display:grid;grid-template-columns:1fr 1fr;gap:7px;padding:5px;background:#edf4f5;border-radius:11px}.segmented label{margin:0;padding:9px;text-align:center;border-radius:8px;cursor:pointer}.segmented input{position:absolute;opacity:0}.segmented label:has(input:checked){background:#fff;color:var(--primary);box-shadow:0 2px 8px rgba(20,70,80,.12)}
+    .search-wrap{display:flex;gap:8px}.search-wrap input{flex:1}.btn{border:0;border-radius:10px;padding:11px 15px;font-weight:750;cursor:pointer;transition:.2s}.btn:hover{transform:translateY(-1px)}.btn-primary{color:#fff;background:var(--primary)}.btn-secondary{color:#fff;background:var(--accent)}.btn-ghost{color:var(--primary);background:#e7f2f3}.btn:disabled{opacity:.55;cursor:not-allowed;transform:none}
+    #map{height:330px;border-radius:12px;border:1px solid var(--line)}.search-results{position:relative}.result-list{position:absolute;z-index:1001;left:0;right:0;top:4px;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);max-height:250px;overflow:auto}.result-item{display:block;width:100%;text-align:left;border:0;background:#fff;padding:10px 12px;cursor:pointer}.result-item:hover{background:#eef7f7}.hidden{display:none!important}
+    .variables{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.check{display:flex;gap:9px;align-items:flex-start;padding:10px;border:1px solid var(--line);border-radius:10px;cursor:pointer;background:#fbfdfd}.check:hover{border-color:#83b7c0}.check input{margin-top:3px;accent-color:var(--primary)}.check span{font-size:.9rem}
+    .actions{display:flex;gap:10px;margin-top:18px}.actions .btn{flex:1}.status{margin-top:12px;min-height:23px;padding:10px 12px;border-radius:9px;background:#eef6f7;color:var(--primary-dark)}.status.error{background:#fff0f0;color:var(--danger)}
+    .results{margin-top:18px}.summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.metric{padding:14px;border:1px solid var(--line);border-radius:12px;background:linear-gradient(135deg,#fff,#f3f8f8)}.metric .value{font-size:1.35rem;font-weight:800;color:var(--primary)}.metric .name{font-size:.78rem;color:var(--muted);margin-top:3px}
+    .chart-wrap{height:430px;margin-top:18px}.table-wrap{overflow:auto;max-height:430px;border:1px solid var(--line);border-radius:10px;margin-top:16px}table{border-collapse:collapse;width:100%;font-size:.85rem;white-space:nowrap}th,td{padding:9px 11px;border-bottom:1px solid var(--line);text-align:right}th{position:sticky;top:0;background:#eaf3f4;color:var(--primary-dark)}th:first-child,td:first-child{text-align:left}.foot{color:var(--muted);font-size:.8rem;text-align:center;margin-top:18px}
+    @media(max-width:850px){.grid{grid-template-columns:1fr}.summary{grid-template-columns:repeat(2,1fr)}}@media(max-width:560px){.app{width:min(100% - 16px,1180px);margin-top:8px}.hero,.card{padding:18px}.row,.variables{grid-template-columns:1fr}.actions{flex-direction:column}.chart-wrap{height:340px}}
+  </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Advanced Weather Data Fetcher</h1>
-        <p>
-            Set the location and date range to fetch historical weather data. Use the checkboxes to select additional variables to display on the chart.
-        </p>
+<div class="app">
+  <header class="hero">
+    <h1>Weather Data Explorer</h1>
+    <p>Historische stündliche oder tägliche Wetterdaten abrufen, Tageswerte direkt über die API oder aus Stundenwerten aggregieren und Niederschläge analysieren.</p>
+  </header>
 
-        <!-- Map Container -->
-        <div id="map"></div>
+  <div class="grid">
+    <section class="card">
+      <h2>1. Standort und Zeitraum</h2>
+      <div class="field">
+        <label for="locationSearch">Ort, Adresse oder Postleitzahl suchen</label>
+        <div class="search-wrap"><input id="locationSearch" type="text" placeholder="z. B. Vals, Opfikon oder 8050 Zürich"><button id="searchBtn" class="btn btn-ghost" type="button">Suchen</button></div>
+        <div class="search-results"><div id="searchResults" class="result-list hidden"></div></div>
+      </div>
+      <div id="map" aria-label="Interaktive Standortkarte"></div>
+      <p class="hint">Auf die Karte klicken, um die Koordinaten zu setzen.</p>
+      <div class="row">
+        <div class="field"><label for="latitude">Breitengrad</label><input id="latitude" type="number" step="0.0001" value="46.6220"></div>
+        <div class="field"><label for="longitude">Längengrad</label><input id="longitude" type="number" step="0.0001" value="9.1810"></div>
+      </div>
+      <div class="field"><label for="locationName">Standortname für den Export</label><input id="locationName" type="text" value="Vals"></div>
+      <div class="row">
+        <div class="field"><label for="startDate">Startdatum</label><input id="startDate" type="date"></div>
+        <div class="field"><label for="endDate">Enddatum</label><input id="endDate" type="date"></div>
+      </div>
+    </section>
 
-        <div class="form-grid">
-            <label for="latitude">Latitude:</label>
-            <input type="text" id="latitude" value="46.6220">
-            <label for="longitude">Longitude:</label>
-            <input type="text" id="longitude" value="9.1810">
-            <label for="start_date">Start Date:</label>
-            <input type="date" id="start_date">
-            <label for="end_date">End Date:</label>
-            <input type="date" id="end_date">
-        </div>
+    <section class="card">
+      <h2>2. Daten auswählen</h2>
+      <div class="field"><span class="label">Zeitliche Auflösung</span><div class="segmented"><label><input name="resolution" type="radio" value="hourly" checked>Stündliche Werte</label><label><input name="resolution" type="radio" value="daily">Tageswerte</label></div></div>
+      <div id="aggregationField" class="field hidden"><label for="aggregationMode">Aggregationsmodus</label><select id="aggregationMode"><option value="api">API-Tageswerte direkt abrufen</option><option value="hourly">Aus Stundenwerten selbst berechnen</option></select><p class="hint">Die eigene Aggregation ermöglicht tägliche Mittelwerte auch für Größen ohne direkten API-Tageswert.</p></div>
+      <h3>Wettergrößen</h3><div id="variableList" class="variables"></div>
+      <div id="rainSettings" class="hidden">
+        <h3>Erweiterte Niederschlagsanalyse</h3>
+        <div class="row"><div class="field"><label for="wetThreshold">Niederschlagstag ab (mm)</label><input id="wetThreshold" type="number" min="0" step="0.1" value="1"></div><div class="field"><label for="heavyThreshold">Starkniederschlag ab (mm/Tag)</label><input id="heavyThreshold" type="number" min="0" step="0.1" value="20"></div></div>
+      </div>
+      <div class="actions"><button id="fetchBtn" class="btn btn-primary" type="button">Wetterdaten abrufen</button><button id="downloadBtn" class="btn btn-secondary" type="button" disabled>CSV herunterladen</button></div>
+      <div id="status" class="status" role="status">Bereit.</div>
+    </section>
+  </div>
 
-        <!-- Checkboxes for optional weather variables -->
-        <div class="options-grid">
-            <label><input type="checkbox" id="chk-precipitation" data-variable="precipitation" data-label="Precipitation (mm)"> Precipitation</label>
-            <label><input type="checkbox" id="chk-windspeed" data-variable="wind_speed_10m" data-label="Wind Speed (km/h)"> Wind Speed</label>
-            <label><input type="checkbox" id="chk-humidity" data-variable="relative_humidity_2m" data-label="Humidity (%)"> Humidity</label>
-            <label><input type="checkbox" id="chk-solar" data-variable="shortwave_radiation" data-label="Solar Irradiance (W/m²)"> Solar Irradiance</label>
-        </div>
-
-        <button id="fetch-button">Fetch Weather Data</button>
-        <button id="download-csv-button" class="hidden">Download as CSV</button>
-
-        <div class="results">
-            <p id="status"></p>
-            <div class="chart-container">
-                <canvas id="weather-chart"></canvas>
-            </div>
-        </div>
-    </div>
-
-    <!-- Chart.js Library -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Leaflet JS Library -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <!-- Your Custom Script -->
-    <script src="script.js"></script>
+  <section id="results" class="card results hidden">
+    <h2>3. Ergebnisse</h2><div id="summary" class="summary"></div>
+    <div class="chart-wrap"><canvas id="weatherChart"></canvas></div>
+    <div class="table-wrap"><table><thead id="tableHead"></thead><tbody id="tableBody"></tbody></table></div>
+  </section>
+  <p class="foot">Datenquelle: Open-Meteo Historical Weather API. Die App benötigt für Karten, Diagramme und Datenabruf eine Internetverbindung.</p>
+</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script>
+'use strict';
+const HOURLY = [
+ {id:'temperature_2m',label:'Temperatur',unit:'°C',agg:'mean',color:'#d95f34',checked:true},
+ {id:'precipitation',label:'Niederschlag',unit:'mm',agg:'sum',color:'#2878b5',checked:true},
+ {id:'rain',label:'Regen',unit:'mm',agg:'sum',color:'#396ab1'},
+ {id:'snowfall',label:'Schneefall',unit:'cm',agg:'sum',color:'#77aadd'},
+ {id:'relative_humidity_2m',label:'Relative Luftfeuchtigkeit',unit:'%',agg:'mean',color:'#5f9d5b'},
+ {id:'wind_speed_10m',label:'Windgeschwindigkeit',unit:'km/h',agg:'mean',color:'#8c6bb1'},
+ {id:'wind_gusts_10m',label:'Windböen',unit:'km/h',agg:'max',color:'#6a3d9a'},
+ {id:'shortwave_radiation',label:'Solarstrahlung',unit:'W/m²',agg:'mean',color:'#dfb32b'},
+ {id:'surface_pressure',label:'Luftdruck',unit:'hPa',agg:'mean',color:'#6b7779'},
+ {id:'cloud_cover',label:'Bewölkung',unit:'%',agg:'mean',color:'#87969a'}
+];
+const DAILY = [
+ {id:'temperature_2m_mean',label:'Durchschnittstemperatur',unit:'°C',color:'#d95f34',hourly:'temperature_2m',agg:'mean',checked:true},
+ {id:'temperature_2m_min',label:'Tiefsttemperatur',unit:'°C',color:'#3b82c4',hourly:'temperature_2m',agg:'min'},
+ {id:'temperature_2m_max',label:'Höchsttemperatur',unit:'°C',color:'#c74632',hourly:'temperature_2m',agg:'max'},
+ {id:'apparent_temperature_mean',label:'Mittlere gefühlte Temperatur',unit:'°C',color:'#bd6f3f',hourly:'apparent_temperature',agg:'mean'},
+ {id:'precipitation_sum',label:'Totalniederschlag',unit:'mm',color:'#2878b5',hourly:'precipitation',agg:'sum',checked:true},
+ {id:'rain_sum',label:'Regensumme',unit:'mm',color:'#396ab1',hourly:'rain',agg:'sum'},
+ {id:'snowfall_sum',label:'Schneefallsumme',unit:'cm',color:'#77aadd',hourly:'snowfall',agg:'sum'},
+ {id:'precipitation_hours',label:'Niederschlagsstunden',unit:'h',color:'#4c91c7',hourly:'precipitation',agg:'positiveCount'},
+ {id:'wind_speed_10m_max',label:'Maximale Windgeschwindigkeit',unit:'km/h',color:'#8c6bb1',hourly:'wind_speed_10m',agg:'max'},
+ {id:'wind_gusts_10m_max',label:'Maximale Windböe',unit:'km/h',color:'#6a3d9a',hourly:'wind_gusts_10m',agg:'max'},
+ {id:'wind_direction_10m_dominant',label:'Dominierende Windrichtung',unit:'°',color:'#0c8f79',hourly:'wind_direction_10m',agg:'circularMean'},
+ {id:'shortwave_radiation_sum',label:'Solarstrahlungssumme',unit:'MJ/m²',color:'#dfb32b',hourly:'shortwave_radiation',agg:'radiationSum'},
+ {id:'et0_fao_evapotranspiration',label:'Referenz-Evapotranspiration ET₀',unit:'mm',color:'#b99146',hourly:'et0_fao_evapotranspiration',agg:'sum'},
+ {id:'sunshine_duration',label:'Sonnenscheindauer',unit:'h',color:'#e2a72e',apiUnit:'s',hourly:'sunshine_duration',agg:'secondsToHours'},
+ {id:'daylight_duration',label:'Tageslichtdauer',unit:'h',color:'#e6bf54',apiUnit:'s',hourly:'daylight_duration',agg:'secondsToHours'}
+];
+const $=id=>document.getElementById(id); let chart=null, exportRows=[], exportColumns=[], currentUnits={};
+const map=L.map('map').setView([46.622,9.181],10); L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'}).addTo(map); let marker=L.marker([46.622,9.181]).addTo(map);
+function setLocation(lat,lon,name=''){ $('latitude').value=Number(lat).toFixed(4);$('longitude').value=Number(lon).toFixed(4);if(name)$('locationName').value=name;marker.setLatLng([lat,lon]);map.setView([lat,lon],11); }
+map.on('click',e=>setLocation(e.latlng.lat,e.latlng.lng,'Ausgewählter Standort'));
+async function searchLocation(){const q=$('locationSearch').value.trim();if(q.length<2)return setStatus('Bitte mindestens zwei Zeichen eingeben.',true);setStatus('Standortsuche läuft …');try{const u='https://geocoding-api.open-meteo.com/v1/search?name='+encodeURIComponent(q)+'&count=8&language=de&format=json';const r=await fetch(u);if(!r.ok)throw new Error('Standortsuche fehlgeschlagen');const d=await r.json();const box=$('searchResults');box.innerHTML='';if(!d.results?.length){box.classList.add('hidden');return setStatus('Kein Standort gefunden.',true)}d.results.forEach(x=>{const b=document.createElement('button');b.className='result-item';b.type='button';const full=[x.name,x.admin1,x.country,x.postcodes?.[0]].filter(Boolean).join(', ');b.textContent=full;b.onclick=()=>{setLocation(x.latitude,x.longitude,full);box.classList.add('hidden');setStatus('Standort gewählt: '+full)};box.appendChild(b)});box.classList.remove('hidden');setStatus('Bitte einen Suchtreffer auswählen.')}catch(e){setStatus(e.message,true)}}
+$('searchBtn').onclick=searchLocation;$('locationSearch').addEventListener('keydown',e=>{if(e.key==='Enter')searchLocation()});document.addEventListener('click',e=>{if(!e.target.closest('.field'))$('searchResults').classList.add('hidden')});
+function mode(){return document.querySelector('input[name=resolution]:checked').value} function selectedDefs(){const defs=mode()==='hourly'?HOURLY:DAILY;return defs.filter(v=>document.querySelector(`[data-var="${v.id}"]`)?.checked)}
+function renderVariables(){const daily=mode()==='daily';$('aggregationField').classList.toggle('hidden',!daily);const defs=daily?DAILY:HOURLY;$('variableList').innerHTML=defs.map(v=>`<label class="check"><input type="checkbox" data-var="${v.id}" ${v.checked?'checked':''}><span>${v.label} (${v.unit})</span></label>`).join('');document.querySelectorAll('[data-var]').forEach(x=>x.addEventListener('change',updateRainVisibility));updateRainVisibility()}
+function updateRainVisibility(){const ids=selectedDefs().map(x=>x.id);$('rainSettings').classList.toggle('hidden',!ids.some(x=>x.includes('precipitation')))}document.querySelectorAll('input[name=resolution]').forEach(x=>x.onchange=renderVariables);renderVariables();
+function iso(d){return d.toISOString().slice(0,10)}const now=new Date(), end=new Date(now);end.setDate(end.getDate()-7);const start=new Date(end);start.setMonth(start.getMonth()-1);$('startDate').value=iso(start);$('endDate').value=iso(end);
+function setStatus(msg,error=false){$('status').textContent=msg;$('status').classList.toggle('error',error)}
+function validInputs(){const lat=+$('latitude').value,lon=+$('longitude').value,s=$('startDate').value,e=$('endDate').value;if(!Number.isFinite(lat)||lat<-90||lat>90||!Number.isFinite(lon)||lon<-180||lon>180)throw new Error('Bitte gültige Koordinaten eingeben.');if(!s||!e||s>e)throw new Error('Bitte einen gültigen Zeitraum eingeben.');if(new Date(e)>new Date())throw new Error('Für historische Daten darf das Enddatum nicht in der Zukunft liegen.');const vars=selectedDefs();if(!vars.length)throw new Error('Bitte mindestens eine Wettergröße auswählen.');return{lat,lon,s,e,vars}}
+function groupHourly(times,values){const groups={};times.forEach((t,i)=>{const day=t.slice(0,10);(groups[day]??=[]).push({i,t})});return groups}
+function calc(vals,agg){const a=vals.filter(Number.isFinite);if(!a.length)return null;if(agg==='sum')return a.reduce((x,y)=>x+y,0);if(agg==='mean')return a.reduce((x,y)=>x+y,0)/a.length;if(agg==='min')return Math.min(...a);if(agg==='max')return Math.max(...a);if(agg==='positiveCount')return a.filter(x=>x>0).length;if(agg==='circularMean'){const r=a.map(x=>x*Math.PI/180),ang=Math.atan2(r.reduce((s,x)=>s+Math.sin(x),0),r.reduce((s,x)=>s+Math.cos(x),0))*180/Math.PI;return(ang+360)%360}if(agg==='radiationSum')return a.reduce((x,y)=>x+y,0)*0.0036;if(agg==='secondsToHours')return a.reduce((x,y)=>x+y,0)/3600;return null}
+async function fetchWeather(){let p;try{p=validInputs()}catch(e){return setStatus(e.message,true)}$('fetchBtn').disabled=true;$('downloadBtn').disabled=true;$('results').classList.add('hidden');setStatus('Wetterdaten werden geladen …');try{const daily=mode()==='daily',own=daily&&$('aggregationMode').value==='hourly';let apiVars,section;if(own){apiVars=[...new Set(p.vars.map(v=>v.hourly))];section='hourly'}else{apiVars=p.vars.map(v=>v.id);section=daily?'daily':'hourly'}const qs=new URLSearchParams({latitude:p.lat,longitude:p.lon,start_date:p.s,end_date:p.e,timezone:'auto'});qs.set(section,apiVars.join(','));const r=await fetch('https://archive-api.open-meteo.com/v1/archive?'+qs);if(!r.ok){let msg='API-Fehler '+r.status;try{const x=await r.json();msg=x.reason||msg}catch{}throw new Error(msg)}const data=await r.json();let rows=[];currentUnits={};if(own){const groups=groupHourly(data.hourly.time,data.hourly);rows=Object.entries(groups).map(([date,items])=>{const row={time:date};p.vars.forEach(v=>{const vals=items.map(z=>data.hourly[v.hourly]?.[z.i]);row[v.id]=calc(vals,v.agg);currentUnits[v.id]=v.unit});return row})}else{const src=data[section];rows=src.time.map((t,i)=>{const row={time:t};p.vars.forEach(v=>{let val=src[v.id]?.[i];if((v.id==='sunshine_duration'||v.id==='daylight_duration')&&Number.isFinite(val))val/=3600;row[v.id]=val;currentUnits[v.id]=v.unit});return row})}exportRows=rows;exportColumns=p.vars;renderResults(rows,p.vars,daily);$('downloadBtn').disabled=false;setStatus(`${rows.length} Datensätze geladen · Zeitzone: ${data.timezone||'lokal'}`)}catch(e){setStatus('Fehler: '+e.message,true)}finally{$('fetchBtn').disabled=false}}
+function fmt(v,d=2){return Number.isFinite(v)?new Intl.NumberFormat('de-CH',{maximumFractionDigits:d}).format(v):'–'}
+function precipitationSeries(rows,vars){const id=vars.find(v=>v.id==='precipitation_sum')?.id||vars.find(v=>v.id==='precipitation')?.id;return id?rows.map(r=>Number(r[id])||0):null}
+function streak(a,pred){let best=0,run=0;a.forEach(x=>{run=pred(x)?run+1:0;best=Math.max(best,run)});return best}
+function renderResults(rows,vars,daily){const metrics=[];vars.forEach(v=>{const a=rows.map(r=>r[v.id]).filter(Number.isFinite);if(!a.length)return;const sum=a.reduce((x,y)=>x+y,0),isSum=/precipitation|rain|snowfall|et0/.test(v.id);metrics.push({name:isSum?`${v.label}: Summe`:`${v.label}: Mittel`,value:fmt(isSum?sum:sum/a.length)+' '+v.unit})});const rain=precipitationSeries(rows,vars);if(rain){const wet=+$('wetThreshold').value,heavy=+$('heavyThreshold').value;metrics.push({name:'Höchster Tagesniederschlag',value:fmt(Math.max(...rain))+' mm'},{name:`Niederschlagstage ≥ ${wet} mm`,value:String(rain.filter(x=>x>=wet).length)},{name:`Starkniederschlagstage ≥ ${heavy} mm`,value:String(rain.filter(x=>x>=heavy).length)},{name:'Längste Trockenperiode',value:streak(rain,x=>x<wet)+' Tage'},{name:'Längste Niederschlagsperiode',value:streak(rain,x=>x>=wet)+' Tage'})}$('summary').innerHTML=metrics.slice(0,16).map(m=>`<div class="metric"><div class="value">${m.value}</div><div class="name">${m.name}</div></div>`).join('');renderChart(rows,vars);renderTable(rows,vars);$('results').classList.remove('hidden');$('results').scrollIntoView({behavior:'smooth',block:'start'})}
+function renderChart(rows,vars){if(chart)chart.destroy();const labels=rows.map(r=>r.time.replace('T',' '));const datasets=vars.map((v,i)=>({label:`${v.label} (${v.unit})`,data:rows.map(r=>r[v.id]),borderColor:v.color,backgroundColor:v.color+'44',pointRadius:rows.length>150?0:2,borderWidth:2,tension:.15,yAxisID:'y'+i}));const scales={x:{ticks:{maxTicksLimit:12},grid:{display:false}}};vars.forEach((v,i)=>scales['y'+i]={type:'linear',display:i<2,position:i%2?'right':'left',title:{display:i<2,text:v.unit},grid:{drawOnChartArea:i===0}});chart=new Chart($('weatherChart'),{type:'line',data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{position:'bottom'}},scales}})}
+function renderTable(rows,vars){$('tableHead').innerHTML='<tr><th>Zeit</th>'+vars.map(v=>`<th>${v.label} (${v.unit})</th>`).join('')+'</tr>';$('tableBody').innerHTML=rows.map(r=>'<tr><td>'+r.time.replace('T',' ')+'</td>'+vars.map(v=>`<td>${fmt(r[v.id])}</td>`).join('')+'</tr>').join('')}
+function csvEscape(v){const s=String(v??'');return/[;"\n]/.test(s)?'"'+s.replaceAll('"','""')+'"':s}function downloadCSV(){if(!exportRows.length)return;const head=['Zeit',...exportColumns.map(v=>`${v.label} (${v.unit})`)];const lines=[head,...exportRows.map(r=>[r.time,...exportColumns.map(v=>r[v.id])])].map(a=>a.map(csvEscape).join(';'));const blob=new Blob(['\ufeff'+lines.join('\n')],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);const safe=($('locationName').value||'Standort').replace(/[^a-zA-Z0-9äöüÄÖÜß_-]+/g,'_');a.download=`weather_${mode()}_${safe}_${$('startDate').value}_${$('endDate').value}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+$('fetchBtn').onclick=fetchWeather;$('downloadBtn').onclick=downloadCSV;
+</script>
 </body>
 </html>
