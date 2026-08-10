@@ -1,72 +1,18 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Advanced Image Color Editor</title>
- 
-    <link rel="stylesheet" href="style.css">
-</head>
-
-
-<body>
-
-    <div class="container">
-        <!-- Control Panel -->
-        <div class="controls">
-            <h1>Color Editor</h1>
-
-            <div class="control-group file-upload">
-                <label for="imageLoader" class="file-label">Load Image</label>
-                <input type="file" id="imageLoader" accept="image/*"/>
-            </div>
-
-            <div class="control-group">
-                <label>Color to Replace</label>
-                <div class="color-display">
-                    <div id="colorToReplaceBox" class="color-box"></div>
-                    <span id="colorToReplaceHex">#ffffff</span>
-                </div>
-                 <p class="help-text">Click on the image to select a color.</p>
-            </div>
-
-            <div class="control-group">
-                <label for="newColorHex">New Color</label>
-                <div class="color-display">
-                    <input type="color" id="newColorPicker" value="#00b4d8">
-                    <input type="text" id="newColorHex" value="#00b4d8">
-                </div>
-            </div>
-
-            <div class="control-group">
-                <label for="tolerance">Tolerance: <span id="toleranceValue">20</span></label>
-                <input type="range" id="tolerance" min="0" max="100" value="20">
-            </div>
-
-            <div class="control-group feature-toggle">
-                <input type="checkbox" id="adjustToneToggle">
-                <label for="adjustToneToggle">Adjust overall image tone</label>
-                <p class="help-text">Shifts all colors to maintain harmony.</p>
-            </div>
-
-            <button id="applyBtn" class="primary-btn">Apply Color Change</button>
-            
-            <div class="history-controls">
-                <button id="undoBtn">Undo</button>
-                <button id="resetBtn">Reset</button>
-            </div>
-
-            <a href="#" id="downloadBtn" class="disabled" download="edited-image.png">Download Image</a>
-            
-        </div>
-
-        <!-- Image Display Area -->
-        <div class="canvas-container">
-            <div id="loadingMessage">Please load an image to begin.</div>
-            <canvas id="imageCanvas"></canvas>
-        </div>
-    </div>
-    
-    <!-- Your script runs last -->
-    <script src="script.js"></script>
-</html>
+<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Color Editor</title><style>
+:root{--p:#0969da;--pd:#0756b3;--red:#d1242f;--b:#d0d7de;--txt:#24292f;--mut:#57606a}*{box-sizing:border-box}body{margin:0;padding:20px;font-family:Segoe UI,Arial,sans-serif;background:#eef1f4;color:var(--txt)}h1{margin:0 0 5px;text-align:center}.sub{text-align:center;color:var(--mut);margin:0 0 18px}.app{max-width:1500px;margin:auto;display:grid;grid-template-columns:minmax(0,1fr) 350px;gap:18px}.panel{background:#fff;border:1px solid var(--b);border-radius:12px;box-shadow:0 5px 18px #0001}.work{padding:14px}.tools{padding:17px;position:sticky;top:12px}.stage{min-height:550px;display:flex;align-items:center;justify-content:center;overflow:auto;border:2px dashed var(--b);border-radius:10px;background:repeating-conic-gradient(#eee 0 25%,#fff 0 50%) 0/22px 22px}.empty{padding:30px;text-align:center;line-height:1.6;background:#fffe;border:1px solid var(--b);border-radius:10px;color:var(--mut)}.wrap{position:relative;display:none;line-height:0;flex:none}canvas{display:block;max-width:min(100%,1050px);max-height:76vh;width:auto;height:auto}#overlay{position:absolute;inset:0;width:100%;height:100%;cursor:crosshair;touch-action:none}.legend{margin-top:11px;padding:10px;border:2px solid #ff1744;background:#fff1f3;border-radius:8px;font-weight:700;color:#881337}.sw{display:inline-block;width:25px;height:17px;margin-right:8px;vertical-align:middle;background:repeating-linear-gradient(-45deg,#ff1744 0 5px,#fff 5px 10px);border:1px solid #b91c1c}.group{padding-bottom:16px;margin-bottom:16px;border-bottom:1px solid var(--b)}.group:last-child{border:0;margin:0;padding:0}.group h2{font-size:16px;margin:0 0 10px}.row{display:grid;gap:8px;margin-top:10px}.rad{display:grid;gap:7px}label{cursor:pointer}.btn{width:100%;padding:11px;border:0;border-radius:7px;background:var(--p);color:#fff;font:inherit;font-weight:700;cursor:pointer}.btn:hover:not(:disabled){background:var(--pd)}.btn.secondary{background:#57606a}.btn.apply{background:#b42318}.btn:disabled{opacity:.4;cursor:not-allowed}input[type=file],input[type=range]{width:100%}.colorline{display:grid;grid-template-columns:45px 1fr;gap:8px}input[type=color]{width:45px;height:40px;border:0}input[type=text]{width:100%;padding:9px;border:1px solid var(--b);border-radius:6px}.info,.status{margin-top:10px;padding:9px;border-radius:7px;background:#f6f8fa;color:var(--mut);line-height:1.4}.status.ok{background:#dafbe1;color:#116329}.status.err{background:#ffebe9;color:#a40e26}.small{font-size:12px;color:var(--mut);line-height:1.45}.kbd{border:1px solid #afb8c1;border-bottom-width:2px;border-radius:4px;padding:1px 5px;background:#fff}@media(max-width:950px){.app{grid-template-columns:1fr}.tools{position:static}.stage{min-height:360px}}
+</style></head><body><h1>Color Editor</h1><p class="sub">Farbbereiche deutlich auswählen, bearbeiten und in Originalauflösung als PNG ausgeben.</p><main class="app"><section class="panel work"><div class="stage" id="stage"><div class="empty" id="empty"><b>Bild ablegen oder aus der Zwischenablage einfügen</b><br><span class="kbd">Strg</span>+<span class="kbd">V</span> / <span class="kbd">Cmd</span>+<span class="kbd">V</span></div><div class="wrap" id="wrap"><canvas id="image"></canvas><canvas id="overlay"></canvas></div></div><div class="legend"><span class="sw"></span>ROT MARKIERT = Nur dieser Bereich wird farblich bearbeitet.</div><div class="info" id="info">Noch kein Bild geladen.</div><div class="status" id="status">Bereit.</div></section><aside class="panel tools">
+<div class="group"><h2>1. Bild laden</h2><input id="file" type="file" accept="image/*"><div class="row"><button class="btn" id="paste">Aus Zwischenablage</button></div><p class="small">Die interne Canvas-Grösse entspricht der Originalauflösung. Nur die Ansicht wird verkleinert.</p></div>
+<div class="group"><h2>2. Bereich auswählen</h2><div class="rad"><label><input type="radio" name="tool" value="wand" checked> Zauberstab – ähnliche Farbe</label><label><input type="radio" name="tool" value="rect"> Rechteckauswahl</label></div><div class="row"><label>Toleranz: <b id="tv">35</b></label><input id="tol" type="range" min="0" max="180" value="35"></div><div class="rad row"><label><input type="radio" name="mode" value="replace" checked> Neue Auswahl</label><label><input type="radio" name="mode" value="add"> Hinzufügen</label><label><input type="radio" name="mode" value="subtract"> Abziehen</label></div><div class="rad row"><label><input type="radio" name="scope" value="connected" checked> Zusammenhängend</label><label><input type="radio" name="scope" value="global"> Im ganzen Bild</label></div><div class="row"><button class="btn secondary" id="clear" disabled>Auswahl löschen</button></div></div>
+<div class="group"><h2>3. Neue Farbe</h2><div class="colorline"><input id="color" type="color" value="#0067b9"><input id="hex" type="text" value="#0067b9" maxlength="7"></div><label class="row"><span><input id="preserve" type="checkbox" checked> Helligkeit und Schattierung erhalten</span></label><div class="row"><button class="btn apply" id="apply" disabled>Farbe auf rot markierten Bereich anwenden</button></div></div>
+<div class="group"><h2>4. Verlauf und Ausgabe</h2><div class="row"><button class="btn secondary" id="undo" disabled>Rückgängig</button><button class="btn secondary" id="reset" disabled>Original wiederherstellen</button><button class="btn" id="copy" disabled>PNG in Zwischenablage kopieren</button><button class="btn" id="save" disabled>PNG herunterladen</button></div><p class="small">PNG erhält Transparenz und Pixelmasse. EXIF-Metadaten werden vom Browser-Canvas nicht übernommen.</p></div>
+</aside></main><script>
+'use strict';const $=s=>document.querySelector(s),$$=s=>document.querySelectorAll(s);const image=$('#image'),overlay=$('#overlay'),ctx=image.getContext('2d',{willReadFrequently:true}),ox=overlay.getContext('2d'),stage=$('#stage'),wrap=$('#wrap'),empty=$('#empty'),status=$('#status'),info=$('#info');let original=null,work=null,mask=null,history=[],drawing=false,sx=0,sy=0,name='bild';
+function msg(t,c=''){status.textContent=t;status.className='status '+c}function selected(){return mask&&mask.some(v=>v)}function buttons(){let loaded=!!work;$('#apply').disabled=!selected();$('#clear').disabled=!selected();$('#undo').disabled=!history.length;$('#reset').disabled=!loaded;$('#copy').disabled=!loaded;$('#save').disabled=!loaded}function cleanName(n){return(n||'bild').replace(/\.[^.]+$/,'').replace(/[^\w-]+/g,'_')}
+async function load(blob,n='zwischenablage'){if(!blob||!blob.type.startsWith('image/'))return msg('Kein gültiges Bild gefunden.','err');msg('Bild wird geladen ...');name=cleanName(n);let url=URL.createObjectURL(blob),im=new Image();im.onload=()=>{try{image.width=overlay.width=im.naturalWidth;image.height=overlay.height=im.naturalHeight;ctx.drawImage(im,0,0);original=ctx.getImageData(0,0,image.width,image.height);work=new ImageData(new Uint8ClampedArray(original.data),image.width,image.height);mask=new Uint8Array(image.width*image.height);history=[];wrap.style.display='block';empty.style.display='none';drawMask();buttons();info.textContent=`Originalauflösung: ${image.width} × ${image.height} Pixel – PNG-Ausgabe bleibt ${image.width} × ${image.height} Pixel.`;msg('Bild geladen. Wähle jetzt den zu bearbeitenden Bereich.','ok')}catch(e){msg('Bild ist möglicherweise zu gross für den Browserspeicher.','err')}URL.revokeObjectURL(url)};im.onerror=()=>{URL.revokeObjectURL(url);msg('Bild konnte nicht gelesen werden.','err')};im.src=url}
+$('#file').onchange=e=>{let f=e.target.files[0];if(f)load(f,f.name);e.target.value=''};window.addEventListener('paste',e=>{let i=[...(e.clipboardData?.items||[])].find(x=>x.type.startsWith('image/'));if(i){e.preventDefault();load(i.getAsFile())}else msg('Kein Bild in der Zwischenablage gefunden.','err')});$('#paste').onclick=async()=>{try{let items=await navigator.clipboard.read();for(let i of items){let t=i.types.find(x=>x.startsWith('image/'));if(t)return load(await i.getType(t))}msg('Kein Bild in der Zwischenablage gefunden.','err')}catch(e){msg('Bei lokal geöffneten file:-Dateien blockiert der Browser den Zwischenablage-Button. Nutze Strg+V bzw. Cmd+V direkt auf der Seite.','err')}};['dragenter','dragover'].forEach(t=>stage.addEventListener(t,e=>e.preventDefault()));stage.addEventListener('drop',e=>{e.preventDefault();let f=[...(e.dataTransfer?.files||[])].find(x=>x.type.startsWith('image/'));if(f)load(f,f.name)});
+$('#tol').oninput=e=>$('#tv').textContent=e.target.value;$('#color').oninput=e=>$('#hex').value=e.target.value;$('#hex').oninput=e=>{if(/^#[0-9a-f]{6}$/i.test(e.target.value))$('#color').value=e.target.value};function pos(e){let r=overlay.getBoundingClientRect();return{x:Math.max(0,Math.min(image.width-1,Math.floor((e.clientX-r.left)*image.width/r.width))),y:Math.max(0,Math.min(image.height-1,Math.floor((e.clientY-r.top)*image.height/r.height)))}}function mode(){return $('input[name=mode]:checked').value}function combine(incoming,m){if(m==='replace')mask.fill(0);for(let i=0;i<mask.length;i++)if(incoming[i])mask[i]=m==='subtract'?0:1;drawMask();buttons();msg('Der rot markierte Bereich wird bearbeitet.','ok')}
+overlay.onpointerdown=e=>{if(!work)return;let p=pos(e),tool=$('input[name=tool]:checked').value;if(tool==='wand')wand(p.x,p.y);else{drawing=true;sx=p.x;sy=p.y;overlay.setPointerCapture(e.pointerId)}};overlay.onpointermove=e=>{if(!drawing)return;let p=pos(e);drawMask();ox.save();ox.fillStyle='#ff174455';ox.strokeStyle='#ff1744';ox.lineWidth=Math.max(2,image.width/500);ox.setLineDash([10,6]);ox.fillRect(sx,sy,p.x-sx,p.y-sy);ox.strokeRect(sx,sy,p.x-sx,p.y-sy);ox.restore()};overlay.onpointerup=e=>{if(!drawing)return;drawing=false;let p=pos(e),a=new Uint8Array(mask.length),x1=Math.min(sx,p.x),x2=Math.max(sx,p.x),y1=Math.min(sy,p.y),y2=Math.max(sy,p.y);for(let y=y1;y<=y2;y++)a.fill(1,y*image.width+x1,y*image.width+x2+1);combine(a,mode())};
+function dist(i,t){let d=work.data,r= d[i]-t[0],g=d[i+1]-t[1],b=d[i+2]-t[2];return r*r+g*g+b*b}function wand(x,y){msg('Auswahl wird berechnet ...');setTimeout(()=>{let w=image.width,h=image.height,start=y*w+x,o=start*4,t=[work.data[o],work.data[o+1],work.data[o+2]],lim=(Number($('#tol').value) ** 2),a=new Uint8Array(w*h);if($('input[name=scope]:checked').value==='global'){for(let p=0,i=0;i<work.data.length;i+=4,p++)if(dist(i,t)<=lim)a[p]=1}else{let seen=new Uint8Array(w*h),q=new Uint32Array(w*h),n=0;q[n++]=start;seen[start]=1;while(n){let p=q[--n];if(dist(p*4,t)>lim)continue;a[p]=1;let X=p%w,Y=(p/w)|0,z;if(X&& !seen[z=p-1])seen[z]=1,q[n++]=z;if(X<w-1&&!seen[z=p+1])seen[z]=1,q[n++]=z;if(Y&&!seen[z=p-w])seen[z]=1,q[n++]=z;if(Y<h-1&&!seen[z=p+w])seen[z]=1,q[n++]=z}}combine(a,mode())},10)}function drawMask(){ox.clearRect(0,0,overlay.width,overlay.height);if(!mask)return;let d=ox.createImageData(overlay.width,overlay.height);for(let i=0;i<mask.length;i++)if(mask[i]){let p=i*4,x=i%image.width,y=(i/image.width)|0,s=(x+y)%14<7;d.data[p]=255;d.data[p+1]=s?23:255;d.data[p+2]=s?68:255;d.data[p+3]=s?180:70}ox.putImageData(d,0,0)}$('#clear').onclick=()=>{mask.fill(0);drawMask();buttons();msg('Auswahl gelöscht.')};
+function rgb(hex){let m=/^#?([\da-f]{2})([\da-f]{2})([\da-f]{2})$/i.exec(hex);return m?{r:parseInt(m[1],16),g:parseInt(m[2],16),b:parseInt(m[3],16)}:null}function toHsl(r,g,b){r/=255;g/=255;b/=255;let M=Math.max(r,g,b),m=Math.min(r,g,b),h=0,s=0,l=(M+m)/2,d=M-m;if(d){s=d/(1-Math.abs(2*l-1));h=M===r?((g-b)/d)%6:M===g?(b-r)/d+2:(r-g)/d+4;h/=6;if(h<0)h+=1}return[h,s,l]}function toRgb(h,s,l){let f=(n)=>{let k=(n+h*12)%12,a=s*Math.min(l,1-l);return l-a*Math.max(-1,Math.min(k-3,9-k,1))};return[f(0)*255,f(8)*255,f(4)*255]}
+$('#apply').onclick=()=>{if(!selected())return;history.push(new ImageData(new Uint8ClampedArray(work.data),image.width,image.height));let c=rgb($('#hex').value)||rgb($('#color').value),pres=$('#preserve').checked,target=toHsl(c.r,c.g,c.b);for(let i=0;i<mask.length;i++)if(mask[i]){let p=i*4;if(pres){let h=toHsl(work.data[p],work.data[p+1],work.data[p+2]),v=toRgb(target[0],Math.max(.15,target[1]),h[2]);work.data[p]=v[0];work.data[p+1]=v[1];work.data[p+2]=v[2]}else{work.data[p]=c.r;work.data[p+1]=c.g;work.data[p+2]=c.b}}ctx.putImageData(work,0,0);mask.fill(0);drawMask();buttons();msg('Farbe wurde nur auf den ausgewählten Bereich angewendet.','ok')};$('#undo').onclick=()=>{if(history.length){work=history.pop();ctx.putImageData(work,0,0);mask.fill(0);drawMask();buttons();msg('Letzte Änderung rückgängig gemacht.','ok')}};$('#reset').onclick=()=>{work=new ImageData(new Uint8ClampedArray(original.data),image.width,image.height);ctx.putImageData(work,0,0);history=[];mask.fill(0);drawMask();buttons();msg('Originalbild wiederhergestellt.','ok')};function blob(){return new Promise((res,rej)=>image.toBlob(b=>b?res(b):rej(),'image/png'))}$('#save').onclick=async()=>{let b=await blob(),u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=name+'_farbbearbeitet.png';a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);msg('PNG in Originalauflösung gespeichert.','ok')};$('#copy').onclick=async()=>{try{let b=await blob();await navigator.clipboard.write([new ClipboardItem({'image/png':b})]);msg('PNG in Originalauflösung in die Zwischenablage kopiert.','ok')}catch(e){msg('Der Browser blockiert das Schreiben in die Zwischenablage bei file:-Dateien. Starte die HTML-Datei über localhost/HTTPS oder nutze PNG herunterladen.','err')}};buttons();
+</script></body></html>
