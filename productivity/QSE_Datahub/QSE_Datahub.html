@@ -2810,10 +2810,18 @@
 
       <!-- MAIN ROADMAP CHART -->
       <div style="background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px;">
-        <h4 style="font-size: 16px; color: #333; margin-bottom: 15px;">&#9729;&#65039; GHG Emission Reduction Road Map (Scope 1, 2 & 3)</h4>
-        <div style="height: 380px; position: relative;"><canvas id="co2RoadmapChart"></canvas></div>
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:15px; flex-wrap:wrap; margin-bottom:15px;">
+          <h4 style="font-size: 16px; color: #333; margin: 0;">&#9729;&#65039; GHG Emission Reduction Road Map (Scope 1, 2 & 3)</h4>
+          <a href="https://app.smartsheet.eu/sheets/gHQCQjfcQHV7xP334x79v2JG5jV8qm4hpMqVM4h1"
+             target="_blank"
+             rel="noopener noreferrer"
+             title="GHG Emission Report in Smartsheet öffnen"
+             style="display:inline-flex; align-items:center; gap:5px; padding:5px 9px; border:1px solid #0078d4; border-radius:4px; background:#f0f7ff; color:#0078d4; font-size:11px; font-weight:bold; text-decoration:none; white-space:nowrap;">
+            📂 Quell-Smartsheet öffnen
+          </a>
+        </div>
+               <div style="height: 380px; position: relative;"><canvas id="co2RoadmapChart"></canvas></div>
       </div>
-
       <!-- ROADMAP: RATIO & TOTAL WATERFALL -->
       <hr style="border:none; border-top: 2px dashed #ccc; margin: 30px 0;">
       <h3 style="font-size: 16px; color:#1e1e1e; margin-bottom: 15px;">Entwicklung: CO2 Ratio & Langzeit-Reduktion (Baseline vs Zieljahr)</h3>
@@ -2852,9 +2860,16 @@
         </div>
       </div>
 
-      <div style="background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-        <h4 style="font-size: 14px; color: #333; margin-bottom: 10px;" id="lblWfS12Title">Scope 1 & 2 Breakdown Waterfall (Baseline ➔ Ziel)</h4>
-        <div style="height: 300px; position: relative;"><canvas id="co2WfScope12Chart"></canvas></div>
+      <div style="display:flex; gap: 20px; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 400px; background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+          <h4 style="font-size: 14px; color: #333; margin-bottom: 10px;" id="lblWfS12Title">Scope 1 & 2 Breakdown Waterfall (Baseline ➔ Ziel)</h4>
+          <div style="height: 300px; position: relative;"><canvas id="co2WfScope12Chart"></canvas></div>
+        </div>
+
+        <div style="flex: 1; min-width: 400px; background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+          <h4 style="font-size: 14px; color: #333; margin-bottom: 10px;" id="lblWfS3Title">Scope 3 Breakdown Waterfall (Baseline ➔ Ziel)</h4>
+          <div style="height: 300px; position: relative;"><canvas id="co2WfScope3Chart"></canvas></div>
+        </div>
       </div>
 
     </div>
@@ -11840,37 +11855,49 @@ function updateCO2Dashboard() {
     const plantSel = document.getElementById('co2Plant').value;
     let plantRows = globalCO2Data.filter(r => String(r['Scope']).trim().toLowerCase() === plantSel.toLowerCase());
     
-    // --- 1. HÖCHSTES JAHR IM DATENSATZ FINDEN (Um Q1 zuzuordnen) ---
+    // --- 1. HÖCHSTES JAHR IM DATENSATZ FINDEN ---
     let maxYrMatch = globalCO2Data.map(r => parseInt(String(r['Year']).match(/(20\d{2})/)?.[1])).filter(Boolean);
     let currentDataYear = maxYrMatch.length > 0 ? Math.max(...maxYrMatch).toString() : new Date().getFullYear().toString();
 
     // --- 2. ECHTE IST-JAHRE FINDEN ---
     let pureActualRows = plantRows.filter(r => /^\d{4}$/.test(String(r['Year']).trim()));
-    
-    // --- 3. QUARTALE AGGREGIEREN (z.B. Q1, Q2 werden zu "2026") ---
-    let qRows = plantRows.filter(r => /^Q[1-4]/i.test(String(r['Year']).trim()));
-    if (qRows.length > 0) {
-        // Falls wir noch kein echtes "2026" für dieses Werk haben:
-        if (!pureActualRows.some(r => String(r['Year']).trim() === currentDataYear)) {
-            let aggYr = { 'Year': currentDataYear, 'Scope': plantSel };
-            qRows.forEach(r => {
-                Object.keys(r).forEach(k => {
-                    let val = cleanNum(r[k]);
-                    if (!isNaN(val) && k !== 'Year' && k !== 'Scope' && k !== 'Unit') {
-                        aggYr[k] = (aggYr[k] || 0) + val;
-                    }
-                });
+
+    // --- 3. QUARTALSZEILEN ERKENNEN, NORMALISIEREN UND FÜR DIE ROADMAP BEWAHREN ---
+    let qRows = plantRows
+        .filter(r => /^(?:20\d{2}\s*)?Q[1-4]$/i.test(String(r['Year']).trim()))
+        .map(r => {
+            const originalLabel = String(r['Year']).trim();
+            const yearMatch = originalLabel.match(/(20\d{2})/);
+            const quarterMatch = originalLabel.match(/Q([1-4])/i);
+            const quarterYear = yearMatch ? yearMatch[1] : currentDataYear;
+            const quarterNo = quarterMatch ? parseInt(quarterMatch[1], 10) : 0;
+
+            return {
+                ...r,
+                'Year': `${quarterYear} Q${quarterNo}`,
+                _quarterYear: quarterYear,
+                _quarterNo: quarterNo
+            };
+        })
+        .sort((a, b) =>
+            parseInt(a._quarterYear, 10) - parseInt(b._quarterYear, 10) ||
+            a._quarterNo - b._quarterNo
+        );
+
+    // Für Jahres-KPIs wird das jeweils jüngste Quartal als aktueller YTD-Stand verwendet.
+    if (qRows.length > 0 && !pureActualRows.some(r => String(r['Year']).trim() === currentDataYear)) {
+        const latestQuarterRow = [...qRows]
+            .filter(r => r._quarterYear === currentDataYear)
+            .sort((a, b) => b._quarterNo - a._quarterNo)[0];
+
+        if (latestQuarterRow) {
+            pureActualRows.push({
+                ...latestQuarterRow,
+                'Year': currentDataYear
             });
-            // Ratios neu berechnen
-            let vol1000L = safeVal(aggYr, 'Total Production Volume 1000 L');
-            if (vol1000L > 0) {
-                aggYr['ACT Scope 1 & 2 CO2 Ratio (g CO2/lbp)'] = (safeVal(aggYr, 'Total Scope 1 & 2 ACT t CO2') * 1000) / vol1000L;
-                aggYr['Scope 3 Ratio g CO2/lpb'] = (safeVal(aggYr, 'ACT Total Scope 3 t CO2') * 1000) / vol1000L;
-                aggYr['ACT Total Scope 1 + 2 +3 g CO2/lpb'] = (safeVal(aggYr, 'Total Scope 1 & 2 & 3 t CO2') * 1000) / vol1000L;
-            }
-            pureActualRows.push(aggYr);
         }
     }
+
     pureActualRows.sort((a,b) => parseInt(a['Year']) - parseInt(b['Year']));
 
     // --- 4. DROPDOWNS ROADMAP ---
@@ -11897,9 +11924,37 @@ function updateCO2Dashboard() {
         (bpVersions.includes(endYear) ? bpRows.find(r => String(r['Year']).trim() === endYear) : pureActualRows.find(r => String(r['Year']).trim() === endYear)) 
         : {};
     
-    // Roadmap: Von Startjahr bis zum aktuellsten Ist-Jahr, dann optional BP anhängen
+    // Roadmap: Vollständige Ist-Jahre plus vorhandene Quartalsstände anzeigen
     let maxPureYearForRoadmap = pureYears.includes(endYear) ? endYear : currentDataYear;
-    let roadmapRows = pureActualRows.filter(r => String(r['Year']).trim() >= startYear && String(r['Year']).trim() <= maxPureYearForRoadmap);
+    let roadmapRows = pureActualRows.filter(r =>
+        String(r['Year']).trim() >= startYear &&
+        String(r['Year']).trim() <= maxPureYearForRoadmap
+    );
+
+    const roadmapQuarterRows = qRows.filter(r =>
+        r._quarterYear >= startYear &&
+        r._quarterYear <= maxPureYearForRoadmap
+    );
+
+    roadmapRows = roadmapRows.filter(r =>
+        !roadmapQuarterRows.some(q => q._quarterYear === String(r['Year']).trim())
+    );
+
+    roadmapRows.push(...roadmapQuarterRows);
+
+    roadmapRows.sort((a, b) => {
+        const getSortValue = row => {
+            const label = String(row['Year']).trim();
+            const yearMatch = label.match(/(20\d{2})/);
+            const quarterMatch = label.match(/Q([1-4])/i);
+            const year = yearMatch ? parseInt(yearMatch[1], 10) : 9999;
+            const quarter = quarterMatch ? parseInt(quarterMatch[1], 10) : 0;
+            return year * 10 + quarter;
+        };
+
+        return getSortValue(a) - getSortValue(b);
+    });
+
     if (bpVersions.includes(endYear)) roadmapRows.push(endRow); // Fügt z.B. "BP 2026 V03" am Ende an
 
     let roadmapLabels = roadmapRows.map(r => String(r['Year']).trim());
@@ -12140,6 +12195,101 @@ function updateCO2Dashboard() {
                 }
             },
             scales: { x: { ticks: { font: {size: 10}, maxRotation: 45, minRotation: 45 }, grid:{display:false} }, y: { display: false, grace: '15%' } }
+        }
+    });
+
+    // ==========================================
+    // RENDERING 4B: SCOPE 3 WATERFALL (Category Deltas)
+    // ==========================================
+    document.getElementById('lblWfS3Title').innerText = `Scope 3 Breakdown Waterfall (${startYear} ➔ ${endYear})`;
+
+    let wfS3Labels = [startYear];
+    let wfS3Data = [[0, s3Start]];
+    let wfS3Colors = ['#003366'];
+    let wfS3Tooltips = [s3Start];
+    let currS3Val = s3Start;
+
+    categories.filter(c => c.label.includes('S3')).forEach(cat => {
+        let sVal = safeVal(startRow, cat.key);
+        let eVal = safeVal(endRow, cat.key);
+        let delta = eVal - sVal;
+
+        if (Math.abs(delta) > 0.5) {
+            wfS3Labels.push(cat.label.replace('S3 ', ''));
+            wfS3Data.push([currS3Val, currS3Val + delta]);
+            wfS3Colors.push(delta > 0 ? '#cb4335' : '#27ae60');
+            wfS3Tooltips.push(delta);
+            currS3Val += delta;
+        }
+    });
+
+    wfS3Labels.push(endYear);
+    wfS3Data.push([0, s3End]);
+    wfS3Colors.push('#3498db');
+    wfS3Tooltips.push(s3End);
+
+    if (co2Charts['scope3wf']) co2Charts['scope3wf'].destroy();
+    co2Charts['scope3wf'] = new Chart(document.getElementById('co2WfScope3Chart').getContext('2d'), {
+        type: 'bar', plugins: [ChartDataLabels],
+        data: {
+            labels: wfS3Labels,
+            datasets: [{
+                data: wfS3Data,
+                backgroundColor: wfS3Colors,
+                tooltipsRaw: wfS3Tooltips
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            layout: { padding: { top: 30 } },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: (ctx) => `Delta: ${Math.round(ctx.dataset.tooltipsRaw[ctx.dataIndex])} t`
+                    }
+                },
+                datalabels: {
+                    color: (ctx) =>
+                        (ctx.dataIndex === 0 || ctx.dataIndex === wfS3Labels.length - 1)
+                            ? 'white'
+                            : '#000',
+                    anchor: (ctx) =>
+                        (ctx.dataIndex === 0 || ctx.dataIndex === wfS3Labels.length - 1)
+                            ? 'end'
+                            : (wfS3Tooltips[ctx.dataIndex] >= 0 ? 'end' : 'start'),
+                    align: (ctx) =>
+                        (ctx.dataIndex === 0 || ctx.dataIndex === wfS3Labels.length - 1)
+                            ? 'start'
+                            : (wfS3Tooltips[ctx.dataIndex] >= 0 ? 'top' : 'bottom'),
+                    font: { weight: 'bold', size: 10 },
+                    formatter: (v, ctx) => {
+                        let raw = ctx.dataset.tooltipsRaw[ctx.dataIndex];
+                        let sign =
+                            (ctx.dataIndex !== 0 &&
+                             ctx.dataIndex !== wfS3Labels.length - 1 &&
+                             raw > 0)
+                                ? '+'
+                                : '';
+                        return sign + Math.round(raw);
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    ticks: {
+                        font: { size: 10 },
+                        maxRotation: 45,
+                        minRotation: 45
+                    },
+                    grid: { display: false }
+                },
+                y: {
+                    display: false,
+                    grace: '15%'
+                }
+            }
         }
     });
 
@@ -12484,6 +12634,12 @@ function updateWasteDashboard() {
         let colorClass = diffPct > 0 ? '#d83b01' : '#107c41'; 
         let sign = diffAbs > 0 ? '+' : '';
 
+        const formatYtdAbsolute = value =>
+            Math.round(value).toLocaleString('de-CH', {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0
+            });
+
         let reasons = {};
         rowsCY.forEach(r => { reasons[r.ReasonDesc] = (reasons[r.ReasonDesc] || 0) + r[metric]; });
         let topReasons = Object.keys(reasons).sort((a,b) => reasons[b] - reasons[a]).slice(0, 3);
@@ -12491,9 +12647,9 @@ function updateWasteDashboard() {
 
         tblHtml += `<tr style="border-bottom: 1px solid #ccc;">
             <td style="padding: 10px; font-weight:bold;">${label.toUpperCase()}</td>
-            <td style="padding: 10px; text-align:right;">${formatLargeNumbers(valCY)}</td>
-            <td style="padding: 10px; text-align:right; color:#777;">${formatLargeNumbers(valPY)}</td>
-            <td style="padding: 10px; text-align:right; color:${colorClass}; font-weight:bold;">${sign}${formatLargeNumbers(diffAbs)}</td>
+            <td style="padding: 10px; text-align:right;">${formatYtdAbsolute(valCY)}</td>
+            <td style="padding: 10px; text-align:right; color:#777;">${formatYtdAbsolute(valPY)}</td>
+            <td style="padding: 10px; text-align:right; color:${colorClass}; font-weight:bold;">${sign}${formatYtdAbsolute(diffAbs)}</td>
             <td style="padding: 10px; text-align:right; color:${colorClass}; font-weight:bold;">${sign}${diffPct.toFixed(1)}%</td>
             <td style="padding: 10px;">${driversStr || '-'}</td>
         </tr>`;
