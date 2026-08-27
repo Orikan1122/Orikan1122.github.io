@@ -7170,7 +7170,7 @@ function updateCPM() {
   let allPlantsSet = new Set();
   
   globalConsumerData.forEach(row => {
-      let subcat3 = String(row['Complaint Subcategory 3'] || 'Unknown').trim();
+      let subcat3 = String(row['Complaint Subcategory 3'] || 'Unknown').trim().replace(/\s+/g, ' ').toLowerCase();
       let plantVal = String(row['Plant'] || 'Unknown').trim();
       if (!subcat3 || subcat3 === 'null' || subcat3 === '') subcat3 = 'Unknown';
       if (!plantVal || plantVal === 'null' || plantVal === '') plantVal = 'Unknown';
