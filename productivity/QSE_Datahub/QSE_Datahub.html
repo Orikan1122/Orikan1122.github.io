@@ -6658,7 +6658,23 @@ function updateCPM() {
   salesToUnifiedMap = {}; compToUnifiedMap = {}; catMap = {}; mappingsArray = [];
   const cleanStr = (s) => String(s || '').replace(/\s+/g, ' ').trim().toLowerCase();
 
+  const normalizeCPMPackage = (packageName) => {
+    const originalValue = String(packageName || '').replace(/\s+/g, ' ').trim();
+    const normalizedValue = originalValue.toLowerCase();
+
+    const packageMap = {
+      'pet': 'PET',
+      'pet in crates': 'PET',
+      'pet in crate': 'PET',
+      'pet in kisten': 'PET',
+      'pet crates': 'PET'
+    };
+
+    return packageMap[normalizedValue] || originalValue || 'Unknown';
+  };
+
   globalProduktData.forEach(p => {
+``
     let vals = Object.values(p);
     let brand = String(p['Brand'] || vals[2] || '').trim();
     let pkgSales = String(p['Package'] || vals[4] || '').trim(); 
@@ -6667,8 +6683,17 @@ function updateCPM() {
     let cat = String(p['Kategorie'] || vals[3] || '').trim();
 
     if (brand && pkgSales) {
-      let unifiedKey = brand + " | " + pkgSales;
-      let mapObj = { brand: cleanStr(brand), pkgSales: cleanStr(pkgSales), pkgComp: cleanStr(pkgComp), origin, cat, unifiedKey };
+      let cpmPackageGroup = normalizeCPMPackage(pkgSales);
+      let unifiedKey = brand + " | " + cpmPackageGroup;
+      let mapObj = {
+        brand: cleanStr(brand),
+        pkgSales: cleanStr(pkgSales),
+        pkgComp: cleanStr(pkgComp),
+        origin,
+        cat,
+        unifiedKey,
+        cpmPackageGroup
+      };
       mappingsArray.push(mapObj);
       salesToUnifiedMap[(cleanStr(brand) + "|" + cleanStr(pkgSales))] = mapObj;
       catMap[unifiedKey] = cat;
@@ -6707,7 +6732,9 @@ function updateCPM() {
     let pkgRaw = String(row['Package Type'] || row['Package'] || vals[2] || '').trim();
     let mapping = findMapping(brandRaw, pkgRaw, true);
     
-    let displayKey = mapping ? mapping.unifiedKey : (brandRaw + " | " + pkgRaw + " ⚠️ Unmapped");
+    let displayKey = mapping
+      ? mapping.unifiedKey
+      : (brandRaw + " | " + normalizeCPMPackage(pkgRaw) + " ⚠️ Unmapped");
     
     // Prüfe ÜBERALL nach Transhipment (Mapping, Spaltennamen und Rohdaten)
     let mOrigin = (mapping && mapping.origin) ? mapping.origin.toLowerCase() : "";
