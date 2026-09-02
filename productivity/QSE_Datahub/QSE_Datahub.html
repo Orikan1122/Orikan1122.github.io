@@ -711,7 +711,7 @@
       <hr style="margin: 15px 0;">
       <div>
         <label>Metrik (Main Chart)</label>
-        <select id="chartMetric" onchange="updateCharts();">
+        <select id="chartMetric" onchange="updateMasterTimeAxisAvailability(); updateCharts();">
           <option value="total_units">Total Units</option>
           <option value="total Liters">Total Liters</option>
           <option value="DPMO_Total">DPMO Total</option>
@@ -721,9 +721,14 @@
         <label>X-Achse</label>
         <select id="chartXAxis" onchange="updateCharts();">
           <option value="_fiscper_month">Monat</option>
+          <option value="_calday_day">Tag</option>
+          <option value="_cchbc_week">Woche</option>
           <option value="cbrand_desc">Brand</option>
           <option value="plant_workcenter_key">Linie</option>
         </select>
+        <div id="chartXAxisHint" style="display:none; margin-top:5px; font-size:9.5px; line-height:1.3; color:#d83b01;">
+          Tag und Woche sind für DPMO nicht verfügbar, da keine offizielle DPMO-Tages- oder Wochenperiode vorhanden ist.
+        </div>
       </div>
     </div>
 
@@ -770,7 +775,12 @@
 
       <!-- Main Master Chart -->
       <div style="background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-        <h3 id="chartTitle" style="font-size: 16px; margin-bottom: 10px; color:#333;">Master Analytics Chart</h3>
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap;">
+          <h3 id="chartTitle" style="font-size: 16px; margin: 0; color:#333;">Master Analytics Chart</h3>
+          <button id="btnExportMasterChartCsv" onclick="exportMasterChartCsv()" style="background:#107c41; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:11px;">
+            &#128229; Diagramm als CSV
+          </button>
+        </div>
         <div style="height: 350px; position: relative;">
           <canvas id="mainChart"></canvas>
         </div>
@@ -4820,26 +4830,321 @@ function formatLargeNumbers(value) {
     return value.toLocaleString('de-CH');
 }
 
+function updateMasterTimeAxisAvailability() {
+  const metricElement = document.getElementById('chartMetric');
+  const xAxisElement = document.getElementById('chartXAxis');
+  const hintElement = document.getElementById('chartXAxisHint');
+
+  if (!metricElement || !xAxisElement) return;
+
+  const isDPMO = String(metricElement.value || '').startsWith('DPMO');
+  const dayOption = xAxisElement.querySelector('option[value="_calday_day"]');
+  const weekOption = xAxisElement.querySelector('option[value="_cchbc_week"]');
+
+  if (dayOption) dayOption.disabled = isDPMO;
+  if (weekOption) weekOption.disabled = isDPMO;
+
+  if (
+    isDPMO &&
+    (xAxisElement.value === '_calday_day' || xAxisElement.value === '_cchbc_week')
+  ) {
+    xAxisElement.value = '_fiscper_month';
+  }
+
+  if (hintElement) {
+    hintElement.style.display = isDPMO ? 'block' : 'none';
+  }
+}
+
+function getMasterChartDayLabel(value) {
+  if (value === null || value === undefined || value === '') return '—';
+
+  const formatDate = date => {
+    if (!(date instanceof Date) || isNaN(date.getTime())) return '—';
+
+    return String(date.getDate()).padStart(2, '0') + '.' +
+      String(date.getMonth() + 1).padStart(2, '0') + '.' +
+      date.getFullYear();
+  };
+
+  if (value instanceof Date) {
+    return formatDate(value);
+  }
+
+  const raw = String(value).trim();
+
+  // Excel-Seriennummer, beispielsweise 46052
+  if (/^\d{5}(?:\.\d+)?$/.test(raw)) {
+    const excelSerial = Number(raw);
+    let excelDate = null;
+
+    if (typeof excelSerialToDate === 'function') {
+      excelDate = excelSerialToDate(excelSerial);
+    }
+
+    if (!(excelDate instanceof Date) || isNaN(excelDate.getTime())) {
+      const excelEpoch = new Date(Date.UTC(1899, 11, 30));
+      excelDate = new Date(
+        excelEpoch.getTime() + Math.floor(excelSerial) * 86400000
+      );
+    }
+
+    return formatDate(excelDate);
+  }
+
+  // SAP-Datumsformat YYYYMMDD
+  if (/^\d{8}$/.test(raw)) {
+    const year = Number(raw.slice(0, 4));
+    const month = Number(raw.slice(4, 6));
+    const day = Number(raw.slice(6, 8));
+
+    return formatDate(new Date(year, month - 1, day));
+  }
+
+  // ISO-Datumsformat YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}/.test(raw)) {
+    const parts = raw.slice(0, 10).split('-');
+
+    return formatDate(
+      new Date(
+        Number(parts[0]),
+        Number(parts[1]) - 1,
+        Number(parts[2])
+      )
+    );
+  }
+
+  // Europäisches Datumsformat DD.MM.YYYY, DD/MM/YYYY oder DD-MM-YYYY
+  if (/^\d{2}[./-]\d{2}[./-]\d{4}$/.test(raw)) {
+    const parts = raw.split(/[./-]/);
+
+    return formatDate(
+      new Date(
+        Number(parts[2]),
+        Number(parts[1]) - 1,
+        Number(parts[0])
+      )
+    );
+  }
+
+  const parsedDate = typeof parseDateSafely === 'function'
+    ? parseDateSafely(value)
+    : new Date(value);
+
+  return formatDate(parsedDate);
+}
+``
+
+function getMasterChartWeekLabel(value, year) {
+  if (value === null || value === undefined || value === '') return '—';
+
+  const raw = String(value).trim();
+  const weekMatch = raw.match(/(\d{1,2})$/);
+  const weekNumber = weekMatch ? weekMatch[1].padStart(2, '0') : raw;
+  const cleanYear = String(year || '').trim();
+
+  return cleanYear
+    ? cleanYear + '-W' + weekNumber
+    : 'W' + weekNumber;
+}
+
+function escapeCsvValue(value) {
+  if (value === null || value === undefined) return '';
+
+  let text = String(value);
+
+  if (
+    text.includes(';') ||
+    text.includes('"') ||
+    text.includes('\n') ||
+    text.includes('\r')
+  ) {
+    text = '"' + text.replace(/"/g, '""') + '"';
+  }
+
+  return text;
+}
+
+function exportMasterChartCsv() {
+  if (
+    !chartVals ||
+    !chartVals.data ||
+    !Array.isArray(chartVals.data.labels) ||
+    !Array.isArray(chartVals.data.datasets) ||
+    chartVals.data.labels.length === 0
+  ) {
+    alert('Für den CSV-Export ist aktuell kein Diagramm mit Daten verfügbar.');
+    return;
+  }
+
+  const metricElement = document.getElementById('chartMetric');
+  const xAxisElement = document.getElementById('chartXAxis');
+  const yearElement = document.getElementById('chartYear');
+  const plantElement = document.getElementById('chartPlant');
+  const lineElement = document.getElementById('chartLine');
+  const brandElement = document.getElementById('chartBrand');
+
+  const selectedText = element => {
+    if (!element || !element.selectedOptions || !element.selectedOptions.length) return '';
+    return element.selectedOptions[0].text;
+  };
+
+  const metric = selectedText(metricElement);
+  const xAxis = selectedText(xAxisElement);
+  const year = selectedText(yearElement);
+  const plant = selectedText(plantElement);
+  const line = selectedText(lineElement);
+  const brand = selectedText(brandElement);
+
+  const datasets = chartVals.data.datasets.filter(dataset =>
+    dataset &&
+    dataset.hidden !== true &&
+    Array.isArray(dataset.data)
+  );
+
+  const header = [
+    'Jahr',
+    'Werk / Plant',
+    'Linie',
+    'Brand',
+    'Metrik',
+    'X-Achse',
+    'Kategorie',
+    ...datasets.map(dataset => dataset.label || metric || 'Wert')
+  ];
+
+  const csvRows = [header];
+
+  chartVals.data.labels.forEach((label, index) => {
+    const row = [
+      year,
+      plant,
+      line,
+      brand,
+      metric,
+      xAxis,
+      label
+    ];
+
+    datasets.forEach(dataset => {
+      const rawValue = dataset.data[index];
+      let value = rawValue;
+
+      if (
+        rawValue &&
+        typeof rawValue === 'object' &&
+        Object.prototype.hasOwnProperty.call(rawValue, 'y')
+      ) {
+        value = rawValue.y;
+      }
+
+      row.push(value === null || value === undefined ? '' : value);
+    });
+
+    csvRows.push(row);
+  });
+
+  const csvContent = '\uFEFF' + csvRows
+    .map(row => row.map(escapeCsvValue).join(';'))
+    .join('\r\n');
+
+  const safeMetric = (metric || 'Metrik')
+    .replace(/[^a-zA-Z0-9äöüÄÖÜß_-]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+
+  const safeXAxis = (xAxis || 'X-Achse')
+    .replace(/[^a-zA-Z0-9äöüÄÖÜß_-]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+
+  const safeYear = String(year || 'Alle_Jahre')
+    .replace(/[^a-zA-Z0-9_-]+/g, '_');
+
+  const fileName =
+    'Master_Dashboard_' +
+    safeMetric + '_' +
+    safeXAxis + '_' +
+    safeYear + '.csv';
+
+  const blob = new Blob([csvContent], {
+    type: 'text/csv;charset=utf-8;'
+  });
+
+  const downloadUrl = URL.createObjectURL(blob);
+  const downloadLink = document.createElement('a');
+
+  downloadLink.href = downloadUrl;
+  downloadLink.download = fileName;
+  downloadLink.style.display = 'none';
+
+  document.body.appendChild(downloadLink);
+  downloadLink.click();
+  document.body.removeChild(downloadLink);
+
+  setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+}
+
 function updateCharts() {
+  updateMasterTimeAxisAvailability();
   if (!globalRows.length) return;
 
-  // NEU: Wenn die alte Chart-Ansicht fehlt, nur das Executive Summary laden und abbrechen
-  if (!document.getElementById('chartMetric')) {
-      if (typeof renderExecutiveSummary === 'function') renderExecutiveSummary();
-      return;
+  // Cache-sicherer Zugriff auf sämtliche Master-Dashboard-Elemente
+  const chartMetricElement = document.getElementById('chartMetric');
+  const chartXAxisElement = document.getElementById('chartXAxis');
+  const chartPlantElement = document.getElementById('chartPlant');
+  const chartYearElement = document.getElementById('chartYear');
+  const chartLineElement = document.getElementById('chartLine');
+  const chartBrandElement = document.getElementById('chartBrand');
+  const mainChartElement = document.getElementById('mainChart');
+  const chartTitleElement = document.getElementById('chartTitle');
+
+  if (
+    !chartMetricElement ||
+    !chartXAxisElement ||
+    !chartPlantElement ||
+    !chartYearElement ||
+    !chartLineElement ||
+    !chartBrandElement ||
+    !mainChartElement ||
+    !chartTitleElement
+  ) {
+    console.warn(
+      '[Master Dashboard] updateCharts() wurde abgebrochen, weil noch nicht alle benötigten DOM-Elemente verfügbar sind.',
+      {
+        chartMetric: !!chartMetricElement,
+        chartXAxis: !!chartXAxisElement,
+        chartPlant: !!chartPlantElement,
+        chartYear: !!chartYearElement,
+        chartLine: !!chartLineElement,
+        chartBrand: !!chartBrandElement,
+        mainChart: !!mainChartElement,
+        chartTitle: !!chartTitleElement
+      }
+    );
+
+    if (typeof renderExecutiveSummary === 'function') {
+      renderExecutiveSummary();
+    }
+
+    return;
   }
+
+  updateMasterTimeAxisAvailability();
 
   // FEHLERBEHEBUNG: Die fehlende Liste für die korrekte Monats-Sortierung
   const MONTH_ORDER = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   
-  const metric      = document.getElementById('chartMetric').value;
+  const metric = chartMetricElement.value;
+  const xAxisCol = chartXAxisElement.value || '_fiscper_month';
+  const plantSel = chartPlantElement.value || '';
+  const yearSel = chartYearElement.value || '';
+  const lineSel = chartLineElement.value || '';
+  const brandSel = chartBrandElement.value || '';
 
-  const xAxisCol    = document.getElementById('chartXAxis').value;
-  const plantSel    = document.getElementById('chartPlant').value;
-  const yearSel     = document.getElementById('chartYear').value;
-  const lineSel     = document.getElementById('chartLine').value;
-  const brandSel    = document.getElementById('chartBrand').value;
-  const metricLabel = document.getElementById('chartMetric').selectedOptions[0].text;
+  const metricLabel =
+    chartMetricElement.selectedOptions &&
+    chartMetricElement.selectedOptions.length > 0
+      ? chartMetricElement.selectedOptions[0].text
+      : metric;
 
   const pIdx       = globalColumns.findIndex(c => c.name === 'plant');
   const xIdx       = globalColumns.findIndex(c => c.name === xAxisCol);
@@ -4850,6 +5155,8 @@ function updateCharts() {
   const matIdx     = globalColumns.findIndex(c => c.name === 'material');
   const fiscperIdx = globalColumns.findIndex(c => c.name.toLowerCase() === 'fiscper');
   const dpmoFiscperIdx = globalColumns.findIndex(c => c.name.toLowerCase() === 'dpmo_fiscper');
+  const caldayIdx = globalColumns.findIndex(c => c.name.toLowerCase() === 'calday');
+  const cchbcWeekIdx = globalColumns.findIndex(c => c.name.toLowerCase() === 'cchbc week');
   
   // Neue Spalten-Indizes für die Produktionsanalyse
   const poIdx      = globalColumns.findIndex(c => c.name === 'prodorder');
@@ -4966,6 +5273,14 @@ function updateCharts() {
 
     if (xAxisCol === '_fiscper_month') {
       xVal = getChartPeriod(row);
+    } else if (xAxisCol === '_calday_day') {
+      xVal = caldayIdx > -1
+        ? getMasterChartDayLabel(row[caldayIdx])
+        : '—';
+    } else if (xAxisCol === '_cchbc_week') {
+      xVal = cchbcWeekIdx > -1
+        ? getMasterChartWeekLabel(row[cchbcWeekIdx], getChartYear(row))
+        : '—';
     } else {
       xVal = row[xIdx];
       if (xAxisCol === 'plant_workcenter_key') xVal = lineNames[xVal] || xVal;
@@ -5048,12 +5363,95 @@ function updateCharts() {
   }
 
   let keys = metric === 'package_mix' ? Object.keys(mixData) : Object.keys(finalAgg);
-  if (xAxisCol === 'CCHBC Month') keys.sort((a,b) => MONTH_ORDER.indexOf(a) - MONTH_ORDER.indexOf(b));
-  else if (xAxisCol === 'CCHBC Week' || xAxisCol === 'Year') keys.sort((a,b) => parseFloat(a)-parseFloat(b));
-  else keys.sort();
+
+  if (xAxisCol === 'CCHBC Month') {
+    keys.sort((a, b) => MONTH_ORDER.indexOf(a) - MONTH_ORDER.indexOf(b));
+
+  } else if (
+    xAxisCol === 'CCHBC Week' ||
+    xAxisCol === 'Year'
+  ) {
+    keys.sort((a, b) => parseFloat(a) - parseFloat(b));
+
+  } else if (xAxisCol === '_calday_day') {
+    keys.sort((a, b) => {
+      function convertDayToTimestamp(value) {
+        if (!value || value === '—') return Number.MAX_SAFE_INTEGER;
+
+        let text = String(value).trim();
+        let parts;
+
+        if (/^\d{1,2}\.\d{1,2}\.\d{4}$/.test(text)) {
+          parts = text.split('.');
+          return new Date(
+            parseInt(parts[2], 10),
+            parseInt(parts[1], 10) - 1,
+            parseInt(parts[0], 10)
+          ).getTime();
+        }
+
+        if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(text)) {
+          parts = text.split('-');
+          return new Date(
+            parseInt(parts[0], 10),
+            parseInt(parts[1], 10) - 1,
+            parseInt(parts[2], 10)
+          ).getTime();
+        }
+
+        let parsedDate = parseDateSafely(text);
+
+        return parsedDate && !isNaN(parsedDate.getTime())
+          ? parsedDate.getTime()
+          : Number.MAX_SAFE_INTEGER;
+      }
+
+      return convertDayToTimestamp(a) - convertDayToTimestamp(b);
+    });
+
+  } else if (xAxisCol === '_fiscper_month') {
+    keys.sort((a, b) => {
+      let partsA = String(a).split('-');
+      let partsB = String(b).split('-');
+
+      let valueA =
+        (parseInt(partsA[0], 10) || 0) * 100 +
+        (parseInt(partsA[1], 10) || 0);
+
+      let valueB =
+        (parseInt(partsB[0], 10) || 0) * 100 +
+        (parseInt(partsB[1], 10) || 0);
+
+      return valueA - valueB;
+    });
+
+  } else if (xAxisCol === '_cchbc_week') {
+    keys.sort((a, b) => {
+      let matchA = String(a).match(/^(\d{4})-W(\d{1,2})$/i);
+      let matchB = String(b).match(/^(\d{4})-W(\d{1,2})$/i);
+
+      let valueA = matchA
+        ? parseInt(matchA[1], 10) * 100 + parseInt(matchA[2], 10)
+        : Number.MAX_SAFE_INTEGER;
+
+      let valueB = matchB
+        ? parseInt(matchB[1], 10) * 100 + parseInt(matchB[2], 10)
+        : Number.MAX_SAFE_INTEGER;
+
+      return valueA - valueB;
+    });
+
+  } else {
+    keys.sort((a, b) =>
+      String(a).localeCompare(String(b), 'de-CH', {
+        numeric: true,
+        sensitivity: 'base'
+      })
+    );
+  }
 
   const filters = [yearSel, brandSel, lineSel ? (lineNames[lineSel]||lineSel) : ''].filter(Boolean);
-  document.getElementById('chartTitle').innerText =
+  chartTitleElement.innerText =
     metricLabel + (filters.length ? ' · ' + filters.join(' · ') : '');
 
   if (chartVals) { chartVals.destroy(); chartVals = null; }
@@ -5088,7 +5486,7 @@ function updateCharts() {
       }];
   }
 
-  chartVals = new Chart(document.getElementById('mainChart').getContext('2d'), {
+  chartVals = new Chart(mainChartElement.getContext('2d'), {
     type: 'bar',
     plugins: [ChartDataLabels], // Datalabels Plugin aktivieren!
     data: {
@@ -6887,15 +7285,33 @@ function updateCPM() {
     let retailer = String(row['Point of purchase'] || 'Unknown').trim();
     if(retailer) retailerAgg[retailer] = (retailerAgg[retailer] || 0) + 1; 
 
-    let defectCat = String(row['Complaint Subcategory 3'] || 'Unknown').trim();
+    let defectCat = String(row['Complaint Subcategory 3'] || 'Unknown')
+      .trim()
+      .replace(/\s+/g, ' ')
+      .toLowerCase();
+
+    if (
+      !defectCat ||
+      defectCat === 'null' ||
+      defectCat === 'undefined'
+    ) {
+      defectCat = 'unknown';
+    }
+
     let ageStr = row['Age of product when complainded (d)'] || row['Age of product'] || '';
     let ageDays = parseInt(ageStr);
-    if(!isNaN(ageDays) && ageDays > 0) {
-        if(!ageAgg[defectCat]) ageAgg[defectCat] = { sum:0, count:0 };
+
+    if (!isNaN(ageDays) && ageDays > 0) {
+        if (!ageAgg[defectCat]) {
+          ageAgg[defectCat] = {
+            sum: 0,
+            count: 0
+          };
+        }
+
         ageAgg[defectCat].sum += ageDays;
         ageAgg[defectCat].count += 1;
     }
-
     if(!skuComp[displayKey]) skuComp[displayKey] = 0;
     skuComp[displayKey] += 1;
     
