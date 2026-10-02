@@ -1,0 +1,1056 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Numberlink Generator</title>
+<style>
+  :root {
+    --bg: #f3f0e8; --panel: #fffdf8; --ink: #1d2027; --muted: #686c74; --line: #e2dccf;
+    --wall: #252a35; --grid: #e4dfd3; --floor: #fffdf8; --accent: #2d6be0; --accent-ink: #ffffff;
+    --good: #2e9e44;
+    --shadow: 0 1px 2px rgba(0,0,0,.05), 0 10px 30px rgba(40,30,10,.07);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #121419; --panel: #1b1e25; --ink: #ebe8e1; --muted: #9a9ea7; --line: #2c3039;
+      --wall: #cfc9ba; --grid: #2c3039; --floor: #1b1e25; --accent: #6b9dff; --accent-ink: #0d1220;
+      --good: #5ccf72;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #121419; --panel: #1b1e25; --ink: #ebe8e1; --muted: #9a9ea7; --line: #2c3039;
+    --wall: #cfc9ba; --grid: #2c3039; --floor: #1b1e25; --accent: #6b9dff; --accent-ink: #0d1220;
+    --good: #5ccf72;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    min-height: 100dvh;
+  }
+  button, input, select { font: inherit; color: inherit; }
+
+  header.top {
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    max-width: 1280px; margin: 0 auto; padding: 18px 16px 8px;
+  }
+  header h1 { margin: 0; font-size: 22px; letter-spacing: -.01em; }
+  header p { margin: 2px 0 0; color: var(--muted); font-size: 13.5px; }
+
+  .layout {
+    display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 20px;
+    max-width: 1280px; margin: 0 auto; padding: 8px 16px 24px;
+  }
+  @media (max-width: 860px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); }
+
+  .board { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  .stats {
+    display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 1px;
+    background: var(--line); border-radius: 12px; overflow: hidden; border: 1px solid var(--line);
+  }
+  @media (max-width: 560px) { .stats { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  .stat { background: var(--panel); padding: 8px 12px; min-width: 0; }
+  .stat .k { font-size: 11.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+  .stat .v { font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .stage {
+    position: relative; width: 100%; aspect-ratio: 1 / 1; margin-inline: auto;
+    max-width: calc(100vh - 210px); max-width: calc(100dvh - 210px); min-width: 240px;
+    padding: 10px; border-radius: 16px;
+  }
+  canvas { display: block; width: 100%; height: 100%; touch-action: none; border-radius: 6px; cursor: pointer; }
+  .status { text-align: center; color: var(--muted); font-size: 14px; min-height: 21px; margin: 0; }
+  .status.good { color: var(--good); font-weight: 600; }
+
+  .busy {
+    position: absolute; inset: 0; display: grid; place-items: center; border-radius: 16px;
+    background: color-mix(in srgb, var(--panel) 80%, transparent); font-weight: 600; color: var(--muted);
+  }
+  .busy[hidden] { display: none; }
+
+  .overlay {
+    position: absolute; inset: 0; display: grid; place-items: center; padding: 16px;
+    background: color-mix(in srgb, var(--panel) 72%, transparent);
+    backdrop-filter: blur(3px); border-radius: 16px;
+  }
+  .overlay[hidden] { display: none; }
+  .win {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow);
+    padding: 22px 24px; width: min(360px, 100%); text-align: center;
+  }
+  .win h2 { margin: 0 0 4px; font-size: 22px; }
+  .stars { font-size: 30px; letter-spacing: 4px; color: #e0a52a; margin: 4px 0 10px; }
+  .stars .off { color: var(--line); }
+  .win dl { display: grid; grid-template-columns: 1fr auto; gap: 4px 16px; margin: 0 0 16px; text-align: left; }
+  .win dt { color: var(--muted); }
+  .win dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .record { display: inline-block; font-size: 12px; font-weight: 700; color: var(--accent-ink); background: var(--accent); border-radius: 99px; padding: 1px 8px; margin-left: 6px; }
+  .win .row { display: flex; gap: 8px; }
+  .win .row .btn { flex: 1; }
+
+  .panel { display: flex; flex-direction: column; gap: 14px; }
+  .section { padding: 16px; }
+  .section h3 { margin: 0 0 10px; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .level-name { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 6px; }
+  .level-name strong { font-size: 20px; }
+  .level-name span { color: var(--muted); font-variant-numeric: tabular-nums; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  .ticks { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--muted); margin-top: -2px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .chip { font-size: 12.5px; border: 1px solid var(--line); border-radius: 99px; padding: 2px 9px; color: var(--muted); }
+  .chip.on { color: var(--ink); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+  .chip.good { color: var(--good); border-color: color-mix(in srgb, var(--good) 45%, var(--line)); }
+
+  select, input[type=text] {
+    width: 100%; padding: 8px 10px; border-radius: 9px; border: 1px solid var(--line); background: var(--bg);
+  }
+  .desc { font-size: 13px; color: var(--muted); margin: 8px 0 0; }
+  .seedrow { display: flex; gap: 8px; }
+  .seedrow input { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; }
+
+  .btn {
+    border: 1px solid var(--line); background: var(--bg); border-radius: 10px; padding: 9px 12px;
+    cursor: pointer; font-weight: 600; white-space: nowrap;
+  }
+  .btn:hover { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); }
+  .btn:disabled { opacity: .55; cursor: progress; }
+  .btn:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .btn.active { background: color-mix(in srgb, #f07c1f 18%, var(--bg)); border-color: #f07c1f; }
+  .btn.block { width: 100%; }
+  .btngrid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .btngrid .wide { grid-column: 1 / -1; }
+  .pdfgrid { display: grid; grid-template-columns: auto 1fr; gap: 8px 10px; align-items: center; }
+  .pdfgrid label { color: var(--muted); font-size: 13.5px; }
+  .check { display: flex; align-items: center; gap: 8px; margin: 12px 0; font-size: 14px; cursor: pointer; }
+  .check input { accent-color: var(--accent); width: 16px; height: 16px; }
+  kbd {
+    font: 600 11.5px ui-monospace, Consolas, monospace; border: 1px solid var(--line); border-bottom-width: 2px;
+    border-radius: 5px; padding: 0 5px; background: var(--bg);
+  }
+  .keys { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; font-size: 13.5px; align-items: center; }
+  .keys span { color: var(--muted); }
+  .rules { margin: 0; padding-left: 18px; font-size: 13.5px; }
+  .rules li { margin-bottom: 4px; }
+  .theme-btn { padding: 6px 10px; font-size: 13px; }
+</style>
+</head>
+<body>
+<header class="top">
+  <div>
+    <h1>Numberlink</h1>
+    <p>Jedes Rätsel wird neu berechnet und auf eindeutige Lösbarkeit geprüft.</p>
+  </div>
+  <button class="btn theme-btn" id="themeBtn" title="Farbschema wechseln">Design: Auto</button>
+</header>
+
+<main class="layout">
+  <section class="board">
+    <div class="stats">
+      <div class="stat"><div class="k">Stufe</div><div class="v" id="sLevel">–</div></div>
+      <div class="stat"><div class="k">Verbunden</div><div class="v" id="sPairs">–</div></div>
+      <div class="stat"><div class="k">Gefüllt</div><div class="v" id="sFill">0 %</div></div>
+      <div class="stat"><div class="k">Zeit</div><div class="v" id="sTime">0:00.0</div></div>
+      <div class="stat"><div class="k">Züge</div><div class="v" id="sMoves">0</div></div>
+      <div class="stat"><div class="k">Bestzeit</div><div class="v" id="sBest">–</div></div>
+    </div>
+
+    <div class="stage card" id="stage">
+      <canvas id="cv" aria-label="Numberlink-Spielfeld"></canvas>
+      <div class="busy" id="busy" hidden>Rätsel wird erzeugt …</div>
+      <div class="overlay" id="win" hidden>
+        <div class="win" role="dialog" aria-labelledby="winTitle">
+          <h2 id="winTitle">Gelöst!</h2>
+          <div class="stars" id="winStars"></div>
+          <dl id="winStats"></dl>
+          <div class="row">
+            <button class="btn" id="againBtn">Neues Rätsel</button>
+            <button class="btn primary" id="nextBtn">Nächste Stufe →</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="status" id="status"></p>
+  </section>
+
+  <aside class="panel">
+    <div class="card section">
+      <h3>Schwierigkeit</h3>
+      <div class="level-name"><strong id="tierName">Leicht</strong><span id="levelNum">Stufe 1 / 12</span></div>
+      <input type="range" id="levelRange" min="1" max="12" value="1" aria-label="Schwierigkeitsstufe">
+      <div class="ticks"><span>5×5</span><span>10×10</span><span>16×16</span></div>
+      <div class="chips" id="chips"></div>
+    </div>
+
+    <div class="card section">
+      <div class="btngrid">
+        <button class="btn primary wide" id="newBtn">Neues Rätsel</button>
+        <button class="btn" id="undoBtn">Rückgängig</button>
+        <button class="btn" id="resetBtn">Leeren</button>
+        <button class="btn" id="hintBtn">Hinweis</button>
+        <button class="btn" id="solveBtn">Lösung zeigen</button>
+      </div>
+    </div>
+
+    <div class="card section">
+      <h3>PDF zum Ausdrucken</h3>
+      <div class="pdfgrid">
+        <label for="pdfCount">Anzahl</label>
+        <select id="pdfCount">
+          <option value="1">1 – das aktuelle Rätsel</option>
+          <option value="2">2 Rätsel</option>
+          <option value="4" selected>4 Rätsel</option>
+          <option value="6">6 Rätsel</option>
+          <option value="12">12 Rätsel</option>
+          <option value="24">24 Rätsel</option>
+        </select>
+        <label for="pdfPer">Pro Seite</label>
+        <select id="pdfPer">
+          <option value="1">1 (groß)</option>
+          <option value="2">2</option>
+          <option value="4" selected>4</option>
+          <option value="6">6</option>
+        </select>
+      </div>
+      <label class="check"><input type="checkbox" id="pdfSol" checked> Lösungen anhängen</label>
+      <button class="btn primary block" id="pdfBtn">Als PDF herunterladen</button>
+      <p class="desc">A4, schwarz-weiß druckbar. Das erste Rätsel ist das aktuelle, weitere werden in derselben Stufe neu erzeugt. Lösungen kommen in Farbe ans Ende.</p>
+    </div>
+
+    <div class="card section">
+      <h3>Seed</h3>
+      <div class="seedrow">
+        <input type="text" id="seed" spellcheck="false" autocomplete="off" aria-label="Seed">
+        <button class="btn" id="loadSeed">Laden</button>
+      </div>
+      <p class="desc">Gleicher Seed + gleiche Stufe = gleiches Rätsel.</p>
+    </div>
+
+    <div class="card section">
+      <h3>So wird gespielt</h3>
+      <ul class="rules">
+        <li>Ziehe von einer Zahl aus eine Linie zur gleichen Zahl.</li>
+        <li>Linien dürfen sich nicht kreuzen oder berühren.</li>
+        <li>Am Ende muss jedes Feld Teil einer Linie sein.</li>
+        <li>Ziehst du über eine fremde Linie, wird sie abgeschnitten. Auf einer Linie zurückfahren kürzt sie.</li>
+      </ul>
+      <div class="keys" style="margin-top:12px">
+        <div><kbd>Strg</kbd>+<kbd>Z</kbd></div><span>Rückgängig</span>
+        <div><kbd>N</kbd> <kbd>R</kbd></div><span>Neues Rätsel / Leeren</span>
+        <div><kbd>H</kbd> <kbd>L</kbd> <kbd>P</kbd></div><span>Hinweis / Lösung / PDF</span>
+      </div>
+    </div>
+  </aside>
+</main>
+
+<script id="engine">
+// ===== Numberlink-Engine: Generator und Löser (läuft im Web Worker oder im Hauptthread, ohne DOM) =====
+function hashStr(s) {
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+function mulberry32(a) {
+  return () => {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+const ri = (rng, n) => Math.floor(rng() * n);
+function shuffle(a, rng) {
+  for (let i = a.length - 1; i > 0; i--) { const j = ri(rng, i + 1); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+
+// Stufen: Feldgröße und angestrebte Anzahl Paare (weniger Paare = längere, verschlungenere Linien)
+const LEVELS = [
+  { n: 5,  k: 5 },  { n: 6,  k: 6 },  { n: 7,  k: 7 },  { n: 8,  k: 8 },
+  { n: 9,  k: 9 },  { n: 10, k: 10 }, { n: 11, k: 11 }, { n: 12, k: 12 },
+  { n: 13, k: 14 }, { n: 14, k: 15 }, { n: 15, k: 17 }, { n: 16, k: 19 },
+];
+const TIERS = [[2, 'Leicht'], [4, 'Mittel'], [6, 'Schwer'], [8, 'Experte'], [10, 'Meister'], [12, 'Legende']];
+const tierName = l => TIERS.find(([m]) => l <= m)[1];
+
+function neighborsOf(w, h) {
+  const nb = [];
+  for (let c = 0; c < w * h; c++) {
+    const x = c % w, y = c / w | 0, l = [];
+    if (y > 0) l.push(c - w);
+    if (x < w - 1) l.push(c + 1);
+    if (y < h - 1) l.push(c + w);
+    if (x > 0) l.push(c - 1);
+    nb.push(l);
+  }
+  return nb;
+}
+
+// Zufälliger Hamiltonpfad (jedes Feld genau einmal) per "Backbite"-Verfahren
+function hamiltonianPath(w, h, rng, nb) {
+  const N = w * h, p = new Int32Array(N), idx = new Int32Array(N);
+  for (let y = 0, i = 0; y < h; y++) for (let x = 0; x < w; x++, i++) p[i] = y * w + (y % 2 ? w - 1 - x : x);
+  for (let i = 0; i < N; i++) idx[p[i]] = i;
+  const rev = (a, b) => { while (a < b) { const t = p[a]; p[a] = p[b]; p[b] = t; idx[p[a]] = a; idx[p[b]] = b; a++; b--; } };
+  const iters = Math.max(4000, N * N);
+  for (let it = 0; it < iters; it++) {
+    if (rng() < 0.5) {
+      const l = nb[p[0]], i = idx[l[ri(rng, l.length)]];
+      if (i > 1) rev(0, i - 1);
+    } else {
+      const l = nb[p[N - 1]], i = idx[l[ri(rng, l.length)]];
+      if (i < N - 2) rev(i + 1, N - 1);
+    }
+  }
+  return Array.from(p);
+}
+
+// Kandidat: Feld in Zweier-Stücke zerlegen, dann benachbarte Linienenden zufällig verschmelzen.
+// Eine Linie darf sich dabei nie selbst berühren – so sehen gute Flow-Rätsel aus.
+function buildPaths(n, k, rng, nb) {
+  const N = n * n, ham = hamiltonianPath(n, n, rng, nb);
+  const paths = [];
+  for (let i = 0; i < N; i += 2) {
+    if (N - i === 3) { paths.push(ham.slice(i)); break; }
+    paths.push(ham.slice(i, i + 2));
+  }
+  const owner = new Int32Array(N);
+  paths.forEach((p, id) => p.forEach(c => owner[c] = id));
+  let alive = paths.length;
+  const isEnd = (id, c) => { const p = paths[id]; return p[0] === c || p[p.length - 1] === c; };
+
+  const touches = (pi, qi, e, f) => {
+    for (const a of paths[pi]) for (const b of nb[a]) if (owner[b] === qi && !(a === e && b === f)) return true;
+    return false;
+  };
+  let steals = N * 3;
+  while (alive > k) {
+    const cands = [], stealC = [];
+    paths.forEach((p, id) => {
+      if (!p) return;
+      for (const e of p.length > 1 ? [p[0], p[p.length - 1]] : [p[0]])
+        for (const f of nb[e]) {
+          const q = owner[f];
+          if (q === id || !isEnd(q, f)) continue;
+          if (q > id) cands.push([id, e, q, f]);
+          if (paths[q].length > 3) stealC.push([id, e, q, f]);
+        }
+    });
+    const good = cands.filter(c => !touches(c[0], c[2], c[1], c[3]));
+    if (!good.length) {
+      // Festgefahren: ein Linienende "klaut" das Endfeld einer Nachbarlinie – öffnet neue Verschmelzungen
+      shuffle(stealC, rng);
+      const st = steals-- > 0 && stealC.find(([pi, e, qi, f]) => !nb[f].some(b => owner[b] === pi && b !== e));
+      if (!st) break;
+      const [pi, e, qi, f] = st, P = paths[pi], Q = paths[qi];
+      paths[pi] = P[P.length - 1] === e ? P.concat([f]) : [f].concat(P);
+      paths[qi] = Q[0] === f ? Q.slice(1) : Q.slice(0, -1);
+      owner[f] = pi;
+      continue;
+    }
+    cands.length = 0; cands.push(...good);
+    // bevorzugt kurze Linien verschmelzen (Turnier), damit die Längen ausgeglichen bleiben
+    shuffle(cands, rng);
+    const len = c => paths[c[0]].length + paths[c[2]].length + rng() * n;
+    cands.sort((a, b) => len(a) - len(b));
+    const [pi, e, qi, f] = cands[0], P = paths[pi], Q = paths[qi];
+    const pp = P[P.length - 1] === e ? P : P.slice().reverse();
+    const qq = Q[0] === f ? Q : Q.slice().reverse();
+    paths[pi] = pp.concat(qq); paths[qi] = null;
+    for (const c of qq) owner[c] = pi;
+    alive--;
+  }
+  return paths.filter(Boolean);
+}
+
+function linksOf(w, segs, N) {
+  const L = new Uint8Array(N);
+  const bit = (a, b) => b === a - w ? 1 : b === a + 1 ? 2 : b === a + w ? 4 : 8;
+  for (const s of segs) for (let i = 1; i < s.length; i++) { L[s[i - 1]] |= bit(s[i - 1], s[i]); L[s[i]] |= bit(s[i], s[i - 1]); }
+  return L;
+}
+
+// Löser: sucht erschöpfend eine Lösung, die sich von `known` unterscheidet.
+// Linien wachsen von beiden Enden; eine Linie darf sich nicht selbst berühren.
+// Ergebnis: 'unique' | 'alt' (mit links) | 'limit'
+function findAlternative(w, h, ends, known, nodeLimit, nb) {
+  const N = w * h, K = ends.length;
+  const col = new Int16Array(N).fill(-1), link = new Uint8Array(N);
+  const tip = [new Int32Array(K), new Int32Array(K)], done = new Uint8Array(K);
+  const comp = new Int32Array(N), queue = new Int32Array(N), served = new Uint8Array(N);
+  const bit = (a, b) => b === a - w ? 1 : b === a + 1 ? 2 : b === a + w ? 4 : 8;
+  let empty = N - 2 * K, nodes = 0, result = null;
+  for (let k = 0; k < K; k++) { tip[0][k] = ends[k][0]; tip[1][k] = ends[k][1]; col[ends[k][0]] = col[ends[k][1]] = k; }
+
+  const isTip = (k, c) => !done[k] && (tip[0][k] === c || tip[1][k] === c);
+  const adj = (a, b) => { for (const x of nb[a]) if (x === b) return true; return false; };
+
+  // mögliche Züge eines Linienendes (Rückgabe: Liste von Zielzellen)
+  function movesOf(k, s) {
+    const t = tip[s][k], o = tip[1 - s][k];
+    if (adj(t, o)) return [o];                    // Enden liegen nebeneinander: müssen verbunden werden
+    const out = [];
+    for (const x of nb[t]) {
+      if (col[x] >= 0) continue;
+      let ok = true;
+      for (const y of nb[x]) if (y !== t && col[y] === k && y !== o) { ok = false; break; }
+      if (ok) out.push(x);
+    }
+    return out;
+  }
+
+  function feasible() {
+    // Sackgassen: ein leeres Feld braucht 2 Anschlüsse, die zur selben Linie gehören können
+    for (let c = 0; c < N; c++) {
+      if (col[c] >= 0) continue;
+      let e = 0, t1 = -1, same = false, tips = 0;
+      for (const x of nb[c]) {
+        if (col[x] < 0) e++;
+        else if (isTip(col[x], x)) { tips++; if (col[x] === t1) same = true; t1 = col[x]; }
+      }
+      if (e >= 2) continue;
+      if (e === 1 ? tips === 0 : !same) return false;
+    }
+    comp.fill(-1);
+    let nc = 0;
+    for (let c = 0; c < N; c++) {
+      if (col[c] >= 0 || comp[c] >= 0) continue;
+      let qh = 0, qt = 0;
+      queue[qt++] = c; comp[c] = nc;
+      while (qh < qt) { const u = queue[qh++]; for (const x of nb[u]) if (col[x] < 0 && comp[x] < 0) { comp[x] = nc; queue[qt++] = x; } }
+      served[nc++] = 0;
+    }
+    for (let k = 0; k < K; k++) {
+      if (done[k]) continue;
+      const a = tip[0][k], b = tip[1][k];
+      if (adj(a, b)) continue;
+      let ok = false;
+      for (const x of nb[a]) {
+        if (col[x] >= 0) continue;
+        for (const y of nb[b]) if (col[y] < 0 && comp[y] === comp[x]) { ok = true; served[comp[x]] = 1; }
+      }
+      if (!ok) return false;
+    }
+    for (let i = 0; i < nc; i++) if (!served[i]) return false;
+    return true;
+  }
+
+  function search() {
+    if (++nodes > nodeLimit) throw 'limit';
+    let bk = -1, bs = 0, bm = null;
+    for (let k = 0; k < K; k++) {
+      if (done[k]) continue;
+      for (let s = 0; s < 2; s++) {
+        const m = movesOf(k, s);
+        if (!m.length) return;
+        if (!bm || m.length < bm.length) { bk = k; bs = s; bm = m; }
+      }
+      if (bm.length === 1) break;
+    }
+    if (bk < 0) {
+      if (empty === 0 && differs()) result = link.slice();
+      return;
+    }
+    const k = bk, s = bs, t = tip[s][k], o = tip[1 - s][k];
+    for (const x of bm) {
+      const bt = bit(t, x), bx = bit(x, t);
+      link[t] |= bt; link[x] |= bx;
+      if (x === o) {
+        done[k] = 1;
+        if (feasible()) search();
+        done[k] = 0;
+      } else {
+        col[x] = k; tip[s][k] = x; empty--;
+        if (feasible()) search();
+        col[x] = -1; tip[s][k] = t; empty++;
+      }
+      link[t] &= ~bt; link[x] &= ~bx;
+      if (result) return;
+    }
+  }
+  function differs() { for (let c = 0; c < N; c++) if (link[c] !== known[c]) return true; return false; }
+
+  try { if (feasible()) search(); } catch (e) { if (e === 'limit') return { status: 'limit', nodes }; throw e; }
+  return result ? { status: 'alt', links: result, nodes } : { status: 'unique', nodes };
+}
+
+// Rätsel erzeugen: Kandidaten bauen und mit dem Löser prüfen, bis einer eindeutig lösbar ist.
+// Mehrdeutige Kandidaten werden repariert, indem eine Linie dort geteilt wird, wo die Lösungen abweichen.
+function generatePuzzle(level, seed, opts = {}) {
+  const L = LEVELS[level - 1], n = L.n, N = n * n, nb = neighborsOf(n, n);
+  const rng = mulberry32(hashStr('numberlink#' + level + '#' + seed));
+  const nodeLimit = opts.nodeLimit || (level <= 9 ? 300000 : 60000);
+
+  // Mehrere Kandidaten bauen, die mit den wenigsten Paaren (= längsten Linien) zuerst prüfen
+  const score = s => s.length + 0.5 * s.filter(p => p.length === 2).length;
+  const cands = [];
+  for (let i = 0; i < 10; i++) {
+    const s = buildPaths(n, L.k, rng, nb);
+    if (s.every(p => p.length >= 2)) cands.push(s);
+  }
+  cands.sort((a, b) => score(a) - score(b));
+
+  let fallback = null;
+  for (const segs of cands) {
+    for (;;) {
+      const links = linksOf(n, segs, N);
+      const r = findAlternative(n, n, segs.map(s => [s[0], s[s.length - 1]]), links, nodeLimit, nb);
+      // 'limit' = Prüfung zu aufwendig; solche Kandidaten sind in Tests praktisch immer eindeutig
+      if (r.status !== 'alt') return finish(segs, r.status === 'unique');
+      if (!fallback) fallback = segs;
+      if (segs.length >= L.k * 1.3) break;
+      // Teilen an einer abweichenden Stelle (beide Teile mind. 3 Felder)
+      const cands = [];
+      segs.forEach((s, si) => {
+        for (let i = 2; i <= s.length - 4; i++)
+          if (r.links[s[i]] !== links[s[i]] || r.links[s[i + 1]] !== links[s[i + 1]]) cands.push([si, i]);
+      });
+      if (!cands.length) break;
+      const [si, i] = cands[ri(rng, cands.length)], s = segs[si];
+      segs.splice(si, 1, s.slice(0, i + 1), s.slice(i + 1));
+    }
+  }
+  return finish(fallback || cands[0], false);
+
+  function finish(segs, unique) {
+    segs = segs.map(s => s[0] <= s[s.length - 1] ? s : s.slice().reverse()).sort((a, b) => a[0] - b[0]);
+    return { level, seed, n, unique, pairs: segs.map(s => [s[0], s[s.length - 1]]), paths: segs };
+  }
+}
+</script>
+
+<script>
+(() => {
+'use strict';
+const $ = id => document.getElementById(id);
+
+// ============================ Rätsel-Erzeugung (im Hintergrund) ============================
+let worker = null, reqId = 0;
+const pending = new Map();
+try {
+  const src = $('engine').textContent +
+    '\nself.onmessage = e => { const { id, level, seed } = e.data; self.postMessage({ id, puzzle: generatePuzzle(level, seed) }); };';
+  worker = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
+  worker.onmessage = e => {
+    const p = pending.get(e.data.id);
+    if (p) { pending.delete(e.data.id); p.resolve(e.data.puzzle); }
+  };
+  worker.onerror = e => {   // Worker nicht erlaubt (z. B. manche Browser bei file://): im Hauptthread weiterrechnen
+    e.preventDefault(); worker = null;
+    for (const [id, p] of pending) { pending.delete(id); p.resolve(generatePuzzle(p.level, p.seed)); }
+  };
+} catch { worker = null; }
+
+function requestPuzzle(level, seed) {
+  return new Promise(resolve => {
+    if (!worker) { setTimeout(() => resolve(generatePuzzle(level, seed)), 30); return; }
+    const id = ++reqId;
+    pending.set(id, { resolve, level, seed });
+    worker.postMessage({ id, level, seed });
+  });
+}
+
+function randomSeed() {
+  const a = new Uint32Array(1);
+  (window.crypto || {}).getRandomValues ? crypto.getRandomValues(a) : (a[0] = Math.random() * 2 ** 32);
+  return a[0].toString(36).padStart(6, '0').slice(-6);
+}
+
+// ============================ Farben ============================
+const PALETTE = ['#e53935', '#1e63d6', '#2e9e44', '#f2c230', '#f07c1f', '#26b8d6', '#d63ab5', '#8d5a3b',
+  '#7a45c8', '#9ccc2e', '#11877f', '#ff8fb1', '#253a8c', '#8e1b2c', '#8a8a2a', '#7fb3ff',
+  '#ff9b7a', '#8a8f98', '#6ee0b0', '#c9971a'];
+function colorOf(k) {
+  if (k < PALETTE.length) return PALETTE[k];
+  const h = (k * 137.5) % 360, s = 0.6, l = 0.5;   // weitere Farben per goldenem Winkel
+  const f = n => { const a = s * Math.min(l, 1 - l), m = (n + h / 30) % 12; return l - a * Math.max(-1, Math.min(m - 3, 9 - m, 1)); };
+  return '#' + [0, 8, 4].map(n => Math.round(f(n) * 255).toString(16).padStart(2, '0')).join('');
+}
+const rgbOf = hex => { const v = parseInt(hex.slice(1), 16); return [v >> 16 & 255, v >> 8 & 255, v & 255]; };
+const inkOn = hex => { const [r, g, b] = rgbOf(hex); return 0.299 * r + 0.587 * g + 0.114 * b > 165 ? '#1d2027' : '#ffffff'; };
+
+// ============================ Spielzustand ============================
+let G = null, genToken = 0;
+
+async function newPuzzle(seed) {
+  const level = +$('levelRange').value;
+  seed = (seed || '').trim() || randomSeed();
+  $('seed').value = seed;
+  const token = ++genToken;
+  $('busy').hidden = false;
+  const pz = await requestPuzzle(level, seed);
+  if (token !== genToken) return;       // inzwischen wurde ein neueres Rätsel angefordert
+  $('busy').hidden = true;
+  startPuzzle(pz);
+}
+
+function startPuzzle(pz) {
+  const N = pz.n * pz.n, endAt = new Int16Array(N).fill(-1);
+  pz.pairs.forEach(([a, b], k) => { endAt[a] = k; endAt[b] = k; });
+  G = { pz, n: pz.n, N, K: pz.pairs.length, endAt, user: pz.pairs.map(() => []), undo: [],
+        t0: 0, t1: 0, moves: 0, hints: 0, showSolution: false, usedSolution: false, won: false };
+  $('win').hidden = true;
+  setSolveBtn();
+  resize();
+  updateInfo();
+  refresh();
+}
+
+const isComplete = k => { const p = G.user[k], [a, b] = G.pz.pairs[k]; return p.length >= 2 && (p[p.length - 1] === a || p[p.length - 1] === b) && p[0] !== p[p.length - 1]; };
+function coverage() {
+  const cov = new Uint8Array(G.N);
+  G.user.forEach(p => { if (p.length >= 2) for (const c of p) cov[c] = 1; });
+  return cov.reduce((a, b) => a + b, 0);
+}
+function ownerOf(c) { for (let k = 0; k < G.K; k++) if (G.user[k].includes(c)) return k; return -1; }
+const adjacentCells = (a, b) => Math.abs(a - b) === G.n || (Math.abs(a - b) === 1 && (a / G.n | 0) === (b / G.n | 0));
+
+function refresh() {
+  draw();
+  const done = G.pz.pairs.filter((_, k) => isComplete(k)).length, cov = coverage();
+  $('sPairs').textContent = `${done} / ${G.K}`;
+  $('sFill').textContent = `${Math.floor(cov / G.N * 100)} %`;
+  $('sMoves').textContent = G.moves;
+  const st = $('status');
+  st.classList.toggle('good', G.won);
+  if (G.won) st.textContent = 'Gelöst!';
+  else if (done === G.K) st.textContent = `Alle Paare verbunden – aber ${G.N - cov} ${G.N - cov === 1 ? 'Feld ist' : 'Felder sind'} noch leer.`;
+  else if (!G.moves) st.textContent = 'Ziehe von einer Zahl aus eine Linie zur gleichen Zahl.';
+  else st.textContent = '';
+}
+
+function checkWin() {
+  if (G.won || coverage() !== G.N || !G.pz.pairs.every((_, k) => isComplete(k))) return;
+  G.won = true; G.t1 = performance.now();
+  const ms = G.t1 - (G.t0 || G.t1);
+  const stars = G.usedSolution ? 0 : G.hints === 0 ? 3 : G.hints <= 2 ? 2 : 1;
+  const prev = getBest(G.pz.level), record = !G.usedSolution && G.hints === 0 && (!prev || ms < prev);
+  if (record) setBest(G.pz.level, ms);
+  $('winTitle').textContent = G.usedSolution ? 'Gelöst (mit Lösung)' : stars === 3 ? 'Perfekt gelöst!' : 'Gelöst!';
+  $('winStars').innerHTML = [0, 1, 2].map(i => `<span class="${i < stars ? '' : 'off'}">★</span>`).join('');
+  $('winStats').innerHTML = `
+    <dt>Zeit</dt><dd>${fmtTime(ms)}${record ? '<span class="record">Rekord</span>' : ''}</dd>
+    <dt>Züge</dt><dd>${G.moves}</dd>
+    <dt>Paare</dt><dd>${G.K}</dd>
+    ${G.hints ? `<dt>Hinweise</dt><dd>${G.hints}</dd>` : ''}`;
+  const last = G.pz.level >= LEVELS.length;
+  $('nextBtn').textContent = last ? 'Noch eins' : `Stufe ${G.pz.level + 1} →`;
+  $('win').hidden = false;
+  $('nextBtn').focus({ preventScroll: true });
+  updateInfo();
+}
+
+// ============================ Zeichnen mit Maus / Finger ============================
+let drag = null;
+const cv = $('cv'), ctx = cv.getContext('2d');
+
+function cellAt(e) {
+  const r = cv.getBoundingClientRect();
+  const x = (e.clientX - r.left) / r.width * geo.side - geo.pad, y = (e.clientY - r.top) / r.height * geo.side - geo.pad;
+  const cx = Math.floor(x / geo.cell), cy = Math.floor(y / geo.cell);
+  return cx < 0 || cy < 0 || cx >= G.n || cy >= G.n ? -1 : cy * G.n + cx;
+}
+
+// Aktive Linie setzen; fremde Linien werden dort abgeschnitten, wo sie die aktive kreuzen
+// (ausgehend vom Stand vor dem Zug – zieht man zurück, erscheinen sie wieder)
+function applyCur(cur) {
+  const occ = new Set(cur);
+  G.user = drag.snap.map((p, j) => {
+    if (j === drag.k) return cur;
+    const i = p.findIndex(c => occ.has(c));
+    return i < 0 ? p : p.slice(0, i);
+  });
+  refresh();
+}
+
+function step(cur, c) {
+  const i = cur.indexOf(c);
+  if (i >= 0) return cur.slice(0, i + 1);                  // zurückfahren kürzt die Linie
+  const last = cur[cur.length - 1];
+  if (!adjacentCells(last, c)) return null;
+  if (cur.length > 1 && G.endAt[last] === drag.k) return null; // schon verbunden
+  const e = G.endAt[c];
+  if (e >= 0 && e !== drag.k) return null;                  // fremde Zahl blockiert
+  return cur.concat([c]);
+}
+
+cv.addEventListener('pointerdown', e => {
+  if (!G || G.won || !$('busy').hidden) return;
+  const c = cellAt(e);
+  if (c < 0) return;
+  let k = G.endAt[c], cur;
+  if (k >= 0) cur = [c];
+  else {
+    k = ownerOf(c);
+    if (k < 0) return;
+    cur = G.user[k].slice(0, G.user[k].indexOf(c) + 1);
+  }
+  drag = { k, snap: G.user.map(p => p.slice()), before: G.user.map(p => p.slice()) };
+  if (!G.t0) G.t0 = performance.now();
+  try { cv.setPointerCapture(e.pointerId); } catch {}
+  applyCur(cur);
+});
+cv.addEventListener('pointermove', e => {
+  if (!drag) return;
+  const target = cellAt(e);
+  if (target < 0) return;
+  let cur = G.user[drag.k];
+  if (cur[cur.length - 1] === target) return;
+  if (cur.includes(target)) { applyCur(cur.slice(0, cur.indexOf(target) + 1)); return; }
+  // bei schnellen Bewegungen die übersprungenen Felder einzeln nachziehen
+  for (let guard = 0; guard < 64; guard++) {
+    const last = cur[cur.length - 1];
+    if (last === target) break;
+    const lx = last % G.n, ly = last / G.n | 0, tx = target % G.n, ty = target / G.n | 0;
+    const next = Math.abs(tx - lx) >= Math.abs(ty - ly) ? last + Math.sign(tx - lx) : last + Math.sign(ty - ly) * G.n;
+    const nc = step(cur, next);
+    if (!nc) break;
+    cur = nc;
+  }
+  applyCur(cur);
+});
+function endDrag() {
+  if (!drag) return;
+  G.user = G.user.map(p => p.length < 2 ? [] : p);   // nur angetippte Zahl = keine Linie
+  if (JSON.stringify(drag.before) !== JSON.stringify(G.user)) { G.undo.push(drag.before); G.moves++; }
+  drag = null;
+  checkWin();
+  refresh();
+}
+cv.addEventListener('pointerup', endDrag);
+cv.addEventListener('pointercancel', endDrag);
+
+function undo() {
+  if (!G || G.won || !G.undo.length) return;
+  G.user = G.undo.pop(); refresh();
+}
+function resetBoard() {
+  if (!G || G.won || G.user.every(p => p.length < 2)) return;
+  G.undo.push(G.user.map(p => p.slice()));
+  G.user = G.pz.pairs.map(() => []); refresh();
+}
+function hint() {
+  if (!G || G.won) return;
+  const same = (a, b) => a.length === b.length && (a.every((c, i) => c === b[i]) || a.every((c, i) => c === b[b.length - 1 - i]));
+  const k = G.pz.paths.findIndex((p, k) => !same(p, G.user[k]));
+  if (k < 0) return;
+  const sol = G.pz.paths[k], occ = new Set(sol);
+  G.undo.push(G.user.map(p => p.slice()));
+  G.user = G.user.map((p, j) => { if (j === k) return sol.slice(); const i = p.findIndex(c => occ.has(c)); return i < 0 ? p : p.slice(0, i); });
+  G.hints++;
+  if (!G.t0) G.t0 = performance.now();
+  checkWin(); refresh();
+}
+function toggleSolution() {
+  if (!G || G.won) return;
+  G.showSolution = !G.showSolution;
+  if (G.showSolution) G.usedSolution = true;
+  setSolveBtn(); draw();
+}
+function setSolveBtn() {
+  const on = G && G.showSolution;
+  $('solveBtn').classList.toggle('active', !!on);
+  $('solveBtn').textContent = on ? 'Lösung ausblenden' : 'Lösung zeigen';
+}
+
+// ============================ Darstellung ============================
+const col = {};
+let geo = { side: 0, dpr: 1, cell: 10, pad: 2 };
+function readColors() {
+  const cs = getComputedStyle(document.documentElement);
+  for (const k of ['wall', 'grid', 'floor', 'ink', 'muted']) col[k] = cs.getPropertyValue('--' + k).trim();
+}
+function resize() {
+  if (!G) return;
+  const side = Math.max(100, Math.floor(cv.clientWidth)), dpr = Math.min(3, window.devicePixelRatio || 1);
+  cv.width = cv.height = Math.round(side * dpr);
+  const pad = 2;
+  geo = { side, dpr, pad, cell: (side - 2 * pad) / G.n };
+  draw();
+}
+
+function draw() {
+  if (!G || !geo.side) return;
+  const { side, dpr, cell, pad } = geo, n = G.n;
+  const cx = c => pad + (c % n + .5) * cell, cy = c => pad + ((c / n | 0) + .5) * cell;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = col.floor; ctx.fillRect(0, 0, side, side);
+
+  // Felder der Linien leicht einfärben
+  G.user.forEach((p, k) => {
+    if (p.length < 2) return;
+    ctx.fillStyle = colorOf(k); ctx.globalAlpha = isComplete(k) ? 0.24 : 0.12;
+    for (const c of p) ctx.fillRect(pad + (c % n) * cell, pad + (c / n | 0) * cell, cell, cell);
+  });
+  ctx.globalAlpha = 1;
+
+  // Gitter
+  ctx.strokeStyle = col.grid; ctx.lineWidth = 1; ctx.beginPath();
+  for (let i = 1; i < n; i++) {
+    const v = Math.round(pad + i * cell) + .5;
+    ctx.moveTo(v, pad); ctx.lineTo(v, pad + n * cell); ctx.moveTo(pad, v); ctx.lineTo(pad + n * cell, v);
+  }
+  ctx.stroke();
+  ctx.strokeStyle = col.wall; ctx.lineWidth = 2; ctx.strokeRect(pad, pad, n * cell, n * cell);
+
+  // Linien
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  const stroke = (p, color, width) => {
+    ctx.strokeStyle = color; ctx.lineWidth = width; ctx.beginPath();
+    p.forEach((c, i) => i ? ctx.lineTo(cx(c), cy(c)) : ctx.moveTo(cx(c), cy(c)));
+    ctx.stroke();
+  };
+  G.user.forEach((p, k) => { if (p.length > 1) stroke(p, colorOf(k), cell * 0.3); });
+
+  if (G.showSolution) {
+    ctx.setLineDash([cell * 0.16, cell * 0.14]);
+    G.pz.paths.forEach((p, k) => stroke(p, colorOf(k), Math.max(2, cell * 0.1)));
+    ctx.setLineDash([]);
+  }
+
+  // Zahlen
+  const fs = cell * (G.K >= 10 ? 0.4 : 0.46);
+  ctx.font = `700 ${fs}px system-ui, -apple-system, "Segoe UI", sans-serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  G.pz.pairs.forEach((pair, k) => {
+    const c0 = colorOf(k), done = isComplete(k);
+    for (const c of pair) {
+      ctx.fillStyle = c0;
+      ctx.beginPath(); ctx.arc(cx(c), cy(c), cell * 0.38, 0, Math.PI * 2); ctx.fill();
+      if (done) {
+        ctx.strokeStyle = col.ink; ctx.lineWidth = Math.max(1.2, cell * 0.04);
+        ctx.beginPath(); ctx.arc(cx(c), cy(c), cell * 0.38, 0, Math.PI * 2); ctx.stroke();
+      }
+      ctx.fillStyle = inkOn(c0);
+      ctx.fillText(String(k + 1), cx(c), cy(c) + fs * 0.04);
+    }
+  });
+}
+
+// ============================ Anzeige & Bestzeiten ============================
+const bestKey = l => 'numberlink-best-' + l;
+function getBest(l) { try { const v = localStorage.getItem(bestKey(l)); return v ? +v : 0; } catch { return 0; } }
+function setBest(l, ms) { try { localStorage.setItem(bestKey(l), String(Math.round(ms))); } catch {} }
+function fmtTime(ms) {
+  const t = Math.floor(ms / 100), m = Math.floor(t / 600), s = Math.floor(t / 10) % 60;
+  return `${m}:${String(s).padStart(2, '0')}.${t % 10}`;
+}
+setInterval(() => { if (G && G.t0) $('sTime').textContent = fmtTime((G.won ? G.t1 : performance.now()) - G.t0); else $('sTime').textContent = fmtTime(0); }, 100);
+
+function updateLevelLabel() {
+  const l = +$('levelRange').value, L = LEVELS[l - 1];
+  $('tierName').textContent = tierName(l);
+  $('levelNum').textContent = `Stufe ${l} / ${LEVELS.length}`;
+  const chips = [[`${L.n} × ${L.n} Felder`, 'on'], [`ca. ${L.k} Paare`, 'on']];
+  if (G && G.pz.level === l) chips.push(G.pz.unique ? ['✓ eindeutig lösbar (bewiesen)', 'good'] : ['eindeutig lösbar (sehr wahrscheinlich)', '']);
+  $('chips').innerHTML = chips.map(([t, c]) => `<span class="chip ${c}">${t}</span>`).join('');
+}
+function updateInfo() {
+  $('sLevel').textContent = `${G.pz.level} · ${tierName(G.pz.level)}`;
+  const b = getBest(G.pz.level);
+  $('sBest').textContent = b ? fmtTime(b) : '–';
+  updateLevelLabel();
+}
+
+function nextLevel() {
+  $('levelRange').value = Math.min(LEVELS.length, G.pz.level + 1);
+  updateLevelLabel();
+  newPuzzle();
+}
+
+// ============================ PDF-Export ============================
+// Eigener kleiner PDF-Schreiber: reine Vektorgrafik, funktioniert offline ohne Bibliothek.
+const fnum = v => String(Math.round(v * 100) / 100);
+const WINANSI = { '–': 0x96, '…': 0x85, '„': 0x84, '“': 0x93, '”': 0x94 };
+function pdfStr(s) {
+  let o = '';
+  for (const ch of s) {
+    let c = WINANSI[ch] ?? ch.codePointAt(0);
+    if (c > 255) c = 63;
+    const b = String.fromCharCode(c);
+    o += b === '(' || b === ')' || b === '\\' ? '\\' + b : b;
+  }
+  return '(' + o + ')';
+}
+function pdfCircle(x, y, r) {
+  const k = r * 0.5523, p = (...a) => a.map(fnum).join(' ');
+  return `${p(x + r, y)} m ${p(x + r, y + k, x + k, y + r, x, y + r)} c ${p(x - k, y + r, x - r, y + k, x - r, y)} c ` +
+         `${p(x - r, y - k, x - k, y - r, x, y - r)} c ${p(x + k, y - r, x + r, y - k, x + r, y)} c h`;
+}
+const pdfRgb = (hex, mix = 0) => rgbOf(hex).map(v => fnum((v / 255) * (1 - mix) + mix)).join(' ');
+
+function pdfBoard(pz, x0, top, S, solution) {
+  const n = pz.n, cell = S / n, out = [];
+  const X = i => fnum(x0 + i * cell), Y = i => fnum(top - i * cell);
+  const cx = c => x0 + (c % n + .5) * cell, cy = c => top - ((c / n | 0) + .5) * cell;
+  if (solution) pz.paths.forEach((p, k) => {
+    out.push(`${pdfRgb(colorOf(k), 0.78)} rg`);
+    for (const c of p) out.push(`${X(c % n)} ${Y((c / n | 0) + 1)} ${fnum(cell)} ${fnum(cell)} re f`);
+  });
+  const grid = [];
+  for (let i = 1; i < n; i++) grid.push(`${X(i)} ${Y(0)} m ${X(i)} ${Y(n)} l`, `${X(0)} ${Y(i)} m ${X(n)} ${Y(i)} l`);
+  out.push(`0.72 0.72 0.75 RG 0.5 w`, grid.join('\n'), 'S');
+  out.push(`0.11 0.12 0.15 RG 1.6 w ${X(0)} ${Y(n)} ${fnum(S)} ${fnum(S)} re S`);
+  if (solution) pz.paths.forEach((p, k) => {
+    out.push(`${pdfRgb(colorOf(k))} RG ${fnum(cell * 0.3)} w 1 J 1 j`);
+    out.push(p.map((c, i) => `${fnum(cx(c))} ${fnum(cy(c))} ${i ? 'l' : 'm'}`).join('\n') + '\nS');
+  });
+  const fs = Math.max(4, cell * (pz.pairs.length >= 10 ? 0.44 : 0.5)), r = cell * 0.38;
+  pz.pairs.forEach((pair, k) => {
+    const t = String(k + 1), tw = t.length * 0.556 * fs;   // Helvetica-Ziffern sind 0,556 em breit
+    for (const c of pair) {
+      let ink = '0.11 0.12 0.15';
+      if (solution) { out.push(`${pdfRgb(colorOf(k))} rg ${pdfCircle(cx(c), cy(c), r)} f`); ink = inkOn(colorOf(k)) === '#ffffff' ? '1 1 1' : ink; }
+      else out.push(`1 1 1 rg 0.11 0.12 0.15 RG ${fnum(Math.max(0.5, cell * 0.035))} w ${pdfCircle(cx(c), cy(c), r)} b`);
+      out.push(`BT /F2 ${fnum(fs)} Tf ${ink} rg ${fnum(cx(c) - tw / 2)} ${fnum(cy(c) - fs * 0.36)} Td (${t}) Tj ET`);
+    }
+  });
+  return out.join('\n');
+}
+
+const LAYOUT = { 1: [1, 1], 2: [1, 2], 4: [2, 2], 6: [2, 3] };
+function pdfPage(items, per, solution, pageNo, pageCount) {
+  const PW = 595.28, PH = 841.89, mg = 40, gap = 22, [cols, rows] = LAYOUT[per];
+  const top = PH - 104, bottom = 50;
+  const slotW = (PW - 2 * mg - gap * (cols - 1)) / cols, slotH = (top - bottom - gap * (rows - 1)) / rows;
+  const ink = '0.11 0.12 0.15';
+  const out = [
+    `BT /F2 20 Tf ${ink} rg ${mg} ${fnum(PH - 58)} Td ${pdfStr(solution ? 'Numberlink – Lösungen' : 'Numberlink')} Tj ET`,
+    `BT /F1 10 Tf 0.4 0.41 0.45 rg ${mg} ${fnum(PH - 78)} Td ${pdfStr(solution
+      ? 'Jede Farbe verbindet ein Zahlenpaar.'
+      : 'Verbinde gleiche Zahlen mit Linien. Linien dürfen sich nicht kreuzen, und jedes Feld muss benutzt werden.')} Tj ET`,
+  ];
+  items.forEach(({ pz, nr }, j) => {
+    const c = j % cols, r = j / cols | 0;
+    const sx = mg + c * (slotW + gap), sy = top - r * (slotH + gap);
+    const S = Math.min(slotW, slotH - 18), x0 = sx + (slotW - S) / 2;
+    const cap = `Nr. ${nr} · Stufe ${pz.level} (${tierName(pz.level)}) · ${pz.n}×${pz.n} · ${pz.pairs.length} Paare · Seed ${pz.seed}`;
+    out.push(`BT /F1 ${per >= 4 ? 8 : 9} Tf 0.4 0.41 0.45 rg ${fnum(x0)} ${fnum(sy - 10)} Td ${pdfStr(cap)} Tj ET`);
+    out.push(pdfBoard(pz, x0, sy - 18, S, solution));
+  });
+  out.push(`BT /F1 8.5 Tf 0.55 0.56 0.6 rg ${mg} 28 Td ${pdfStr(`Seite ${pageNo} von ${pageCount}  ·  Nachspielen: Stufe und Seed im Numberlink-Generator eingeben`)} Tj ET`);
+  return out.join('\n');
+}
+
+function buildPdf(pages, docTitle) {
+  const objs = [];
+  objs[1] = '<< /Type /Catalog /Pages 2 0 R >>';
+  objs[3] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>';
+  objs[4] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>';
+  objs[5] = `<< /Title ${pdfStr(docTitle)} /Producer (Numberlink Generator) >>`;
+  const kids = [];
+  pages.forEach((content, i) => {
+    const pid = 6 + i * 2, cid = pid + 1;
+    kids.push(`${pid} 0 R`);
+    objs[pid] = `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${cid} 0 R >>`;
+    objs[cid] = `<< /Length ${content.length} >>\nstream\n${content}\nendstream`;
+  });
+  objs[2] = `<< /Type /Pages /Kids [${kids.join(' ')}] /Count ${pages.length} >>`;
+  // Alle Zeichen sind 1 Byte (WinAnsi), daher gilt: String-Länge = Byte-Offset
+  let pdf = '%PDF-1.4\n%\xE2\xE3\xCF\xD3\n';
+  const offsets = [];
+  for (let i = 1; i < objs.length; i++) { offsets[i] = pdf.length; pdf += `${i} 0 obj\n${objs[i]}\nendobj\n`; }
+  const xref = pdf.length;
+  pdf += `xref\n0 ${objs.length}\n0000000000 65535 f \n`;
+  for (let i = 1; i < objs.length; i++) pdf += String(offsets[i]).padStart(10, '0') + ' 00000 n \n';
+  pdf += `trailer\n<< /Size ${objs.length} /Root 1 0 R /Info 5 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+  const bytes = new Uint8Array(pdf.length);
+  for (let i = 0; i < pdf.length; i++) bytes[i] = pdf.charCodeAt(i) & 255;
+  return new Blob([bytes], { type: 'application/pdf' });
+}
+
+function makePdfPages(puzzles, per, withSol) {
+  const specs = [];
+  const add = (list, perPage, solution) => { for (let i = 0; i < list.length; i += perPage) specs.push({ items: list.slice(i, i + perPage), perPage, solution }); };
+  const items = puzzles.map((pz, i) => ({ pz, nr: i + 1 }));
+  add(items, per, false);
+  if (withSol) add(items, puzzles.length === 1 ? per : Math.max(per, 4), true);
+  return specs.map((s, i) => pdfPage(s.items, s.perPage, s.solution, i + 1, specs.length));
+}
+
+let pdfBusy = false;
+async function downloadPdf() {
+  if (!G || pdfBusy) return;
+  pdfBusy = true;
+  const btn = $('pdfBtn'), label = btn.textContent;
+  btn.disabled = true;
+  try {
+    const count = +$('pdfCount').value, per = +$('pdfPer').value, withSol = $('pdfSol').checked;
+    const puzzles = [G.pz];
+    while (puzzles.length < count) {
+      btn.textContent = `Erzeuge Rätsel ${puzzles.length + 1} / ${count} …`;
+      puzzles.push(await requestPuzzle(G.pz.level, randomSeed()));
+    }
+    const blob = buildPdf(makePdfPages(puzzles, per, withSol), `Numberlink Stufe ${G.pz.level}`);
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = count > 1 ? `numberlink-stufe-${G.pz.level}-${count}x.pdf` : `numberlink-stufe-${G.pz.level}-${G.pz.seed}.pdf`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+  } finally {
+    btn.textContent = label; btn.disabled = false; pdfBusy = false;
+  }
+}
+
+// ============================ Bedienung ============================
+$('levelRange').addEventListener('input', updateLevelLabel);
+$('levelRange').addEventListener('change', e => { e.target.blur(); newPuzzle(); });
+$('loadSeed').addEventListener('click', () => newPuzzle($('seed').value));
+$('seed').addEventListener('keydown', e => { if (e.key === 'Enter') { e.target.blur(); newPuzzle(e.target.value); } });
+$('newBtn').addEventListener('click', () => newPuzzle());
+$('undoBtn').addEventListener('click', undo);
+$('resetBtn').addEventListener('click', resetBoard);
+$('hintBtn').addEventListener('click', hint);
+$('solveBtn').addEventListener('click', toggleSolution);
+$('pdfBtn').addEventListener('click', downloadPdf);
+$('nextBtn').addEventListener('click', () => G.pz.level >= LEVELS.length ? newPuzzle() : nextLevel());
+$('againBtn').addEventListener('click', () => newPuzzle());
+document.querySelectorAll('.panel .btn').forEach(b => b.addEventListener('mouseup', () => b.blur()));
+
+document.addEventListener('keydown', e => {
+  if (e.target.matches('input[type=text], select')) return;
+  if ((e.ctrlKey || e.metaKey) && e.code === 'KeyZ') { e.preventDefault(); undo(); return; }
+  if (e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
+  if (e.code === 'Enter' && G && G.won) { e.preventDefault(); $('nextBtn').click(); return; }
+  if (e.code === 'KeyN') newPuzzle();
+  else if (e.code === 'KeyR') resetBoard();
+  else if (e.code === 'KeyH') hint();
+  else if (e.code === 'KeyL') toggleSolution();
+  else if (e.code === 'KeyP') downloadPdf();
+});
+
+// Farbschema
+const THEMES = ['auto', 'light', 'dark'], THEME_LABEL = { auto: 'Auto', light: 'Hell', dark: 'Dunkel' };
+let theme = 'auto';
+try { theme = localStorage.getItem('numberlink-theme') || 'auto'; } catch {}
+function applyTheme() {
+  if (theme === 'auto') document.documentElement.removeAttribute('data-theme');
+  else document.documentElement.setAttribute('data-theme', theme);
+  $('themeBtn').textContent = 'Design: ' + THEME_LABEL[theme];
+  readColors(); draw();
+}
+$('themeBtn').addEventListener('click', e => {
+  theme = THEMES[(THEMES.indexOf(theme) + 1) % 3];
+  try { localStorage.setItem('numberlink-theme', theme); } catch {}
+  applyTheme(); e.currentTarget.blur();
+});
+matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', applyTheme);
+
+new ResizeObserver(resize).observe(cv);
+applyTheme();
+updateLevelLabel();
+newPuzzle();
+})();
+</script>
+</body>
+</html>

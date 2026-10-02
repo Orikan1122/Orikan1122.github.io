@@ -1,0 +1,1004 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Labyrinth Generator</title>
+<style>
+  :root {
+    --bg: #f3f0e8; --panel: #fffdf8; --ink: #1d2027; --muted: #686c74; --line: #e2dccf;
+    --wall: #252a35; --floor: #fffdf8; --accent: #2d6be0; --accent-ink: #ffffff;
+    --goal: #e06a2c; --trail: rgba(45,107,224,.13); --hint: #d9961c;
+    --solution: rgba(224,106,44,.8); --fog: #e4ddcd;
+    --shadow: 0 1px 2px rgba(0,0,0,.05), 0 10px 30px rgba(40,30,10,.07);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #121419; --panel: #1b1e25; --ink: #ebe8e1; --muted: #9a9ea7; --line: #2c3039;
+      --wall: #d8d2c3; --floor: #1b1e25; --accent: #6b9dff; --accent-ink: #0d1220;
+      --goal: #ff9255; --trail: rgba(107,157,255,.16); --hint: #f0b440;
+      --solution: rgba(255,146,85,.8); --fog: #0c0e12;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #121419; --panel: #1b1e25; --ink: #ebe8e1; --muted: #9a9ea7; --line: #2c3039;
+    --wall: #d8d2c3; --floor: #1b1e25; --accent: #6b9dff; --accent-ink: #0d1220;
+    --goal: #ff9255; --trail: rgba(107,157,255,.16); --hint: #f0b440;
+    --solution: rgba(255,146,85,.8); --fog: #0c0e12;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    min-height: 100dvh;
+  }
+  button, input, select { font: inherit; color: inherit; }
+
+  header.top {
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    max-width: 1280px; margin: 0 auto; padding: 18px 16px 8px;
+  }
+  header h1 { margin: 0; font-size: 22px; letter-spacing: -.01em; }
+  header p { margin: 2px 0 0; color: var(--muted); font-size: 13.5px; }
+
+  .layout {
+    display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 20px;
+    max-width: 1280px; margin: 0 auto; padding: 8px 16px 24px;
+  }
+  @media (max-width: 860px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); }
+
+  .board { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  .stats {
+    display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 1px;
+    background: var(--line); border-radius: 12px; overflow: hidden; border: 1px solid var(--line);
+  }
+  @media (max-width: 560px) { .stats { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  .stat { background: var(--panel); padding: 8px 12px; min-width: 0; }
+  .stat .k { font-size: 11.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+  .stat .v { font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .stage {
+    position: relative; width: 100%; aspect-ratio: 1 / 1; margin-inline: auto;
+    max-width: calc(100vh - 170px); max-width: calc(100dvh - 170px); min-width: 240px;
+    padding: 10px; border-radius: 16px;
+  }
+  canvas { display: block; width: 100%; height: 100%; touch-action: none; border-radius: 8px; }
+
+  .overlay {
+    position: absolute; inset: 0; display: grid; place-items: center; padding: 16px;
+    background: color-mix(in srgb, var(--panel) 72%, transparent);
+    backdrop-filter: blur(3px); border-radius: 16px;
+  }
+  .overlay[hidden] { display: none; }
+  .win {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow);
+    padding: 22px 24px; width: min(360px, 100%); text-align: center;
+  }
+  .win h2 { margin: 0 0 4px; font-size: 22px; }
+  .stars { font-size: 30px; letter-spacing: 4px; color: var(--hint); margin: 4px 0 10px; }
+  .stars .off { color: var(--line); }
+  .win dl { display: grid; grid-template-columns: 1fr auto; gap: 4px 16px; margin: 0 0 16px; text-align: left; }
+  .win dt { color: var(--muted); }
+  .win dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .record { display: inline-block; font-size: 12px; font-weight: 700; color: var(--accent-ink); background: var(--accent); border-radius: 99px; padding: 1px 8px; margin-left: 6px; }
+  .win .row { display: flex; gap: 8px; }
+  .win .row .btn { flex: 1; }
+
+  .panel { display: flex; flex-direction: column; gap: 14px; }
+  .section { padding: 16px; }
+  .section h3 { margin: 0 0 10px; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .level-name { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 6px; }
+  .level-name strong { font-size: 20px; }
+  .level-name span { color: var(--muted); font-variant-numeric: tabular-nums; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  .ticks { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--muted); margin-top: -2px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .chip { font-size: 12.5px; border: 1px solid var(--line); border-radius: 99px; padding: 2px 9px; color: var(--muted); }
+  .chip.on { color: var(--ink); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+
+  select, input[type=text] {
+    width: 100%; padding: 8px 10px; border-radius: 9px; border: 1px solid var(--line); background: var(--bg);
+  }
+  .desc { font-size: 13px; color: var(--muted); margin: 8px 0 0; }
+  .seedrow { display: flex; gap: 8px; }
+  .seedrow input { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; }
+
+  .btn {
+    border: 1px solid var(--line); background: var(--bg); border-radius: 10px; padding: 9px 12px;
+    cursor: pointer; font-weight: 600; white-space: nowrap;
+  }
+  .btn:hover { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); }
+  .btn:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .btn.active { background: color-mix(in srgb, var(--goal) 18%, var(--bg)); border-color: var(--goal); }
+  .btn.block { width: 100%; }
+  .pdfrow { display: flex; align-items: center; gap: 10px; }
+  .pdfrow label { color: var(--muted); font-size: 13.5px; }
+  .check { display: flex; align-items: center; gap: 8px; margin: 10px 0 12px; font-size: 14px; cursor: pointer; }
+  .check input { accent-color: var(--accent); width: 16px; height: 16px; }
+  .btngrid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .btngrid .wide { grid-column: 1 / -1; }
+  kbd {
+    font: 600 11.5px ui-monospace, Consolas, monospace; border: 1px solid var(--line); border-bottom-width: 2px;
+    border-radius: 5px; padding: 0 5px; background: var(--bg);
+  }
+  .keys { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; font-size: 13.5px; align-items: center; }
+  .keys span { color: var(--muted); }
+
+  .theme-btn { padding: 6px 10px; font-size: 13px; }
+
+  .dpad { display: none; grid-template-columns: repeat(3, 58px); grid-template-rows: repeat(2, 52px); gap: 6px; justify-content: center; }
+  .dpad button { border-radius: 12px; font-size: 20px; padding: 0; touch-action: none; user-select: none; }
+  .dpad .up { grid-column: 2; grid-row: 1; }
+  .dpad .left { grid-column: 1; grid-row: 2; }
+  .dpad .down { grid-column: 2; grid-row: 2; }
+  .dpad .right { grid-column: 3; grid-row: 2; }
+  @media (pointer: coarse) { .dpad { display: grid; } .keys-card { display: none; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <div>
+    <h1>Labyrinth</h1>
+    <p>Jedes Labyrinth wird per Algorithmus neu erzeugt – keines gibt es zweimal.</p>
+  </div>
+  <button class="btn theme-btn" id="themeBtn" title="Farbschema wechseln">Design: Auto</button>
+</header>
+
+<main class="layout">
+  <section class="board">
+    <div class="stats">
+      <div class="stat"><div class="k">Stufe</div><div class="v" id="sStage">–</div></div>
+      <div class="stat"><div class="k">Größe</div><div class="v" id="sSize">–</div></div>
+      <div class="stat"><div class="k">Zeit</div><div class="v" id="sTime">0:00.0</div></div>
+      <div class="stat"><div class="k">Schritte</div><div class="v" id="sMoves">0</div></div>
+      <div class="stat"><div class="k">Kürzester Weg</div><div class="v" id="sOpt">–</div></div>
+      <div class="stat"><div class="k">Bestzeit</div><div class="v" id="sBest">–</div></div>
+    </div>
+
+    <div class="stage card" id="stage">
+      <canvas id="cv" aria-label="Labyrinth-Spielfeld"></canvas>
+      <div class="overlay" id="win" hidden>
+        <div class="win" role="dialog" aria-labelledby="winTitle">
+          <h2 id="winTitle">Geschafft!</h2>
+          <div class="stars" id="winStars"></div>
+          <dl id="winStats"></dl>
+          <div class="row">
+            <button class="btn" id="againBtn">Neues Labyrinth</button>
+            <button class="btn primary" id="nextBtn">Nächste Stufe →</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dpad" aria-label="Steuerkreuz">
+      <button class="btn up" data-dir="1" aria-label="Hoch">▲</button>
+      <button class="btn left" data-dir="8" aria-label="Links">◀</button>
+      <button class="btn down" data-dir="4" aria-label="Runter">▼</button>
+      <button class="btn right" data-dir="2" aria-label="Rechts">▶</button>
+    </div>
+  </section>
+
+  <aside class="panel">
+    <div class="card section">
+      <h3>Schwierigkeit</h3>
+      <div class="level-name"><strong id="tierName">Leicht</strong><span id="stageNum">Stufe 1 / 25</span></div>
+      <input type="range" id="stageRange" min="1" max="25" value="1" aria-label="Schwierigkeitsstufe">
+      <div class="ticks"><span>Leicht</span><span>Schwer</span><span>Albtraum</span></div>
+      <div class="chips" id="chips"></div>
+    </div>
+
+    <div class="card section">
+      <h3>Generator</h3>
+      <select id="algo" aria-label="Algorithmus">
+        <option value="auto">Automatisch (je nach Stufe)</option>
+      </select>
+      <p class="desc" id="algoDesc"></p>
+    </div>
+
+    <div class="card section">
+      <h3>Seed</h3>
+      <div class="seedrow">
+        <input type="text" id="seed" spellcheck="false" autocomplete="off" aria-label="Seed">
+        <button class="btn" id="loadSeed">Laden</button>
+      </div>
+      <p class="desc">Gleicher Seed + gleiche Stufe + gleicher Generator = gleiches Labyrinth. So kannst du ein Labyrinth teilen.</p>
+    </div>
+
+    <div class="card section">
+      <div class="btngrid">
+        <button class="btn primary wide" id="newBtn">Neues Labyrinth</button>
+        <button class="btn" id="restartBtn">Neustart</button>
+        <button class="btn" id="hintBtn">Hinweis</button>
+        <button class="btn wide" id="solveBtn">Lösung zeigen</button>
+      </div>
+    </div>
+
+    <div class="card section">
+      <h3>PDF zum Ausdrucken</h3>
+      <div class="pdfrow">
+        <label for="pdfCount">Anzahl</label>
+        <select id="pdfCount">
+          <option value="1">1 – das aktuelle Labyrinth</option>
+          <option value="3">3 Labyrinthe</option>
+          <option value="5">5 Labyrinthe</option>
+          <option value="10">10 Labyrinthe</option>
+          <option value="20">20 Labyrinthe</option>
+        </select>
+      </div>
+      <label class="check"><input type="checkbox" id="pdfSol" checked> Lösungsseiten anhängen</label>
+      <button class="btn primary block" id="pdfBtn">Als PDF herunterladen</button>
+      <p class="desc">A4, eine Seite pro Labyrinth. Das erste ist das aktuelle, weitere werden in derselben Stufe neu erzeugt. Lösungen kommen ans Ende.</p>
+    </div>
+
+    <div class="card section keys-card">
+      <h3>Steuerung</h3>
+      <div class="keys">
+        <div><kbd>←</kbd><kbd>↑</kbd><kbd>→</kbd><kbd>↓</kbd> / <kbd>WASD</kbd></div><span>Bewegen</span>
+        <div><kbd>Shift</kbd> + Richtung</div><span>Bis zur nächsten Abzweigung laufen</span>
+        <div><kbd>N</kbd> <kbd>R</kbd></div><span>Neues Labyrinth / Neustart</span>
+        <div><kbd>H</kbd> <kbd>L</kbd></div><span>Hinweis / Lösung</span>
+        <div><kbd>P</kbd></div><span>PDF herunterladen</span>
+        <div><kbd>Enter</kbd></div><span>Nach dem Sieg: nächste Stufe</span>
+      </div>
+      <p class="desc">Auf Touch-Geräten: Wischen läuft bis zur nächsten Abzweigung, das Steuerkreuz geht einzelne Schritte.</p>
+    </div>
+  </aside>
+</main>
+
+<script>
+(() => {
+'use strict';
+const $ = id => document.getElementById(id);
+
+// ============================ Generator ============================
+// Wände je Zelle als Bitmaske. Ein "perfektes" Labyrinth ist ein Spannbaum
+// über dem Gitter: jede Zelle erreichbar, genau ein Weg zwischen zwei Zellen.
+const N = 1, E = 2, S = 4, W = 8, DIRS = [N, E, S, W];
+const DX = { [N]: 0, [E]: 1, [S]: 0, [W]: -1 };
+const DY = { [N]: -1, [E]: 0, [S]: 1, [W]: 0 };
+const OPP = { [N]: S, [E]: W, [S]: N, [W]: E };
+
+function hashStr(s) {
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+function mulberry32(a) {
+  return () => {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+const ri = (rng, n) => Math.floor(rng() * n);
+function shuffle(arr, rng) {
+  for (let i = arr.length - 1; i > 0; i--) { const j = ri(rng, i + 1); [arr[i], arr[j]] = [arr[j], arr[i]]; }
+  return arr;
+}
+function neighbor(w, h, c, d) {
+  const x = c % w + DX[d], y = (c / w | 0) + DY[d];
+  return x < 0 || y < 0 || x >= w || y >= h ? -1 : y * w + x;
+}
+function carve(g, c, n, d) { g[c] &= ~d; g[n] &= ~OPP[d]; }
+
+// Alle Generatoren können optional ein vorgegebenes Teil-Labyrinth weiterbauen:
+// base = { g, seeds } – g ist das schon gegrabene Gitter, seeds die Zellen, die bereits dazugehören.
+const startGrid = (w, h, base) => base ? Uint8Array.from(base.g) : new Uint8Array(w * h).fill(15);
+function startSet(w, h, rng, base) {
+  const vis = new Uint8Array(w * h);
+  const seeds = base ? shuffle([...base.seeds], rng) : [ri(rng, w * h)];
+  for (const c of seeds) vis[c] = 1;
+  return { vis, seeds };
+}
+
+// Growing Tree: "immer die neueste Zelle" = Recursive Backtracker
+function growingTree(w, h, rng, pickNewest, base) {
+  const g = startGrid(w, h, base), { vis, seeds } = startSet(w, h, rng, base);
+  const list = seeds;
+  while (list.length) {
+    const idx = pickNewest() ? list.length - 1 : ri(rng, list.length);
+    const c = list[idx], opts = [];
+    for (const d of DIRS) { const n = neighbor(w, h, c, d); if (n >= 0 && !vis[n]) opts.push(d); }
+    if (!opts.length) { list.splice(idx, 1); continue; }
+    const d = opts[ri(rng, opts.length)], n = neighbor(w, h, c, d);
+    carve(g, c, n, d); vis[n] = 1; list.push(n);
+  }
+  return g;
+}
+const genBacktracker = (w, h, rng, base) => growingTree(w, h, rng, () => true, base);
+const genGrowingTree = (w, h, rng, base) => growingTree(w, h, rng, () => rng() < 0.5, base);
+
+function genPrim(w, h, rng, base) {
+  const g = startGrid(w, h, base), { vis, seeds } = startSet(w, h, rng, base), fr = [];
+  const add = c => {
+    vis[c] = 1;
+    for (const d of DIRS) { const n = neighbor(w, h, c, d); if (n >= 0 && !vis[n]) fr.push([c, d, n]); }
+  };
+  for (const c of seeds) add(c);
+  while (fr.length) {
+    const i = ri(rng, fr.length), [c, d, n] = fr[i];
+    fr[i] = fr[fr.length - 1]; fr.pop();
+    if (vis[n]) continue;
+    carve(g, c, n, d); add(n);
+  }
+  return g;
+}
+
+function genKruskal(w, h, rng, base) {
+  const g = startGrid(w, h, base), parent = new Int32Array(w * h).map((_, i) => i);
+  const find = x => { while (parent[x] !== x) { parent[x] = parent[parent[x]]; x = parent[x]; } return x; };
+  if (base) for (const c of base.seeds) parent[find(c)] = find(base.seeds[0]);
+  const edges = [];
+  for (let c = 0; c < w * h; c++) {
+    if (c % w < w - 1) edges.push([c, E]);
+    if ((c / w | 0) < h - 1) edges.push([c, S]);
+  }
+  for (const [c, d] of shuffle(edges, rng)) {
+    const n = neighbor(w, h, c, d), a = find(c), b = find(n);
+    if (a !== b) { parent[a] = b; carve(g, c, n, d); }
+  }
+  return g;
+}
+
+function genWilson(w, h, rng, base) {
+  const g = startGrid(w, h, base), inTree = startSet(w, h, rng, base).vis, walk = new Uint8Array(w * h);
+  const order = shuffle([...Array(w * h).keys()], rng);
+  for (const s of order) {
+    if (inTree[s]) continue;
+    let c = s;
+    while (!inTree[c]) {   // Zufallsspaziergang; Schleifen löschen sich durch Überschreiben selbst
+      let d, n;
+      do { d = DIRS[ri(rng, 4)]; n = neighbor(w, h, c, d); } while (n < 0);
+      walk[c] = d; c = n;
+    }
+    c = s;
+    while (!inTree[c]) { const d = walk[c], n = neighbor(w, h, c, d); carve(g, c, n, d); inTree[c] = 1; c = n; }
+  }
+  return g;
+}
+
+function genHuntKill(w, h, rng, base) {
+  const g = startGrid(w, h, base), { vis, seeds } = startSet(w, h, rng, base);
+  let c = seeds[0], row = 0;
+  for (;;) {
+    const opts = [];
+    for (const d of DIRS) { const n = neighbor(w, h, c, d); if (n >= 0 && !vis[n]) opts.push(d); }
+    if (opts.length) {
+      const d = opts[ri(rng, opts.length)], n = neighbor(w, h, c, d);
+      carve(g, c, n, d); vis[n] = 1; c = n; continue;
+    }
+    // Jagen: erste unbesuchte Zelle suchen, die an eine besuchte grenzt
+    // (row = erste Zeile, die noch unbesuchte Zellen enthält)
+    while (row < h && vis.subarray(row * w, row * w + w).every(Boolean)) row++;
+    let found = -1;
+    for (let k = row * w; k < w * h && found < 0; k++) {
+      if (vis[k]) continue;
+      const ds = DIRS.filter(d => { const n = neighbor(w, h, k, d); return n >= 0 && vis[n]; });
+      if (ds.length) {
+        const d = ds[ri(rng, ds.length)];
+        carve(g, k, neighbor(w, h, k, d), d); vis[k] = 1; found = k;
+      }
+    }
+    if (found < 0) return g;
+    c = found;
+  }
+}
+
+// Baut den Lösungsweg zuerst: ein langer, verschlungener Gang (Tiefensuche) zwischen zwei
+// maximal entfernten Punkten. Danach wird der Rest vom ganzen Weg aus aufgefüllt – so hängen
+// überall am Weg Abzweigungen, und es bleiben keine großen Bereiche, die man ignorieren kann.
+function genPathFirst(w, h, rng, algo) {
+  const g0 = genBacktracker(w, h, rng);
+  const a = bfs(g0, w, h, ri(rng, w * h)).last, b = bfs(g0, w, h, a).last;
+  const via = bfs(g0, w, h, b).via;
+  const g = new Uint8Array(w * h).fill(15), seeds = [a];
+  for (let c = a; c !== b; c = via[c]) {
+    const n = via[c], d = DIRS.find(d => neighbor(w, h, c, d) === n);
+    carve(g, c, n, d); seeds.push(n);
+  }
+  // Tiefensuche würde die Taschen mit wenigen Riesen-Sackgassen füllen -> dort Hunt-and-Kill
+  const filler = algo === 'backtracker' ? 'hunt' : algo;
+  return { g: ALGOS[filler].fn(w, h, rng, { g, seeds }), a, b };
+}
+
+// Bewertet, wie knifflig ein (perfektes) Labyrinth ist: lang, viele Abzweigungen am Lösungsweg,
+// und kein großer Seitenbereich, der nur an einer Stelle abzweigt (den man sonst einfach ignoriert).
+function difficultyScore(g, w, h, start, next) {
+  const n = w * h, onPath = new Uint8Array(n), branch = new Int32Array(n).fill(-1), q = [];
+  const openCount = c => 4 - ((g[c] & 1) + (g[c] >> 1 & 1) + (g[c] >> 2 & 1) + (g[c] >> 3 & 1));
+  let len = 0, forks = 0;
+  for (let c = start; c >= 0; c = next[c]) {
+    onPath[c] = 1; q.push(c); len++;
+    if (openCount(c) >= 3) forks++;
+  }
+  for (let i = 0; i < q.length; i++) {
+    const c = q[i];
+    for (const d of DIRS) {
+      if (g[c] & d) continue;
+      const nb = neighbor(w, h, c, d);
+      if (onPath[nb] || branch[nb] >= 0) continue;
+      branch[nb] = onPath[c] ? nb : branch[c]; q.push(nb);
+    }
+  }
+  const size = new Int32Array(n);
+  let maxBranch = 0;
+  for (let c = 0; c < n; c++) if (branch[c] >= 0) maxBranch = Math.max(maxBranch, ++size[branch[c]]);
+  return len + forks * 6 - maxBranch * 2;
+}
+
+function bfs(g, w, h, src) {
+  const dist = new Int32Array(w * h).fill(-1), via = new Int32Array(w * h).fill(-1), q = new Int32Array(w * h);
+  let head = 0, tail = 0, last = src;
+  dist[src] = 0; q[tail++] = src;
+  while (head < tail) {
+    const c = q[head++]; last = c;
+    for (const d of DIRS) {
+      if (g[c] & d) continue;
+      const n = neighbor(w, h, c, d);
+      if (dist[n] < 0) { dist[n] = dist[c] + 1; via[n] = c; q[tail++] = n; }
+    }
+  }
+  return { dist, via, last };
+}
+
+const ALGOS = {
+  backtracker: { name: 'Recursive Backtracker', fn: genBacktracker, desc: 'Tiefensuche: lange, verschlungene Gänge mit wenigen Abzweigungen – der Lösungsweg ist oft sehr lang.' },
+  growing:     { name: 'Growing Tree',          fn: genGrowingTree, desc: 'Mischt Tiefensuche und Zufallswahl: lange Gänge und viele Verzweigungen.' },
+  hunt:        { name: 'Hunt-and-Kill',         fn: genHuntKill,    desc: 'Läuft zufällig, bis es nicht weitergeht, und „jagt“ dann nach einer neuen Startstelle.' },
+  prim:        { name: 'Prim (randomisiert)',   fn: genPrim,        desc: 'Wächst von einem Punkt nach außen: viele kurze Sackgassen, die in die Irre führen.' },
+  kruskal:     { name: 'Kruskal (randomisiert)',fn: genKruskal,     desc: 'Verbindet zufällige Wände über das ganze Feld: gleichmäßig verteilte Verzweigungen.' },
+  wilson:      { name: 'Wilson',                fn: genWilson,      desc: 'Schleifenfreie Zufallsspaziergänge: jedes mögliche Labyrinth ist exakt gleich wahrscheinlich.' },
+};
+
+// ============================ Schwierigkeit ============================
+const MAX_STAGE = 25;
+const TIERS = [[3, 'Leicht'], [6, 'Mittel'], [10, 'Schwer'], [14, 'Experte'], [17, 'Meister'], [20, 'Legende'], [25, 'Albtraum']];
+const tierName = s => TIERS.find(([m]) => s <= m)[1];
+
+function stageParams(stage) {
+  return {
+    size: 5 + stage * 2,                                          // 7×7 … 55×55
+    farthest: stage >= 5,                                         // Start & Ziel am weitesten auseinander
+    fog: 0,                                                       // Nebel abgeschaltet
+    pathFirst: stage >= 12,                                       // Lösungsweg zuerst durchs ganze Feld
+    // Keine Schleifen: es gibt immer genau einen Weg zum Ziel. Ab Stufe 12 werden stattdessen
+    // mehrere Varianten erzeugt und die mit dem längsten, verzweigtesten Lösungsweg genommen.
+    candidates: stage >= 12 ? Math.min(8, 2 + Math.floor((stage - 12) / 2)) : 1,
+  };
+}
+function pickAlgo(stage, rng) {
+  const pool = stage <= 3 ? ['backtracker'] : stage <= 6 ? ['backtracker', 'growing', 'hunt'] : Object.keys(ALGOS);
+  return pool[ri(rng, pool.length)];
+}
+
+// ============================ Spielzustand ============================
+let M = null, P = null, visited = null, seen = null;
+
+function randomSeed() {
+  const a = new Uint32Array(1);
+  (window.crypto || {}).getRandomValues ? crypto.getRandomValues(a) : (a[0] = Math.random() * 2 ** 32);
+  return a[0].toString(36).padStart(6, '0').slice(-6);
+}
+
+function newMaze(seed) {
+  seed = (seed || '').trim() || randomSeed();
+  M = generate(+$('stageRange').value, seed, $('algo').value);
+  $('seed').value = seed;
+  resetRun();
+  resize();
+  updateInfo();
+}
+
+function generate(stage, seed, algoChoice) {
+  const rng = mulberry32(hashStr(seed + '#' + stage + '#' + algoChoice));
+  const p = stageParams(stage);
+  const w = p.size, h = p.size;
+  let best = null;
+  for (let i = 0; i < p.candidates; i++) {
+    const algo = algoChoice === 'auto' ? pickAlgo(stage, rng) : algoChoice;
+    let g, start = 0, goal = w * h - 1;
+    if (p.pathFirst) {
+      const r = genPathFirst(w, h, rng, algo);
+      g = r.g;
+      [start, goal] = rng() < 0.5 ? [r.a, r.b] : [r.b, r.a];
+    } else if (p.farthest) {
+      g = ALGOS[algo].fn(w, h, rng);
+      const a = bfs(g, w, h, ri(rng, w * h)).last;
+      const b = bfs(g, w, h, a).last;
+      [start, goal] = rng() < 0.5 ? [a, b] : [b, a];
+    } else {
+      g = ALGOS[algo].fn(w, h, rng);
+    }
+    const toGoal = bfs(g, w, h, goal);
+    const score = p.candidates > 1 ? difficultyScore(g, w, h, start, toGoal.via) : 0;
+    if (!best || score > best.score) best = { algo, g, start, goal, toGoal, score };
+  }
+  const { algo, g, start, goal, toGoal } = best;
+  return { stage, seed, algo, algoChoice, w, h, g, start, goal, next: toGoal.via, optimal: toGoal.dist[start], ...p };
+}
+
+function resetRun() {
+  const x = M.start % M.w, y = M.start / M.w | 0;
+  P = { x, y, rx: x, ry: y, moves: 0, t0: 0, t1: 0, hints: 0, solution: false, usedSolution: false, hintUntil: 0, won: false, bumpAt: 0, bumpDir: 0 };
+  visited = new Uint8Array(M.w * M.h); visited[M.start] = 1;
+  seen = new Uint8Array(M.w * M.h); markSeen();
+  $('win').hidden = true;
+  $('solveBtn').classList.remove('active');
+  $('solveBtn').textContent = 'Lösung zeigen';
+  $('sMoves').textContent = '0';
+  $('sTime').textContent = fmtTime(0);
+}
+
+function markSeen() {
+  if (!M.fog) return;
+  const r = M.fog;
+  for (let y = Math.max(0, Math.floor(P.y - r)); y <= Math.min(M.h - 1, Math.ceil(P.y + r)); y++)
+    for (let x = Math.max(0, Math.floor(P.x - r)); x <= Math.min(M.w - 1, Math.ceil(P.x + r)); x++)
+      if (Math.hypot(x - P.x, y - P.y) <= r) seen[y * M.w + x] = 1;
+}
+
+function tryMove(d, sprint) {
+  if (P.won) return;
+  let c = P.y * M.w + P.x, moved = false;
+  for (;;) {
+    if (M.g[c] & d) break;
+    c = neighbor(M.w, M.h, c, d);
+    P.x = c % M.w; P.y = c / M.w | 0; P.moves++; visited[c] = 1; moved = true;
+    if (!P.t0) P.t0 = performance.now();
+    markSeen();
+    if (c === M.goal || !sprint) break;
+    const open = DIRS.filter(k => !(M.g[c] & k));
+    if (open.length !== 2) break;               // Abzweigung oder Sackgasse: anhalten
+    d = open.find(k => k !== OPP[d]);           // Gang folgen, auch um Ecken
+  }
+  if (!moved) { P.bumpAt = performance.now(); P.bumpDir = d; return; }
+  $('sMoves').textContent = P.moves;
+  if (c === M.goal) win();
+}
+
+// ============================ Bestzeiten ============================
+const bestKey = s => 'labyrinth-best-' + s;
+function getBest(s) { try { const v = localStorage.getItem(bestKey(s)); return v ? +v : 0; } catch { return 0; } }
+function setBest(s, ms) { try { localStorage.setItem(bestKey(s), String(Math.round(ms))); } catch {} }
+
+function fmtTime(ms) {
+  const t = Math.floor(ms / 100), m = Math.floor(t / 600), s = Math.floor(t / 10) % 60;
+  return `${m}:${String(s).padStart(2, '0')}.${t % 10}`;
+}
+
+function win() {
+  P.won = true; P.t1 = performance.now();
+  const ms = P.t1 - P.t0;
+  let stars = 0;
+  if (!P.usedSolution) stars = P.hints === 0 && P.moves <= M.optimal * 1.2 ? 3 : P.moves <= M.optimal * 2 ? 2 : 1;
+  const prev = getBest(M.stage);
+  const record = !P.usedSolution && (!prev || ms < prev);
+  if (record) setBest(M.stage, ms);
+  const eff = Math.round(M.optimal / Math.max(1, P.moves) * 100);
+
+  $('winTitle').textContent = P.usedSolution ? 'Ziel erreicht (mit Lösung)' : stars === 3 ? 'Perfekt!' : 'Geschafft!';
+  $('winStars').innerHTML = [0, 1, 2].map(i => `<span class="${i < stars ? '' : 'off'}">★</span>`).join('');
+  $('winStats').innerHTML = `
+    <dt>Zeit</dt><dd>${fmtTime(ms)}${record ? '<span class="record">Rekord</span>' : ''}</dd>
+    <dt>Schritte</dt><dd>${P.moves}</dd>
+    <dt>Kürzester Weg</dt><dd>${M.optimal}</dd>
+    <dt>Effizienz</dt><dd>${eff} %</dd>
+    ${P.hints ? `<dt>Hinweise</dt><dd>${P.hints}</dd>` : ''}`;
+  const last = M.stage >= MAX_STAGE;
+  $('nextBtn').textContent = last ? 'Noch eins' : `Stufe ${M.stage + 1} →`;
+  $('win').hidden = false;
+  $('nextBtn').focus({ preventScroll: true });
+  updateInfo();
+}
+
+function nextStage() {
+  const r = $('stageRange');
+  r.value = Math.min(MAX_STAGE, M.stage + 1);
+  updateStageLabel();
+  newMaze();
+}
+
+// ============================ Anzeige ============================
+function updateStageLabel() {
+  const s = +$('stageRange').value, p = stageParams(s);
+  $('tierName').textContent = tierName(s);
+  $('stageNum').textContent = `Stufe ${s} / ${MAX_STAGE}`;
+  const chips = [
+    [`${p.size} × ${p.size} Felder`, true],
+    [p.farthest ? 'Start & Ziel maximal entfernt' : 'Start & Ziel in den Ecken', p.farthest],
+    [p.pathFirst ? 'Lösungsweg quer durchs Feld' : 'Freier Aufbau', p.pathFirst],
+    [p.candidates > 1 ? `Schwierigste von ${p.candidates} Varianten` : 'Nur ein Lösungsweg', p.candidates > 1],
+  ];
+  $('chips').innerHTML = chips.map(([t, on]) => `<span class="chip${on ? ' on' : ''}">${t}</span>`).join('');
+}
+
+function updateInfo() {
+  $('sStage').textContent = `${M.stage} · ${tierName(M.stage)}`;
+  $('sSize').textContent = `${M.w}×${M.h}`;
+  $('sOpt').textContent = M.optimal;
+  const b = getBest(M.stage);
+  $('sBest').textContent = b ? fmtTime(b) : '–';
+  const a = ALGOS[M.algo];
+  $('algoDesc').innerHTML = `<strong>${a.name}</strong>${$('algo').value === 'auto' ? ' (automatisch gewählt)' : ''}: ${a.desc}`;
+  if (M.pathFirst) $('algoDesc').innerHTML += ' Ab dieser Stufe wird zuerst ein langer Lösungsweg durchs ganze Feld gebahnt; der Algorithmus füllt den Rest mit Abzweigungen und Sackgassen auf'
+    + (M.algo === 'backtracker' ? ' (dabei mit Hunt-and-Kill, damit keine riesigen Einzel-Sackgassen entstehen).' : '.');
+}
+
+// ============================ Zeichnen ============================
+const cv = $('cv'), ctx = cv.getContext('2d');
+const wallsCv = document.createElement('canvas');
+const col = {};
+let geo = { side: 0, dpr: 1, cell: 10, off: 2, t: 2 };
+
+function readColors() {
+  const cs = getComputedStyle(document.documentElement);
+  for (const k of ['wall', 'floor', 'accent', 'goal', 'trail', 'hint', 'solution', 'fog', 'muted', 'panel'])
+    col[k] = cs.getPropertyValue('--' + k).trim();
+}
+
+function resize() {
+  if (!M) return;
+  const side = Math.max(100, Math.floor(cv.clientWidth));
+  const dpr = Math.min(3, window.devicePixelRatio || 1);
+  cv.width = wallsCv.width = Math.round(side * dpr);
+  cv.height = wallsCv.height = Math.round(side * dpr);
+  const t = Math.max(1.5, Math.min(6, side / M.w * 0.14));
+  const off = t / 2 + 1;
+  geo = { side, dpr, t, off, cell: (side - 2 * off) / M.w };
+  drawWalls();
+}
+
+function drawWalls() {
+  const w = wallsCv.getContext('2d'), { cell, off, t, dpr } = geo;
+  w.setTransform(dpr, 0, 0, dpr, 0, 0);
+  w.clearRect(0, 0, geo.side, geo.side);
+  w.strokeStyle = col.wall; w.lineWidth = t; w.lineCap = 'square';
+  w.beginPath();
+  for (let y = 0; y < M.h; y++) for (let x = 0; x < M.w; x++) {
+    const c = M.g[y * M.w + x], X = off + x * cell, Y = off + y * cell;
+    if (c & N) { w.moveTo(X, Y); w.lineTo(X + cell, Y); }
+    if (c & W) { w.moveTo(X, Y); w.lineTo(X, Y + cell); }
+    if (x === M.w - 1 && (c & E)) { w.moveTo(X + cell, Y); w.lineTo(X + cell, Y + cell); }
+    if (y === M.h - 1 && (c & S)) { w.moveTo(X, Y + cell); w.lineTo(X + cell, Y + cell); }
+  }
+  w.stroke();
+}
+
+function pathFrom(c, maxLen) {
+  const pts = [c];
+  while (c !== M.goal && pts.length <= maxLen) { c = M.next[c]; pts.push(c); }
+  return pts;
+}
+function strokePath(pts, color, width, dashed) {
+  const { cell, off } = geo;
+  ctx.save();
+  ctx.strokeStyle = color; ctx.lineWidth = width; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  if (dashed) ctx.setLineDash([width * 0.1, width * 1.8]);
+  ctx.beginPath();
+  pts.forEach((c, i) => {
+    const X = off + (c % M.w + .5) * cell, Y = off + ((c / M.w | 0) + .5) * cell;
+    i ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y);
+  });
+  ctx.stroke();
+  ctx.restore();
+}
+
+let lastFrame = performance.now();
+function frame(now) {
+  requestAnimationFrame(frame);
+  if (!M || !geo.side) return;
+  const dt = Math.min(50, now - lastFrame); lastFrame = now;
+  const k = 1 - Math.pow(0.0001, dt / 1000 * 1.6);
+  P.rx += (P.x - P.rx) * k; P.ry += (P.y - P.ry) * k;
+  if (Math.abs(P.x - P.rx) < 0.002) P.rx = P.x;
+  if (Math.abs(P.y - P.ry) < 0.002) P.ry = P.y;
+
+  const { cell, off, side, dpr } = geo;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = col.floor; ctx.fillRect(0, 0, side, side);
+
+  // Spur
+  ctx.fillStyle = col.trail;
+  for (let i = 0; i < visited.length; i++)
+    if (visited[i]) ctx.fillRect(off + (i % M.w) * cell, off + (i / M.w | 0) * cell, cell + .5, cell + .5);
+
+  // Startfeld
+  const sx = off + (M.start % M.w + .5) * cell, sy = off + ((M.start / M.w | 0) + .5) * cell;
+  ctx.strokeStyle = col.muted; ctx.lineWidth = Math.max(1, cell * 0.07);
+  ctx.beginPath(); ctx.arc(sx, sy, cell * 0.22, 0, Math.PI * 2); ctx.stroke();
+
+  const here = P.y * M.w + P.x;
+  if (P.solution) strokePath(pathFrom(here, Infinity), col.solution, Math.max(2, cell * 0.2), false);
+  else if (now < P.hintUntil) {
+    ctx.globalAlpha = Math.min(1, (P.hintUntil - now) / 600);
+    strokePath(pathFrom(here, 12), col.hint, Math.max(3, cell * 0.28), true);
+    ctx.globalAlpha = 1;
+  }
+
+  ctx.drawImage(wallsCv, 0, 0, side, side);
+
+  // Nebel: ungesehen = deckend, schon gesehen = halbtransparent
+  if (M.fog) {
+    const r = M.fog;
+    ctx.fillStyle = col.fog;
+    for (let y = 0; y < M.h; y++) for (let x = 0; x < M.w; x++) {
+      const d = Math.hypot(x - P.rx, y - P.ry);
+      const fade = Math.min(1, Math.max(0, (d - (r - 1.3)) / 1.3));
+      const a = fade * (seen[y * M.w + x] ? 0.6 : 1);
+      if (a <= 0.01) continue;
+      ctx.globalAlpha = a;
+      ctx.fillRect(off + x * cell - .5, off + y * cell - .5, cell + 1, cell + 1);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // Ziel (immer sichtbar, pulsiert)
+  const gx = off + (M.goal % M.w) * cell, gy = off + (M.goal / M.w | 0) * cell;
+  const pulse = (Math.sin(now / 280) + 1) / 2;
+  ctx.fillStyle = col.goal;
+  ctx.globalAlpha = 0.25 * pulse;
+  ctx.fillRect(gx + cell * 0.08, gy + cell * 0.08, cell * 0.84, cell * 0.84);
+  ctx.globalAlpha = 1;
+  roundRect(gx + cell * 0.22, gy + cell * 0.22, cell * 0.56, cell * 0.56, cell * 0.12);
+  ctx.fill();
+
+  // Spieler (mit kleinem Ruckeln beim Anstoßen an eine Wand)
+  let bx = 0, by = 0;
+  const bt = (now - P.bumpAt) / 160;
+  if (bt < 1) { const s = Math.sin(bt * Math.PI) * cell * 0.12; bx = DX[P.bumpDir] * s; by = DY[P.bumpDir] * s; }
+  const px = off + (P.rx + .5) * cell + bx, py = off + (P.ry + .5) * cell + by;
+  ctx.fillStyle = col.accent;
+  ctx.beginPath(); ctx.arc(px, py, Math.max(2.5, cell * 0.32), 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = col.floor; ctx.globalAlpha = 0.55;
+  ctx.beginPath(); ctx.arc(px - cell * 0.09, py - cell * 0.09, Math.max(0.8, cell * 0.09), 0, Math.PI * 2); ctx.fill();
+  ctx.globalAlpha = 1;
+
+  // Timer
+  if (P.t0) $('sTime').textContent = fmtTime((P.won ? P.t1 : now) - P.t0);
+}
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+}
+
+// ============================ PDF-Export ============================
+// Eigener kleiner PDF-Schreiber: reine Vektorgrafik, funktioniert offline ohne Bibliothek.
+const fnum = v => String(Math.round(v * 100) / 100);
+const WINANSI = { '–': 0x96, '…': 0x85, '„': 0x84, '“': 0x93, '”': 0x94 };
+function pdfStr(s) {
+  let o = '';
+  for (const ch of s) {
+    let c = WINANSI[ch] ?? ch.codePointAt(0);
+    if (c > 255) c = 63;
+    const b = String.fromCharCode(c);
+    o += b === '(' || b === ')' || b === '\\' ? '\\' + b : b;
+  }
+  return '(' + o + ')';
+}
+function pdfCircle(x, y, r) {
+  const k = r * 0.5523, p = (...a) => a.map(fnum).join(' ');
+  return `${p(x + r, y)} m ${p(x + r, y + k, x + k, y + r, x, y + r)} c ${p(x - k, y + r, x - r, y + k, x - r, y)} c ` +
+         `${p(x - r, y - k, x - k, y - r, x, y - r)} c ${p(x + k, y - r, x + r, y - k, x + r, y)} c h`;
+}
+
+function pdfMazePage(m, { title, sub, footer, solution }) {
+  const PW = 595.28, PH = 841.89, mg = 48;                        // A4 in Punkt
+  const cell = Math.min((PW - 2 * mg) / m.w, (PH - 230) / m.h);
+  const x0 = (PW - cell * m.w) / 2, top = PH - 118;
+  const X = x => fnum(x0 + x * cell), Y = y => fnum(top - y * cell);
+  const cx = c => x0 + (c % m.w + .5) * cell, cy = c => top - ((c / m.w | 0) + .5) * cell;
+  const ink = '0.11 0.12 0.15', blue = '0.18 0.42 0.88', orange = '0.88 0.42 0.17';
+  const out = [
+    `BT /F2 20 Tf ${ink} rg ${mg} ${fnum(PH - 64)} Td ${pdfStr(title)} Tj ET`,
+    `BT /F1 10.5 Tf 0.42 0.43 0.46 rg ${mg} ${fnum(PH - 84)} Td ${pdfStr(sub)} Tj ET`,
+  ];
+
+  if (solution) {
+    const pts = [];
+    for (let c = m.start; ; c = m.next[c]) { pts.push(c); if (c === m.goal) break; }
+    out.push(`${orange} RG ${fnum(Math.max(1, cell * 0.3))} w 1 J 1 j`);
+    out.push(pts.map((c, i) => `${fnum(cx(c))} ${fnum(cy(c))} ${i ? 'l' : 'm'}`).join('\n') + '\nS');
+  }
+  const gs = cell * 0.56;
+  out.push(`${blue} rg ${pdfCircle(cx(m.start), cy(m.start), cell * 0.3)} f`);
+  out.push(`${orange} rg ${fnum(cx(m.goal) - gs / 2)} ${fnum(cy(m.goal) - gs / 2)} ${fnum(gs)} ${fnum(gs)} re f`);
+
+  // Wände: zusammenhängende Wandstücke werden zu einer Linie verbunden
+  const seg = [];
+  for (let y = 0; y <= m.h; y++) {
+    let run = -1;
+    for (let x = 0; x <= m.w; x++) {
+      const wall = x < m.w && (y < m.h ? m.g[y * m.w + x] & N : m.g[(m.h - 1) * m.w + x] & S);
+      if (wall && run < 0) run = x;
+      else if (!wall && run >= 0) { seg.push(`${X(run)} ${Y(y)} m ${X(x)} ${Y(y)} l`); run = -1; }
+    }
+  }
+  for (let x = 0; x <= m.w; x++) {
+    let run = -1;
+    for (let y = 0; y <= m.h; y++) {
+      const wall = y < m.h && (x < m.w ? m.g[y * m.w + x] & W : m.g[y * m.w + m.w - 1] & E);
+      if (wall && run < 0) run = y;
+      else if (!wall && run >= 0) { seg.push(`${X(x)} ${Y(run)} m ${X(x)} ${Y(y)} l`); run = -1; }
+    }
+  }
+  out.push(`${ink} RG ${fnum(Math.max(0.8, Math.min(3, cell * 0.12)))} w 2 J 0 j`);
+  out.push(seg.join('\n') + '\nS');
+
+  // Legende & Fußzeile
+  const ly = top - cell * m.h - 30;
+  out.push(`${blue} rg ${pdfCircle(mg + 5, ly + 3.5, 5)} f`);
+  out.push(`BT /F1 10 Tf ${ink} rg ${mg + 15} ${fnum(ly)} Td (Start) Tj ET`);
+  out.push(`${orange} rg ${mg + 60} ${fnum(ly - 1.5)} 10 10 re f`);
+  out.push(`BT /F1 10 Tf ${ink} rg ${mg + 75} ${fnum(ly)} Td (Ziel) Tj ET`);
+  if (solution) out.push(`BT /F1 10 Tf ${ink} rg ${mg + 120} ${fnum(ly)} Td ${pdfStr(`Kürzester Weg: ${m.optimal} Schritte`)} Tj ET`);
+  out.push(`BT /F1 8.5 Tf 0.55 0.56 0.6 rg ${mg} 32 Td ${pdfStr(footer)} Tj ET`);
+  return out.join('\n');
+}
+
+function buildPdf(pages, docTitle) {
+  const objs = [];
+  objs[1] = '<< /Type /Catalog /Pages 2 0 R >>';
+  objs[3] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>';
+  objs[4] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>';
+  objs[5] = `<< /Title ${pdfStr(docTitle)} /Producer (Labyrinth Generator) >>`;
+  const kids = [];
+  pages.forEach((content, i) => {
+    const pid = 6 + i * 2, cid = pid + 1;
+    kids.push(`${pid} 0 R`);
+    objs[pid] = `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${cid} 0 R >>`;
+    objs[cid] = `<< /Length ${content.length} >>\nstream\n${content}\nendstream`;
+  });
+  objs[2] = `<< /Type /Pages /Kids [${kids.join(' ')}] /Count ${pages.length} >>`;
+
+  // Alle Zeichen sind 1 Byte (WinAnsi), daher gilt: String-Länge = Byte-Offset
+  let pdf = '%PDF-1.4\n%\xE2\xE3\xCF\xD3\n';
+  const offsets = [];
+  for (let i = 1; i < objs.length; i++) { offsets[i] = pdf.length; pdf += `${i} 0 obj\n${objs[i]}\nendobj\n`; }
+  const xref = pdf.length;
+  pdf += `xref\n0 ${objs.length}\n0000000000 65535 f \n`;
+  for (let i = 1; i < objs.length; i++) pdf += String(offsets[i]).padStart(10, '0') + ' 00000 n \n';
+  pdf += `trailer\n<< /Size ${objs.length} /Root 1 0 R /Info 5 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+  const bytes = new Uint8Array(pdf.length);
+  for (let i = 0; i < pdf.length; i++) bytes[i] = pdf.charCodeAt(i) & 255;
+  return new Blob([bytes], { type: 'application/pdf' });
+}
+
+function downloadPdf() {
+  if (!M) return;
+  const count = +$('pdfCount').value, withSol = $('pdfSol').checked;
+  const mazes = [M];   // das aktuelle zuerst, weitere werden mit gleicher Stufe neu erzeugt
+  while (mazes.length < count) mazes.push(generate(M.stage, randomSeed(), M.algoChoice));
+
+  const level = m => `Stufe ${m.stage} · ${tierName(m.stage)}`;
+  const nr = i => count > 1 ? ` ${i + 1}` : '';
+  const specs = mazes.map((m, i) => ({ m, solution: false, title: `Labyrinth${nr(i)} – ${level(m)}` }));
+  if (withSol) mazes.forEach((m, i) => specs.push({ m, solution: true, title: `Lösung${count > 1 ? ' zu Labyrinth' + nr(i) : ''} – ${level(m)}` }));
+
+  const pages = specs.map((s, i) => pdfMazePage(s.m, {
+    title: s.title,
+    solution: s.solution,
+    sub: `${s.m.w} × ${s.m.h} Felder · ${ALGOS[s.m.algo].name} · Seed ${s.m.seed}`,
+    footer: `Seite ${i + 1} von ${specs.length}  ·  Nachspielen: Stufe ${s.m.stage}, Generator „${s.m.algoChoice === 'auto' ? 'Automatisch' : ALGOS[s.m.algo].name}“, Seed ${s.m.seed}`,
+  }));
+
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(buildPdf(pages, `Labyrinth Stufe ${M.stage}`));
+  a.download = count > 1 ? `labyrinthe-stufe-${M.stage}-${count}x.pdf` : `labyrinth-stufe-${M.stage}-${M.seed}.pdf`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+}
+
+// ============================ Eingabe ============================
+const KEYMAP = { ArrowUp: N, KeyW: N, ArrowRight: E, KeyD: E, ArrowDown: S, KeyS: S, ArrowLeft: W, KeyA: W };
+document.addEventListener('keydown', e => {
+  if (e.target.matches('input[type=text], select')) return;
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  const d = KEYMAP[e.code];
+  if (d) {
+    e.preventDefault();
+    if ($('win').hidden) tryMove(d, e.shiftKey);
+    return;
+  }
+  if (e.code === 'Enter' && !$('win').hidden) { e.preventDefault(); nextStage(); return; }
+  if (e.repeat) return;
+  if (e.code === 'KeyN') newMaze();
+  else if (e.code === 'KeyR') resetRun();
+  else if (e.code === 'KeyH') hint();
+  else if (e.code === 'KeyL') toggleSolution();
+  else if (e.code === 'KeyP') downloadPdf();
+});
+
+// Wischen auf dem Spielfeld: läuft bis zur nächsten Abzweigung
+let swipe = null;
+cv.addEventListener('pointerdown', e => { swipe = { x: e.clientX, y: e.clientY }; });
+cv.addEventListener('pointerup', e => {
+  if (!swipe) return;
+  const dx = e.clientX - swipe.x, dy = e.clientY - swipe.y; swipe = null;
+  if (Math.max(Math.abs(dx), Math.abs(dy)) < 22) return;
+  tryMove(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? E : W) : (dy > 0 ? S : N), true);
+});
+
+// Steuerkreuz mit Auto-Wiederholung beim Gedrückthalten
+document.querySelectorAll('.dpad button').forEach(b => {
+  let t1, t2;
+  const stop = () => { clearTimeout(t1); clearInterval(t2); };
+  b.addEventListener('pointerdown', e => {
+    e.preventDefault(); stop();
+    const d = +b.dataset.dir;
+    tryMove(d, false);
+    t1 = setTimeout(() => { t2 = setInterval(() => tryMove(d, false), 85); }, 260);
+  });
+  ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => b.addEventListener(ev, stop));
+  b.addEventListener('contextmenu', e => e.preventDefault());
+});
+
+function hint() {
+  if (P.won) return;
+  P.hints++; P.hintUntil = performance.now() + 2600;
+}
+function toggleSolution() {
+  if (P.won) return;
+  P.solution = !P.solution;
+  if (P.solution) P.usedSolution = true;
+  $('solveBtn').classList.toggle('active', P.solution);
+  $('solveBtn').textContent = P.solution ? 'Lösung ausblenden' : 'Lösung zeigen';
+}
+
+// ============================ UI-Verdrahtung ============================
+for (const [k, a] of Object.entries(ALGOS)) $('algo').add(new Option(a.name, k));
+
+$('stageRange').addEventListener('input', updateStageLabel);
+$('stageRange').addEventListener('change', e => { e.target.blur(); newMaze(); });
+$('algo').addEventListener('change', e => { e.target.blur(); newMaze(); });
+$('loadSeed').addEventListener('click', () => newMaze($('seed').value));
+$('seed').addEventListener('keydown', e => { if (e.key === 'Enter') { e.target.blur(); newMaze(e.target.value); } });
+$('newBtn').addEventListener('click', () => newMaze());
+$('restartBtn').addEventListener('click', resetRun);
+$('hintBtn').addEventListener('click', hint);
+$('solveBtn').addEventListener('click', toggleSolution);
+$('pdfBtn').addEventListener('click', downloadPdf);
+$('nextBtn').addEventListener('click', () => M.stage >= MAX_STAGE ? newMaze() : nextStage());
+$('againBtn').addEventListener('click', () => newMaze());
+// Buttons nach Klick nicht fokussiert lassen, damit Pfeiltasten/Leertaste das Spiel steuern
+document.querySelectorAll('.panel .btn').forEach(b => b.addEventListener('mouseup', () => b.blur()));
+
+// Farbschema
+const THEMES = ['auto', 'light', 'dark'], THEME_LABEL = { auto: 'Auto', light: 'Hell', dark: 'Dunkel' };
+let theme = 'auto';
+try { theme = localStorage.getItem('labyrinth-theme') || 'auto'; } catch {}
+function applyTheme() {
+  if (theme === 'auto') document.documentElement.removeAttribute('data-theme');
+  else document.documentElement.setAttribute('data-theme', theme);
+  $('themeBtn').textContent = 'Design: ' + THEME_LABEL[theme];
+  readColors();
+  if (M) drawWalls();
+}
+$('themeBtn').addEventListener('click', e => {
+  theme = THEMES[(THEMES.indexOf(theme) + 1) % 3];
+  try { localStorage.setItem('labyrinth-theme', theme); } catch {}
+  applyTheme(); e.currentTarget.blur();
+});
+matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', applyTheme);
+
+new ResizeObserver(resize).observe(cv);
+
+applyTheme();
+updateStageLabel();
+newMaze();
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
