@@ -109,6 +109,33 @@ textarea.big{width:100%;height:240px;font:12px var(--mono);border:1px solid var(
 .row2{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
 .hint{color:var(--mute);font-size:12.5px;margin:4px 0}
 @media (max-width:480px){.brand span{display:none}.tb button{padding:0 8px}}
+
+#tools{flex:none;display:flex;align-items:stretch;padding:4px 6px 3px;background:var(--panel);border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+#tools::-webkit-scrollbar{display:none}
+@media (min-width:700px){#tools{flex-wrap:wrap;overflow-x:visible;row-gap:3px}}
+.tg{display:flex;flex-direction:column;padding:0 7px;border-right:1px solid var(--line);flex:none}
+.tg:first-child{padding-left:2px}.tg:last-child{border-right:0}
+.tgi{display:flex;gap:2px}
+.tgl{font-size:10.5px;color:var(--mute);text-align:center;line-height:1.3;margin-top:1px;letter-spacing:.3px}
+.tbtn{width:36px;height:34px;border:1px solid transparent;background:transparent;border-radius:7px;padding:0;display:inline-flex;align-items:center;justify-content:center;color:var(--ink);flex:none}
+.tbtn svg{width:22px;height:22px;pointer-events:none;display:block}
+@media (hover:hover){.tbtn:hover{background:var(--field);border-color:var(--line)}}
+.tbtn:focus-visible{outline:2px solid var(--acc);outline-offset:-2px}
+.tbtn.on{background:var(--acc);color:var(--accink);border-color:var(--acc)}
+@media (pointer:coarse){.tbtn{width:42px;height:40px}.tbtn svg{width:24px;height:24px}}
+#tip{position:fixed;left:0;top:0;z-index:70;max-width:270px;background:#12151b;color:#f1f3f7;padding:7px 10px;border-radius:8px;font-size:12.5px;line-height:1.4;box-shadow:var(--shadow);pointer-events:none;opacity:0;transition:opacity .12s}
+#tip.show{opacity:1}
+#tip b{display:block;font-size:13px;font-weight:600;margin-bottom:1px}
+#tip kbd{font:11px var(--mono);background:#2b303a;border-radius:4px;padding:1px 5px;margin-left:7px;color:#cfd6e4;font-weight:400}
+@media (prefers-reduced-motion:reduce){#tip{transition:none}}
+
+.symgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px;margin-top:10px}
+.symbtn{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px 4px 6px;font-size:12px;text-align:center;cursor:pointer;line-height:1.2}
+.symbtn:hover,.symbtn:focus-visible{border-color:var(--acc);outline:none}
+.symbtn canvas{width:64px;height:64px;background:var(--field);border-radius:6px}
+.symdel{position:absolute;top:2px;right:2px;width:22px;height:22px;border:0;background:var(--panel);color:var(--mute);border-radius:50%;padding:0;line-height:1;font-size:11px}
+.frow input[type=range]{padding:0;accent-color:var(--acc)}
+canvas.pdfprev{width:auto;max-width:100%;max-height:220px;display:block;border:1px solid var(--line);border-radius:6px;background:#dfe3ea;margin:4px auto 8px}
 </style>
 </head>
 <body>
@@ -123,6 +150,7 @@ textarea.big{width:100%;height:240px;font:12px var(--mono);border:1px solid var(
     <button id="bHelp" title="Anleitung">?</button>
   </div>
 </header>
+<div id="tools" role="toolbar" aria-label="Werkzeuge"></div>
 <div id="main">
   <div id="stage"><canvas id="cv"></canvas><div id="toast"></div><div id="coords"></div></div>
   <aside id="side">
@@ -135,8 +163,8 @@ textarea.big{width:100%;height:240px;font:12px var(--mono);border:1px solid var(
   <div class="cin"><input id="cin" placeholder="Befehl oder Wert, z. B. 10,20 · @5<45 · 12.5" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="done"><button id="bOk">OK</button><button id="bEsc">Esc</button></div>
 </div>
 <div id="chips"></div>
-<nav id="dock"><div id="tabs"></div><div id="btns"></div></nav>
 <div id="modal" hidden><div id="mbox" role="dialog" aria-modal="true"><div id="mhead"><span id="mtitle"></span><button class="ib" id="mclose" aria-label="Schließen">✕</button></div><div id="mbody"></div><div class="mfoot" id="mfoot"></div></div></div>
+<input type="file" id="fimg" accept="image/*" hidden>
 <input type="file" id="fin" accept=".json,.hlx,.txt,.dxf,application/json,text/plain" hidden>
 <script>
 (()=>{'use strict';
@@ -175,6 +203,10 @@ function xf(e,M){
     case'text':n.p=T(e.p);n.h=e.h*s;if(!flip)n.rot=ang(linM(M,[Math.cos(e.rot||0),Math.sin(e.rot||0)]));break;
     case'dim':n.a=T(e.a);n.b=T(e.b);n.p=T(e.p);n.th=(e.th||doc.th)*s;if(e.mode==='h'||e.mode==='v'){const q=Math.abs(M.b)+Math.abs(M.c)>1e-9&&!(Math.abs(M.a)<1e-9&&Math.abs(M.d)<1e-9)?1:0;if(q&&!(Math.abs(M.b)<1e-9&&Math.abs(M.c)<1e-9))n.mode='al'}break;
     case'rdim':n.c=T(e.c);n.r=e.r*s;n.p=T(e.p);n.th=(e.th||doc.th)*s;break;
+    case'spline':n.pts=e.pts.map(T);break;
+    case'leader':n.pts=e.pts.map(T);n.h=(e.h||doc.th)*s;break;
+    case'adim':n.c=T(e.c);n.a=T(e.a);n.b=T(e.b);n.p=T(e.p);n.th=(e.th||doc.th)*s;break;
+    case'xline':n.p=T(e.p);n.ang=ang(linM(M,[Math.cos(e.ang),Math.sin(e.ang)]));break;
   }
   return n;
 }
@@ -193,6 +225,35 @@ function dimGeom(e){
   return{a2,b2,u,segs,th,m,txt:fmtN(m),tp:add(lerp(a2,b2,.5),mul(tn,th*.35)),rot:ang(tu)};
 }
 function rdimGeom(e){const th=e.th||doc.th,u=nrm(sub(e.p,e.c)),edge=add(e.c,mul(u,e.r));return{edge,th,segs:[[edge,e.p]],txt:(e.kind==='D'?'Ø'+fmtN(e.r*2):'R'+fmtN(e.r)),tp:add(e.p,[th*.3,th*.3]),dir:nrm(sub(edge,e.p))}}
+/* ---- Spline, Hinweislinie, Winkelmaß, Konstruktionslinie ---- */
+const XL=1e6;
+function splinePts(e,per=14){
+  const P=e.pts,n=P.length;
+  if(n<3&&!(e.closed&&n>2))return P.map(p=>p.slice());
+  const cl=!!e.closed,out=[],m=cl?n:n-1,g=i=>cl?P[((i%n)+n)%n]:P[Math.max(0,Math.min(n-1,i))];
+  for(let i=0;i<m;i++){
+    const p0=g(i-1),p1=g(i),p2=g(i+1),p3=g(i+2);
+    for(let k=0;k<per;k++){const t=k/per,t2=t*t,t3=t2*t;
+      out.push([0,1].map(j=>.5*(2*p1[j]+(-p0[j]+p2[j])*t+(2*p0[j]-5*p1[j]+4*p2[j]-p3[j])*t2+(-p0[j]+3*p1[j]-3*p2[j]+p3[j])*t3)))}
+  }
+  out.push(cl?out[0].slice():P[n-1].slice());
+  return out;
+}
+function leaderGeom(e){
+  const th=e.h||doc.th,P=e.pts,n=P.length,end=P[n-1],prev=P[n-2]||P[0],right=end[0]>=prev[0]-1e-9?1:-1,sh=th*.7,shEnd=[end[0]+right*sh,end[1]],segs=[];
+  for(let i=0;i<n-1;i++)segs.push([P[i],P[i+1]]);
+  segs.push([end,shEnd]);
+  return{segs,tip:P[0],dir:nrm(sub(P[0],P[1]||P[0])),th,p:[shEnd[0]+right*th*.3,shEnd[1]-th*.35],align:right>0?'left':'right',right};
+}
+function adimGeom(e){
+  const th=e.th||doc.th,c=e.c,r=Math.max(dist(c,e.p),1e-6),al=ang(sub(e.a,c)),bl=ang(sub(e.b,c)),pa=ang(sub(e.p,c)),s12=nA(bl-al);
+  let a0,span;if(nA(pa-al)<=s12){a0=al;span=s12}else{a0=bl;span=TAU-s12}
+  if(span<1e-9)span=TAU;
+  const a1=a0+span,am=a0+span/2,segs=[],gap=th*.3,over=th*.6;
+  for(const[q,ra]of[[e.a,al],[e.b,bl]]){const ap=pol(c,r,ra),d=sub(ap,q),l=len(d);if(l>1e-9){const u=mul(d,1/l);segs.push([add(q,mul(u,Math.min(gap,l*.5))),add(ap,mul(u,over))])}}
+  let rot=nA(am-Math.PI/2);if(rot>Math.PI/2&&rot<=3*Math.PI/2)rot-=Math.PI;
+  return{c,r,a0,a1,span,segs,th,txt:fmtN(span/D2R)+'\u00b0',tp:pol(c,r+th*1.15,am),rot,s:pol(c,r,a0),t:pol(c,r,a1),dir0:[Math.sin(a0),-Math.cos(a0)],dir1:[-Math.sin(a1),Math.cos(a1)]};
+}
 function textBox(e){const ls=String(e.text).split('\n'),n=ls.length,w=Math.max(1,...ls.map(s=>s.length))*e.h*.6,y0=-(n-1)*1.25*e.h-.25*e.h,y1=.95*e.h,co=Math.cos(e.rot||0),si=Math.sin(e.rot||0);
   return{w,y0,y1,pts:[[0,y0],[w,y0],[w,y1],[0,y1]].map(q=>[e.p[0]+q[0]*co-q[1]*si,e.p[1]+q[0]*si+q[1]*co])}}
 function inText(e,p){const t=textBox(e),co=Math.cos(e.rot||0),si=Math.sin(e.rot||0),d=sub(p,e.p),x=d[0]*co+d[1]*si,y=-d[0]*si+d[1]*co;return x>=0&&x<=t.w&&y>=t.y0&&y<=t.y1}
@@ -206,6 +267,10 @@ function prims(e){
     case'dim':return dimGeom(e).segs.map(s=>({k:'s',a:s[0],b:s[1]}));
     case'rdim':return rdimGeom(e).segs.map(s=>({k:'s',a:s[0],b:s[1]}));
     case'text':{const b=textBox(e).pts;return b.map((q,i)=>({k:'s',a:q,b:b[(i+1)%4]}))}
+    case'spline':{const p=splinePts(e);return p.slice(1).map((q,i)=>({k:'s',a:p[i],b:q}))}
+    case'leader':return leaderGeom(e).segs.map(s=>({k:'s',a:s[0],b:s[1]}));
+    case'adim':{const g=adimGeom(e);return[{k:'c',c:g.c,r:g.r,a0:g.a0,a1:g.a1,full:false},...g.segs.map(s=>({k:'s',a:s[0],b:s[1]}))]}
+    case'xline':{const u=[Math.cos(e.ang),Math.sin(e.ang)];return[{k:'s',a:sub(e.p,mul(u,XL)),b:add(e.p,mul(u,XL))}]}
     default:return[];
   }
 }
@@ -221,6 +286,8 @@ function bbox(e){
   }
   if(e.type==='dim')P(dimGeom(e).tp);
   if(e.type==='rdim')P(e.p);
+  if(e.type==='adim')P(adimGeom(e).tp);
+  if(e.type==='leader'){const g=leaderGeom(e),w=Math.max(1,...String(e.text).split('\n').map(l=>l.length))*g.th*.6,n=String(e.text).split('\n').length;P(g.p);P([g.p[0]+g.right*w,g.p[1]+g.th]);P([g.p[0],g.p[1]-(n-1)*1.25*g.th-.3*g.th])}
   return xs.length?[Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)]:null;
 }
 function nearPrim(q,p){
@@ -234,6 +301,8 @@ function distEnt(e,p){
   if(e.type==='text'&&inText(e,p))return 0;
   let m=Infinity;for(const q of prims(e))m=Math.min(m,distPrim(q,p));
   if(e.type==='dim'){m=Math.min(m,dist(p,dimGeom(e).tp)*.6)}
+  if(e.type==='adim'){m=Math.min(m,dist(p,adimGeom(e).tp)*.6)}
+  if(e.type==='leader'){m=Math.min(m,dist(p,leaderGeom(e).p)*.6)}
   return m;
 }
 function footPrim(q,p){
@@ -300,6 +369,7 @@ function touches(e,R){
 /* Versatz */
 function offsetEnt(e,d,q){
   if(e.type==='line'){const u=nrm(sub(e.b,e.a)),n=[-u[1],u[0]],s=crs(u,sub(q,e.a))>=0?1:-1,o=mul(n,d*s),r=clone(e);r.a=add(e.a,o);r.b=add(e.b,o);return r}
+  if(e.type==='xline'){const u=[Math.cos(e.ang),Math.sin(e.ang)],n=[-u[1],u[0]],s=crs(u,sub(q,e.p))>=0?1:-1,r=clone(e);r.p=add(e.p,mul(n,d*s));return r}
   if(e.type==='circle'||e.type==='arc'){const out=dist(q,e.c)>e.r,r=clone(e);r.r=e.r+(out?d:-d);return r.r>1e-9?r:null}
   if(e.type==='pline'){
     const p=e.pts,n=p.length,m=e.closed?n:n-1;if(n<2)return null;
@@ -327,21 +397,22 @@ const PALN={auto:'Auto',red:'Rot',yellow:'Gelb',green:'Grün',cyan:'Cyan',blue:'
 const colRes=(k,tn)=>(!k||k==='auto'||!PAL[k])?THEMES[tn].fg:PAL[k][tn==='dark'?0:1];
 const LT={solid:[],dashed:[10,6],center:[24,5,4,5],dotted:[2,5],hidden:[7,5]};
 const LTN={solid:'Durchgezogen',dashed:'Gestrichelt',center:'Mittellinie',dotted:'Gepunktet',hidden:'Verdeckt'};
-const SNAPN={end:'Endpunkt',mid:'Mittelpunkt',cen:'Zentrum',int:'Schnittpunkt',quad:'Quadrant',per:'Lot',nea:'Nächster Punkt',grid:'Raster'};
+const SNAPN={polar:'Polar',end:'Endpunkt',mid:'Mittelpunkt',cen:'Zentrum',int:'Schnittpunkt',quad:'Quadrant',per:'Lot',nea:'Nächster Punkt',grid:'Raster'};
 
-const newDoc=n=>({name:n||'Zeichnung 1',cur:'0',nid:1,grid:10,th:5,dec:2,layers:[{name:'0',color:'auto',vis:true,lock:false,lt:'solid'}],ents:[]});
+const newDoc=n=>({name:n||'Zeichnung 1',cur:'0',nid:1,grid:10,th:5,dec:2,layers:[{name:'0',color:'auto',vis:true,lock:false,lt:'solid',lw:.25}],ents:[],bg:null});
 let doc=newDoc(),undoS=[],redoS=[],sel=new Set(),tool=null,lastCmd=null,clip=null;
 let view={s:3,ox:60,oy:400};
-const prefs={osnap:true,gsnap:false,ortho:false,grid:true,theme:'dark',multi:false,snaps:{end:1,mid:1,cen:1,int:1,quad:1,per:0,nea:0}};
+const prefs={osnap:true,gsnap:false,ortho:false,polar:true,polarA:15,lw:true,grid:true,theme:'dark',multi:false,snaps:{end:1,mid:1,cen:1,int:1,quad:1,per:0,nea:0}};
 const SNAP_ALL={end:1,mid:1,cen:1,int:1,quad:1,per:1,nea:0};
 let shiftDown=false;
+let lastWin=null;
 let cs=[0,0],raw=[0,0],cur=[0,0],snapC=null,hover=null,boxR=null,gripDrag=null,coarse=false,raf=0,saveT=0;
 const layerOf=e=>doc.layers.find(l=>l.name===e.layer)||doc.layers[0];
 const vis=e=>layerOf(e).vis,lockd=e=>layerOf(e).lock;
 const byId=id=>doc.ents.find(e=>e.id===id);
-const snapDoc=()=>JSON.stringify([doc.layers,doc.cur,doc.nid,doc.ents,doc.grid,doc.th,doc.dec]);
+const snapDoc=()=>JSON.stringify([doc.layers,doc.cur,doc.nid,doc.ents,doc.grid,doc.th,doc.dec,doc.bg?[doc.bg.p,doc.bg.s,doc.bg.rot,doc.bg.op,doc.bg.vis]:null]);
 function pushUndo(){undoS.push(snapDoc());if(undoS.length>120)undoS.shift();redoS.length=0;dirty()}
-function restore(s){const[l,c,n,e,g,t,d]=JSON.parse(s);doc.layers=l;doc.cur=c;doc.nid=n;doc.ents=e;doc.grid=g;doc.th=t;doc.dec=d;sel=new Set([...sel].filter(id=>doc.ents.some(x=>x.id===id)))}
+function restore(s){const[l,c,n,e,g,t,d,bm]=JSON.parse(s);if(bm&&doc.bg)Object.assign(doc.bg,{p:bm[0],s:bm[1],rot:bm[2],op:bm[3],vis:bm[4]});doc.layers=l;doc.cur=c;doc.nid=n;doc.ents=e;doc.grid=g;doc.th=t;doc.dec=d;sel=new Set([...sel].filter(id=>doc.ents.some(x=>x.id===id)))}
 function undo(){if(!undoS.length){toast('Nichts zum Rückgängigmachen');return}redoS.push(snapDoc());restore(undoS.pop());afterDoc()}
 function redo(){if(!redoS.length){toast('Nichts zum Wiederholen');return}undoS.push(snapDoc());restore(redoS.pop());afterDoc()}
 function afterDoc(){selChanged();renderSide();redraw();dirty();updUndoBtns()}
@@ -360,7 +431,7 @@ const s2w=(x,y,V=view)=>[(x-V.ox)/V.s,(V.oy-y)/V.s];
 function resize(){dpr=Math.min(window.devicePixelRatio||1,3);const W=stage.clientWidth,H=stage.clientHeight;cv.width=Math.max(1,Math.round(W*dpr));cv.height=Math.max(1,Math.round(H*dpr));redraw()}
 function redraw(){if(!raf)raf=requestAnimationFrame(render)}
 function zoomAt(sx,sy,f){const wp=s2w(sx,sy),s=clamp(view.s*f,1e-4,1e6);view.s=s;view.ox=sx-wp[0]*s;view.oy=sy+wp[1]*s;redraw()}
-function docBBox(only){let b=null;for(const e of(only||doc.ents)){if(!vis(e))continue;const q=bbox(e);if(!q)continue;b=b?[Math.min(b[0],q[0]),Math.min(b[1],q[1]),Math.max(b[2],q[2]),Math.max(b[3],q[3])]:q}return b}
+function docBBox(only){let b=null;for(const e of(only||doc.ents)){if(!vis(e)||e.type==='xline')continue;const q=bbox(e);if(!q)continue;b=b?[Math.min(b[0],q[0]),Math.min(b[1],q[1]),Math.max(b[2],q[2]),Math.max(b[3],q[3])]:q}return b}
 function zoomBox(b,pad=.08){const W=stage.clientWidth,H=stage.clientHeight;let w=b[2]-b[0],hh=b[3]-b[1];if(w<1e-6)w=1;if(hh<1e-6)hh=1;const s=Math.min(W*(1-2*pad)/w,H*(1-2*pad)/hh);view.s=clamp(s,1e-4,1e6);view.ox=W/2-(b[0]+b[2])/2*view.s;view.oy=H/2+(b[1]+b[3])/2*view.s;redraw()}
 function zoomExt(){const b=docBBox();if(!b){view={s:3,ox:stage.clientWidth*.12,oy:stage.clientHeight*.82};redraw();return}zoomBox(b)}
 
@@ -371,6 +442,8 @@ function pathEnt(c,V,e){
     case'pline':{e.pts.forEach((p,i)=>{const q=w2s(p,V);i?c.lineTo(q[0],q[1]):c.moveTo(q[0],q[1])});if(e.closed)c.closePath();break}
     case'circle':{const q=w2s(e.c,V);c.moveTo(q[0]+e.r*V.s,q[1]);c.arc(q[0],q[1],Math.max(e.r*V.s,.01),0,TAU);break}
     case'arc':{const q=w2s(e.c,V),R=Math.max(e.r*V.s,.01),a1=nA(e.a1-e.a0)<1e-9?e.a0+TAU:e.a1;c.moveTo(q[0]+R*Math.cos(-e.a0),q[1]+R*Math.sin(-e.a0));c.arc(q[0],q[1],R,-e.a0,-a1,true);break}
+    case'spline':{splinePts(e).forEach((p,i)=>{const q=w2s(p,V);i?c.lineTo(q[0],q[1]):c.moveTo(q[0],q[1])});break}
+    case'xline':{const a=w2s(e.p,V),d=[Math.cos(e.ang),-Math.sin(e.ang)];c.moveTo(a[0]-d[0]*9000,a[1]-d[1]*9000);c.lineTo(a[0]+d[0]*9000,a[1]+d[1]*9000);break}
     case'ellipse':{const q=w2s(e.c,V);c.moveTo(q[0]+Math.cos(-e.rot)*e.rx*V.s,q[1]+Math.sin(-e.rot)*e.rx*V.s);c.ellipse(q[0],q[1],Math.max(e.rx*V.s,.01),Math.max(e.ry*V.s,.01),-e.rot,0,TAU);break}
   }
 }
@@ -394,18 +467,23 @@ function drawHatch(c,V,e,col,lw){
 function strokeEnt(c,V,e,col,lw,dash){
   c.strokeStyle=col;c.fillStyle=col;c.lineWidth=lw;c.setLineDash(dash||[]);c.lineJoin='round';c.lineCap='round';
   switch(e.type){
-    case'line':case'pline':case'circle':case'arc':case'ellipse':c.beginPath();pathEnt(c,V,e);c.stroke();break;
+    case'line':case'pline':case'circle':case'arc':case'ellipse':case'spline':case'xline':c.beginPath();pathEnt(c,V,e);c.stroke();break;
     case'point':{const[x,y]=w2s(e.p,V);c.setLineDash([]);c.beginPath();c.moveTo(x-5,y);c.lineTo(x+5,y);c.moveTo(x,y-5);c.lineTo(x,y+5);c.stroke();c.strokeRect(x-2.5,y-2.5,5,5);break}
     case'text':drawTxt(c,V,e.text,e.p,e.h,e.rot||0,'left',col);break;
     case'dim':{const g=dimGeom(e);c.beginPath();for(const[p,q]of g.segs){const a=w2s(p,V),b=w2s(q,V);c.moveTo(a[0],a[1]);c.lineTo(b[0],b[1])}c.stroke();c.setLineDash([]);arrow(c,V,g.a2,[-g.u[0],-g.u[1]],g.th*.9);arrow(c,V,g.b2,g.u,g.th*.9);drawTxt(c,V,g.txt,g.tp,g.th,g.rot,'center',col);break}
     case'rdim':{const g=rdimGeom(e);c.beginPath();const a=w2s(g.segs[0][0],V),b=w2s(g.segs[0][1],V);c.moveTo(a[0],a[1]);c.lineTo(b[0],b[1]);c.stroke();c.setLineDash([]);arrow(c,V,g.edge,g.dir,g.th*.9);drawTxt(c,V,g.txt,g.tp,g.th,0,'left',col);break}
+    case'leader':{const g=leaderGeom(e);c.beginPath();for(const[p,q]of g.segs){const a=w2s(p,V),b=w2s(q,V);c.moveTo(a[0],a[1]);c.lineTo(b[0],b[1])}c.stroke();c.setLineDash([]);arrow(c,V,g.tip,g.dir,g.th*.9);drawTxt(c,V,e.text,g.p,g.th,0,g.align,col);break}
+    case'adim':{const g=adimGeom(e);c.beginPath();pathEnt(c,V,{type:'arc',c:g.c,r:g.r,a0:g.a0,a1:g.a1});for(const[p,q]of g.segs){const a=w2s(p,V),b=w2s(q,V);c.moveTo(a[0],a[1]);c.lineTo(b[0],b[1])}c.stroke();c.setLineDash([]);arrow(c,V,g.s,g.dir0,g.th*.9);arrow(c,V,g.t,g.dir1,g.th*.9);drawTxt(c,V,g.txt,g.tp,g.th,g.rot,'center',col);break}
     case'hatch':drawHatch(c,V,e,col,lw);break;
   }
 }
-function drawDoc(c,V,tn,lw=1.4){
+const screenLw=m=>prefs.lw?0.9+m*2:1.4;
+const lwOf=e=>{const v=e.lw!=null?e.lw:layerOf(e).lw;return v>=0?v:.25};
+function drawDoc(c,V,tn,wf=screenLw,plot=false){
   for(const pass of[0,1])for(const e of doc.ents){
     if(!vis(e)||(e.type==='hatch')!==(pass===0))continue;
-    const L=layerOf(e);strokeEnt(c,V,e,colRes(e.color||L.color,tn),lw,LT[L.lt]||[]);
+    if(plot&&e.type==='xline')continue;
+    const L=layerOf(e);strokeEnt(c,V,e,colRes(e.color||L.color,tn),wf(lwOf(e)),LT[L.lt]||[]);
   }
 }
 function drawGrid(W,H,T){
@@ -424,6 +502,7 @@ function drawGrid(W,H,T){
 function render(){
   raf=0;const W=stage.clientWidth,H=stage.clientHeight;if(!W||!H)return;const T=THEMES[prefs.theme],tn=prefs.theme;
   ctx.setTransform(dpr,0,0,dpr,0,0);ctx.setLineDash([]);ctx.fillStyle=T.bg;ctx.fillRect(0,0,W,H);
+  if(doc.bg&&doc.bg.vis)drawBg(ctx,view,doc.bg.op);
   if(prefs.grid)drawGrid(W,H,T);
   // Achsen
   ctx.lineWidth=1;ctx.globalAlpha=.55;ctx.strokeStyle='#ff6b6b';ctx.beginPath();ctx.moveTo(0,Math.round(view.oy)+.5);ctx.lineTo(W,Math.round(view.oy)+.5);ctx.stroke();
@@ -441,9 +520,10 @@ function render(){
   if(boxR){const[x0,y0,x1,y1]=boxR,cr=x1<x0;ctx.save();ctx.fillStyle=cr?'rgba(80,220,140,.12)':'rgba(90,150,255,.14)';ctx.strokeStyle=cr?'#43e08a':T.sel;ctx.setLineDash(cr?[6,4]:[]);ctx.lineWidth=1;ctx.fillRect(x0,y0,x1-x0,y1-y0);ctx.strokeRect(x0+.5,y0+.5,x1-x0,y1-y0);ctx.restore()}
   // Fang-Markierung + Fadenkreuz
   const ex=tool?tool.expect():'none';
+  if(snapC&&snapC.guide){const o=w2s(snapC.guide.o),d=[Math.cos(snapC.guide.ang),-Math.sin(snapC.guide.ang)];ctx.save();ctx.strokeStyle=T.hot;ctx.globalAlpha=.6;ctx.lineWidth=1;ctx.setLineDash([6,5]);ctx.beginPath();ctx.moveTo(o[0],o[1]);ctx.lineTo(o[0]+d[0]*9000,o[1]+d[1]*9000);ctx.stroke();ctx.restore()}
   if(snapC){const q=w2s(snapC.p);ctx.save();ctx.strokeStyle=T.hot;ctx.fillStyle=T.hot;ctx.lineWidth=2;ctx.setLineDash([]);ctx.beginPath();const x=q[0],y=q[1],r=7;
     switch(snapC.type){case'end':ctx.rect(x-r,y-r,2*r,2*r);break;case'mid':ctx.moveTo(x,y-r);ctx.lineTo(x+r,y+r);ctx.lineTo(x-r,y+r);ctx.closePath();break;case'cen':ctx.arc(x,y,r,0,TAU);break;case'int':ctx.moveTo(x-r,y-r);ctx.lineTo(x+r,y+r);ctx.moveTo(x+r,y-r);ctx.lineTo(x-r,y+r);break;case'quad':ctx.moveTo(x,y-r);ctx.lineTo(x+r,y);ctx.lineTo(x,y+r);ctx.lineTo(x-r,y);ctx.closePath();break;case'per':ctx.moveTo(x-r,y-r);ctx.lineTo(x-r,y+r);ctx.lineTo(x+r,y+r);ctx.moveTo(x-r,y);ctx.lineTo(x,y);ctx.lineTo(x,y+r);break;case'nea':ctx.moveTo(x-r,y-r);ctx.lineTo(x+r,y-r);ctx.lineTo(x-r,y+r);ctx.lineTo(x+r,y+r);ctx.closePath();break;default:ctx.moveTo(x-r,y);ctx.lineTo(x+r,y);ctx.moveTo(x,y-r);ctx.lineTo(x,y+r)}
-    ctx.stroke();ctx.font=`12px ${FONT}`;ctx.textAlign='left';ctx.fillText(SNAPN[snapC.type]||'',x+r+5,y-r-2);ctx.restore()}
+    ctx.stroke();ctx.font=`12px ${FONT}`;ctx.textAlign='left';ctx.fillText(snapC.label||SNAPN[snapC.type]||'',x+r+5,y-r-2);ctx.restore()}
   if(!coarse&&(ex==='point'||ex==='both'||!tool)&&!boxR){const q=w2s(cur);ctx.save();ctx.strokeStyle=T.fg;ctx.globalAlpha=.6;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(q[0]-14,q[1]+.5);ctx.lineTo(q[0]+14,q[1]+.5);ctx.moveTo(q[0]+.5,q[1]-14);ctx.lineTo(q[0]+.5,q[1]+14);ctx.stroke();ctx.restore()}
   if(coarse&&tool&&(ex==='point'||ex==='both')){const q=w2s(cur);ctx.save();ctx.strokeStyle=T.hot;ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(q[0],q[1],10,0,TAU);ctx.moveTo(q[0]-16,q[1]);ctx.lineTo(q[0]+16,q[1]);ctx.moveTo(q[0],q[1]-16);ctx.lineTo(q[0],q[1]+16);ctx.stroke();ctx.restore()}
   // Dynamische Eingabe
@@ -468,7 +548,9 @@ function makeP(c,T){
 /* ================= Griffe ================= */
 function gripsOf(e){const g=[],G=(p,k,i)=>g.push({p,k,i});switch(e.type){
   case'line':G(e.a,'a');G(e.b,'b');G(lerp(e.a,e.b,.5),'m');break;
-  case'pline':e.pts.forEach((p,i)=>G(p,'v',i));break;
+  case'pline':case'spline':case'leader':e.pts.forEach((p,i)=>G(p,'v',i));break;
+  case'adim':G(e.c,'c');G(e.a,'a');G(e.b,'b');G(e.p,'p');break;
+  case'xline':G(e.p,'p');G(add(e.p,mul([Math.cos(e.ang),Math.sin(e.ang)],64/view.s)),'d');break;
   case'circle':G(e.c,'c');for(let k=0;k<4;k++)G(pol(e.c,e.r,k*Math.PI/2),'r');break;
   case'arc':G(e.c,'c');G(pol(e.c,e.r,e.a0),'s');G(pol(e.c,e.r,e.a1),'e');G(pol(e.c,e.r,e.a0+nA(e.a1-e.a0)/2),'r');break;
   case'ellipse':{G(e.c,'c');const co=Math.cos(e.rot),si=Math.sin(e.rot);G(add(e.c,[e.rx*co,e.rx*si]),'x');G(add(e.c,[-e.ry*si,e.ry*co]),'y');break}
@@ -478,12 +560,13 @@ function gripsOf(e){const g=[],G=(p,k,i)=>g.push({p,k,i});switch(e.type){
 }return g}
 function gripEdit(e,g,np){const n=clone(e);switch(e.type){
   case'line':if(g.k==='a')n.a=np;else if(g.k==='b')n.b=np;else{const d=sub(np,lerp(e.a,e.b,.5));n.a=add(e.a,d);n.b=add(e.b,d)}break;
-  case'pline':n.pts[g.i]=np;break;
+  case'pline':case'spline':case'leader':n.pts[g.i]=np;break;
+  case'xline':if(g.k==='p')n.p=np;else n.ang=ang(sub(np,e.p));break;
   case'circle':if(g.k==='c')n.c=np;else n.r=Math.max(dist(e.c,np),1e-6);break;
   case'arc':if(g.k==='c')n.c=np;else if(g.k==='s')n.a0=ang(sub(np,e.c));else if(g.k==='e')n.a1=ang(sub(np,e.c));else n.r=Math.max(dist(e.c,np),1e-6);break;
   case'ellipse':if(g.k==='c')n.c=np;else if(g.k==='x'){n.rx=Math.max(dist(e.c,np),1e-6);n.rot=ang(sub(np,e.c))}else{const co=Math.cos(e.rot),si=Math.sin(e.rot);n.ry=Math.max(Math.abs(dot(sub(np,e.c),[-si,co])),1e-6)}break;
   case'point':case'text':n.p=np;break;
-  case'dim':n[g.k]=np;break;
+  case'dim':case'adim':n[g.k]=np;break;
   case'rdim':n.p=np;break;
 }return n}
 function hitGrip(sx,sy){if(tool||!sel.size||sel.size>60)return null;const R=coarse?18:10;for(const id of sel){const e=byId(id);if(!e||lockd(e))continue;for(const g of gripsOf(e)){const q=w2s(g.p);if(Math.hypot(q[0]-sx,q[1]-sy)<=R)return{id,g}}}return null}
@@ -497,6 +580,9 @@ function snapPts(e){const r=[];switch(e.type){
   case'arc':{r.push([e.c,'cen'],[pol(e.c,e.r,e.a0),'end'],[pol(e.c,e.r,e.a1),'end'],[pol(e.c,e.r,e.a0+nA(e.a1-e.a0)/2),'mid']);for(let k=0;k<4;k++){const a=k*Math.PI/2;if(inArc(a,e.a0,e.a1))r.push([pol(e.c,e.r,a),'quad'])}break}
   case'ellipse':{r.push([e.c,'cen']);const co=Math.cos(e.rot),si=Math.sin(e.rot);r.push([add(e.c,[e.rx*co,e.rx*si]),'quad'],[add(e.c,[-e.rx*co,-e.rx*si]),'quad'],[add(e.c,[-e.ry*si,e.ry*co]),'quad'],[add(e.c,[e.ry*si,-e.ry*co]),'quad']);break}
   case'text':r.push([e.p,'end']);break;
+  case'spline':case'leader':e.pts.forEach(p=>r.push([p,'end']));break;
+  case'adim':r.push([e.c,'cen'],[e.a,'end'],[e.b,'end']);break;
+  case'xline':r.push([e.p,'end']);break;
   case'dim':r.push([e.a,'end'],[e.b,'end']);break;
   case'rdim':r.push([e.c,'cen']);break;
 }return r}
@@ -520,6 +606,11 @@ function findSnap(wp,last,force){
 function snapPoint(rw,last){
   let p=rw.slice(),sn=null;
   if(prefs.osnap||shiftDown){const s=findSnap(rw,last,shiftDown);if(s){p=s.p;sn=s}}
+  if(!sn&&prefs.polar&&!prefs.ortho&&last){
+    const v=sub(rw,last),L=len(v),inc=(prefs.polarA||15)*D2R;
+    if(L*view.s>14){const a=ang(v),k=Math.round(a/inc)*inc,dA=a-k;
+      if(L*Math.abs(Math.sin(dA))*view.s<=(coarse?16:9)){p=add(last,mul([Math.cos(k),Math.sin(k)],L*Math.cos(dA)));sn={p,type:'polar',guide:{o:last,ang:k},label:`Polar ${f3(nA(k)/D2R)}°`}}}
+  }
   if(!sn){
     if(prefs.gsnap){const g=doc.grid;p=[Math.round(rw[0]/g)*g,Math.round(rw[1]/g)*g];sn={p,type:'grid'}}
     if(prefs.ortho&&last){p=Math.abs(p[0]-last[0])>=Math.abs(p[1]-last[1])?[p[0],last[1]]:[last[0],p[1]];sn=null}
@@ -544,7 +635,7 @@ function updateCursor(sx,sy){
 function selChanged(){renderSide();redraw()}
 function selectAll(){sel=new Set(doc.ents.filter(e=>vis(e)&&!lockd(e)).map(e=>e.id));selChanged()}
 function boxSelect(x0,y0,x1,y1,add){
-  const crossing=x1<x0,a=s2w(Math.min(x0,x1),Math.max(y0,y1)),b=s2w(Math.max(x0,x1),Math.min(y0,y1)),R=[a[0],a[1],b[0],b[1]];
+  const crossing=x1<x0,a=s2w(Math.min(x0,x1),Math.max(y0,y1)),b=s2w(Math.max(x0,x1),Math.min(y0,y1)),R=[a[0],a[1],b[0],b[1]];lastWin={R:R.slice(),crossing};
   if(!add&&!(tool&&tool.expect()==='select'))sel=new Set();
   for(const e of doc.ents){if(!vis(e)||lockd(e))continue;const bb=bbox(e);if(!bb)continue;
     if(bb[2]<R[0]||bb[0]>R[2]||bb[3]<R[1]||bb[1]>R[3])continue;
@@ -557,7 +648,7 @@ function boxSelect(x0,y0,x1,y1,add){
 let toastT=0,offDist=10,filR=5,chaD=5,polyN=6;
 function toast(t,ms=2400){const e=$('#toast');e.textContent=t;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),ms)}
 function updPrompt(){const p=$('#prompt');p.textContent='';if(tool){p.append(h('b',null,tool.name+': '),tool.prompt())}else p.textContent='Bereit – Werkzeug wählen oder Befehl eingeben (z. B. L = Linie)';updDock()}
-const mkLike=(e,patch)=>Object.assign({layer:e.layer},e.color?{color:e.color}:{},patch);
+const mkLike=(e,patch)=>Object.assign({layer:e.layer},e.color?{color:e.color}:{},e.lw!=null?{lw:e.lw}:{},patch);
 function startTool(name){
   cancelTool();const f=TOOLS[name];if(!f)return;const t=f();if(!t)return;tool=t;tool.id=name;lastCmd=name;
   if(tool.init)tool.init();updPrompt();updateCursor(cs[0],cs[1]);
@@ -764,7 +855,7 @@ function clipCopy(){if(!sel.size){toast('Erst Objekte wählen');return}const ent
 
 /* ================= Eingabe ================= */
 const ALIAS={l:'line',linie:'line',line:'line',pl:'pline',polylinie:'pline',pline:'pline',rec:'rect',rechteck:'rect',rect:'rect',c:'circle',kreis:'circle',circle:'circle',c2:'circle2',c3:'circle3',a:'arc3',bogen:'arc3',arc:'arc3',el:'ellipse',ellipse:'ellipse',pol:'polygon',polygon:'polygon',po:'point',punkt:'point',point:'point',t:'text',text:'text',
-  dim:'dim',dimh:'dimh',dimv:'dimv',dr:'rdim',h:'hatch',schraffur:'hatch',di:'dist',abstand:'dist',area:'area',fläche:'area',e:'erase',löschen:'erase',erase:'erase',m:'move',verschieben:'move',move:'move',co:'copy',cp:'copy',kopieren:'copy',copy:'copy',ro:'rotate',drehen:'rotate',rotate:'rotate',sc:'scale',skalieren:'scale',scale:'scale',mi:'mirror',spiegeln:'mirror',mirror:'mirror',o:'offset',versetzen:'offset',offset:'offset',tr:'trim',stutzen:'trim',trim:'trim',ex:'extend',dehnen:'extend',extend:'extend',f:'fillet',abrunden:'fillet',fillet:'fillet',cha:'chamfer',fase:'chamfer',chamfer:'chamfer',x:'explode',auflösen:'explode',explode:'explode',j:'join',verbinden:'join',join:'join',ar:'array',reihe:'array',arp:'arrayp',pan:'pan',zw:'zwin',z:'zall',ze:'zall',zi:'zin',zo:'zout',u:'undo',undo:'undo',redo:'redo',alle:'selall',sel:'select',paste:'paste',einfügen:'paste',ctrlc:'clipcopy'};
+  dim:'dim',dimh:'dimh',dimv:'dimv',dr:'rdim',h:'hatch',schraffur:'hatch',di:'dist',abstand:'dist',area:'area',fläche:'area',e:'erase',löschen:'erase',erase:'erase',m:'move',verschieben:'move',move:'move',co:'copy',cp:'copy',kopieren:'copy',copy:'copy',ro:'rotate',drehen:'rotate',rotate:'rotate',sc:'scale',skalieren:'scale',scale:'scale',mi:'mirror',spiegeln:'mirror',mirror:'mirror',o:'offset',versetzen:'offset',offset:'offset',tr:'trim',stutzen:'trim',trim:'trim',ex:'extend',dehnen:'extend',extend:'extend',f:'fillet',abrunden:'fillet',fillet:'fillet',cha:'chamfer',fase:'chamfer',chamfer:'chamfer',x:'explode',auflösen:'explode',explode:'explode',j:'join',verbinden:'join',join:'join',ar:'array',reihe:'array',arp:'arrayp',pan:'pan',zw:'zwin',z:'zall',ze:'zall',zi:'zin',zo:'zout',u:'undo',undo:'undo',redo:'redo',alle:'selall',sel:'select',paste:'paste',einfügen:'paste',ctrlc:'clipcopy',spl:'spline',spline:'spline',xl:'xline',konstruktionslinie:'xline',le:'leader',hinweis:'leader',hinweislinie:'leader',ad:'adim',winkel:'adim',br:'break',brechen:'break',break:'break',str:'stretch',strecken:'stretch',stretch:'stretch',vi:'vadd',vl:'vdel',sym:'symbol',symbol:'symbol',bild:'bgload',cal:'calib',pdf:'pdf',rahmen:'frame',zr:'frame',rf:'framefill',schriftfeld:'framefill'};
 function act(name){
   if(TOOLS[name]){startTool(name);return}
   switch(name){
@@ -774,6 +865,12 @@ function act(name){
     case'zall':zoomExt();break;
     case'undo':undo();break;case'redo':redo();break;
     case'selall':selectAll();break;case'clipcopy':clipCopy();break;
+    case'bgload':$('#fimg').click();break;
+    case'bgvis':bgToggle();break;
+    case'symbol':symbolPicker();break;
+    case'pdf':pdfDialog();break;
+    case'frame':frameDialog();break;
+    case'framefill':fillFrameDialog();break;
   }
 }
 const isNum=s=>/^[-+]?(\d+[.,]?\d*|[.,]\d+)$/.test(s);
@@ -952,7 +1049,7 @@ function askDialog(title,msg,okLabel,fn){
 
 /* ================= Seitenleiste ================= */
 let sideTab='layers';
-const TYPN={line:'Linie',pline:'Polylinie',circle:'Kreis',arc:'Bogen',ellipse:'Ellipse',point:'Punkt',text:'Text',dim:'Bemaßung',rdim:'Radius-/Ø-Maß',hatch:'Schraffur'};
+const TYPN={spline:'Spline',leader:'Hinweislinie',adim:'Winkelmaß',xline:'Konstruktionslinie',line:'Linie',pline:'Polylinie',circle:'Kreis',arc:'Bogen',ellipse:'Ellipse',point:'Punkt',text:'Text',dim:'Bemaßung',rdim:'Radius-/Ø-Maß',hatch:'Schraffur'};
 const sideOpen=()=>$('#side').classList.contains('open');
 function openSide(on){$('#side').classList.toggle('open',on);$('#bSide').classList.toggle('on',on);if(on)renderSide();setTimeout(resize,0)}
 function renderSide(){
@@ -976,6 +1073,13 @@ function deleteLayer(name){
   if(doc.ents.some(e=>e.layer===name)){toast('Ebene enthält Objekte – diese zuerst löschen oder verschieben');return}
   pushUndo();doc.layers=doc.layers.filter(l=>l.name!==name);if(doc.cur===name)doc.cur='0';renderSide();redraw();
 }
+const LWS=[.05,.09,.13,.18,.25,.35,.5,.7,1,1.4,2];
+const lwTxt=v=>f3(v)+' mm';
+function lwOpts(cur,extra){
+  const vals=LWS.slice();if(cur!=null&&!vals.some(v=>Math.abs(v-cur)<1e-9))vals.push(cur),vals.sort((a,b)=>a-b);
+  const o=vals.map(v=>h('option',{value:String(v),selected:cur!=null&&Math.abs(v-cur)<1e-9},lwTxt(v)));
+  return extra?[...extra,...o]:o;
+}
 function layerTab(b){
   b.append(h('div',{class:'row2'},h('button',{class:'sbtn pri',onclick:addLayer},'+ Neue Ebene')));
   b.append(h('div',{class:'hint'},'● = aktuelle Ebene (neue Objekte landen hier) · Auge = sichtbar · Schloss = gesperrt'));
@@ -985,6 +1089,7 @@ function layerTab(b){
     if(L.name==='0')nameIn.readOnly=true;
     const colSel=h('select',{'aria-label':'Ebenenfarbe',onchange:()=>{pushUndo();L.color=colSel.value;renderSide();redraw()}},...Object.keys(PAL).map(k=>h('option',{value:k,selected:k===L.color},PALN[k])));
     const ltSel=h('select',{'aria-label':'Linientyp',onchange:()=>{pushUndo();L.lt=ltSel.value;redraw()}},...Object.keys(LT).map(k=>h('option',{value:k,selected:k===L.lt},LTN[k])));
+    const lwSel=h('select',{'aria-label':'Strichstärke',onchange:()=>{pushUndo();L.lw=parseFloat(lwSel.value);redraw()}},...lwOpts(L.lw!=null?L.lw:.25));
     const sw=h('span',{class:'sw'});sw.style.background=colRes(L.color,prefs.theme);
     b.append(h('div',{class:'lay'+(isCur?' cur':'')},
       h('div',{class:'lr2'},
@@ -993,7 +1098,8 @@ function layerTab(b){
         h('button',{class:'ib'+(L.lock?'':' off'),title:L.lock?'Entsperren':'Sperren','aria-label':'Sperren',onclick:()=>{pushUndo();L.lock=!L.lock;if(L.lock)sel=new Set([...sel].filter(id=>{const e=byId(id);return e&&e.layer!==L.name}));selChanged()}},L.lock?'🔒':'🔓'),
         nameIn,
         h('button',{class:'ib',title:'Ebene löschen (nur wenn leer)','aria-label':'Ebene löschen',onclick:()=>deleteLayer(L.name)},'✕')),
-      h('div',{class:'lr2'},sw,colSel,ltSel)));
+      h('div',{class:'lr2'},sw,colSel,ltSel),
+      h('div',{class:'lr2'},h('span',{class:'hint',style:'margin:0 4px 0 20px;flex:none'},'Strich'),lwSel)));
   }
 }
 /* --- Eigenschaften --- */
@@ -1012,6 +1118,10 @@ function fieldsOf(e){
     case'text':return[{label:'Text',kind:'text',get:e=>e.text,set:(n,v)=>{n.text=v}},...pf('Position',['p']),nf('Höhe','h',{gt:0}),nf('Winkel °','rot',{deg:1})];
     case'dim':return[...pf('Punkt 1',['a']),...pf('Punkt 2',['b']),...pf('Maßlinie',['p']),nf('Texthöhe','th',{gt:0}),selF('Art','mode',[['al','Ausgerichtet'],['h','Horizontal'],['v','Vertikal']])];
     case'rdim':return[selF('Art','kind',[['R','Radius'],['D','Durchmesser']]),...pf('Textlage',['p']),nf('Texthöhe','th',{gt:0})];
+    case'spline':{const f=[{label:'Geschlossen',kind:'bool',get:e=>!!e.closed,set:(n,v)=>{n.closed=v}}];if(e.pts.length<=30)e.pts.forEach((_,i)=>f.push(...pf('P'+(i+1),['pts',i])));return f}
+    case'leader':{const f=[{label:'Text',kind:'text',get:e=>e.text,set:(n,v)=>{n.text=v}},nf('Texthöhe','h',{gt:0})];if(e.pts.length<=30)e.pts.forEach((_,i)=>f.push(...pf(i?'P'+(i+1):'Spitze',['pts',i])));return f}
+    case'adim':return[...pf('Scheitel',['c']),...pf('Punkt 1',['a']),...pf('Punkt 2',['b']),...pf('Maßbogen',['p']),nf('Texthöhe','th',{gt:0})];
+    case'xline':return[...pf('Punkt',['p']),nf('Winkel °','ang',{deg:1})];
     case'hatch':return[selF('Muster','pattern',[['lines','Linien'],['cross','Kreuz'],['solid','Vollfläche']]),nf('Abstand','spacing',{gt:0}),nf('Winkel °','angle',{deg:1})];
   }
   return[];
@@ -1025,6 +1135,10 @@ function infoText(e){
     case'arc':{let s=nA(e.a1-e.a0);if(s<1e-9)s=TAU;L.push(`Bogenlänge ${f3(e.r*s)}`,`Öffnung ${f3(s/D2R)}°`,`Sehne ${f3(2*e.r*Math.sin(s/2))}`);break}
     case'ellipse':L.push(`Fläche ${f3(Math.PI*e.rx*e.ry)}`,`Umfang ≈ ${f3(polyLen(ellPts(e),false))}`);break;
     case'hatch':L.push(`Fläche ${f3(Math.abs(polyArea(e.pts)))}`);break;
+    case'spline':L.push(`${e.pts.length} Stützpunkte${e.closed?', geschlossen':''}`,`Länge ≈ ${f3(polyLen(splinePts(e),false))}`);break;
+    case'leader':L.push(`${e.pts.length} Punkte`);break;
+    case'adim':{const g=adimGeom(e);L.push(`Winkel ${g.txt}`,`Radius ${f3(g.r)}`);break}
+    case'xline':L.push(`Winkel ${f3(nA(e.ang)/D2R)}°`,'Hilfslinie – wird nicht gedruckt/exportiert');break;
     case'dim':{const g=dimGeom(e);L.push(`Maß ${g.txt}`);break}
     case'rdim':L.push(`Radius ${f3(e.r)}`);break;
   }
@@ -1049,6 +1163,11 @@ function propsTab(b){
   if(cols.size>1)copts.unshift(h('option',{value:'__mixed',selected:true},'— verschieden —'));
   const csel=h('select',{onchange:()=>{if(csel.value==='__mixed')return;pushUndo();ents.forEach(e=>{const x=byId(e.id);if(!x)return;if(csel.value)x.color=csel.value;else delete x.color});redraw();dirty()}},...copts);
   b.append(h('label',{class:'frow'},h('span',null,'Farbe'),csel));
+  const lws=new Set(ents.map(e=>e.lw==null?'':String(e.lw)));
+  const lwExtra=[h('option',{value:'',selected:lws.size===1&&lws.has('')},'Von Ebene')];
+  if(lws.size>1)lwExtra.unshift(h('option',{value:'__mixed',selected:true},'— verschieden —'));
+  const lwSelP=h('select',{onchange:()=>{if(lwSelP.value==='__mixed')return;pushUndo();ents.forEach(e=>{const x=byId(e.id);if(!x)return;if(lwSelP.value==='')delete x.lw;else x.lw=parseFloat(lwSelP.value)});redraw();dirty()}},...lwOpts(lws.size===1&&!lws.has('')?parseFloat([...lws][0]):null,lwExtra));
+  b.append(h('label',{class:'frow'},h('span',null,'Strichstärke'),lwSelP));
   if(ents.length===1){
     const e=ents[0];
     b.append(h('h4',null,'MASSE UND POSITION'));
@@ -1066,7 +1185,7 @@ function propsTab(b){
     }
     b.append(h('h4',null,'INFO'));b.append(h('div',{class:'info',id:'pinfo'},infoText(e)));
   }
-  b.append(h('div',{class:'row2'},h('button',{class:'sbtn',onclick:()=>{delEnts([...sel]);afterDoc()}},'Auswahl löschen')));
+  b.append(h('div',{class:'row2'},h('button',{class:'sbtn',onclick:()=>{delEnts([...sel]);afterDoc()}},'Auswahl löschen'),h('button',{class:'sbtn',onclick:symbolFromSelection},'Als Symbol speichern'),...(framesInDoc().length?[h('button',{class:'sbtn',onclick:fillFrameDialog},'Rahmen ausfüllen')]:[])));
 }
 /* --- Einstellungen --- */
 function setTab(b){
@@ -1082,41 +1201,28 @@ function setTab(b){
   num('Texthöhe (neu)',()=>doc.th,v=>{doc.th=v},{gt:0,msg:'Texthöhe muss > 0 sein'});
   num('Nachkommastellen',()=>doc.dec,v=>{doc.dec=v},{int:1,min:0,max:6,msg:'0 bis 6'});
   b.append(h('h4',null,'ANSICHT'));
+  const lwc=h('input',{type:'checkbox',checked:prefs.lw,onchange:()=>{prefs.lw=lwc.checked;savePrefs();updChips();redraw()}});
+  b.append(h('label',{class:'frow'},h('span',null,'Strichstärken zeigen'),lwc));
   const gsel=h('input',{type:'checkbox',checked:prefs.grid,onchange:()=>{prefs.grid=gsel.checked;savePrefs();updChips();redraw()}});
   b.append(h('label',{class:'frow'},h('span',null,'Raster zeigen'),gsel));
   const tsel=h('select',{onchange:()=>{prefs.theme=tsel.value;applyTheme();savePrefs();renderSide();redraw()}},h('option',{value:'dark',selected:prefs.theme==='dark'},'Dunkel'),h('option',{value:'light',selected:prefs.theme==='light'},'Hell'));
   b.append(h('label',{class:'frow'},h('span',null,'Darstellung'),tsel));
+  b.append(h('h4',null,'WINKEL-EINRASTEN (POLAR)'));
+  const pc=h('input',{type:'checkbox',checked:prefs.polar,onchange:()=>{prefs.polar=pc.checked;savePrefs();updChips();redraw()}});
+  b.append(h('label',{class:'frow'},h('span',null,'Polar aktiv'),pc));
+  const pa=h('select',{onchange:()=>{prefs.polarA=parseFloat(pa.value);savePrefs()}},...[5,10,15,22.5,30,45,90].map(v=>h('option',{value:String(v),selected:v===prefs.polarA},v+'°')));
+  b.append(h('label',{class:'frow'},h('span',null,'Winkelschritt'),pa));
   b.append(h('h4',null,'OBJEKTFANG'));
   for(const k of Object.keys(prefs.snaps)){
     const cb=h('input',{type:'checkbox',checked:!!prefs.snaps[k],onchange:()=>{prefs.snaps[k]=cb.checked?1:0;savePrefs()}});
     b.append(h('label',{class:'chk'},cb,h('span',null,SNAPN[k]||k)));
   }
+  bgSettings(b);
   b.append(h('div',{class:'row2'},h('button',{class:'sbtn',onclick:()=>{zoomExt()}},'Alles zeigen'),h('button',{class:'sbtn',onclick:helpDialog},'Anleitung')));
 }
 
-/* ================= Dock & Chips ================= */
-const DOCK={
-  'Zeichnen':[['line','Linie'],['pline','Polylinie'],['rect','Rechteck'],['circle','Kreis'],['circle2','Kreis 2P'],['circle3','Kreis 3P'],['arc3','Bogen 3P'],['arcc','Bogen M-S-E'],['ellipse','Ellipse'],['polygon','Polygon'],['point','Punkt']],
-  'Ändern':[['move','Verschieben'],['copy','Kopieren'],['rotate','Drehen'],['scale','Skalieren'],['mirror','Spiegeln'],['offset','Versetzen'],['trim','Stutzen'],['extend','Dehnen'],['fillet','Abrunden'],['chamfer','Fase'],['explode','Auflösen'],['join','Verbinden'],['array','Reihe'],['arrayp','Polar'],['erase','Löschen']],
-  'Beschriften':[['text','Text'],['dim','Bem. ausger.'],['dimh','Bem. horiz.'],['dimv','Bem. vert.'],['rdim','Radius/Ø'],['hatch','Schraffur'],['dist','Abstand'],['area','Fläche']],
-  'Ansicht':[['select','Wählen'],['pan','Pan'],['zwin','Zoom Fenster'],['zin','Zoom +'],['zout','Zoom −'],['zall','Alles zeigen'],['selall','Alle wählen'],['clipcopy','In Ablage'],['paste','Einfügen'],['undo','Rückgängig'],['redo','Wiederholen']]
-};
-let dtab='Zeichnen';
-function buildDock(){
-  const t=$('#tabs');t.textContent='';
-  for(const k of Object.keys(DOCK))t.append(h('button',{'data-k':k,onclick:()=>{dtab=k;buildBtns();updDock()}},k));
-  buildBtns();updDock();
-}
-function buildBtns(){
-  const b=$('#btns');b.textContent='';b.scrollLeft=0;
-  for(const[id,label]of DOCK[dtab])b.append(h('button',{'data-id':id,onclick:()=>act(id)},label));
-}
-function updDock(){
-  if(!$('#tabs').firstChild)return;
-  document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.k===dtab));
-  document.querySelectorAll('#btns button').forEach(b=>b.classList.toggle('on',!!tool&&tool.id===b.dataset.id));
-}
-const CHIPS=[['osnap','Objektfang'],['gsnap','Rasterfang'],['ortho','Ortho'],['grid','Gitter'],['multi','Mehrfach']];
+/* ================= Chips ================= */
+const CHIPS=[['osnap','Objektfang'],['gsnap','Rasterfang'],['ortho','Ortho'],['polar','Polar'],['lw','Strichstärke'],['grid','Gitter'],['multi','Mehrfach']];
 function buildChips(){
   const c=$('#chips');c.textContent='';
   for(const[k,l]of CHIPS)c.append(h('button',{class:'chip','data-k':k,onclick:()=>{prefs[k]=!prefs[k];savePrefs();updChips();redraw()}},l));
@@ -1128,7 +1234,8 @@ function applyTheme(){document.documentElement.setAttribute('data-theme',prefs.t
 function savePrefs(){store.set('helix:prefs',JSON.stringify(prefs))}
 function loadPrefs(){
   try{const p=JSON.parse(store.get('helix:prefs')||'null');if(!p)return;
-    for(const k of['osnap','gsnap','ortho','grid','multi'])if(typeof p[k]==='boolean')prefs[k]=p[k];
+    for(const k of['osnap','gsnap','ortho','polar','lw','grid','multi'])if(typeof p[k]==='boolean')prefs[k]=p[k];
+    if([5,10,15,22.5,30,45,90].includes(p.polarA))prefs.polarA=p.polarA;
     if(p.theme==='light'||p.theme==='dark')prefs.theme=p.theme;
     if(p.snaps)for(const k of Object.keys(prefs.snaps))if(k in p.snaps)prefs.snaps[k]=p.snaps[k]?1:0;
   }catch(e){}
@@ -1137,7 +1244,7 @@ function loadPrefs(){
 /* ================= Speichern / Laden ================= */
 const FORMAT='helix-web-cad';
 function docToJSON(pretty){
-  return JSON.stringify({format:FORMAT,version:1,saved:new Date().toISOString(),doc:{name:doc.name,cur:doc.cur,nid:doc.nid,grid:doc.grid,th:doc.th,dec:doc.dec,layers:doc.layers,ents:doc.ents}},null,pretty?1:0);
+  return JSON.stringify({format:FORMAT,version:1,saved:new Date().toISOString(),doc:{name:doc.name,cur:doc.cur,nid:doc.nid,grid:doc.grid,th:doc.th,dec:doc.dec,layers:doc.layers,ents:doc.ents,bg:doc.bg||undefined}},null,pretty?1:0);
 }
 const isPt=p=>Array.isArray(p)&&p.length===2&&p.every(Number.isFinite);
 const isN=(...a)=>a.every(Number.isFinite);
@@ -1153,21 +1260,29 @@ function okEnt(e){
     case'text':return isPt(e.p)&&typeof e.text==='string'&&isN(e.h)&&e.h>0;
     case'dim':return isPt(e.a)&&isPt(e.b)&&isPt(e.p);
     case'rdim':return isPt(e.c)&&isN(e.r)&&isPt(e.p);
+    case'spline':return Array.isArray(e.pts)&&e.pts.length>=2&&e.pts.every(isPt);
+    case'leader':return Array.isArray(e.pts)&&e.pts.length>=2&&e.pts.every(isPt)&&typeof e.text==='string'&&isN(e.h)&&e.h>0;
+    case'adim':return isPt(e.c)&&isPt(e.a)&&isPt(e.b)&&isPt(e.p);
+    case'xline':return isPt(e.p)&&isN(e.ang);
   }
   return false;
 }
 function parseDoc(txt){
-  let o;try{o=JSON.parse(txt)}catch(e){throw new Error('Das ist keine gültige JSON-Datei.')}
+  let o;txt=String(txt).replace(/^\uFEFF/,'');
+  try{o=JSON.parse(txt)}catch(e){
+    const i=txt.indexOf('{'),j=txt.lastIndexOf('}');
+    try{if(i<0||j<=i)throw e;o=JSON.parse(txt.slice(i,j+1))}catch(e2){throw new Error('Das ist keine gültige JSON-Datei ('+(e2.message||'Syntaxfehler').slice(0,90)+').')}
+  }
   const d=o&&o.doc?o.doc:o;
   if(!d||!Array.isArray(d.ents))throw new Error('Datei enthält keine Zeichnung (Format: Helix Web-CAD .json).');
   const n=newDoc(typeof d.name==='string'&&d.name.trim()?d.name.trim().slice(0,60):'Zeichnung 1');
-  const names=new Set(['0']),lays=[n.layers[0]];
+  const lwv=v=>Number.isFinite(v)&&v>=0&&v<=5?v:.25,names=new Set(['0']),lays=[n.layers[0]];
   if(Array.isArray(d.layers))for(const L of d.layers){
     if(!L||typeof L.name!=='string'||!L.name.trim())continue;
     const nm=L.name.trim().slice(0,40);
-    if(nm==='0'){Object.assign(lays[0],{color:PAL[L.color]!==undefined||L.color==='auto'?L.color:'auto',vis:L.vis!==false,lock:!!L.lock,lt:LT[L.lt]?L.lt:'solid'});continue}
+    if(nm==='0'){Object.assign(lays[0],{color:PAL[L.color]!==undefined||L.color==='auto'?L.color:'auto',vis:L.vis!==false,lock:!!L.lock,lt:LT[L.lt]?L.lt:'solid',lw:lwv(L.lw)});continue}
     if(names.has(nm))continue;names.add(nm);
-    lays.push({name:nm,color:(L.color in PAL)?L.color:'auto',vis:L.vis!==false,lock:!!L.lock,lt:LT[L.lt]?L.lt:'solid'});
+    lays.push({name:nm,color:(L.color in PAL)?L.color:'auto',vis:L.vis!==false,lock:!!L.lock,lt:LT[L.lt]?L.lt:'solid',lw:lwv(L.lw)});
   }
   n.layers=lays;n.cur=names.has(d.cur)?d.cur:'0';
   n.grid=Number.isFinite(d.grid)&&d.grid>0?d.grid:10;n.th=Number.isFinite(d.th)&&d.th>0?d.th:5;n.dec=Number.isInteger(d.dec)?clamp(d.dec,0,6):2;
@@ -1176,9 +1291,20 @@ function parseDoc(txt){
     if(!okEnt(e)){drop++;continue}
     const c=clone(e);c.id=id++;if(!names.has(c.layer))c.layer='0';
     if(c.color&&!(c.color in PAL))delete c.color;
+    if(c.lw!=null&&!(Number.isFinite(c.lw)&&c.lw>=0&&c.lw<=5))delete c.lw;
+    if(c.frame!=null){const f=c.frame;if(!(c.type==='pline'&&f&&typeof f==='object'&&isN(f.N,f.unit,f.m,f.mL,f.w,f.h)&&f.N>0&&f.unit>0&&f.w>0&&f.h>0&&(f.orient==='landscape'||f.orient==='portrait')))delete c.frame;else c.frame={size:String(f.size||'').slice(0,10),orient:f.orient,N:f.N,unit:f.unit,m:f.m,mL:f.mL,w:f.w,h:f.h}}
+    if(c.fld!=null&&!(c.type==='text'&&typeof c.fld==='string'))delete c.fld;else if(c.fld)c.fld=c.fld.slice(0,12);
     n.ents.push(c);
   }
+  if(Array.isArray(d.frames))for(const r of d.frames.slice(0,20)){
+    const q=frameFromRequest(r);if(!q)continue;
+    if(!names.has('Rahmen')){names.add('Rahmen');lays.push({name:'Rahmen',color:'auto',vis:true,lock:false,lt:'solid',lw:.25})}
+    const M=M_t(q.origin);for(const e of buildFrame(q.def,q.vals)){const c=xf(e,M);c.id=id++;n.ents.push(c)}
+  }
   n.nid=id;
+  const B=d.bg;
+  if(B&&typeof B.data==='string'&&/^data:image\/jpeg;base64,/.test(B.data)&&isPt(B.p)&&isN(B.s,B.w,B.h)&&B.s>0&&B.w>0&&B.h>0)
+    n.bg={name:String(B.name||'Bild').slice(0,60),data:B.data,w:Math.round(B.w),h:Math.round(B.h),p:B.p.slice(),s:B.s,rot:Number.isFinite(B.rot)?B.rot:0,op:Number.isFinite(B.op)?clamp(B.op,.05,1):.6,vis:B.vis!==false};
   return{doc:n,drop};
 }
 function loadFromText(txt,opts={}){
@@ -1194,9 +1320,16 @@ function newDrawing(){
   cancelTool();pushUndo();doc=newDoc();sel=new Set();$('#pname').value=doc.name;
   view={s:3,ox:stage.clientWidth*.12,oy:stage.clientHeight*.82};afterDoc();updPrompt();toast('Neue Zeichnung – ↶ holt die vorige zurück');
 }
-function autosave(){store.set('helix:auto',docToJSON(false))}
+let autoWarned=false;
+function autosave(){
+  if(store.set('helix:auto',docToJSON(false)))return;
+  if(doc.bg){
+    const keep=doc.bg;doc.bg=null;const j=docToJSON(false);doc.bg=keep;
+    if(store.set('helix:auto',j)&&!autoWarned){autoWarned=true;toast('Das Bild ist zu groß für den Auto-Speicher und wird beim Neustart nicht wiederhergestellt',5500)}
+  }
+}
 const safeName=s=>(String(s||'Zeichnung').replace(/[\\/:*?"<>|\u0000-\u001f]+/g,'_').trim().slice(0,60))||'Zeichnung';
-const MIME={json:'application/json',txt:'text/plain',svg:'image/svg+xml',png:'image/png'};
+const MIME={md:'text/markdown',json:'application/json',txt:'text/plain',svg:'image/svg+xml',png:'image/png'};
 async function deliver(filename,data,label,fallbackName,note){
   let d=null;
   try{if(window.claude&&claude.use)d=await claude.use('downloads')}catch(e){d=null}
@@ -1249,6 +1382,7 @@ function openText(txt,name){
 }
 function readFile(file){
   if(!file)return;
+  if(!/\.(dxf|json)$/i.test(file.name||'')&&(/^image\/(jpeg|png|webp|gif|bmp)$/.test(file.type)||/\.(jpe?g|png|webp|gif|bmp)$/i.test(file.name||''))){loadBgFile(file);return}
   if(file.size>60*1024*1024){toast('Datei ist zu groß (max. 60 MB)');return}
   const fr=new FileReader();
   fr.onload=()=>{try{const r=openText(decodeBuf(fr.result),file.name);if(r)toast(`„${file.name}“ geladen: ${r.count} Objekte${r.drop?` (${r.drop} ungültige übersprungen)`:''} – ↶ macht es rückgängig`,4200)}catch(e){toast(e.message,4500)}};
@@ -1289,6 +1423,7 @@ function slotsDialog(){
 /* ================= Export ================= */
 const esc_=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const nn=n=>+(+n).toFixed(5);
+let svgBase=0;
 function hatchLines(e){
   const sp=e.spacing>0?e.spacing:5,b=bbox(e),cx=(b[0]+b[2])/2,cy=(b[1]+b[3])/2,R=Math.hypot(b[2]-b[0],b[3]-b[1])/2+sp,n=Math.min(Math.ceil(R/sp),3000),P=e.pts,out=[];
   const angs=e.pattern==='cross'?[e.angle||0,(e.angle||0)+Math.PI/2]:[e.angle||0];
@@ -1307,7 +1442,7 @@ function hatchLines(e){
   }
   return out;
 }
-function exportBox(){const b=docBBox();if(!b){toast('Die Zeichnung ist leer');return null}return b}
+function exportBox(){const b=plotBBox();if(!b){toast('Die Zeichnung ist leer');return null}return b}
 function svgText(txt,p,hh,rot,anchor,col){
   const lines=String(txt).split('\n'),x=nn(p[0]),y=nn(-p[1]);
   return `<text transform="translate(${x} ${y}) rotate(${nn(-rot/D2R)})" font-size="${nn(hh)}" font-family="IBM Plex Sans, Arial, sans-serif" text-anchor="${anchor}" fill="${col}" stroke="none">${lines.map((l,i)=>`<tspan x="0" dy="${i?nn(hh*1.25):0}">${esc_(l)}</tspan>`).join('')}</text>`;
@@ -1317,7 +1452,7 @@ function svgArrow(tip,dir,size,col){
   return `<polygon points="${[tip,A,B].map(p=>`${nn(p[0])},${nn(-p[1])}`).join(' ')}" fill="${col}" stroke="none"/>`;
 }
 function entSVG(e,col,sw,dash){
-  const Y=p=>`${nn(p[0])},${nn(-p[1])}`,da=dash&&dash.length?` stroke-dasharray="${dash.map(v=>nn(v*sw/1.4)).join(' ')}"`:'';
+  const Y=p=>`${nn(p[0])},${nn(-p[1])}`,da=dash&&dash.length?` stroke-dasharray="${dash.map(v=>nn(v*(svgBase||sw)/1.4)).join(' ')}"`:'';
   const st=`fill="none" stroke="${col}" stroke-width="${nn(sw)}" stroke-linecap="round" stroke-linejoin="round"${da}`;
   switch(e.type){
     case'line':return`<line x1="${nn(e.a[0])}" y1="${nn(-e.a[1])}" x2="${nn(e.b[0])}" y2="${nn(-e.b[1])}" ${st}/>`;
@@ -1333,6 +1468,9 @@ function entSVG(e,col,sw,dash){
     case'text':return svgText(e.text,e.p,e.h,e.rot||0,'start',col);
     case'dim':{const g=dimGeom(e);return`<g>${g.segs.map(([p,q])=>`<line x1="${nn(p[0])}" y1="${nn(-p[1])}" x2="${nn(q[0])}" y2="${nn(-q[1])}" ${st}/>`).join('')}${svgArrow(g.a2,[-g.u[0],-g.u[1]],g.th*.9,col)}${svgArrow(g.b2,g.u,g.th*.9,col)}${svgText(g.txt,g.tp,g.th,g.rot,'middle',col)}</g>`}
     case'rdim':{const g=rdimGeom(e),[p,q]=g.segs[0];return`<g><line x1="${nn(p[0])}" y1="${nn(-p[1])}" x2="${nn(q[0])}" y2="${nn(-q[1])}" ${st}/>${svgArrow(g.edge,g.dir,g.th*.9,col)}${svgText(g.txt,g.tp,g.th,0,'start',col)}</g>`}
+    case'spline':return`<polyline points="${splinePts(e).map(Y).join(' ')}" ${st}/>`;
+    case'leader':{const g=leaderGeom(e);return`<g>${g.segs.map(([p,q])=>`<line x1="${nn(p[0])}" y1="${nn(-p[1])}" x2="${nn(q[0])}" y2="${nn(-q[1])}" ${st}/>`).join('')}${svgArrow(g.tip,g.dir,g.th*.9,col)}${svgText(e.text,g.p,g.th,0,g.align==='left'?'start':'end',col)}</g>`}
+    case'adim':{const g=adimGeom(e),big=g.span>Math.PI?1:0;return`<g><path d="M ${Y(g.s)} A ${nn(g.r)} ${nn(g.r)} 0 ${big} 0 ${Y(g.t)}" ${st}/>${g.segs.map(([p,q])=>`<line x1="${nn(p[0])}" y1="${nn(-p[1])}" x2="${nn(q[0])}" y2="${nn(-q[1])}" ${st}/>`).join('')}${svgArrow(g.s,g.dir0,g.th*.9,col)}${svgArrow(g.t,g.dir1,g.th*.9,col)}${svgText(g.txt,g.tp,g.th,g.rot,'middle',col)}</g>`}
     case'hatch':{
       if(e.pattern==='solid')return`<polygon points="${e.pts.map(Y).join(' ')}" fill="${col}" fill-opacity=".35" stroke="none"/>`;
       return`<g stroke="${col}" stroke-width="${nn(sw*.7)}" stroke-opacity=".8" fill="none">${hatchLines(e).map(([p,q])=>`<line x1="${nn(p[0])}" y1="${nn(-p[1])}" x2="${nn(q[0])}" y2="${nn(-q[1])}"/>`).join('')}</g>`;
@@ -1343,10 +1481,11 @@ function entSVG(e,col,sw,dash){
 function exportSVG(){
   const b=exportBox();if(!b)return;
   const w0=b[2]-b[0]||1,h0=b[3]-b[1]||1,pad=Math.max(w0,h0)*.05+1e-6,x0=b[0]-pad,y0=-(b[3]+pad),W=w0+2*pad,H=h0+2*pad,sw=Math.max(W,H)/700;
-  const parts=[];
+  const parts=[];svgBase=sw;
+  if(doc.bg&&doc.bg.vis){const g=doc.bg,co=Math.cos(g.rot),si=Math.sin(g.rot);parts.push(`<image href="${g.data}" width="${g.w}" height="${g.h}" opacity="${nn(g.op)}" transform="matrix(${nn(g.s*co)} ${nn(-g.s*si)} ${nn(g.s*si)} ${nn(g.s*co)} ${nn(g.p[0]-g.s*si*g.h)} ${nn(-g.p[1]-g.s*co*g.h)})"/>`)}
   for(const pass of[0,1])for(const e of doc.ents){
-    if(!vis(e)||(e.type==='hatch')!==(pass===0))continue;
-    const L=layerOf(e);parts.push(entSVG(e,colRes(e.color||L.color,'light'),sw,LT[L.lt]));
+    if(!vis(e)||e.type==='xline'||(e.type==='hatch')!==(pass===0))continue;
+    const L=layerOf(e);parts.push(entSVG(e,colRes(e.color||L.color,'light'),Math.max(sw*.4,sw*lwOf(e)/.25),LT[L.lt]));
   }
   const px=1000,svg=`<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" viewBox="${nn(x0)} ${nn(y0)} ${nn(W)} ${nn(H)}" width="${px}" height="${Math.max(1,Math.round(px*H/W))}">\n<title>${esc_(doc.name)}</title>\n<rect x="${nn(x0)}" y="${nn(y0)}" width="${nn(W)}" height="${nn(H)}" fill="#ffffff"/>\n${parts.join('\n')}\n</svg>\n`;
   deliver(safeName(doc.name)+'.svg',svg,'SVG');
@@ -1357,12 +1496,14 @@ function exportPNG(){
   const c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d');
   g.fillStyle='#ffffff';g.fillRect(0,0,W,H);
   const V={s,ox:-(b[0]-pad)*s,oy:(b[3]+pad)*s};
-  drawDoc(g,V,'light',Math.max(1.6,W/900));
+  if(doc.bg&&doc.bg.vis)drawBg(g,V,doc.bg.op);
+  const base=Math.max(1.6,W/900);
+  drawDoc(g,V,'light',m=>Math.max(1,base*m/.25),true);
   c.toBlob(bl=>{if(!bl){toast('PNG konnte nicht erzeugt werden');return}deliver(safeName(doc.name)+'.png',bl,'PNG')},'image/png');
 }
 const ACI={auto:7,red:1,yellow:2,green:3,cyan:4,blue:5,magenta:6,orange:30,gray:8};
 function exportDXF(){
-  if(!exportBox())return;
+  if(!docBBox()){toast('Die Zeichnung ist leer');return}
   const o=[],g=(c,v)=>{o.push(String(c),String(v))},N=v=>(+(+v).toFixed(6)).toString();
   const ln=s=>{const t=String(s).replace(/[<>\/\\":;?*|=`,]/g,'_').trim().slice(0,31);return t||'0'};
   const lname=new Map(doc.layers.map(l=>[l.name,ln(l.name)]));
@@ -1376,7 +1517,7 @@ function exportDXF(){
   const head=(t,e)=>{g(0,t);g(8,lname.get(e.layer)||'0');if(e.color&&ACI[e.color])g(62,ACI[e.color])};
   const LINE=(e,p,q)=>{head('LINE',e);g(10,N(p[0]));g(20,N(p[1]));g(30,0);g(11,N(q[0]));g(21,N(q[1]));g(31,0)};
   const POLY=(e,pts,closed)=>{head('POLYLINE',e);g(66,1);g(10,0);g(20,0);g(30,0);g(70,closed?1:0);for(const p of pts){g(0,'VERTEX');g(8,lname.get(e.layer)||'0');g(10,N(p[0]));g(20,N(p[1]));g(30,0)}g(0,'SEQEND');g(8,lname.get(e.layer)||'0')};
-  const TXT=(e,txt,p,hh,rot)=>{const ls=String(txt).split('\n'),d=[Math.sin(rot),-Math.cos(rot)];ls.forEach((l,i)=>{if(!l)return;const q=add(p,mul(d,i*1.25*hh));head('TEXT',e);g(10,N(q[0]));g(20,N(q[1]));g(30,0);g(40,N(hh));g(1,l);g(50,N(nA(rot)/D2R))})};
+  const TXT=(e,txt,p,hh,rot)=>{const ls=String(txt).split('\n'),d=[Math.sin(rot),-Math.cos(rot)];ls.forEach((l,i)=>{if(!l)return;const q=add(p,mul(d,i*1.25*hh));head('TEXT',e);g(10,N(q[0]));g(20,N(q[1]));g(30,0);g(40,N(hh));g(1,l.replace(/\u00b0/g,'%%d').replace(/\u00d8/g,'%%c').replace(/\u00b1/g,'%%p'));g(50,N(nA(rot)/D2R))})};
   const ARR=(e,tip,dir,size)=>{const nv=[-dir[1],dir[0]],b=sub(tip,mul(dir,size));LINE(e,tip,add(b,mul(nv,size*.28)));LINE(e,tip,sub(b,mul(nv,size*.28)));LINE(e,add(b,mul(nv,size*.28)),sub(b,mul(nv,size*.28)))};
   for(const e of doc.ents){
     switch(e.type){
@@ -1389,6 +1530,9 @@ function exportDXF(){
       case'text':TXT(e,e.text,e.p,e.h,e.rot||0);break;
       case'dim':{const q=dimGeom(e);for(const[p,r]of q.segs)LINE(e,p,r);ARR(e,q.a2,[-q.u[0],-q.u[1]],q.th*.9);ARR(e,q.b2,q.u,q.th*.9);const w=q.txt,hw=q.th*.5*String(w).length*.6;TXT(e,w,sub(q.tp,mul(q.u,hw)),q.th,q.rot);break}
       case'rdim':{const q=rdimGeom(e);LINE(e,q.segs[0][0],q.segs[0][1]);ARR(e,q.edge,q.dir,q.th*.9);TXT(e,q.txt,q.tp,q.th,0);break}
+      case'spline':POLY(e,splinePts(e),false);break;
+      case'leader':{const q=leaderGeom(e);for(const[p,r]of q.segs)LINE(e,p,r);ARR(e,q.tip,q.dir,q.th*.9);const w=.6*q.th*Math.max(...String(e.text).split('\n').map(l=>l.length));TXT(e,e.text,q.align==='left'?q.p:sub(q.p,[w,0]),q.th,0);break}
+      case'adim':{const q=adimGeom(e);if(q.span>=TAU-1e-9){head('CIRCLE',e);g(10,N(q.c[0]));g(20,N(q.c[1]));g(30,0);g(40,N(q.r))}else{head('ARC',e);g(10,N(q.c[0]));g(20,N(q.c[1]));g(30,0);g(40,N(q.r));g(50,N(nA(q.a0)/D2R));g(51,N(nA(q.a1)/D2R))}for(const[p,r]of q.segs)LINE(e,p,r);ARR(e,q.s,q.dir0,q.th*.9);ARR(e,q.t,q.dir1,q.th*.9);const w=.6*q.th*q.txt.length;TXT(e,q.txt,sub(q.tp,mul([Math.cos(q.rot),Math.sin(q.rot)],w/2)),q.th,q.rot);break}
       case'hatch':if(e.pattern!=='solid')for(const[p,q]of hatchLines(e))LINE(e,p,q);POLY(e,e.pts,true);break;
     }
   }
@@ -1426,9 +1570,15 @@ function fileMenu(){
     item('Browser-Speicher','Speichern / Laden im Browser',slotsDialog),
     item('JSON einfügen','Text laden (Notlösung)',pasteDialog),
     item('JSON als Text','anzeigen / kopieren',textDump),
+    item('KI-Anleitung (.md)','JSON-Format für KI-erstellte Zeichnungen',exportAIGuide),
+    item('Export PDF','Papierformat, Maßstab, Schriftfeld',pdfDialog),
     item('Export SVG','Vektorgrafik',exportSVG),
     item('Export PNG','Bild, heller Hintergrund',exportPNG),
     item('Export DXF','für andere CAD-Programme',exportDXF),
+    item('Zeichnungsrahmen einfügen …','Blatt mit Schriftfeld',frameDialog),
+    item('Schriftfeld ausfüllen …','Rahmen-Angaben ändern',fillFrameDialog),
+    item('Hintergrundbild …','Foto oder Plan als Unterlage',()=>act('bgload')),
+    item('Symbol-Bibliothek','Ventile, Pumpen, Türen …',symbolPicker),
     item('Beispiel laden','Platte mit Bemaßung',loadSample));
   openModal('Datei',h('div',null,menu,h('div',{class:'hint'},'Die Zeichnung wird außerdem automatisch im Browser zwischengespeichert und beim nächsten Start wiederhergestellt.')),[]);
 }
@@ -1441,7 +1591,7 @@ function helpDialog(){
 <p>Ein 2D-CAD-Programm im Browser: zeichnen, ändern, bemaßen, schraffieren, in Ebenen ordnen, speichern, laden und exportieren. Es ist ein Nachbau im Stil klassischer 2D-CAD-Programme – Dateien des ursprünglichen Helix-Programms lassen sich nicht öffnen.</p>
 <h3>1 · Schnellstart</h3>
 <ul>
-<li>Unten ein Register wählen (<b>Zeichnen</b>, <b>Ändern</b>, <b>Beschriften</b>, <b>Ansicht</b>) und ein Werkzeug antippen, z. B. <b>Linie</b>.</li>
+<li>In der <b>Symbolleiste oben</b> ein Werkzeug anklicken, z. B. <b>Linie</b>. Die Symbole sind gruppiert (<b>Zeichnen</b>, <b>Ändern</b>, <b>Beschriften</b>, <b>Ansicht</b>); das aktive Werkzeug ist farbig hervorgehoben. Maus darauf halten (am Handy: lange drücken) zeigt Name, Kürzel und Kurzbeschreibung. Am Handy lässt sich die Leiste seitlich wischen.</li>
 <li>In die Zeichenfläche tippen/klicken, um Punkte zu setzen. Die Zeile über der Leiste zeigt immer, was als Nächstes erwartet wird.</li>
 <li><b>Enter</b> (Button „OK“ mit leerem Feld) beendet oder wiederholt einen Schritt, <b>Esc</b> bricht ab.</li>
 <li>Oben rechts: <b>Datei</b> (Neu, Öffnen, Speichern, Export), <b>↶ ↷</b> Rückgängig/Wiederholen, <b>Ebenen</b> (Seitenleiste), <b>?</b> diese Anleitung.</li>
@@ -1459,10 +1609,12 @@ function helpDialog(){
 <tr><td>PL</td><td>Polylinie (U, C, Enter = fertig)</td></tr>
 <tr><td>REC</td><td>Rechteck (Gegenecke auch als <code>@Breite,Höhe</code>)</td></tr>
 <tr><td>C</td><td>Kreis (Radius tippen oder klicken; D schaltet Ø um) · C2 = 2 Punkte · C3 = 3 Punkte</td></tr>
-<tr><td>A</td><td>Bogen 3 Punkte · Bogen Mitte-Start-Ende im Register</td></tr>
+<tr><td>A</td><td>Bogen 3 Punkte · Bogen Mitte-Start-Ende in der Symbolleiste</td></tr>
 <tr><td>EL</td><td>Ellipse (Mitte, Achsenende, Nebenachse)</td></tr>
 <tr><td>POL</td><td>Regelmäßiges Polygon (Eckenzahl, Mitte, Radius; C/I umschrieben/einbeschrieben)</td></tr>
 <tr><td>PO</td><td>Punkt</td></tr>
+<tr><td>SPL</td><td>Spline: glatte Kurve durch Stützpunkte (U, C, Enter)</td></tr>
+<tr><td>XL</td><td>Konstruktionslinie: unendliche Hilfslinie (H = waagerecht, V = senkrecht, sonst zwei Punkte). Wird nicht gedruckt oder exportiert, dient aber als Fang- und Schnittkante.</td></tr>
 </table>
 <h3>4 · Ändern</h3>
 <table>
@@ -1477,6 +1629,9 @@ function helpDialog(){
 <tr><td>F</td><td>Abrunden (Radius, zwei Linien) · CHA = Fase</td></tr>
 <tr><td>X</td><td>Polylinie in Linien auflösen · J = Linien zu Polylinie verbinden</td></tr>
 <tr><td>AR / ARP</td><td>Rechteckige / polare Reihe (Dialog)</td></tr>
+<tr><td>STR</td><td>Strecken: Objekte mit einem Fenster von <b>rechts nach links</b> wählen, Enter, Basis- und Zielpunkt. Nur Punkte im Fenster wandern mit.</td></tr>
+<tr><td>BR</td><td>Brechen: Objekt am ersten Punkt anklicken, zweiten Punkt wählen (Enter = nur trennen). Linie, Bogen, Kreis, Polylinie.</td></tr>
+<tr><td>VI / VL</td><td>Punkt in Polylinie oder Spline einfügen / löschen</td></tr>
 <tr><td>E</td><td>Löschen (oder Entf-Taste bei gewählten Objekten)</td></tr>
 </table>
 <h3>5 · Beschriften &amp; Messen</h3>
@@ -1484,6 +1639,7 @@ function helpDialog(){
 <li><b>Text</b>: Einfügepunkt setzen, dann Text, Höhe und Winkel im Dialog eingeben.</li>
 <li><b>Bemaßung</b> ausgerichtet / horizontal / vertikal: zwei Punkte, dann die Lage der Maßlinie. <b>Radius/Ø</b>: Kreis oder Bogen wählen, Textlage setzen.</li>
 <li><b>Schraffur</b>: geschlossene Polylinie oder Kreis wählen; Muster, Abstand und Winkel im Dialog.</li>
+<li><b>Hinweislinie</b> (LE): Pfeilspitze und Knickpunkte setzen, Enter, dann Text eingeben. <b>Winkelmaß</b> (AD): Scheitel, je ein Punkt pro Schenkel, dann die Lage des Maßbogens.</li>
 <li><b>Abstand</b> und <b>Fläche</b> zeigen das Ergebnis kurz oben im Bild an.</li>
 </ul>
 <h3>6 · Koordinaten-Eingabe</h3>
@@ -1499,6 +1655,7 @@ function helpDialog(){
 <ul>
 <li><b>Objektfang</b> rastet auf Endpunkte (Quadrat), Mittelpunkte (Dreieck), Zentren (Kreis), Schnittpunkte (X), Quadranten (Raute) und optional Lot/Nächster Punkt ein. Arten wählbar unter <b>⚙ Fang</b>.</li>
 <li><b>Shift gedrückt halten</b> (Maus/Tastatur): Objektfang wird vorübergehend mit <b>allen</b> Fangarten (inkl. Lot) und größerem Fangradius eingeschaltet – auch wenn „Objektfang“ aus ist. Praktisch z. B. beim Linienzeichnen.</li>
+<li><b>Polar</b> (Chip „Polar“): Beim Zeichnen rastet der Cursor auf Winkelschritte (Standard 15°) ein und zeigt eine gestrichelte Hilfslinie mit dem Winkel. Der Schritt ist unter Einstellungen wählbar. Objektfang hat Vorrang; bei aktivem Ortho ist Polar aus.</li>
 <li><b>Rasterfang</b> rastet auf das Raster (Größe unter Einstellungen). <b>Ortho</b> erzwingt waagerecht/senkrecht. <b>Gitter</b> blendet das Raster ein/aus.</li>
 </ul>
 <h3>8 · Ebenen &amp; Eigenschaften</h3>
@@ -1507,17 +1664,36 @@ function helpDialog(){
 <li><b>Eigenschaften</b>: ein gewähltes Objekt zeigt Koordinaten, Radius, Winkel usw. als Zahlenfelder – Wert ändern und bestätigen. Ebene und Farbe lassen sich auch für mehrere Objekte zugleich ändern. Länge, Fläche und Umfang stehen unter „Info“.</li>
 <li><b>Einstellungen</b>: Zeichnungsname, Raster, Texthöhe, Nachkommastellen, hell/dunkel, Fangarten.</li>
 </ul>
-<h3>9 · Speichern &amp; Laden</h3>
+<h3>9 · Strichstärken</h3>
+<p>Jede Ebene hat eine Strichstärke (Standard 0,25 mm); einzelne Objekte können sie unter <b>Eigenschaften</b> überschreiben. Der Chip „Strichstärke“ schaltet die Anzeige am Bildschirm um. Im PDF, SVG und PNG werden die Stärken berücksichtigt. Das DXF-Format dieses Tools speichert keine Strichstärken.</p>
+<h3>10 · Hintergrundbild (Unterlage)</h3>
+<ul>
+<li><b>Bild laden</b> (Symbol in der Leiste, Datei-Menü oder ein Bild auf die Fläche ziehen): JPG, PNG oder WebP. Große Bilder werden auf max. 2400 px verkleinert.</li>
+<li><b>Maßstab setzen</b>: zwei Punkte einer bekannten Strecke im Bild wählen und die echte Länge eingeben – das Bild wird passend skaliert.</li>
+<li><b>Verschieben</b> und <b>Ausrichten</b> (zwei Punkte einer Linie im Bild, z. B. einer Wand, die waagerecht sein soll). Deckkraft und Sichtbarkeit stehen unter Einstellungen.</li>
+<li>Das Bild wird mit der Zeichnung gespeichert (.json). Der automatische Browser-Speicher hält es nur, wenn es klein genug ist.</li>
+</ul>
+<h3>11 · Symbol-Bibliothek</h3>
+<p>Symbol in der Leiste (oder Datei ▸ Symbol-Bibliothek): Ventile, Pumpe, Behälter, Nordpfeil, Tür, Fenster u. a. Größenfaktor und Drehung vorher einstellen; beim Platzieren geht auch <code>R</code> (+90°), <code>R45</code> und <code>S2</code>. Eigene Objekte als Symbol speichern: Objekte wählen, Symbol-Bibliothek ▸ „Auswahl als Symbol speichern“.</p>
+<h3>12 · Zeichnungsrahmen &amp; Schriftfeld</h3>
+<ul>
+<li><b>Einfügen</b> (Symbol „Rahmen“ oder Datei-Menü): Papierformat, Ausrichtung, Maßstab 1 : N und Zeichnungseinheit wählen, Schriftfeld ausfüllen, dann die untere linke Blattecke setzen. Der Rahmen wird in Zeichnungseinheiten so groß angelegt, dass er beim gewählten Maßstab genau auf das Papier passt.</li>
+<li><b>Schriftfeld ändern</b>: Datei ▸ „Schriftfeld ausfüllen“ (oder unter Eigenschaften, wenn der Rahmen gewählt ist). Firma, Gezeichnet und Geprüft werden für den nächsten Rahmen gemerkt.</li>
+<li>Der Rahmen besteht aus normalen Linien und Texten auf der Ebene „Rahmen“. Alles lässt sich verschieben, kopieren oder einzeln bearbeiten.</li>
+<li><b>PDF</b>: Im PDF-Dialog unter „Bereich“ den Zeichnungsrahmen wählen. Dann gelten Blattgröße und Maßstab des Rahmens, ein zweites Schriftfeld wird nicht gedruckt.</li>
+</ul>
+<h3>13 · Speichern &amp; Laden</h3>
+<p><b>Zeichnungen von einer KI erstellen lassen:</b> Datei ▸ „KI-Anleitung (.md)“ laden und zusammen mit der Aufgabe an eine KI geben. Sie beschreibt das JSON-Format vollständig; die Antwort der KI speicherst du als <code>.json</code> und öffnest sie hier.</p>
 <table>
 <tr><td>Speichern</td><td>Datei ▸ Speichern (.json) lädt die Zeichnung als Datei herunter. Das ist das vollständige, wieder ladbare Format.</td></tr>
 <tr><td>Öffnen</td><td>Datei ▸ Öffnen wählt eine .json-Datei aus; alternativ eine Datei auf die Zeichenfläche ziehen.</td></tr>
 <tr><td>Browser</td><td>Datei ▸ Browser-Speicher legt benannte Zeichnungen im Browser ab (praktisch zum Zwischenspeichern). Außerdem wird automatisch gesichert und beim nächsten Start wiederhergestellt.</td></tr>
 <tr><td>Notlösung</td><td>Falls der Datei-Download in deiner Umgebung blockiert ist: „JSON als Text“ kopieren und später mit „JSON einfügen“ laden.</td></tr>
 <tr><td>DXF-Import</td><td>Datei ▸ Öffnen oder DXF importieren (auch per Drag &amp; Drop): Linien, Kreise, Bögen, Polylinien (inkl. Bogensegmente), Ellipsen, Splines (als Polylinie), Texte, Punkte, Blöcke (INSERT) und Bemaßungen (als Einzelobjekte) samt Ebenen und Farben. Nicht unterstützt: DWG, binäres DXF, Schraffuren, Bilder. Beim Import kannst du wählen: neue Zeichnung oder zur aktuellen hinzufügen.</td></tr>
-<tr><td>Export</td><td>SVG (Vektor), PNG (Bild) und DXF für andere CAD-Programme (Linien, Kreise, Bögen, Polylinien, Texte; Ellipsen als Polylinie, Bemaßung und Schraffur als Einzelobjekte). Im Desktop-Browser wird direkt eine <code>.dxf</code> gespeichert; in der Claude-Vorschau heißt sie <code>.dxf.txt</code> und muss umbenannt werden.</td></tr>
+<tr><td>Export</td><td><b>PDF</b> (Papierformat A0–A5/Letter, Maßstab, Schriftfeld, Vorschau), SVG (Vektor), PNG (Bild) und DXF für andere CAD-Programme (Linien, Kreise, Bögen, Polylinien, Texte; Ellipsen als Polylinie, Bemaßung und Schraffur als Einzelobjekte). Im Desktop-Browser wird direkt eine <code>.dxf</code> gespeichert; in der Claude-Vorschau heißt sie <code>.dxf.txt</code> und muss umbenannt werden.</td></tr>
 </table>
 <p>Öffnen/Neu sind rückgängig machbar (Strg+Z), falls du versehentlich die aktuelle Zeichnung ersetzt.</p>
-<h3>10 · Tastenkürzel</h3>
+<h3>14 · Tastenkürzel</h3>
 <table>
 <tr><td>Strg+Z / Y</td><td>Rückgängig / Wiederholen</td></tr>
 <tr><td>Strg+A</td><td>Alles wählen</td></tr>
@@ -1531,13 +1707,13 @@ function helpDialog(){
 <tr><td>Z · ZW · ZI · ZO</td><td>Befehle im Eingabefeld: Alles zeigen · Zoom Fenster · Zoom + · Zoom −</td></tr>
 </table>
 <p>Einfach lostippen: Tastatureingaben landen automatisch im Befehlsfeld.</p>
-<h3>11 · Hinweise</h3>
+<h3>15 · Hinweise</h3>
 <ul>
 <li>Maße sind einheitenlos (1 Einheit = 1 mm, cm oder m – wie du es festlegst).</li>
 <li>Stutzen/Dehnen funktionieren mit Linien, Bögen und Kreisen; Polylinien werden dafür zuerst aufgelöst.</li>
 <li>Fehlt dir eine Funktion aus dem Original-Helix? Dann sag Bescheid – sie lässt sich ergänzen.</li>
 </ul>`;
-  openModal('Anleitung',d,[{t:'Los geht’s',pri:true,fn:()=>closeModal()}]);
+  openModal('Anleitung',d,[{t:'KI-Anleitung (.md)',fn:()=>exportAIGuide()},{t:'Los geht’s',pri:true,fn:()=>closeModal()}]);
 }
 
 /* ================= DXF-Import ================= */
@@ -1555,6 +1731,7 @@ function rgbKey(n){
   let hh;if(mx===r)hh=((g-b)/d)%6;else if(mx===g)hh=(b-r)/d+2;else hh=(r-g)/d+4;
   hh*=60;if(hh<0)hh+=360;return hueKey(hh);
 }
+const lwNear=v=>{const L=[.05,.09,.13,.18,.25,.35,.5,.7,1,1.4,2];let b=L[0];for(const x of L)if(Math.abs(x-v)<Math.abs(b-v))b=x;return b};
 const ltKey=n=>{n=String(n||'').toUpperCase();if(/CENTER|PHANTOM/.test(n))return'center';if(/HIDDEN/.test(n))return'hidden';if(/DOT/.test(n))return'dotted';if(/DASH/.test(n))return'dashed';return'solid'};
 const dxG=(r,c)=>{for(const p of r.g)if(p[0]===c)return p[1];return undefined};
 const dxN=(r,c,d=0)=>{const v=dxG(r,c);const n=v===undefined?NaN:parseFloat(v);return Number.isFinite(n)?n:d};
@@ -1593,7 +1770,7 @@ function dxfLayers(recs){
     if(r.t!=='LAYER')continue;
     const name=(dxG(r,2)||'').trim().slice(0,40);if(!name)continue;
     const c=dxN(r,62,7),fl=dxN(r,70,0),tc=dxN(r,420,NaN);
-    arr.push({name,color:Number.isFinite(tc)?rgbKey(tc):(aciKey(c)||'auto'),vis:c>=0&&!(fl&1),lock:!!(fl&4),lt:ltKey(dxG(r,6))});
+    const w=dxN(r,370,-3);arr.push({name,color:Number.isFinite(tc)?rgbKey(tc):(aciKey(c)||'auto'),vis:c>=0&&!(fl&1),lock:!!(fl&4),lt:ltKey(dxG(r,6)),lw:w>0?lwNear(w/100):.25});
   }
   return arr;
 }
@@ -1657,7 +1834,7 @@ function dxfConv(recs,M,ctx,env,depth){
     let L=(dxG(r,8)||'0').trim().slice(0,40)||'0';
     if(L==='0'&&ctx.layer)L=ctx.layer;
     const col=dxfColorKey(r,ctx);
-    const put=e=>{if(M)e=xf(e,M);e.layer=L;if(col)e.color=col;env.layers.add(L);env.out.push(e);env.n++};
+    const lw9=dxN(r,370,-1),put=e=>{if(M)e=xf(e,M);e.layer=L;if(col)e.color=col;if(lw9>=0)e.lw=lwNear(lw9/100);env.layers.add(L);env.out.push(e);env.n++};
     switch(r.t){
       case'LINE':{const a=[dxN(r,10),dxN(r,20)],b=[dxN(r,11),dxN(r,21)];if(dist(a,b)>1e-12)put({type:'line',a,b});break}
       case'CIRCLE':{const c=[dxN(r,10),dxN(r,20)],rad=dxN(r,40);if(!(rad>0))break;if(dxN(r,230,1)<0)c[0]=-c[0];put({type:'circle',c,r:rad});break}
@@ -1789,6 +1966,824 @@ function importDxf(txt,fname){
   dialog('DXF importieren',[{k:'mode',label:'Wie öffnen?',type:'select',value:'replace',opts:[['replace','Als neue Zeichnung (ersetzt die aktuelle)'],['merge','Zur aktuellen Zeichnung hinzufügen']],hint:`${r.ents.length} Objekte in „${name}“ gefunden.`}],v=>{if(v)apply(v.mode)},'Importieren');
 }
 
+/* ================= Hintergrundbild ================= */
+let bgImg=null,bgSrc=null;
+function bgSync(){
+  if(!doc.bg){bgImg=null;bgSrc=null;return null}
+  if(doc.bg.data!==bgSrc){bgSrc=doc.bg.data;const im=new Image();bgImg=im;im.onload=()=>redraw();im.onerror=()=>{if(bgImg===im)bgImg=null};im.src=doc.bg.data}
+  return bgImg&&bgImg.complete&&bgImg.naturalWidth?bgImg:null;
+}
+function bgMat(V,g=doc.bg){
+  const co=Math.cos(g.rot),si=Math.sin(g.rot),k=V.s*g.s;
+  return[k*co,-k*si,k*si,k*co,V.ox+V.s*(g.p[0]-g.s*si*g.h),V.oy-V.s*(g.p[1]+g.s*co*g.h)];
+}
+function drawBg(c,V,alpha){
+  const im=bgSync();if(!im)return;
+  c.save();c.globalAlpha=alpha==null?.6:alpha;c.transform(...bgMat(V));c.imageSmoothingQuality='high';c.drawImage(im,0,0,doc.bg.w,doc.bg.h);c.restore();
+}
+function bgQuad(g=doc.bg){
+  const co=Math.cos(g.rot),si=Math.sin(g.rot),W=g.w*g.s,H=g.h*g.s;
+  return[[0,0],[W,0],[W,H],[0,H]].map(q=>[g.p[0]+q[0]*co-q[1]*si,g.p[1]+q[0]*si+q[1]*co]);
+}
+function plotBBox(withBg=true){
+  let b=docBBox();
+  if(withBg&&doc.bg&&doc.bg.vis){
+    const q=bgQuad(),xs=q.map(p=>p[0]),ys=q.map(p=>p[1]),c=[Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)];
+    b=b?[Math.min(b[0],c[0]),Math.min(b[1],c[1]),Math.max(b[2],c[2]),Math.max(b[3],c[3])]:c;
+  }
+  return b;
+}
+function loadBgFile(file){
+  if(!file)return;
+  if(file.size>40*1024*1024){toast('Bild ist zu groß (max. 40 MB)');return}
+  const fr=new FileReader();
+  fr.onerror=()=>toast('Bild konnte nicht gelesen werden');
+  fr.onload=()=>{
+    const im=new Image();
+    im.onerror=()=>toast('Dieses Bildformat wird nicht unterstützt (JPG, PNG oder WebP verwenden)');
+    im.onload=()=>{
+      const MAXS=2400,k=Math.min(1,MAXS/Math.max(im.naturalWidth,im.naturalHeight)),w=Math.max(1,Math.round(im.naturalWidth*k)),hh=Math.max(1,Math.round(im.naturalHeight*k));
+      const c2=document.createElement('canvas');c2.width=w;c2.height=hh;const g=c2.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,w,hh);g.drawImage(im,0,0,w,hh);
+      let data;try{data=c2.toDataURL('image/jpeg',.88)}catch(e){toast('Bild konnte nicht verarbeitet werden');return}
+      const W=stage.clientWidth,H=stage.clientHeight,s=(W/view.s*.6)/w,c=s2w(W/2,H/2);
+      doc.bg={name:String(file.name||'Bild').slice(0,60),data,w,h:hh,p:[c[0]-w*s/2,c[1]-hh*s/2],s,rot:0,op:.6,vis:true};
+      dirty();renderSide();redraw();
+      toast('Bild geladen – mit „Maßstab setzen“ auf die echte Größe bringen',5500);
+    };
+    im.src=fr.result;
+  };
+  fr.readAsDataURL(file);
+}
+function bgToggle(){
+  if(!doc.bg){toast('Noch kein Hintergrundbild geladen');return}
+  pushUndo();doc.bg.vis=!doc.bg.vis;renderSide();redraw();toast(doc.bg.vis?'Hintergrundbild eingeblendet':'Hintergrundbild ausgeblendet',1600);
+}
+function bgRemove(){
+  if(!doc.bg)return;
+  askDialog('Hintergrundbild entfernen','Das Bild wird aus der Zeichnung entfernt. Das lässt sich nicht rückgängig machen.','Entfernen',()=>{doc.bg=null;dirty();renderSide();redraw()});
+}
+const needBg=()=>{if(!doc.bg){toast('Erst ein Hintergrundbild laden (Symbol „Bild laden“)');return false}return true};
+TOOLS.calib=()=>{
+  if(!needBg())return null;let a=null,busy=false;
+  return{name:'MASSSTAB SETZEN',expect:()=>busy?'none':'point',prompt:()=>busy?'Länge im Dialog eingeben':!a?'Ersten Punkt einer bekannten Strecke im Bild wählen':'Zweiten Punkt der Strecke wählen',last:()=>a,
+    click(p){
+      if(!a){a=p;return}
+      if(dist(a,p)<EPS){toast('Die Punkte dürfen nicht zusammenfallen');return}
+      const d0=dist(a,p),a0=a;busy=true;updPrompt();
+      dialog('Maßstab setzen',[{k:'len',label:'Echte Länge',type:'num',value:f3(d0),gt:0,hint:`Die gewählte Strecke ist im Moment ${f3(d0)} lang. Gib ein, wie lang sie in Wirklichkeit ist (in Zeichnungseinheiten, z. B. mm).`}],v=>{
+        busy=false;
+        if(v){const k=v.len/d0,g=doc.bg;pushUndo();g.s*=k;g.p=[a0[0]+(g.p[0]-a0[0])*k,a0[1]+(g.p[1]-a0[1])*k];renderSide();toast(`Bild skaliert (Faktor ${f3(k)})`)}
+        done();redraw();
+      });
+    },
+    enter(){if(a&&!busy)a=null;else done()},
+    preview(P,c){if(a)P.line(a,c,false)}};
+};
+TOOLS.imgmove=()=>{
+  if(!needBg())return null;let b=null;
+  return{name:'BILD VERSCHIEBEN',expect:()=>'point',prompt:()=>b?'Zielpunkt':'Basispunkt (ein Punkt im Bild)',last:()=>b,
+    click(p){if(!b){b=p;return}pushUndo();const g=doc.bg;g.p=[g.p[0]+p[0]-b[0],g.p[1]+p[1]-b[1]];renderSide();done()},
+    enter(){done()},
+    preview(P,c){if(b){const d=sub(c,b);P.line(b,c,true);P.poly(bgQuad().map(q=>add(q,d)),true)}}};
+};
+TOOLS.imgrot=()=>{
+  if(!needBg())return null;let a=null,b=null;
+  const go=target=>{const g=doc.bg,delta=target-ang(sub(b,a)),R=M_r(a,delta);pushUndo();g.p=apM(R,g.p);g.rot+=delta;renderSide();done()};
+  return{name:'BILD AUSRICHTEN',expect:()=>b?'num':'point',prompt:()=>!a?'Ersten Punkt einer Linie im Bild wählen (z. B. eine Wand)':!b?'Zweiten Punkt dieser Linie wählen':'Soll-Richtung in ° tippen  (Enter = 0° = waagerecht)',last:()=>a,
+    click(p){if(!a){a=p;return}if(dist(a,p)<EPS){toast('Die Punkte dürfen nicht zusammenfallen');return}b=p},
+    num(n){go(n*D2R)},
+    enter(){if(b)go(0);else if(a)a=null;else done()},
+    preview(P,c){if(a&&!b)P.line(a,c,true);else if(a&&b)P.line(a,b,false)}};
+};
+function bgSettings(b){
+  b.append(h('h4',null,'HINTERGRUNDBILD'));
+  if(!doc.bg){
+    b.append(h('div',{class:'hint'},'Foto oder Plan als Unterlage laden, den Maßstab über eine bekannte Strecke setzen und darüber nachzeichnen.'));
+    b.append(h('div',{class:'row2'},h('button',{class:'sbtn pri',onclick:()=>act('bgload')},'Bild laden …')));
+    return;
+  }
+  const g=doc.bg;
+  b.append(h('div',{class:'info'},`${g.name}\n${g.w} × ${g.h} px\n1 px = ${f3(g.s)} Einheiten\nBildbreite = ${f3(g.w*g.s)} Einheiten`));
+  const vis=h('input',{type:'checkbox',checked:g.vis,onchange:()=>{pushUndo();g.vis=vis.checked;redraw()}});
+  b.append(h('label',{class:'frow'},h('span',null,'Sichtbar'),vis));
+  const op=h('input',{type:'range',min:'5',max:'100',value:Math.round(g.op*100),'aria-label':'Deckkraft',oninput:()=>{g.op=op.value/100;redraw()},onchange:()=>{dirty()}});
+  b.append(h('label',{class:'frow'},h('span',null,'Deckkraft'),op));
+  b.append(h('div',{class:'row2'},
+    h('button',{class:'sbtn',onclick:()=>act('calib')},'Maßstab setzen'),
+    h('button',{class:'sbtn',onclick:()=>act('imgmove')},'Verschieben'),
+    h('button',{class:'sbtn',onclick:()=>act('imgrot')},'Ausrichten'),
+    h('button',{class:'sbtn',onclick:()=>act('bgload')},'Ersetzen'),
+    h('button',{class:'sbtn',onclick:bgRemove},'Entfernen')));
+}
+
+/* ================= Weitere Zeichen- und Änderungswerkzeuge ================= */
+TOOLS.spline=()=>{
+  let pts=[];const commit=cl=>{if(pts.length>=(cl?3:2))addEnt({type:'spline',pts:pts.slice(),closed:cl});pts=[]};
+  return{name:'SPLINE',expect:()=>'point',prompt:()=>pts.length?'Nächster Stützpunkt  [U = zurück, C = schließen, Enter = fertig]':'Erster Stützpunkt',last:()=>pts[pts.length-1],
+    click(p){if(pts.length&&dist(pts[pts.length-1],p)<EPS)return;pts.push(p)},
+    text(s){s=s.toLowerCase();if(s==='u'){pts.pop();return true}if(s==='c'&&pts.length>2){commit(true);return true}return false},
+    enter(){if(pts.length)commit(false);else done()},
+    preview(P,c){if(pts.length)P.ent({type:'spline',pts:[...pts,c]})}};
+};
+TOOLS.xline=()=>{
+  let p=null,mode='two';
+  return{name:'KONSTRUKTIONSLINIE',expect:()=>'point',
+    prompt:()=>mode==='h'?'Punkt für eine waagerechte Linie  [V = senkrecht, Z = zwei Punkte]':mode==='v'?'Punkt für eine senkrechte Linie  [H = waagerecht, Z = zwei Punkte]':p?'Richtungspunkt  (Enter = anderer Startpunkt)':'Punkt auf der Linie  [H = waagerecht, V = senkrecht]',
+    last:()=>p,
+    click(q){
+      if(mode==='h'){addEnt({type:'xline',p:q,ang:0});return}
+      if(mode==='v'){addEnt({type:'xline',p:q,ang:Math.PI/2});return}
+      if(!p){p=q;return}
+      if(dist(p,q)<EPS)return;addEnt({type:'xline',p,ang:ang(sub(q,p))});
+    },
+    text(s){s=s.toLowerCase();if(s==='h'||s==='v'||s==='z'){mode=s==='z'?'two':s;p=null;return true}return false},
+    enter(){if(p)p=null;else done()},
+    preview(P,c){if(mode==='h')P.ent({type:'xline',p:c,ang:0});else if(mode==='v')P.ent({type:'xline',p:c,ang:Math.PI/2});else if(p&&dist(p,c)>EPS)P.ent({type:'xline',p,ang:ang(sub(c,p))})}};
+};
+TOOLS.leader=()=>{
+  let pts=[],busy=false;
+  const fin=()=>{
+    if(pts.length<2){toast('Mindestens 2 Punkte setzen');return}
+    const P=pts.slice();pts=[];busy=true;updPrompt();
+    dialog('Hinweistext',[{k:'text',label:'Text',type:'textarea',value:'',req:true},{k:'h',label:'Texthöhe',type:'num',value:f3(doc.th),gt:0}],v=>{busy=false;if(v)addEnt({type:'leader',pts:P,text:v.text,h:v.h});updPrompt();redraw()});
+  };
+  return{name:'HINWEISLINIE',expect:()=>busy?'none':'point',prompt:()=>busy?'Text im Dialog eingeben':pts.length?'Nächster Punkt  [Enter = Text eingeben, U = zurück]':'Pfeilspitze (zeigt auf das Objekt)',last:()=>pts[pts.length-1],
+    click(p){if(pts.length&&dist(pts[pts.length-1],p)<EPS)return;pts.push(p)},
+    text(s){if(/^u$/i.test(s)){pts.pop();return true}return false},
+    enter(){if(busy)return;if(pts.length>=2)fin();else if(pts.length)pts=[];else done()},
+    preview(P,c){if(pts.length)P.poly([...pts,c],false)}};
+};
+TOOLS.adim=()=>{
+  let c=null,a=null,b=null;
+  return{name:'WINKELMASS',expect:()=>'point',prompt:()=>!c?'Scheitelpunkt (Ecke des Winkels)':!a?'Punkt auf dem ersten Schenkel':!b?'Punkt auf dem zweiten Schenkel':'Lage des Maßbogens (der Klick bestimmt Radius und Seite)',last:()=>b||a||c,
+    click(p){
+      if(!c){c=p;return}
+      if(dist(c,p)<EPS){toast('Der Punkt darf nicht auf dem Scheitel liegen');return}
+      if(!a){a=p;return}
+      if(!b){b=p;return}
+      addEnt({type:'adim',c,a,b,p,th:doc.th});c=a=b=null;
+    },
+    enter(){if(c)c=a=b=null;else done()},
+    preview(P,q){if(c&&!a)P.line(c,q,true);else if(c&&a&&!b){P.line(c,a,true);P.line(c,q,true)}else if(b&&dist(c,q)>EPS)P.ent({type:'adim',c,a,b,p:q,th:doc.th})}};
+};
+/* --- Brechen --- */
+function doBreak(e,p1,p2){
+  const parts=[];
+  if(e.type==='line'){
+    const d=sub(e.b,e.a),L2=dot(d,d);if(L2<EPS)return;
+    const tf=p=>clamp(dot(sub(p,e.a),d)/L2,0,1);let t1=tf(p1),t2=p2?tf(p2):t1;if(t1>t2)[t1,t2]=[t2,t1];
+    if(t1>1e-9)parts.push(cp(e,{b:add(e.a,mul(d,t1))}));
+    if(t2<1-1e-9)parts.push(cp(e,{a:add(e.a,mul(d,t2))}));
+  }else if(e.type==='arc'){
+    let span=nA(e.a1-e.a0);if(span<1e-9)span=TAU;
+    const tf=p=>clamp(nA(ang(sub(p,e.c))-e.a0),0,span);let t1=tf(p1),t2=p2?tf(p2):t1;if(t1>t2)[t1,t2]=[t2,t1];
+    if(t1>1e-9)parts.push(cp(e,{a1:e.a0+t1}));
+    if(t2<span-1e-9)parts.push(cp(e,{a0:e.a0+t2,a1:e.a0+span}));
+  }else if(e.type==='circle'){
+    if(!p2){toast('Beim Kreis zwei Brechpunkte setzen');return}
+    const A=ang(sub(p1,e.c)),B=ang(sub(p2,e.c));
+    if(Math.abs(nA(A-B))<1e-9){toast('Die Punkte dürfen nicht zusammenfallen');return}
+    parts.push(mkLike(e,{type:'arc',c:e.c,r:e.r,a0:B,a1:A}));
+  }else if(e.type==='pline'){
+    const P=e.pts,n=P.length,m=e.closed?n:n-1;
+    const loc=p=>{let bi=0,bt=0,bd=Infinity;for(let i=0;i<m;i++){const a=P[i],b=P[(i+1)%n],d=sub(b,a),L2=dot(d,d),t=L2?clamp(dot(sub(p,a),d)/L2,0,1):0,dd=dist(p,add(a,mul(d,t)));if(dd<bd){bd=dd;bi=i;bt=t}}return{i:bi,t:bt,pos:bi+bt,pt:add(P[bi],mul(sub(P[(bi+1)%n],P[bi]),bt))}};
+    let A=loc(p1),B=p2?loc(p2):A;if(A.pos>B.pos)[A,B]=[B,A];
+    const push=pts=>{const q=pts.filter((x,i)=>!i||dist(x,pts[i-1])>1e-9);if(q.length>=2)parts.push(mkLike(e,{type:'pline',pts:q,closed:false}))};
+    if(!e.closed){push([...P.slice(0,A.i+1),A.pt]);push([B.pt,...P.slice(B.i+1)])}
+    else if(!p2)push([A.pt,...P.slice(A.i+1),...P.slice(0,A.i+1),A.pt]);
+    else push([B.pt,...P.slice(B.i+1),...P.slice(0,A.i+1),A.pt]);
+  }
+  if(!p2&&parts.length<2&&e.type!=='pline'){toast('Am Endpunkt lässt sich nicht trennen');return}
+  if(!parts.length){toast('Der gewählte Bereich umfasst das ganze Objekt');return}
+  pushUndo();doc.ents=doc.ents.filter(x=>x.id!==e.id);sel.delete(e.id);parts.forEach(rawAdd);
+}
+TOOLS.break=()=>{
+  let e0=null,p1=null;
+  return{name:'BRECHEN',expect:()=>e0?'point':'pick',prompt:()=>e0?'Zweiter Brechpunkt  [Enter = nur am ersten Punkt trennen]':'Objekt am ersten Brechpunkt anklicken (Linie, Bogen, Kreis, Polylinie)',last:()=>p1,
+    pick(e,wp){if(!['line','arc','circle','pline'].includes(e.type)){toast('Brechen geht bei Linie, Bogen, Kreis und Polylinie');return}e0=e;p1=wp},
+    click(p){const e=e0,a=p1;e0=null;p1=null;doBreak(e,a,p)},
+    enter(){if(e0){const e=e0,a=p1;e0=null;p1=null;doBreak(e,a,null)}else done()},
+    preview(P,c){if(e0)P.line(p1,c,true)}};
+};
+/* --- Strecken --- */
+function stretchEnt(e,R,d){
+  const inR=p=>p[0]>=R[0]&&p[0]<=R[2]&&p[1]>=R[1]&&p[1]<=R[3],bb=bbox(e);
+  if(bb&&e.type!=='xline'&&bb[0]>=R[0]&&bb[2]<=R[2]&&bb[1]>=R[1]&&bb[3]<=R[3])return xf(e,M_t(d));
+  const n=clone(e);let ch=false;const mv=p=>{if(inR(p)){ch=true;return add(p,d)}return p};
+  switch(e.type){
+    case'line':n.a=mv(e.a);n.b=mv(e.b);break;
+    case'pline':case'spline':case'leader':case'hatch':n.pts=e.pts.map(mv);break;
+    case'circle':case'arc':case'ellipse':n.c=mv(e.c);break;
+    case'point':case'text':case'rdim':case'xline':n.p=mv(e.p);break;
+    case'dim':n.a=mv(e.a);n.b=mv(e.b);n.p=mv(e.p);break;
+    case'adim':n.c=mv(e.c);n.a=mv(e.a);n.b=mv(e.b);n.p=mv(e.p);break;
+  }
+  return ch?n:null;
+}
+TOOLS.stretch=()=>{
+  const t=baseMod('STRECKEN');let win=null;
+  return Object.assign(t,{b:null,
+    init(){},
+    prompt(){return this.stage===0?'Objekte mit einem Kreuzungsfenster wählen (von rechts nach links aufziehen), dann Enter':this.pr()},
+    ex(){return'point'},pr(){return this.b?'Zielpunkt':'Basispunkt'},last(){return this.b},
+    confirm(){
+      if(!lastWin||!lastWin.crossing){toast('Erst ein Fenster von rechts nach links aufziehen');return}
+      if(!sel.size){toast('Keine Objekte gewählt');return}
+      win=lastWin.R;this.items=[...sel].map(byId).filter(Boolean);this.stage=1;
+    },
+    click(p){
+      if(!this.b){this.b=p;return}
+      const d=sub(p,this.b);pushUndo();let n=0;
+      for(const e of this.items){const x=stretchEnt(e,win,d);if(x){replaceEnt(e.id,x);n++}}
+      if(!n)toast('Im Fenster lagen keine Punkte zum Strecken');
+      done();
+    },
+    preview(P,c){if(this.b){const d=sub(c,this.b);for(const e of this.items.slice(0,1500)){const x=stretchEnt(e,win,d);if(x)P.ent(x)}P.line(this.b,c,true)}}});
+};
+/* --- Punkte einfügen / löschen --- */
+TOOLS.vadd=()=>({name:'PUNKT EINFÜGEN',expect:()=>'pick',prompt:()=>'Polylinie oder Spline an der Stelle anklicken, wo ein Punkt entstehen soll – Enter = Ende',enter(){done()},
+  pick(e,wp){
+    if(e.type!=='pline'&&e.type!=='spline'){toast('Nur bei Polylinie und Spline');return}
+    const P=e.pts,n=P.length,m=e.closed?n:n-1;let idx=0,q=null,bd=Infinity;
+    if(e.type==='spline'){
+      const T=splinePts(e);for(let j=0;j<T.length-1;j++){const c=nearPrim({k:'s',a:T[j],b:T[j+1]},wp),dd=dist(c,wp);if(dd<bd){bd=dd;q=c;idx=Math.min(Math.floor(j/14),m-1)}}
+    }else for(let i=0;i<m;i++){const c=nearPrim({k:'s',a:P[i],b:P[(i+1)%n]},wp),dd=dist(c,wp);if(dd<bd){bd=dd;q=c;idx=i}}
+    if(!q)return;const np=P.map(p=>p.slice());np.splice(idx+1,0,q);
+    pushUndo();replaceEnt(e.id,Object.assign(clone(e),{pts:np}));
+  }});
+TOOLS.vdel=()=>({name:'PUNKT LÖSCHEN',expect:()=>'pick',prompt:()=>'Polylinie oder Spline nahe dem zu löschenden Punkt anklicken – Enter = Ende',enter(){done()},
+  pick(e,wp){
+    if(e.type!=='pline'&&e.type!=='spline'){toast('Nur bei Polylinie und Spline');return}
+    const P=e.pts;let bi=0,bd=Infinity;P.forEach((p,i)=>{const dd=dist(p,wp);if(dd<bd){bd=dd;bi=i}});
+    if(P.length<=(e.closed?3:2)){toast('Weitere Punkte lassen sich nicht entfernen');return}
+    const np=P.map(p=>p.slice());np.splice(bi,1);pushUndo();replaceEnt(e.id,Object.assign(clone(e),{pts:np}));
+  }});
+
+/* ================= Symbol-Bibliothek ================= */
+const sl=(a,b,c,d)=>({type:'line',a:[a,b],b:[c,d]}),sp=(pts,closed=true)=>({type:'pline',pts,closed}),sc=(x,y,r)=>({type:'circle',c:[x,y],r}),sa=(x,y,r,a0,a1)=>({type:'arc',c:[x,y],r,a0,a1}),st=(x,y,t,hh)=>({type:'text',p:[x,y],text:t,h:hh,rot:0});
+const SYMLIB=[
+  {name:'Absperrschieber',ents:[sp([[-5,-3],[0,0],[-5,3]]),sp([[5,-3],[0,0],[5,3]]),sl(-8,0,-5,0),sl(5,0,8,0)]},
+  {name:'Rückschlagventil',ents:[sp([[-4,-3.5],[3,0],[-4,3.5]]),sl(3.5,-3.5,3.5,3.5),sl(-8,0,-4,0),sl(3.5,0,8,0)]},
+  {name:'Pumpe',ents:[sc(0,0,5),sp([[-3.5,3.5],[5,0],[-3.5,-3.5]],false),sl(-8,0,-5,0)]},
+  {name:'Motor',ents:[sc(0,0,5),st(-1.7,-1.8,'M',5)]},
+  {name:'Behälter',ents:[sl(-5,-4,-5,4),sl(5,-4,5,4),sa(0,4,5,0,Math.PI),sa(0,-4,5,Math.PI,TAU)]},
+  {name:'Wärmetauscher',ents:[sc(0,0,5),sp([[-3.5,0],[-2,2.5],[0,-2.5],[2,2.5],[3.5,0]],false),sl(-8,0,-5,0),sl(5,0,8,0)]},
+  {name:'Messstelle',ents:[sc(0,0,4),sl(-4,0,4,0),sl(0,-4,0,-7)]},
+  {name:'Fließrichtung',ents:[sl(-6,0,4,0),sp([[4,-2],[8,0],[4,2]])]},
+  {name:'Nordpfeil',ents:[sc(0,0,5),sp([[0,5],[-2.5,-4],[0,-2],[2.5,-4]]),st(-1.5,6.5,'N',4)]},
+  {name:'Tür',ents:[sl(0,0,0,9),sa(0,0,9,0,Math.PI/2),sl(0,0,9,0)]},
+  {name:'Fenster',ents:[sp([[-6,-1],[6,-1],[6,1],[-6,1]]),sl(-6,0,6,0)]},
+  {name:'Erdung',ents:[sl(0,6,0,1),sl(-5,1,5,1),sl(-3,-1,3,-1),sl(-1,-3,1,-3)]}
+];
+let symCur=null,symSc=1,symRot=0;
+const SYMKEY='helix:symbols';
+function loadUserSyms(){
+  try{const a=JSON.parse(store.get(SYMKEY)||'[]');return Array.isArray(a)?a.filter(s=>s&&typeof s.name==='string'&&Array.isArray(s.ents)&&isPt(s.base)&&s.ents.every(okEnt)):[]}catch(e){return[]}
+}
+const saveUserSyms=a=>store.set(SYMKEY,JSON.stringify(a));
+function symbolFromSelection(){
+  const ents=[...sel].map(byId).filter(Boolean);
+  if(!ents.length){toast('Erst Objekte wählen, die als Symbol gespeichert werden sollen');return}
+  const b=docBBox(ents),base=[(b[0]+b[2])/2,(b[1]+b[3])/2];
+  dialog('Als Symbol speichern',[{k:'name',label:'Name',type:'text',value:'Mein Symbol',req:true}],v=>{
+    if(!v)return;const name=v.name.trim().slice(0,30),list=loadUserSyms(),def={name,base,ents:ents.map(e=>{const c=clone(e);delete c.id;delete c.layer;return c})},i=list.findIndex(x=>x.name===name);
+    if(i>=0)list[i]=def;else list.push(def);
+    toast(saveUserSyms(list)?`Symbol „${name}“ gespeichert`:'Speichern nicht möglich (Browser-Speicher nicht verfügbar)',3000);
+  });
+}
+function symPreview(cv,def){
+  const g=cv.getContext('2d'),W=cv.width,H=cv.height;g.clearRect(0,0,W,H);
+  const box=docBBox2(def.ents);if(!box)return;
+  const w=Math.max(box[2]-box[0],1e-6),hh=Math.max(box[3]-box[1],1e-6),s=Math.min((W-14)/w,(H-14)/hh),V={s,ox:W/2-(box[0]+box[2])/2*s,oy:H/2+(box[1]+box[3])/2*s};
+  const col=THEMES[prefs.theme].fg;
+  for(const e of def.ents)strokeEnt(g,V,e,col,1.5,[]);
+}
+function docBBox2(ents){let b=null;for(const e of ents){const q=bbox(e);if(!q)continue;b=b?[Math.min(b[0],q[0]),Math.min(b[1],q[1]),Math.max(b[2],q[2]),Math.max(b[3],q[3])]:q}return b}
+function symbolPicker(){
+  const user=loadUserSyms().map(s=>Object.assign({user:true},s)),lib=[...SYMLIB.map(s=>Object.assign({base:[0,0]},s)),...user];
+  const body=h('div'),fS=h('input',{type:'text',inputmode:'decimal',value:f3(symSc)}),fR=h('input',{type:'text',inputmode:'decimal',value:f3(symRot)}),err=h('div',{class:'ferr'});
+  body.append(h('div',{class:'hint'},'Ein Symbol antippen, dann in der Zeichnung platzieren. Die eingebauten Symbole sind ca. 10 Einheiten groß.'),
+    h('label',{class:'frow'},h('span',null,'Größenfaktor'),fS),h('label',{class:'frow'},h('span',null,'Drehung (°)'),fR),err);
+  const grid=h('div',{class:'symgrid'});
+  const pick=s=>{
+    if(!isNum(fS.value.trim())||!(toNum(fS.value)>0)){err.textContent='Größenfaktor: bitte eine Zahl > 0 eingeben';return}
+    if(!isNum(fR.value.trim())){err.textContent='Drehung: bitte eine Zahl eingeben';return}
+    symSc=toNum(fS.value);symRot=toNum(fR.value);symCur=s;closeModal();startTool('symput');
+  };
+  for(const s of lib){
+    const cv=h('canvas',{width:72,height:72});
+    const card=h('div',{class:'symbtn',role:'button',tabindex:'0',onclick:()=>pick(s),onkeydown:e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();pick(s)}}},cv,h('span',null,s.name));
+    if(s.user){card.append(h('button',{class:'symdel',title:'Symbol löschen','aria-label':'Symbol löschen',onclick:ev=>{ev.stopPropagation();saveUserSyms(loadUserSyms().filter(x=>x.name!==s.name));closeModal();symbolPicker()}},'✕'))}
+    grid.append(card);symPreview(cv,s);
+  }
+  body.append(grid);
+  openModal('Symbol-Bibliothek',body,[{t:'Auswahl als Symbol speichern',fn:()=>{closeModal();symbolFromSelection()}},{t:'Schließen',pri:true,fn:()=>closeModal()}]);
+}
+function symMatrix(p,def){return mulM(M_t(p),mulM(M_r([0,0],symRot*D2R),mulM(M_s([0,0],symSc),M_t([-def.base[0],-def.base[1]]))))}
+TOOLS.symput=()=>{
+  if(!symCur){toast('Erst ein Symbol in der Bibliothek wählen');return null}
+  const def=symCur;
+  return{name:'SYMBOL: '+def.name.toUpperCase(),expect:()=>'point',
+    prompt:()=>`Einfügepunkt  [R = +90°, R45 = Winkel, S2 = Faktor]  ·  ×${f3(symSc)}, ${f3(nA(symRot*D2R)/D2R)}°  ·  Enter = Ende`,
+    click(p){const M=symMatrix(p,def);pushUndo();for(const e of def.ents)rawAdd(xf(e,M));redraw()},
+    text(s){
+      let m;
+      if((m=/^r(-?\d+(?:[.,]\d+)?)?$/i.exec(s))){symRot=m[1]===undefined?symRot+90:toNum(m[1]);return true}
+      if((m=/^s(\d+(?:[.,]\d+)?)$/i.exec(s))&&toNum(m[1])>0){symSc=toNum(m[1]);return true}
+      return false;
+    },
+    enter(){done()},
+    preview(P,c){P.ghost(def.ents,symMatrix(c,def))}};
+};
+
+/* ================= PDF-Export ================= */
+const PAPER={A4:[210,297],A3:[297,420],A2:[420,594],A1:[594,841],A0:[841,1189],A5:[148,210],Letter:[215.9,279.4]};
+const PDF_SCALES=[['fit','Anpassen (füllt das Blatt)'],['0.1','10 : 1'],['0.2','5 : 1'],['0.5','2 : 1'],['1','1 : 1'],['2','1 : 2'],['5','1 : 5'],['10','1 : 10'],['20','1 : 20'],['25','1 : 25'],['50','1 : 50'],['100','1 : 100'],['200','1 : 200'],['250','1 : 250'],['500','1 : 500'],['1000','1 : 1000'],['custom','Eigener Maßstab …']];
+const PDFLT={solid:[],dashed:[3.5,2.1],center:[8.4,1.75,1.4,1.75],dotted:[.7,1.75],hidden:[2.45,1.75]};
+let pdfOpt={size:'A4',orient:'landscape',scale:'fit',custom:100,unit:1,area:'all',margin:10,tb:true,author:'',bg:true};
+try{const q=JSON.parse(store.get('helix:pdf')||'{}');if(q&&typeof q==='object'){if(PAPER[q.size])pdfOpt.size=q.size;if(q.orient==='portrait'||q.orient==='landscape')pdfOpt.orient=q.orient;if(PDF_SCALES.some(s=>s[0]===q.scale))pdfOpt.scale=q.scale;if(q.custom>0)pdfOpt.custom=q.custom;if([1,10,1000].includes(q.unit))pdfOpt.unit=q.unit;if(q.area==='all'||q.area==='view')pdfOpt.area=q.area;if(Number.isFinite(q.margin))pdfOpt.margin=clamp(q.margin,0,50);if(typeof q.tb==='boolean')pdfOpt.tb=q.tb;if(typeof q.author==='string')pdfOpt.author=q.author.slice(0,60);if(typeof q.bg==='boolean')pdfOpt.bg=q.bg}}catch(e){}
+function fmtScale(N){
+  if(!(N>0))return'–';
+  if(N>=1)return`1:${N>=10?Math.round(N):Math.round(N*100)/100}`;
+  return`${Math.round(1/N*100)/100}:1`;
+}
+function pdfLayout(o){
+  if(typeof o.area==='string'&&o.area.startsWith('frame:')){
+    const fe=byId(+o.area.slice(6));if(!fe||!fe.frame)return null;
+    const f=fe.frame,sr=frameSheetRect(fe),k=f.unit/f.N;
+    return{pw:f.w,ph:f.h,frame:null,tb:null,area:{x:0,y:0,w:f.w,h:f.h},wr:sr,k,ox:-sr[0]*k,oy:-sr[1]*k,N:f.N,sizeMM:[f.w,f.h],fits:true,sheet:true};
+  }
+  let[pw,ph]=PAPER[o.size]||PAPER.A4;
+  if(o.orient==='landscape'&&pw<ph)[pw,ph]=[ph,pw];if(o.orient==='portrait'&&pw>ph)[pw,ph]=[ph,pw];
+  const m=clamp(o.margin,0,50),tbH=o.tb?18:0,frame={x:m,y:m,w:pw-2*m,h:ph-2*m},tb={x:m,y:m,w:frame.w,h:tbH},area={x:m+2,y:m+tbH+2,w:frame.w-4,h:frame.h-tbH-4};
+  if(area.w<10||area.h<10)return null;
+  let wr;
+  if(o.area==='view'){const W=stage.clientWidth,H=stage.clientHeight,a=s2w(0,H),b=s2w(W,0);wr=[a[0],a[1],b[0],b[1]]}
+  else wr=plotBBox(!!o.bg);
+  if(!wr)return null;
+  const ww=Math.max(wr[2]-wr[0],1e-9),wh=Math.max(wr[3]-wr[1],1e-9);
+  let k;
+  if(o.scale==='fit'||(o.scale==='custom'&&!(o.custom>0)))k=Math.min(area.w/ww,area.h/wh);
+  else k=o.unit/(o.scale==='custom'?o.custom:+o.scale);
+  const ox=area.x+(area.w-ww*k)/2-wr[0]*k,oy=area.y+(area.h-wh*k)/2-wr[1]*k;
+  return{pw,ph,frame,tb,area,wr,k,ox,oy,N:o.unit/k,sizeMM:[ww*k,wh*k],fits:ww*k<=area.w+1e-6&&wh*k<=area.h+1e-6};
+}
+/* Helvetica-Zeichenbreiten (1/1000 em) */
+const HW=[278,278,355,556,556,889,667,191,333,333,389,584,278,333,278,278,556,556,556,556,556,556,556,556,556,556,278,278,584,584,584,556,1015,
+  667,667,722,722,667,611,778,722,278,500,667,556,833,722,778,667,778,722,667,611,722,667,944,667,667,611,278,278,278,469,556,333,
+  556,556,500,556,556,278,556,556,222,222,500,222,833,556,556,556,556,333,500,278,556,500,722,500,500,500,334,260,334,584];
+const HWX={'Ø':778,'°':400,'±':584,'…':1000,'–':556,'—':1000};
+const textW=s=>{let w=0;for(const ch of String(s)){const c=ch.charCodeAt(0);w+=c>=32&&c<=126?HW[c-32]:(HWX[ch]||556)}return w};
+const WINMAP={'€':128,'‚':130,'ƒ':131,'„':132,'…':133,'†':134,'‡':135,'ˆ':136,'‰':137,'Š':138,'‹':139,'Œ':140,'Ž':142,'‘':145,'’':146,'“':147,'”':148,'•':149,'–':150,'—':151,'˜':152,'™':153,'š':154,'›':155,'œ':156,'ž':158,'Ÿ':159,'−':45};
+function toWin(s){let o='';for(const ch of String(s)){const c=ch.codePointAt(0);if(c<32)o+=' ';else if(c<128||(c>=160&&c<256))o+=String.fromCharCode(c);else if(WINMAP[ch]!==undefined)o+=String.fromCharCode(WINMAP[ch]);else o+='?'}return o}
+const pdfEsc=s=>toWin(s).replace(/[\\()]/g,m=>'\\'+m);
+function pdfContent(o,L){
+  const out=[],P=s=>out.push(s),k=L.k,ox=L.ox,oy=L.oy;
+  const n=(v,d=3)=>{const s=(+v).toFixed(d).replace(/\.?0+$/,'');return s===''||s==='-0'?'0':s};
+  const X=x=>n(ox+x*k),Y=y=>n(oy+y*k),M=p=>`${X(p[0])} ${Y(p[1])}`;
+  const rgb=hx=>{const q=parseInt(hx.slice(1),16);return`${n((q>>16&255)/255)} ${n((q>>8&255)/255)} ${n((q&255)/255)}`};
+  const arrowP=(tip,dir,size)=>{const nv=[-dir[1],dir[0]],b=sub(tip,mul(dir,size)),A=add(b,mul(nv,size*.28)),B=sub(b,mul(nv,size*.28));P(`${M(tip)} m ${M(A)} l ${M(B)} l h f`)};
+  const arcBez=(c,r,a0,span,first)=>{
+    const seg=Math.max(1,Math.ceil(span/(Math.PI/2)-1e-9)),da=span/seg,kap=4/3*Math.tan(da/4);let a=a0;
+    if(first)P(`${M(pol(c,r,a))} m`);
+    for(let i=0;i<seg;i++){const b=a+da,p0=pol(c,r,a),p3=pol(c,r,b),c1=[p0[0]-kap*r*Math.sin(a),p0[1]+kap*r*Math.cos(a)],c2=[p3[0]+kap*r*Math.sin(b),p3[1]-kap*r*Math.cos(b)];P(`${M(c1)} ${M(c2)} ${M(p3)} c`);a=b}
+  };
+  const ptxt=(txt,p,hh,rot,align)=>{
+    const lines=String(txt).split('\n'),fs=hh*k,co=Math.cos(rot),si=Math.sin(rot);
+    lines.forEach((ln,i)=>{
+      if(!ln.trim())return;
+      const w=textW(ln)*fs/1000,dx=align==='center'?-w/2:(align==='right'||align==='end')?-w:0;
+      const bx=p[0]+si*i*1.25*hh,by=p[1]-co*i*1.25*hh,x=ox+bx*k+dx*co,y=oy+by*k+dx*si;
+      P(`BT /F1 ${n(fs)} Tf ${n(co,5)} ${n(si,5)} ${n(-si,5)} ${n(co,5)} ${n(x)} ${n(y)} Tm (${pdfEsc(ln)}) Tj ET`);
+    });
+  };
+  const mmTxt=(txt,x,y,size,gray)=>P(`BT ${gray} /F1 ${n(size)} Tf 1 0 0 1 ${n(x)} ${n(y)} Tm (${pdfEsc(txt)}) Tj ET`);
+  const fitTxt=(s,maxW,size)=>{s=String(s||'');while(s.length&&textW(s)*size/1000>maxW)s=s.slice(0,-1);return s};
+  const ent=e=>{
+    const Ly=layerOf(e),col=colRes(e.color||Ly.color,'light'),lw=Math.max(.05,lwOf(e)),dash=PDFLT[Ly.lt]||[],c=rgb(col);
+    P(`${c} RG ${c} rg ${n(lw)} w 1 J 1 j ${dash.length?`[${dash.map(v=>n(v)).join(' ')}]`:'[]'} 0 d`);
+    switch(e.type){
+      case'line':P(`${M(e.a)} m ${M(e.b)} l S`);break;
+      case'pline':e.pts.forEach((p,i)=>P(`${M(p)} ${i?'l':'m'}`));P(e.closed?'h S':'S');break;
+      case'spline':splinePts(e).forEach((p,i)=>P(`${M(p)} ${i?'l':'m'}`));P('S');break;
+      case'circle':arcBez(e.c,e.r,0,TAU,true);P('h S');break;
+      case'arc':{let span=nA(e.a1-e.a0);if(span<1e-9)span=TAU;arcBez(e.c,e.r,e.a0,span,true);P('S');break}
+      case'ellipse':ellPts(e,96).forEach((p,i)=>P(`${M(p)} ${i?'l':'m'}`));P('h S');break;
+      case'point':{const px=ox+e.p[0]*k,py=oy+e.p[1]*k;P(`${n(px-1.2)} ${n(py)} m ${n(px+1.2)} ${n(py)} l ${n(px)} ${n(py-1.2)} m ${n(px)} ${n(py+1.2)} l S`);break}
+      case'text':ptxt(e.text,e.p,e.h,e.rot||0,'left');break;
+      case'dim':{const g=dimGeom(e);g.segs.forEach(([p,q])=>P(`${M(p)} m ${M(q)} l`));P('S [] 0 d');arrowP(g.a2,[-g.u[0],-g.u[1]],g.th*.9);arrowP(g.b2,g.u,g.th*.9);ptxt(g.txt,g.tp,g.th,g.rot,'center');break}
+      case'rdim':{const g=rdimGeom(e);P(`${M(g.segs[0][0])} m ${M(g.segs[0][1])} l S [] 0 d`);arrowP(g.edge,g.dir,g.th*.9);ptxt(g.txt,g.tp,g.th,0,'left');break}
+      case'leader':{const g=leaderGeom(e);g.segs.forEach(([p,q])=>P(`${M(p)} m ${M(q)} l`));P('S [] 0 d');arrowP(g.tip,g.dir,g.th*.9);ptxt(e.text,g.p,g.th,0,g.align);break}
+      case'adim':{const g=adimGeom(e);arcBez(g.c,g.r,g.a0,g.span,true);g.segs.forEach(([p,q])=>P(`${M(p)} m ${M(q)} l`));P('S [] 0 d');arrowP(g.s,g.dir0,g.th*.9);arrowP(g.t,g.dir1,g.th*.9);ptxt(g.txt,g.tp,g.th,g.rot,'center');break}
+      case'hatch':{
+        if(e.pattern==='solid'){P('q /G35 gs');e.pts.forEach((p,i)=>P(`${M(p)} ${i?'l':'m'}`));P('h f Q')}
+        else{P(`${n(lw*.7)} w [] 0 d`);for(const[p,q]of hatchLines(e))P(`${M(p)} m ${M(q)} l`);P('S')}
+        break;
+      }
+    }
+  };
+  P('q 2.834646 0 0 2.834646 0 0 cm');
+  const fr=L.frame,tb=L.tb;
+  P(`0 G 0 g [] 0 d 0.35 w`);if(fr)P(`${n(fr.x)} ${n(fr.y)} ${n(fr.w)} ${n(fr.h)} re S`);
+  if(o.tb&&!L.sheet){
+    P(`${n(tb.x)} ${n(tb.y)} ${n(tb.w)} ${n(tb.h)} re S`);
+    const cols=[.46,.2,.14,.12,.08],lab=['Titel','Gezeichnet von','Datum','Maßstab','Blatt'],val=[o.title,o.author,o.date,fmtScale(L.N),o.size];let x=tb.x;
+    cols.forEach((f,i)=>{const w=tb.w*f;if(i)P(`${n(x)} ${n(tb.y)} m ${n(x)} ${n(tb.y+tb.h)} l S`);mmTxt(lab[i],x+1.5,tb.y+tb.h-3.8,2.2,'.4 g');mmTxt(fitTxt(val[i],w-3,4.6),x+1.5,tb.y+4.2,4.6,'0 g');x+=w});
+  }
+  P('q');P(`${n(L.area.x)} ${n(L.area.y)} ${n(L.area.w)} ${n(L.area.h)} re W n`);
+  const useImg=!!(o.bg&&doc.bg&&doc.bg.vis);
+  if(useImg){const g=doc.bg,co=Math.cos(g.rot),si=Math.sin(g.rot),sw=k*g.s*g.w,sh=k*g.s*g.h;P(`q /GI gs ${n(sw*co,5)} ${n(sw*si,5)} ${n(-sh*si,5)} ${n(sh*co,5)} ${n(ox+k*g.p[0])} ${n(oy+k*g.p[1])} cm /Im1 Do Q`)}
+  for(const pass of[0,1])for(const e of doc.ents){if(!vis(e)||e.type==='xline'||(e.type==='hatch')!==(pass===0))continue;ent(e)}
+  P('Q');P('Q');
+  return{content:out.join('\n'),useImg};
+}
+async function deflateBytes(u8){
+  if(typeof CompressionStream==='undefined')return null;
+  try{const cs=new CompressionStream('deflate'),w=cs.writable.getWriter();w.write(u8);w.close();return new Uint8Array(await new Response(cs.readable).arrayBuffer())}catch(e){return null}
+}
+async function pdfAssemble(o,L,content,useImg){
+  const enc=s=>{const u=new Uint8Array(s.length);for(let i=0;i<s.length;i++)u[i]=s.charCodeAt(i)&255;return u};
+  const MM=72/25.4,W=L.pw*MM,H=L.ph*MM;
+  let cb=enc(content),flate=false;const z=await deflateBytes(cb);if(z&&z.length<cb.length){cb=z;flate=true}
+  let ib=null;
+  if(useImg){const d=doc.bg.data,bin=atob(d.slice(d.indexOf(',')+1));ib=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)ib[i]=bin.charCodeAt(i)}
+  const chunks=[],offs=[];let pos=0;
+  const wr=u=>{if(typeof u==='string')u=enc(u);chunks.push(u);pos+=u.length};
+  const infoId=useImg?9:8;
+  wr('%PDF-1.4\n%\u00e2\u00e3\u00cf\u00d3\n');
+  const obj=(id,body)=>{offs[id]=pos;wr(`${id} 0 obj\n${body}\nendobj\n`)};
+  const sobj=(id,dict,data)=>{offs[id]=pos;wr(`${id} 0 obj\n<< ${dict} /Length ${data.length} >>\nstream\n`);wr(data);wr('\nendstream\nendobj\n')};
+  obj(1,'<< /Type /Catalog /Pages 2 0 R >>');
+  obj(2,'<< /Type /Pages /Kids [3 0 R] /Count 1 >>');
+  obj(3,`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W.toFixed(2)} ${H.toFixed(2)}] /Resources << /Font << /F1 4 0 R >> /ExtGState << /G35 6 0 R /GI 7 0 R >>${useImg?' /XObject << /Im1 8 0 R >>':''} >> /Contents 5 0 R >>`);
+  obj(4,'<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>');
+  sobj(5,flate?'/Filter /FlateDecode':'',cb);
+  obj(6,'<< /Type /ExtGState /ca 0.35 /CA 0.35 >>');
+  obj(7,`<< /Type /ExtGState /ca ${(doc.bg?doc.bg.op:1).toFixed(2)} /CA 1 >>`);
+  if(useImg)sobj(8,`/Type /XObject /Subtype /Image /Width ${doc.bg.w} /Height ${doc.bg.h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode`,ib);
+  const title=String(o.title||doc.name),hex='FEFF'+Array.from({length:title.length},(_,i)=>title.charCodeAt(i).toString(16).padStart(4,'0')).join('').toUpperCase(),d=new Date(),p2=v=>String(v).padStart(2,'0');
+  obj(infoId,`<< /Title <${hex}> /Producer (Helix Web-CAD) /CreationDate (D:${d.getFullYear()}${p2(d.getMonth()+1)}${p2(d.getDate())}${p2(d.getHours())}${p2(d.getMinutes())}${p2(d.getSeconds())}) >>`);
+  const xr=pos;
+  wr(`xref\n0 ${infoId+1}\n0000000000 65535 f \n`);
+  for(let i=1;i<=infoId;i++)wr(`${String(offs[i]).padStart(10,'0')} 00000 n \n`);
+  wr(`trailer\n<< /Size ${infoId+1} /Root 1 0 R /Info ${infoId} 0 R >>\nstartxref\n${xr}\n%%EOF\n`);
+  return new Blob(chunks,{type:'application/pdf'});
+}
+async function pdfExport(o){
+  const L=pdfLayout(o);if(!L){toast('Die Zeichnung ist leer');return}
+  const{content,useImg}=pdfContent(o,L),blob=await pdfAssemble(o,L,content,useImg);
+  return deliver(safeName(doc.name)+'.pdf',blob,'PDF');
+}
+function pdfPreview(cv,L,o){
+  const pxw=600,s=pxw/L.pw;cv.width=pxw;cv.height=Math.max(50,Math.round(L.ph*s));
+  const g=cv.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,cv.width,cv.height);
+  g.strokeStyle='#222';g.lineWidth=Math.max(1,.35*s);
+  if(L.frame)g.strokeRect(L.frame.x*s,(L.ph-L.frame.y-L.frame.h)*s,L.frame.w*s,L.frame.h*s);
+  if(o.tb&&!L.sheet){
+    const t=L.tb;g.strokeRect(t.x*s,(L.ph-t.y-t.h)*s,t.w*s,t.h*s);
+    g.fillStyle='#222';g.font=`${Math.max(9,4.2*s)}px sans-serif`;g.fillText(String(o.title||'').slice(0,40),t.x*s+5,(L.ph-t.y-t.h/2)*s+5);
+    g.font=`${Math.max(8,3.2*s)}px sans-serif`;g.textAlign='right';g.fillText(fmtScale(L.N),(t.x+t.w)*s-5,(L.ph-t.y-t.h/2)*s+4);g.textAlign='left';
+  }
+  g.save();g.beginPath();g.rect(L.area.x*s,(L.ph-L.area.y-L.area.h)*s,L.area.w*s,L.area.h*s);g.clip();
+  const V={s:L.k*s,ox:L.ox*s,oy:cv.height-L.oy*s};
+  if(o.bg&&doc.bg&&doc.bg.vis)drawBg(g,V,doc.bg.op);
+  drawDoc(g,V,'light',m=>Math.max(.7,m*s),true);
+  g.restore();
+}
+function pdfDialog(){
+  if(!plotBBox(true)){toast('Die Zeichnung ist leer – es gibt nichts zu drucken');return}
+  const o=Object.assign({},pdfOpt,{title:doc.name,date:new Date().toLocaleDateString('de-DE')});
+  const frs=framesInDoc();if(frs.length&&o.area==='all')o.area='frame:'+frs[0].id;
+  const mkSel=(opts,val,fn)=>h('select',{onchange:fn},...opts.map(([v,t])=>h('option',{value:v,selected:String(v)===String(val)},t)));
+  const row=(label,el)=>h('label',{class:'frow'},h('span',null,label),el);
+  const upd=()=>update();
+  const sizeS=mkSel(Object.keys(PAPER).map(k=>[k,k]),o.size,upd),oriS=mkSel([['landscape','Querformat'],['portrait','Hochformat']],o.orient,upd),
+    scS=mkSel(PDF_SCALES,o.scale,upd),cuI=h('input',{type:'text',inputmode:'decimal',value:String(o.custom),oninput:upd}),
+    unS=mkSel([[1,'Millimeter (mm)'],[10,'Zentimeter (cm)'],[1000,'Meter (m)']],o.unit,upd),
+    arS=mkSel([['all','Gesamte Zeichnung'],['view','Aktueller Bildausschnitt'],...framesInDoc().map((e,i)=>['frame:'+e.id,`Zeichnungsrahmen ${i+1}: ${e.frame.size} ${e.frame.orient==='landscape'?'quer':'hoch'}, 1:${e.frame.N}`])],o.area,upd),
+    maI=h('input',{type:'text',inputmode:'decimal',value:String(o.margin),oninput:upd}),
+    tbC=h('input',{type:'checkbox',checked:o.tb,onchange:()=>{tbRows.style.display=tbC.checked?'':'none';update()}}),
+    tiI=h('input',{type:'text',value:o.title,maxlength:'60',oninput:upd}),auI=h('input',{type:'text',value:o.author,maxlength:'60',oninput:upd}),daI=h('input',{type:'text',value:o.date,maxlength:'20',oninput:upd}),
+    bgC=doc.bg?h('input',{type:'checkbox',checked:o.bg&&doc.bg.vis,onchange:upd}):null;
+  const cuRow=row('Maßstab 1 :',cuI),tbRows=h('div',null,row('Titel',tiI),row('Gezeichnet von',auI),row('Datum',daI));
+  const cv=h('canvas',{class:'pdfprev'}),info=h('div',{class:'info'});
+  const read=()=>{o.size=sizeS.value;o.orient=oriS.value;o.scale=scS.value;if(isNum(cuI.value.trim()))o.custom=toNum(cuI.value);o.unit=+unS.value;o.area=arS.value;o.margin=isNum(maI.value.trim())?clamp(toNum(maI.value),0,50):10;o.tb=tbC.checked;o.title=tiI.value;o.author=auI.value;o.date=daI.value;o.bg=bgC?bgC.checked:false};
+  let L=null;
+  function update(){
+    read();const fm=o.area.startsWith('frame:');[sizeS,oriS,scS,cuI,unS,maI,tbC,tiI,auI,daI].forEach(x=>{x.disabled=fm});cuRow.style.display=o.scale==='custom'&&!fm?'':'none';tbRows.style.display=o.tb&&!fm?'':'none';
+    L=pdfLayout(o);
+    if(!L){info.textContent='Mit diesen Einstellungen ist kein Platz auf dem Blatt (Rand zu groß?) oder die Zeichnung ist leer.';cv.width=10;cv.height=10;return}
+    pdfPreview(cv,L,o);
+    info.textContent=`Blatt ${L.sheet?'wie im Rahmen':o.size+' '+(o.orient==='landscape'?'quer':'hoch')}  ·  Maßstab ${o.scale==='fit'?'≈ ':''}${fmtScale(L.N)}\nZeichnung auf Papier: ${f3(Math.round(L.sizeMM[0]*10)/10)} × ${f3(Math.round(L.sizeMM[1]*10)/10)} mm\n${L.fits?'✓ passt auf das Blatt':'⚠ ragt über den Rand hinaus – kleineren Maßstab wählen oder „Anpassen“'}`;
+  }
+  const make=async()=>{
+    read();if(!pdfLayout(o)){toast('Bitte die Einstellungen prüfen');return}
+    pdfOpt={size:o.size,orient:o.orient,scale:o.scale,custom:o.custom,unit:o.unit,area:o.area.startsWith('frame:')?'all':o.area,margin:o.margin,tb:o.tb,author:o.author,bg:o.bg||pdfOpt.bg};
+    store.set('helix:pdf',JSON.stringify(pdfOpt));closeModal();toast('PDF wird erstellt …',1500);
+    try{await pdfExport(o)}catch(e){toast('PDF konnte nicht erstellt werden: '+(e&&e.message?e.message:e),5000)}
+  };
+  const body=h('div',null,cv,info,row('Papierformat',sizeS),row('Ausrichtung',oriS),row('Maßstab',scS),cuRow,row('Zeichnungseinheit',unS),row('Bereich',arS),row('Rand (mm)',maI),
+    h('div',{class:'hint'},'„Zeichnungseinheit“ legt fest, was 1 Einheit in deiner Zeichnung bedeutet – nur dann stimmt der Maßstab.'),
+    row('Schriftfeld',tbC),tbRows,bgC?row('Bild drucken',bgC):null);
+  openModal('Als PDF exportieren',body,[{t:'Abbrechen',fn:()=>closeModal()},{t:'PDF erstellen',pri:true,fn:make}]);
+  update();
+}
+
+/* ================= Zeichnungsrahmen & Schriftfeld ================= */
+const FR_FIELDS=[['titel','Titel'],['nr','Zeichnungs-Nr.'],['projekt','Projekt / Anlage'],['firma','Firma'],['gez','Gezeichnet'],['gepr','Geprüft'],['datum','Datum'],['mass','Maßstab'],['blatt','Blatt'],['rev','Revision']];
+const FR_KEEP=['firma','gez','gepr'],FR_KEY='helix:frame';
+let frDef={size:'A3',orient:'landscape',N:50,unit:1,binding:true,vals:{}},frPending=null;
+try{
+  const q=JSON.parse(store.get(FR_KEY)||'{}');
+  if(q&&typeof q==='object'){
+    if(PAPER[q.size])frDef.size=q.size;if(q.orient==='portrait'||q.orient==='landscape')frDef.orient=q.orient;
+    if(q.N>0)frDef.N=q.N;if([1,10,1000].includes(q.unit))frDef.unit=q.unit;if(typeof q.binding==='boolean')frDef.binding=q.binding;
+    if(q.vals&&typeof q.vals==='object')for(const k of FR_KEEP)if(typeof q.vals[k]==='string')frDef.vals[k]=q.vals[k].slice(0,80);
+  }
+}catch(e){}
+const saveFrDef=()=>store.set(FR_KEY,JSON.stringify(frDef));
+const framesInDoc=()=>doc.ents.filter(e=>e.type==='pline'&&e.frame);
+const frameSheetRect=e=>{const b=bbox(e),f=e.frame,wu=f.N/f.unit;return[b[0]-f.mL*wu,b[1]-f.m*wu,b[0]-f.mL*wu+f.w*wu,b[1]-f.m*wu+f.h*wu]};
+/* Geometrie des Blatts in mm, Ursprung = untere linke Blattecke */
+function frameLayout(f){
+  const x0=f.mL,y0=f.m,x1=f.w-f.m,y1=f.h-f.m,bw=Math.min(180,x1-x0),bx=x1-bw,by=y0;
+  const C=[['titel',0,.6667,2],['nr',.6667,1,2],['projekt',0,.5,1],['firma',.5,1,1],['gez',0,.2222,0],['gepr',.2222,.4444,0],['datum',.4444,.6667,0],['mass',.6667,.8333,0],['blatt',.8333,.9167,0],['rev',.9167,1,0]];
+  return{x0,y0,x1,y1,bw,bx,by,bh:36,cells:C.map(([k,a,b,r])=>({k,x:bx+a*bw,y:by+r*12,w:(b-a)*bw,h:12}))};
+}
+const frFit=(cell,txt)=>Math.max(1.5,Math.min(cell.k==='titel'?5:4,(cell.w-3)/(.6*Math.max(1,String(txt).length))));
+function buildFrame(f,vals){
+  const wu=f.N/f.unit,S=v=>v*wu,P=(x,y)=>[S(x),S(y)],Ly='Rahmen',lay=frameLayout(f),ents=[];
+  const rect=(a,b,c,d,lw,extra)=>Object.assign({type:'pline',pts:[P(a,b),P(c,b),P(c,d),P(a,d)],closed:true,layer:Ly,lw},extra||{});
+  const line=(a,b,c,d,lw)=>({type:'line',a:P(a,b),b:P(c,d),layer:Ly,lw});
+  ents.push(rect(0,0,f.w,f.h,.09));
+  ents.push(rect(lay.x0,lay.y0,lay.x1,lay.y1,.7,{frame:{size:f.size,orient:f.orient,N:f.N,unit:f.unit,m:f.m,mL:f.mL,w:f.w,h:f.h}}));
+  ents.push(rect(lay.bx,lay.by,lay.bx+lay.bw,lay.by+lay.bh,.5));
+  ents.push(line(lay.bx,lay.by+12,lay.bx+lay.bw,lay.by+12,.25),line(lay.bx,lay.by+24,lay.bx+lay.bw,lay.by+24,.25));
+  const vx=(frac,r)=>line(lay.bx+frac*lay.bw,lay.by+r*12,lay.bx+frac*lay.bw,lay.by+r*12+12,.25);
+  ents.push(vx(.6667,2),vx(.5,1));for(const fr of[.2222,.4444,.6667,.8333,.9167])ents.push(vx(fr,0));
+  for(const c of lay.cells){
+    const lab=FR_FIELDS.find(x=>x[0]===c.k)[1],t=String(vals[c.k]==null?'':vals[c.k]).trim();
+    ents.push({type:'text',p:P(c.x+1,c.y+c.h-3.3),text:lab,h:S(2),rot:0,layer:Ly});
+    ents.push({type:'text',p:P(c.x+1.5,c.y+2.5),text:t||' ',h:S(frFit(c,t)),rot:0,layer:Ly,fld:c.k});
+  }
+  return ents;
+}
+function frameDialog(){
+  const today=new Date().toLocaleDateString('de-DE'),v=frDef.vals;
+  const mkv=k=>({k:'v_'+k,label:FR_FIELDS.find(x=>x[0]===k)[1],type:'text',value:k==='titel'?doc.name:k==='datum'?today:k==='blatt'?'1/1':(v[k]||'')});
+  const fields=[
+    {k:'size',label:'Papierformat',type:'select',opts:Object.keys(PAPER).map(s=>[s,s]),value:frDef.size},
+    {k:'orient',label:'Ausrichtung',type:'select',opts:[['landscape','Querformat'],['portrait','Hochformat']],value:frDef.orient},
+    {k:'N',label:'Maßstab 1 :',type:'num',gt:0,value:frDef.N,hint:'Der Rahmen wird in Zeichnungseinheiten so groß angelegt, dass er beim Maßstab 1 : N genau auf das Papier passt.'},
+    {k:'unit',label:'Zeichnungseinheit',type:'select',opts:[[1,'Millimeter (mm)'],[10,'Zentimeter (cm)'],[1000,'Meter (m)']],value:frDef.unit},
+    {k:'binding',label:'Heftrand links (20 mm)',type:'checkbox',value:frDef.binding},
+    ...['titel','nr','projekt','firma','gez','gepr','datum','blatt','rev'].map(mkv),
+    {k:'v_mass',label:'Maßstab (Text)',type:'text',value:'',hint:'Leer lassen = wird automatisch aus dem Maßstab (z. B. 1:50) gesetzt.'}
+  ];
+  dialog('Zeichnungsrahmen einfügen',fields,r=>{
+    if(!r)return;
+    const size=r.size,orient=r.orient;let[w,hh]=PAPER[size];
+    if(orient==='landscape'&&w<hh)[w,hh]=[hh,w];if(orient==='portrait'&&w>hh)[w,hh]=[hh,w];
+    const m=Math.min(10,w/20),def={size,orient,N:r.N,unit:+r.unit,m,mL:r.binding?Math.max(20,m):m,w,h:hh};
+    if(def.w-def.m-def.mL<60||def.h-2*def.m<50){toast('Dieses Blatt ist zu klein für den Rahmen');return}
+    const vals={};for(const[k]of FR_FIELDS)vals[k]=r['v_'+k]||'';
+    if(!vals.mass.trim())vals.mass=fmtScale(r.N);
+    Object.assign(frDef,{size,orient,N:r.N,unit:+r.unit,binding:r.binding});for(const k of FR_KEEP)frDef.vals[k]=(vals[k]||'').slice(0,80);saveFrDef();
+    frPending={def,vals};startTool('frameput');
+  },'Weiter: platzieren');
+}
+TOOLS.frameput=()=>{
+  if(!frPending){toast('Erst den Rahmen im Dialog einrichten');return null}
+  const{def,vals}=frPending,ents=buildFrame(def,vals);
+  const place=p=>{
+    pushUndo();
+    if(!doc.layers.some(l=>l.name==='Rahmen'))doc.layers.push({name:'Rahmen',color:'auto',vis:true,lock:false,lt:'solid',lw:.25});
+    const M=M_t(p),placed=ents.map(e=>xf(e,M));placed.forEach(rawAdd);
+    done();afterDoc();zoomBox(docBBox(placed),.04);
+    toast(`Rahmen ${def.size} ${def.orient==='landscape'?'quer':'hoch'} im Maßstab 1:${def.N} eingefügt – Schriftfeld über „Rahmen ausfüllen“ ändern`,5000);
+  };
+  return{name:'ZEICHNUNGSRAHMEN',expect:()=>'point',prompt:()=>'Untere linke Ecke des Blatts wählen  (Enter = bei 0,0)',
+    click(p){place(p)},enter(){place([0,0])},
+    preview(P,c){P.ghost(ents,M_t(c))}};
+};
+const frameTexts=fe=>{const r=frameSheetRect(fe);return doc.ents.filter(t=>t.type==='text'&&t.fld&&t.p[0]>=r[0]&&t.p[0]<=r[2]&&t.p[1]>=r[1]&&t.p[1]<=r[3])};
+function fillFrame(fe){
+  const texts=frameTexts(fe),f=fe.frame;
+  if(!texts.length){toast('In diesem Rahmen gibt es kein Schriftfeld mehr');return}
+  const cur=k=>{const t=texts.find(x=>x.fld===k);return t?String(t.text).trim():''};
+  const fields=FR_FIELDS.filter(([k])=>texts.some(t=>t.fld===k)).map(([k,l])=>({k,label:l,type:'text',value:cur(k)}));
+  dialog('Schriftfeld ausfüllen',fields,r=>{
+    if(!r)return;
+    const lay=frameLayout(f),wu=f.N/f.unit;pushUndo();
+    for(const t of texts){const v=String(r[t.fld]==null?cur(t.fld):r[t.fld]).trim(),c=lay.cells.find(x=>x.k===t.fld);t.text=v||' ';if(c)t.h=frFit(c,v)*wu}
+    for(const k of FR_KEEP)if(r[k]!=null)frDef.vals[k]=String(r[k]).slice(0,80);saveFrDef();
+    afterDoc();toast('Schriftfeld aktualisiert',1800);
+  },'Übernehmen');
+}
+function fillFrameDialog(){
+  const fr=framesInDoc();
+  if(!fr.length){toast('Noch kein Zeichnungsrahmen vorhanden (Symbol „Zeichnungsrahmen“)');return}
+  let fe=null;
+  for(const id of sel){const e=byId(id);if(!e)continue;if(e.frame){fe=e;break}if(e.fld){fe=fr.find(x=>{const r=frameSheetRect(x);return e.p[0]>=r[0]&&e.p[0]<=r[2]&&e.p[1]>=r[1]&&e.p[1]<=r[3]});if(fe)break}}
+  if(!fe&&fr.length===1)fe=fr[0];
+  if(fe)return fillFrame(fe);
+  dialog('Welcher Rahmen?',[{k:'i',label:'Rahmen',type:'select',value:0,opts:fr.map((e,i)=>[i,`Rahmen ${i+1}: ${e.frame.size} ${e.frame.orient==='landscape'?'quer':'hoch'}, 1:${e.frame.N}`])}],r=>{if(r)fillFrame(fr[+r.i])},'Weiter');
+}
+
+/* Rahmen-Anforderung aus der JSON-Datei ("frames": [...]) -> Rahmen-Definition */
+function frameFromRequest(r){
+  if(!r||typeof r!=='object')return null;
+  const size=PAPER[r.size]?r.size:'A3',orient=r.orient==='portrait'?'portrait':'landscape',N=Number.isFinite(r.scale)&&r.scale>0?r.scale:50,UN={mm:1,cm:10,m:1000};
+  let unit=typeof r.unit==='string'?UN[r.unit.toLowerCase()]:r.unit;if(![1,10,1000].includes(unit))unit=1;
+  let[w,hh]=PAPER[size];if(orient==='landscape'&&w<hh)[w,hh]=[hh,w];if(orient==='portrait'&&w>hh)[w,hh]=[hh,w];
+  const m=Math.min(10,w/20),def={size,orient,N,unit,m,mL:r.binding===false?m:Math.max(20,m),w,h:hh};
+  if(def.w-def.m-def.mL<60||def.h-2*def.m<50)return null;
+  const vals={},F=r.fields&&typeof r.fields==='object'?r.fields:{};
+  for(const[k]of FR_FIELDS)vals[k]=typeof F[k]==='string'||Number.isFinite(F[k])?String(F[k]).slice(0,80):'';
+  if(!vals.mass.trim())vals.mass=fmtScale(N);
+  return{def,vals,origin:isPt(r.origin)?r.origin:[0,0]};
+}
+
+/* Eingebettete KI-Anleitung (Markdown) */
+const AI_GUIDE="# Helix Web-CAD – Anleitung zum JSON-Format (für KI-Assistenten)\n\nDiese Datei beschreibt vollständig, wie eine Zeichnung für **Helix Web-CAD** (2D-CAD im Browser) als `.json`-Datei aufgebaut ist.\nEin KI-Assistent, der diese Datei erhält, kann daraus eine komplette Zeichnung erzeugen, die der Nutzer direkt in Helix öffnet (Datei ▸ „Öffnen …“, oder per Drag & Drop, oder Datei ▸ „JSON einfügen“).\n\n---\n\n## 0. Auftrag an die KI (bitte zuerst lesen)\n\n1. Erzeuge **genau ein JSON-Objekt** nach dieser Anleitung. Gib es als einen einzigen Codeblock (```` ```json ````) oder als reine Datei aus. Vor und nach dem Block höchstens ein kurzer Satz.\n2. **Keine Kommentare** im JSON, **keine Kommas nach dem letzten Element**, nur doppelte Anführungszeichen, Dezimalpunkt (nicht Komma), Zahlen als Zahlen (nicht als Text).\n3. **Winkel immer im Bogenmaß (Radiant)**, nie in Grad (siehe Abschnitt 1).\n4. **Die y-Achse zeigt nach oben** (wie in der Mathematik, nicht wie in Bildschirm-Pixeln oder SVG).\n5. Berechne alle Koordinaten selbst und lege sie vollständig ab. Es gibt **keine Verweise, Variablen, Ausdrücke oder Schleifen** im Format. Jedes Objekt (z. B. jede der vier Bohrungen) wird einzeln aufgeführt.\n6. Halte dich an die erlaubten Werte (Ebenenfarben, Linienarten, Typen). Unbekannte Werte werden von Helix stillschweigend ersetzt oder das Objekt wird übersprungen.\n7. Fehlen dir Maße oder Angaben (Einheit, Maßstab, Papierformat, Beschriftung), **frage nach** oder triff eine klar benannte Annahme und nenne sie kurz.\n8. Prüfe das Ergebnis vor der Ausgabe mit der Checkliste in Abschnitt 9.\n\n---\n\n## 1. Grundlagen\n\n| Thema | Regel |\n|---|---|\n| Koordinatensystem | kartesisch, Ursprung (0, 0), **x nach rechts, y nach oben** |\n| Punkte | immer als Liste mit zwei Zahlen: `[x, y]` |\n| Einheiten | **einheitenlos**. 1 Einheit ist, was du festlegst (empfohlen: 1 Einheit = 1 mm). Mit Zeichnungsrahmen (`frames`) wird die Einheit dort angegeben. |\n| Winkel | **Bogenmaß (rad)**, 0 = Richtung +x, positiv = **gegen den Uhrzeigersinn**. Umrechnung: rad = Grad × π / 180 (90° = 1.570796, 180° = 3.141593, 270° = 4.712389, 45° = 0.785398) |\n| Zahlen | endliche Zahlen (kein `NaN`, kein `Infinity`), Dezimalpunkt, höchstens ca. 4 Nachkommastellen nötig |\n| Text | UTF-8. Umlaute, `Ø`, `°`, `±`, `×`, `²`, `³`, `µ`, `–` sind unproblematisch. Zeichen außerhalb von Windows-1252 (z. B. Emojis, griechische Buchstaben) erscheinen im PDF als `?` und sollten vermieden werden. |\n| Zeichenreihenfolge | Reihenfolge in `ents`; Schraffuren werden immer **hinter** die übrigen Objekte gezeichnet |\n| Größenordnung | tausende Objekte sind unproblematisch; Dateigröße max. 60 MB |\n\n---\n\n## 2. Aufbau der Datei\n\n```json\n{\n \"format\": \"helix-web-cad\",\n \"version\": 1,\n \"doc\": {\n  \"name\": \"Zeichnungsname\",\n  \"cur\": \"Kontur\",\n  \"grid\": 5,\n  \"th\": 3.5,\n  \"dec\": 2,\n  \"layers\": [ ... ],\n  \"ents\": [ ... ],\n  \"frames\": [ ... ]\n }\n}\n```\n\n| Feld | Pflicht | Bedeutung |\n|---|---|---|\n| `format` | empfohlen | immer `\"helix-web-cad\"` |\n| `version` | empfohlen | immer `1` |\n| `doc.name` | nein | Name der Zeichnung, max. 60 Zeichen (Standard: „Zeichnung 1“). Wird auch als Dateiname beim Speichern genutzt. |\n| `doc.cur` | nein | Name der Ebene, auf der der Nutzer neue Objekte zeichnet. Muss in `layers` existieren, sonst `\"0\"`. |\n| `doc.grid` | nein | Rastergröße (Zahl > 0, Standard 10) |\n| `doc.th` | nein | Standard-Texthöhe für **Bemaßungen und Hinweislinien** (Zahl > 0, Standard 5). Siehe Abschnitt 8. |\n| `doc.dec` | nein | Nachkommastellen in Maßtexten, ganze Zahl 0–6 (Standard 2; überflüssige Nullen werden entfernt) |\n| `doc.layers` | nein | Liste der Ebenen (Abschnitt 3). Ebene `\"0\"` existiert immer. |\n| `doc.ents` | **ja** | Liste der Zeichnungsobjekte (Abschnitt 4–5). Darf leer sein, muss aber ein Array sein. |\n| `doc.frames` | nein | Eingabe für Zeichnungsrahmen mit Schriftfeld (Abschnitt 6). Wird beim Laden in normale Objekte umgewandelt. |\n\nNicht erzeugen (von Helix selbst verwaltet oder für die KI ungeeignet): `doc.nid`, `doc.bg` (Hintergrundbild), `saved`, Objekt-`id`s. Wenn sie doch vorkommen, werden `id`/`nid` neu vergeben und ein ungültiges `bg` wird ignoriert.\n\n---\n\n## 3. Ebenen (`layers`)\n\n```json\n{\"name\":\"Kontur\",\"color\":\"auto\",\"vis\":true,\"lock\":false,\"lt\":\"solid\",\"lw\":0.5}\n```\n\n| Feld | Werte | Standard / Verhalten bei ungültigem Wert |\n|---|---|---|\n| `name` | Text, 1–40 Zeichen, eindeutig | Pflicht. Doppelte Namen und leere Namen werden übersprungen. |\n| `color` | `auto`, `red`, `yellow`, `green`, `cyan`, `blue`, `magenta`, `orange`, `gray` | sonst `auto` (`auto` = hell auf dunklem, schwarz auf hellem Hintergrund und im PDF schwarz) |\n| `vis` | `true` / `false` | sichtbar; Standard `true` |\n| `lock` | `true` / `false` | gesperrt (nicht bearbeitbar); Standard `false` |\n| `lt` | `solid`, `dashed`, `center`, `dotted`, `hidden` | sonst `solid` (durchgezogen, gestrichelt, Strich-Punkt-Mittellinie, gepunktet, verdeckt) |\n| `lw` | Strichstärke in **mm**, Zahl 0 bis 5 | sonst `0.25`. Übliche Werte: 0.05, 0.09, 0.13, 0.18, 0.25, 0.35, 0.5, 0.7, 1, 1.4, 2 |\n\nRegeln:\n\n- Die Ebene `\"0\"` gibt es immer. Du kannst sie in `layers` aufführen, um ihre Eigenschaften zu ändern.\n- Objekte verweisen über `layer` mit dem **exakten Namen** (Groß-/Kleinschreibung) auf eine Ebene. Unbekannter Name → Objekt landet auf `\"0\"`.\n- Sinnvolle Aufteilung: z. B. `Kontur`, `Mittellinien`, `Masse`, `Text`, `Schraffur`, `Hilfslinien`.\n\n---\n\n## 4. Gemeinsame Felder aller Objekte\n\nJedes Element von `ents` ist ein Objekt mit:\n\n| Feld | Pflicht | Bedeutung |\n|---|---|---|\n| `type` | **ja** | Objekttyp (Abschnitt 5) |\n| `layer` | empfohlen | Ebenenname; fehlt er oder ist unbekannt → `\"0\"` |\n| `color` | nein | überschreibt die Ebenenfarbe (gleiche Werte wie bei Ebenen). Hex-Farben (`#ff0000`) sind **nicht** erlaubt und werden entfernt. |\n| `lw` | nein | überschreibt die Ebenen-Strichstärke (mm, 0–5) |\n| `id` | nein | wird ignoriert und neu vergeben |\n\nEin Objekt mit fehlenden oder ungültigen Pflichtfeldern wird beim Laden **übersprungen** (Helix meldet „n ungültige übersprungen“).\n\n---\n\n## 5. Objekttypen\n\nAlle Beispiele sind gültig und können direkt in `ents` übernommen werden.\n\n### 5.1 `line` – Linie\nPflicht: `a`, `b` (Punkte).\n```json\n{\"type\":\"line\",\"layer\":\"Kontur\",\"a\":[0,0],\"b\":[100,50]}\n```\n\n### 5.2 `pline` – Polylinie (auch Rechteck und Polygon)\nPflicht: `pts` (mindestens 2 Punkte). Optional: `closed` (`true` = letzter Punkt wird mit dem ersten verbunden).\n**Rechteck, Polygon, Dreieck usw. gibt es nicht als eigenen Typ**: nimm eine geschlossene `pline`. Bögen innerhalb einer Polylinie sind nicht möglich (nimm `arc`-Objekte).\n```json\n{\"type\":\"pline\",\"layer\":\"Kontur\",\"pts\":[[0,0],[120,0],[120,70],[0,70]],\"closed\":true}\n```\n\n### 5.3 `circle` – Kreis\nPflicht: `c` (Mittelpunkt), `r` (Radius > 0).\n```json\n{\"type\":\"circle\",\"layer\":\"Kontur\",\"c\":[60,35],\"r\":15}\n```\n\n### 5.4 `arc` – Kreisbogen\nPflicht: `c`, `r` (> 0), `a0` (Startwinkel), `a1` (Endwinkel), beide in **Radiant**. Der Bogen läuft von `a0` **gegen den Uhrzeigersinn** nach `a1` (Spannweite = (a1 − a0) modulo 2π). Ein Viertelkreis oben rechts: a0 = 0, a1 = 1.570796. Für einen Vollkreis nimm `circle`.\n```json\n{\"type\":\"arc\",\"layer\":\"Kontur\",\"c\":[0,0],\"r\":20,\"a0\":0,\"a1\":1.570796}\n```\n\n### 5.5 `ellipse` – Ellipse\nPflicht: `c`, `rx`, `ry` (beide > 0), `rot` (Drehwinkel der rx-Achse, Radiant; 0 = rx liegt waagerecht).\n```json\n{\"type\":\"ellipse\",\"layer\":\"Kontur\",\"c\":[0,0],\"rx\":30,\"ry\":15,\"rot\":0}\n```\n\n### 5.6 `point` – Punkt\nPflicht: `p`. Wird als kleines Kreuz dargestellt.\n```json\n{\"type\":\"point\",\"layer\":\"Hilfslinien\",\"p\":[10,10]}\n```\n\n### 5.7 `text` – Text\nPflicht: `p`, `text` (Zeichenkette), `h` (Texthöhe > 0). Optional: `rot` (Radiant, Standard 0).\n\n- `p` ist der **Startpunkt der Grundlinie** der ersten Zeile (linksbündig). Eine Ausrichtung (zentriert, rechtsbündig) gibt es nicht; verschiebe `p` entsprechend.\n- Zeilenumbruch mit `\\n` im Text. Weitere Zeilen stehen **unterhalb**, Zeilenabstand = 1.25 × `h`.\n- Breite des Texts ≈ 0.6 × `h` × Anzahl der Zeichen (Faustformel zur Platzplanung; ob ein Text in ein Feld passt, vorher damit prüfen).\n```json\n{\"type\":\"text\",\"layer\":\"Text\",\"p\":[60,176],\"text\":\"Lagerplatte Pos. 1\\nWerkstoff S235JR\",\"h\":3.5,\"rot\":0}\n```\n\n### 5.8 `dim` – Maßlinie (Längenmaß)\nPflicht: `a`, `b` (die zwei **gemessenen** Punkte), `p` (ein Punkt, durch den die **Maßlinie** verläuft). Optional: `mode`: `\"al\"` (ausgerichtet, parallel zu a–b; Standard), `\"h\"` (waagerecht gemessen), `\"v\"` (senkrecht gemessen); `th` (Texthöhe, Standard `doc.th`).\n\n- Der Maßtext wird **automatisch** aus der gemessenen Länge in Zeichnungseinheiten gebildet (`doc.dec` Nachkommastellen, ohne Einheit). Er lässt sich nicht von Hand setzen.\n- `mode:\"h\"`: Maßlinie liegt auf der Höhe `p[1]`; `mode:\"v\"`: Maßlinie liegt bei `p[0]`; `\"al\"`: Maßlinie parallel zu a–b durch `p`.\n- Maßhilfslinien und Pfeile entstehen automatisch. Pfeilgröße = 0.9 × `th`.\n```json\n{\"type\":\"dim\",\"layer\":\"Masse\",\"mode\":\"h\",\"a\":[0,0],\"b\":[120,0],\"p\":[60,-14],\"th\":3.5}\n```\n\n### 5.9 `rdim` – Radius-/Durchmessermaß\nPflicht: `c` (Kreismittelpunkt), `r` (Radius), `p` (Endpunkt der Maßlinie, dort steht der Text). Optional: `kind`: `\"R\"` (Text „R15“, Standard) oder `\"D\"` (Text „Ø30“); `th`.\nDie Maßlinie läuft vom Kreisrand in Richtung `p` (vom Mittelpunkt aus gesehen). Wähle `p` außerhalb (oder innerhalb) des Kreises auf der gewünschten Seite.\n```json\n{\"type\":\"rdim\",\"layer\":\"Masse\",\"c\":[60,35],\"r\":15,\"p\":[82,53],\"kind\":\"D\",\"th\":3.5}\n```\n\n### 5.10 `adim` – Winkelmaß\nPflicht: `c` (Scheitelpunkt), `a` (ein Punkt auf dem ersten Schenkel), `b` (ein Punkt auf dem zweiten Schenkel), `p` (Punkt auf dem Maßbogen). Optional: `th`.\n`dist(c, p)` ist der Radius des Maßbogens; die **Seite** des Winkels (spitz oder überstumpf) ergibt sich daraus, in welchem der beiden Winkelfelder die Richtung c→p liegt. Der Text („90°“) entsteht automatisch.\n```json\n{\"type\":\"adim\",\"layer\":\"Masse\",\"c\":[0,0],\"a\":[40,0],\"b\":[0,40],\"p\":[22,22],\"th\":3.5}\n```\n\n### 5.11 `leader` – Hinweislinie mit Text\nPflicht: `pts` (mindestens 2 Punkte), `text`, `h` (> 0).\n`pts[0]` ist die **Pfeilspitze** (zeigt auf das Objekt), die weiteren Punkte sind Knickpunkte, der **letzte** Punkt ist das Ende der Linie. Dort schließt eine waagerechte Anschlusslinie (0.7 × `h` lang) an, danach folgt der Text; er steht rechts, wenn das letzte Segment nach rechts läuft (`x` des letzten Punkts ≥ `x` des vorletzten), sonst links. Mehrzeilig mit `\\n`.\n```json\n{\"type\":\"leader\",\"layer\":\"Text\",\"pts\":[[171,151],[178,168],[186,168]],\"text\":\"4× Bohrung Ø8\",\"h\":3.5}\n```\n\n### 5.12 `spline` – Spline (glatte Kurve durch Stützpunkte)\nPflicht: `pts` (mindestens 2 Stützpunkte; die Kurve verläuft **durch** alle). Optional: `closed` (`true` = geschlossene Kurve, braucht mindestens 3 Punkte).\n```json\n{\"type\":\"spline\",\"layer\":\"Kontur\",\"pts\":[[0,0],[20,15],[45,5],[70,25]],\"closed\":false}\n```\n\n### 5.13 `hatch` – Schraffur / Füllung\nPflicht: `pts` (mindestens 3 Punkte; das Polygon wird **automatisch geschlossen**). Optional: `pattern`: `\"lines\"` (Linien, Standard), `\"cross\"` (Kreuzschraffur), `\"solid\"` (Vollfläche, halbtransparent); `spacing` (Linienabstand in Zeichnungseinheiten, > 0, Standard 5); `angle` (Winkel der Linien, **Radiant**, Standard 0; 45° = 0.785398).\n\n- Die Schraffur zeichnet **keinen Rand**. Zeichne die Kontur zusätzlich als geschlossene `pline`.\n- Schraffuren mit Löchern/Inseln gibt es nicht: die Fläche ist ein einfaches Polygon.\n```json\n{\"type\":\"hatch\",\"layer\":\"Schraffur\",\"pts\":[[0,0],[20,0],[20,70],[0,70]],\"pattern\":\"lines\",\"spacing\":3,\"angle\":0.785398}\n```\n\n### 5.14 `xline` – Konstruktionslinie (unendliche Hilfslinie)\nPflicht: `p` (ein Punkt auf der Linie), `ang` (Richtung, Radiant; 0 = waagerecht, 1.570796 = senkrecht).\nWird **nicht gedruckt und nicht exportiert** (weder PDF noch SVG, PNG, DXF). Nur auf Wunsch des Nutzers verwenden.\n```json\n{\"type\":\"xline\",\"layer\":\"Hilfslinien\",\"p\":[0,0],\"ang\":0}\n```\n\n### Nicht unterstützt\nBlöcke/Einfügungen, Schraffuren mit Löchern, Bögen in Polylinien, Bemaßungsstile, Pfeilarten, Schriftarten und Textausrichtungen, Layouts/Ansichtsfenster, Hex-/RGB-Farben, Volltext-Formatierung. Bilder gibt es nur als Hintergrundbild, das die KI **nicht** erzeugen soll.\n\n---\n\n## 6. Zeichnungsrahmen mit Schriftfeld (`frames`)\n\nStatt Rahmen und Schriftfeld selbst aus Linien und Texten zu bauen, beschreibst du sie in `doc.frames`. Helix erzeugt daraus beim Laden den fertigen Rahmen (auf der Ebene `Rahmen`, wird bei Bedarf angelegt) – inklusive Blattkante, Rahmenlinie und Schriftfeld, das der Nutzer später im Programm ausfüllen kann. Nach dem Laden sind es normale Objekte; gespeichert wird kein `frames`-Feld mehr.\n\n```json\n\"frames\": [\n {\"size\":\"A3\",\"orient\":\"landscape\",\"scale\":50,\"unit\":\"mm\",\"binding\":true,\"origin\":[0,0],\n  \"fields\":{\"titel\":\"Neutralisationsanlage\",\"nr\":\"DL-0815\",\"projekt\":\"Werk Dietlikon\",\"firma\":\"Muster AG\",\"gez\":\"A. Muster\",\"gepr\":\"\",\"datum\":\"03.10.2026\",\"blatt\":\"1/1\",\"rev\":\"A\"}}\n]\n```\n\n| Feld | Werte | Standard |\n|---|---|---|\n| `size` | `A0`, `A1`, `A2`, `A3`, `A4`, `A5`, `Letter` | `A3` |\n| `orient` | `landscape` (quer), `portrait` (hoch) | `landscape` |\n| `scale` | Maßstabszahl N für 1 : N (Zahl > 0). Beispiel 50 = 1:50, 1 = 1:1, 0.5 = 2:1 | 50 |\n| `unit` | Bedeutung **einer Zeichnungseinheit**: `\"mm\"`, `\"cm\"` oder `\"m\"` | `\"mm\"` |\n| `binding` | `true` = Heftrand links 20 mm, `false` = überall 10 mm | `true` |\n| `origin` | `[x, y]` der **unteren linken Blattecke** in Zeichnungseinheiten | `[0, 0]` |\n| `fields` | Schriftfeld-Texte (alle optional, nur Text): `titel`, `nr` (Zeichnungs-Nr.), `projekt`, `firma`, `gez` (Gezeichnet), `gepr` (Geprüft), `datum`, `mass` (Maßstabstext; leer = automatisch „1:N“), `blatt`, `rev` (Revision) | leer |\n\nMehrere Einträge in `frames` ergeben mehrere Blätter. Wähle verschiedene `origin`-Werte, sodass sie sich nicht überlappen (Abstand größer als die Blattbreite).\n\n### Geometrie des Blatts (damit der Inhalt hineinpasst)\n\nPapiermaße in mm (Breite × Höhe bei **Querformat**; bei Hochformat vertauschen): A0 1189×841, A1 841×594, A2 594×420, A3 420×297, A4 297×210, A5 210×148, Letter 279.4×215.9.\n\n- **Umrechnungsfaktor** `wu` = Zeichnungseinheiten pro Papier-Millimeter = `scale ÷ f`, mit f = 1 (mm), 10 (cm), 1000 (m).\n  Beispiele: mm und 1:50 → wu = 50. m und 1:50 → wu = 0.05. mm und 1:1 → wu = 1.\n- Blattgröße in Zeichnungseinheiten: Blattbreite_mm × wu und Blatthöhe_mm × wu (ab `origin`).\n- Seitenrand `m` = min(10, Blattbreite_mm / 20) mm; linker Rand `mL` = max(20, m) mm bei `binding:true`, sonst `m`.\n- **Innerer Rahmen** (Zeichenfläche): x von `origin.x + mL·wu` bis `origin.x + (Blattbreite − m)·wu`, y von `origin.y + m·wu` bis `origin.y + (Blatthöhe − m)·wu`.\n- **Schriftfeld**: unten rechts im inneren Rahmen, **180 mm breit × 36 mm hoch** (bei sehr schmalem Blatt schmaler). Die Zeichnung darf diesen Bereich nicht überdecken: x ≥ `origin.x + (Blattbreite − m − 180)·wu` **und** y ≤ `origin.y + (m + 36)·wu` ist reserviert.\n- Platziere den Zeichnungsinhalt innerhalb des inneren Rahmens, oberhalb des Schriftfelds, mit etwas Abstand (ca. 10 mm Papier).\n\nBeispiel A4 quer, 1:1, mm, origin [0,0]: Blatt 297×210; innerer Rahmen x 20…287, y 10…200; Schriftfeld x 107…287, y 10…46; freie Fläche für die Zeichnung z. B. x 30…277, y 56…190.\n\n### Auswahl des Maßstabs\nRechne die Zeichnungsgröße (Breite, Höhe in Zeichnungseinheiten) in Papier-mm um (`Größe ÷ wu`) und wähle den **größten** gebräuchlichen Maßstab (1:1, 1:2, 1:5, 1:10, 1:20, 1:25, 1:50, 1:100, 1:200, 1:500, 1:1000), bei dem alles in die freie Fläche passt. Nenne dem Nutzer Papierformat und Maßstab.\n\n### PDF-Ausgabe\nIm Programm: Datei ▸ „Export PDF“ ▸ **Bereich: Zeichnungsrahmen**. Dann gelten Blattgröße und Maßstab des Rahmens exakt, es wird kein zweites Schriftfeld gedruckt.\n\n---\n\n## 7. Schriftgrößen, Strichstärken und Ebenen sinnvoll wählen\n\n**Texthöhen sind Zeichnungseinheiten, keine Papiermillimeter.** Die gewünschte Höhe auf Papier muss mit `wu` (Abschnitt 6) in Zeichnungseinheiten umgerechnet werden:\n\n`h = Papierhöhe_mm × wu`\n\nÜbliche Papierhöhen: Beschriftung 3.5 mm (Titel 5 mm), Maßzahlen 2.5–3.5 mm. Beispiel mm und 1:50: 3.5 mm Papier → `h` = 175. Setze `doc.th` und alle `th`/`h`-Werte der Bemaßung entsprechend (Pfeile sind 0.9 × `th`, Maßhilfslinien-Abstand 0.3 × `th`).\nOhne Zeichnungsrahmen: wähle `th` ca. 1/50 bis 1/70 der größeren Zeichnungsausdehnung (Zeichnung 120 breit → `th` ≈ 2–3).\n\nEmpfohlene Strichstärken (mm): Konturen/sichtbare Kanten 0.5, Schnittlinien/Hauptlinien 0.7, Maße, Mittellinien, Hilfslinien 0.18, Schraffuren 0.13, Text 0.25. Mittellinien: `lt:\"center\"`, verdeckte Kanten: `lt:\"hidden\"`.\n\n---\n\n## 8. Hinweise zur Qualität\n\n- Maße bei Maßlinien sind **gemessen**, nicht eingegeben: `a`/`b` müssen exakt auf den Kanten liegen, sonst stimmt die Zahl nicht.\n- Schließe Konturen exakt (gleiche Koordinaten an Berührpunkten), lege keine Objekte doppelt übereinander.\n- Rechne symmetrische Anordnungen (Lochkreise, Raster) mit den Formeln x = cx + r·cos θ, y = cy + r·sin θ **selbst aus** und trage die Zahlen ein.\n- Beschriftungen nicht über Linien legen: Text oberhalb/neben dem Objekt platzieren, Breite mit der Faustformel (0.6 × `h` × Zeichenzahl) prüfen.\n- Verwende pro Zweck eine eigene Ebene, damit der Nutzer Teile ein-/ausblenden kann.\n\n---\n\n## 9. Checkliste vor der Ausgabe\n\n- [ ] Gültiges JSON (Klammern, Kommas, keine Kommentare, keine Kommas am Ende)\n- [ ] `doc.ents` ist ein Array; jedes Objekt hat `type` und alle Pflichtfelder seines Typs\n- [ ] Alle Winkel (`a0`, `a1`, `rot`, `ang`, `angle`) in Radiant\n- [ ] `y` nach oben gedacht; Kreise/Radien > 0\n- [ ] Jede verwendete `layer`-Angabe existiert in `layers` (Schreibweise identisch)\n- [ ] Farben nur aus der Liste, Linienarten nur aus der Liste, keine Hex-Farben\n- [ ] Texthöhen passend zum Maßstab (Abschnitt 7); nichts liegt im Schriftfeld-Bereich\n- [ ] Bei `frames`: Größe, Maßstab, Einheit, `origin` gesetzt; Inhalt liegt im inneren Rahmen\n- [ ] Alle Objekte einzeln ausgeschrieben (keine Platzhalter wie `...` im Endergebnis)\n\n---\n\n## 10. Vollständiges, geprüftes Beispiel\n\nLagerplatte 120 × 70 mm mit Bohrungen, Mittellinien, Maßen, Hinweislinie, Schnittdarstellung mit Schraffur, auf A4 quer im Maßstab 1:1 mit Schriftfeld (lädt ohne übersprungene Objekte):\n\n```json\n{\n \"format\": \"helix-web-cad\",\n \"version\": 1,\n \"doc\": {\n  \"name\": \"Lagerplatte\",\n  \"cur\": \"Kontur\",\n  \"grid\": 5,\n  \"th\": 3.5,\n  \"dec\": 2,\n  \"layers\": [\n   {\"name\":\"0\",\"color\":\"auto\",\"vis\":true,\"lock\":false,\"lt\":\"solid\",\"lw\":0.25},\n   {\"name\":\"Kontur\",\"color\":\"auto\",\"vis\":true,\"lock\":false,\"lt\":\"solid\",\"lw\":0.5},\n   {\"name\":\"Mittellinien\",\"color\":\"red\",\"vis\":true,\"lock\":false,\"lt\":\"center\",\"lw\":0.18},\n   {\"name\":\"Masse\",\"color\":\"green\",\"vis\":true,\"lock\":false,\"lt\":\"solid\",\"lw\":0.18},\n   {\"name\":\"Text\",\"color\":\"auto\",\"vis\":true,\"lock\":false,\"lt\":\"solid\",\"lw\":0.25},\n   {\"name\":\"Schraffur\",\"color\":\"gray\",\"vis\":true,\"lock\":false,\"lt\":\"solid\",\"lw\":0.13}\n  ],\n  \"ents\": [\n   {\"type\":\"pline\",\"layer\":\"Kontur\",\"pts\":[[60,90],[180,90],[180,160],[60,160]],\"closed\":true},\n   {\"type\":\"circle\",\"layer\":\"Kontur\",\"c\":[120,125],\"r\":15},\n   {\"type\":\"circle\",\"layer\":\"Kontur\",\"c\":[72,102],\"r\":4},\n   {\"type\":\"circle\",\"layer\":\"Kontur\",\"c\":[168,102],\"r\":4},\n   {\"type\":\"circle\",\"layer\":\"Kontur\",\"c\":[72,148],\"r\":4},\n   {\"type\":\"circle\",\"layer\":\"Kontur\",\"c\":[168,148],\"r\":4},\n   {\"type\":\"line\",\"layer\":\"Mittellinien\",\"a\":[120,80],\"b\":[120,170]},\n   {\"type\":\"line\",\"layer\":\"Mittellinien\",\"a\":[50,125],\"b\":[190,125]},\n   {\"type\":\"dim\",\"layer\":\"Masse\",\"mode\":\"h\",\"a\":[60,90],\"b\":[180,90],\"p\":[120,76],\"th\":3.5},\n   {\"type\":\"dim\",\"layer\":\"Masse\",\"mode\":\"v\",\"a\":[180,90],\"b\":[180,160],\"p\":[194,125],\"th\":3.5},\n   {\"type\":\"rdim\",\"layer\":\"Masse\",\"c\":[120,125],\"r\":15,\"p\":[142,143],\"kind\":\"D\",\"th\":3.5},\n   {\"type\":\"leader\",\"layer\":\"Text\",\"pts\":[[171,151],[178,168],[186,168]],\"text\":\"4× Bohrung Ø8\",\"h\":3.5},\n   {\"type\":\"text\",\"layer\":\"Text\",\"p\":[60,176],\"text\":\"Lagerplatte Pos. 1\\nWerkstoff S235JR\",\"h\":3.5,\"rot\":0},\n   {\"type\":\"pline\",\"layer\":\"Kontur\",\"pts\":[[232,90],[252,90],[252,160],[232,160]],\"closed\":true},\n   {\"type\":\"hatch\",\"layer\":\"Schraffur\",\"pts\":[[232,90],[252,90],[252,160],[232,160]],\"pattern\":\"lines\",\"spacing\":3,\"angle\":0.785398},\n   {\"type\":\"text\",\"layer\":\"Text\",\"p\":[226,166],\"text\":\"Schnitt A–A\",\"h\":3.5,\"rot\":0}\n  ],\n  \"frames\": [\n   {\"size\":\"A4\",\"orient\":\"landscape\",\"scale\":1,\"unit\":\"mm\",\"binding\":true,\"origin\":[0,0],\"fields\":{\"titel\":\"Lagerplatte\",\"nr\":\"LP-001\",\"projekt\":\"Beispielprojekt\",\"firma\":\"Muster AG\",\"gez\":\"A. Muster\",\"gepr\":\"\",\"datum\":\"03.10.2026\",\"blatt\":\"1/1\",\"rev\":\"A\"}}\n  ]\n }\n}\n```\n\n---\n\n## 11. Beispiel-Prompt für den Nutzer\n\n> Hier ist die Anleitung für das JSON-Format von Helix Web-CAD (Datei im Anhang). Erstelle damit eine vollständige Zeichnung als JSON: **[Beschreibung, z. B. „Fließschema einer Neutralisationsanlage mit Behälter, Pumpe und Rohrleitungen“]**. Papierformat A3 quer, Maßstab nach Bedarf, Zeichnungseinheit mm. Schriftfeld: Titel „…“, Projekt „…“, Firma „…“, Gezeichnet „…“. Gib nur das JSON aus.\n\nDie Antwort als Datei mit der Endung `.json` speichern und in Helix öffnen (Datei ▸ „Öffnen …“) – oder den Text direkt über Datei ▸ „JSON einfügen“ laden. Hinweise zu Codeblöcken (```` ```json ````) oder einleitenden Sätzen im eingefügten Text sind unproblematisch: Helix sucht das JSON-Objekt darin selbst.\n\n---\n\n## 12. Was Helix beim Laden macht (Fehlerverhalten)\n\n| Fall | Verhalten |\n|---|---|\n| Ungültiges JSON | Fehlermeldung mit Hinweis zur Stelle; nichts wird geladen |\n| `doc.ents` fehlt oder kein Array | Fehlermeldung „Datei enthält keine Zeichnung“ |\n| Objekt mit unbekanntem `type` oder fehlenden/ungültigen Pflichtfeldern | wird übersprungen; Meldung „n ungültige übersprungen“ |\n| Unbekannte `layer` | Objekt kommt auf Ebene `\"0\"` |\n| Ungültige `color` / `lw` am Objekt | Eigenschaft wird entfernt (Ebenenwerte gelten) |\n| Ungültige Ebenen-Werte | `color` → `auto`, `lt` → `solid`, `lw` → 0.25 |\n| `doc.cur` unbekannt | `\"0\"` |\n| Ungültiger Eintrag in `frames` (z. B. Blatt zu klein) | wird übersprungen |\n| Zusätzliche, unbekannte Felder | werden meist mitgeführt, haben aber keine Wirkung |\n\n---\n\n## 13. Kurzreferenz der Pflichtfelder\n\n| `type` | Pflichtfelder | wichtige optionale Felder |\n|---|---|---|\n| `line` | `a`, `b` | |\n| `pline` | `pts` (≥ 2) | `closed` |\n| `circle` | `c`, `r` | |\n| `arc` | `c`, `r`, `a0`, `a1` | |\n| `ellipse` | `c`, `rx`, `ry`, `rot` | |\n| `point` | `p` | |\n| `text` | `p`, `text`, `h` | `rot` |\n| `dim` | `a`, `b`, `p` | `mode` (`al`/`h`/`v`), `th` |\n| `rdim` | `c`, `r`, `p` | `kind` (`R`/`D`), `th` |\n| `adim` | `c`, `a`, `b`, `p` | `th` |\n| `leader` | `pts` (≥ 2), `text`, `h` | |\n| `spline` | `pts` (≥ 2) | `closed` |\n| `hatch` | `pts` (≥ 3) | `pattern` (`lines`/`cross`/`solid`), `spacing`, `angle` |\n| `xline` | `p`, `ang` | |\n\nAlle Typen zusätzlich: `layer`, `color`, `lw`.\n\n*Stand: Helix Web-CAD, Dateiformat `helix-web-cad` Version 1.*\n";
+function exportAIGuide(){return deliver('Helix-JSON-Anleitung.md',AI_GUIDE,'KI-Anleitung')}
+
+/* ================= Symbolleiste ================= */
+const SV=b=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${b}</svg>`;
+const icDot=(x,y,r=1.6)=>`<circle cx="${x}" cy="${y}" r="${r}" fill="currentColor" stroke="none"/>`;
+const ICON={
+  line:SV(`<path d="M5 19L19 5"/>${icDot(5,19)}${icDot(19,5)}`),
+  pline:SV(`<path d="M3.5 17L9 8l5 7 6.5-9"/>${icDot(3.5,17)}${icDot(9,8)}${icDot(14,15)}${icDot(20.5,6)}`),
+  rect:SV(`<rect x="4.5" y="7" width="15" height="10"/>`),
+  circle:SV(`<circle cx="12" cy="12" r="7.5"/>${icDot(12,12,1.4)}`),
+  circle2:SV(`<circle cx="12" cy="12" r="7.5"/><path d="M4.5 12h15" stroke-dasharray="2 2"/>${icDot(4.5,12)}${icDot(19.5,12)}`),
+  circle3:SV(`<circle cx="12" cy="12" r="7.5"/>${icDot(12,4.5)}${icDot(18.5,15.75)}${icDot(5.5,15.75)}`),
+  arc3:SV(`<path d="M5 15.5A7 7 0 0 1 19 15.5"/>${icDot(5,15.5)}${icDot(12,8.5)}${icDot(19,15.5)}`),
+  arcc:SV(`<path d="M18 18A12 12 0 0 0 6 6"/><path d="M6 18h12M6 18V6" stroke-dasharray="2 2" opacity=".6"/>${icDot(6,18)}`),
+  ellipse:SV(`<ellipse cx="12" cy="12" rx="8.5" ry="5" transform="rotate(-25 12 12)"/>`),
+  polygon:SV(`<path d="M12 3.5l7.5 4.5v8L12 20.5 4.5 16V8z"/>`),
+  point:SV(`<path d="M12 5v14M5 12h14"/><circle cx="12" cy="12" r="3"/>`),
+  move:SV(`<path d="M12 3.5v17M3.5 12h17M9 6.5l3-3 3 3M9 17.5l3 3 3-3M6.5 9l-3 3 3 3M17.5 9l3 3-3 3"/>`),
+  copy:SV(`<rect x="9" y="9" width="11" height="11" rx="1"/><path d="M15 9V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h4"/>`),
+  rotate:SV(`<path d="M20 12a8 8 0 1 1-8-8c2.2 0 4.2.9 5.7 2.3L20 8.5"/><path d="M20 4v4.5h-4.5"/>`),
+  scale:SV(`<rect x="4" y="12" width="8" height="8"/><path d="M12 12l8-8M14 4h6v6"/>`),
+  mirror:SV(`<path d="M12 3.5v17" stroke-dasharray="2 2.2"/><path d="M9 7L4 17h5z"/><path d="M15 7l5 10h-5z" fill="currentColor" fill-opacity=".3"/>`),
+  offset:SV(`<path d="M3.5 20V12a8.5 8.5 0 0 1 8.5-8.5H20"/><path d="M7.5 20V12a4.5 4.5 0 0 1 4.5-4.5H20"/>`),
+  trim:SV(`<circle cx="7" cy="17.5" r="2.5"/><circle cx="17" cy="17.5" r="2.5"/><path d="M8.7 15.6L18 4M15.3 15.6L6 4"/>`),
+  extend:SV(`<path d="M20 4v16"/><path d="M4 12h9"/><path d="M13 12h5" stroke-dasharray="2 2"/><path d="M15.5 9l3 3-3 3"/>`),
+  fillet:SV(`<path d="M5 4.5V13a6 6 0 0 0 6 6h8.5"/>`),
+  chamfer:SV(`<path d="M5 4.5V13l6 6h8.5"/>`),
+  explode:SV(`<path d="M12 3.5v4M12 16.5v4M3.5 12h4M16.5 12h4M6 6l2.8 2.8M15.2 15.2L18 18M18 6l-2.8 2.8M8.8 15.2L6 18"/>`),
+  join:SV(`<path d="M3.5 17.5L9.5 9h5l6 8.5"/>${icDot(9.5,9,2)}${icDot(14.5,9,2)}`),
+  array:SV(`<rect x="3" y="5" width="5" height="5"/><rect x="9.5" y="5" width="5" height="5"/><rect x="16" y="5" width="5" height="5"/><rect x="3" y="13" width="5" height="5"/><rect x="9.5" y="13" width="5" height="5"/><rect x="16" y="13" width="5" height="5"/>`),
+  arrayp:SV(`<circle cx="12" cy="12" r="7" stroke-dasharray="1.5 2.5" opacity=".6"/>${icDot(19,12,1.8)}${icDot(15.5,18.06,1.8)}${icDot(8.5,18.06,1.8)}${icDot(5,12,1.8)}${icDot(8.5,5.94,1.8)}${icDot(15.5,5.94,1.8)}${icDot(12,12,1.2)}`),
+  erase:SV(`<path d="M5.5 7h13M9.5 7V4.5h5V7M7 7l1 12.5h8L17 7M10.5 10.5v6M13.5 10.5v6"/>`),
+  text:SV(`<path d="M6 7V5.5h12V7M12 5.5v13M9.5 18.5h5"/>`),
+  dim:SV(`<path d="M6.5 17.5L17.5 6.5"/><path d="M4 15l5 5M15 4l5 5"/><path d="M6.5 17.5L10.24 16.3 7.7 13.76zM17.5 6.5L16.3 10.24 13.76 7.7z" fill="currentColor" stroke-width="1"/>`),
+  dimh:SV(`<path d="M4 12h16M4 8v8M20 8v8"/><path d="M4 12l3.5-2v4zM20 12l-3.5-2v4z" fill="currentColor" stroke-width="1"/>`),
+  dimv:SV(`<path d="M12 4v16M8 4h8M8 20h8"/><path d="M12 4l-2 3.5h4zM12 20l-2-3.5h4z" fill="currentColor" stroke-width="1"/>`),
+  rdim:SV(`<circle cx="10.5" cy="13.5" r="6.5"/><path d="M15.1 8.9L20 4"/><path d="M15.1 8.9L13.97 12.57 11.43 10.03z" fill="currentColor" stroke-width="1"/>`),
+  hatch:SV(`<rect x="4.5" y="4.5" width="15" height="15"/><path d="M4.5 12L12 4.5M4.5 19.5L19.5 4.5M12 19.5l7.5-7.5"/>`),
+  dist:SV(`<path d="M3.5 16.5L16.5 3.5l4 4-13 13z"/><path d="M7 13l2.5 2.5M10 10l2 2M13 7l2.5 2.5"/>`),
+  area:SV(`<path d="M5 17L7.5 6.5l10 2.5L19 18z" fill="currentColor" fill-opacity=".22"/>`),
+  select:SV(`<path d="M6 3.5l12 8.2-5.2 1.3 2.7 6-2.6 1.2-2.7-6L6 17.5z"/>`),
+  pan:SV(`<path d="M18 11V6a2 2 0 0 0-4 0"/><path d="M14 10V4a2 2 0 0 0-4 0v2"/><path d="M10 10.5V6a2 2 0 0 0-4 0v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15" transform="translate(-1 0)"/>`),
+  zwin:SV(`<circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5l5 5"/><rect x="8" y="8" width="5" height="5" stroke-dasharray="1.5 1.5" stroke-width="1.3"/>`),
+  zin:SV(`<circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5l5 5M10.5 7.5v6M7.5 10.5h6"/>`),
+  zout:SV(`<circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5l5 5M7.5 10.5h6"/>`),
+  zall:SV(`<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/><rect x="9" y="9" width="6" height="6"/>`),
+  selall:SV(`<rect x="4" y="4" width="16" height="16" rx="1" stroke-dasharray="3 2.5"/><path d="M8.5 12.2l2.5 2.5 4.5-5"/>`),
+  clipcopy:SV(`<rect x="5.5" y="5" width="13" height="15.5" rx="1.5"/><path d="M9 5V3.5h6V5M12 17v-6M9.5 13.5L12 11l2.5 2.5"/>`),
+  paste:SV(`<rect x="5.5" y="5" width="13" height="15.5" rx="1.5"/><path d="M9 5V3.5h6V5M9 10.5h6M9 14.5h4"/>`)
+};
+
+Object.assign(ICON,{
+  spline:SV(`<path d="M3.5 16C8 16 8 7.5 12 7.5S16 16 20.5 16"/>${icDot(3.5,16)}${icDot(12,7.5)}${icDot(20.5,16)}`),
+  xline:SV(`<path d="M3.5 20.5L20.5 3.5" stroke-dasharray="3 2.5"/><path d="M3.5 20.5v-4.5M3.5 20.5h4.5M20.5 3.5v4.5M20.5 3.5h-4.5"/>${icDot(12,12,2)}`),
+  leader:SV(`<path d="M4.5 18.5L11 11.5h4"/><path d="M4.5 18.5l3.7-1.3-2.6-2.4z" fill="currentColor"/><path d="M17.5 9.5h3M17.5 13h3"/>`),
+  adim:SV(`<path d="M4.5 19.5h15M4.5 19.5L16.5 7.5"/><path d="M12.5 19.5A8 8 0 0 0 10.2 13.8"/>`),
+  stretch:SV(`<rect x="3.5" y="6" width="9" height="12" stroke-dasharray="2 2"/><path d="M11.5 12h9M17.5 8.8l3 3.2-3 3.2"/>`),
+  break:SV(`<path d="M3.5 12h5.5M15 12h5.5"/><path d="M10 7.5l-1.5 9M15.5 7.5L14 16.5"/>`),
+  vadd:SV(`<path d="M3 17l5-7 5 5 4-6"/>${icDot(8,10,1.5)}${icDot(13,15,1.5)}<path d="M17.5 18h5M20 15.5v5"/>`),
+  vdel:SV(`<path d="M3 17l5-7 5 5 4-6"/>${icDot(8,10,1.5)}${icDot(13,15,1.5)}<path d="M17.5 18h5"/>`),
+  symbol:SV(`<rect x="3.5" y="3.5" width="7" height="7" rx="1"/><circle cx="17" cy="7" r="3.5"/><path d="M7 13.5l3.5 7h-7z"/><path d="M14 16.5h6.5M14 20h6.5"/>`),
+  bgload:SV(`<rect x="3.5" y="4.5" width="17" height="15" rx="1.5"/><circle cx="9" cy="10" r="1.8"/><path d="M4 18l5-5 3.5 3.5 3-3 4.5 4.5"/>`),
+  calib:SV(`<rect x="3" y="8.5" width="18" height="7" rx="1"/><path d="M7 8.5v3M11 8.5v3M15 8.5v3M19 8.5v3"/>`),
+  imgmove:SV(`<rect x="6.5" y="6.5" width="11" height="11" rx="1"/><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5"/>`),
+  imgrot:SV(`<rect x="5" y="9.5" width="9" height="8" rx="1" transform="rotate(-18 9.5 13.5)"/><path d="M16.5 4.5a6.5 6.5 0 0 1 3.5 5M20.5 4.5v5h-5"/>`),
+  frame:SV(`<rect x="3.5" y="4.5" width="17" height="15" rx="1"/><rect x="10" y="13.5" width="10.5" height="6"/><path d="M10 16.5h10.5M15 13.5v6"/>`),
+  bgvis:SV(`<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/>`)
+});
+const TOOLINFO={
+  line:['Linie','L','Zeichnet gerade Linien von Punkt zu Punkt (U = zurück, C = schließen, Enter = Ende).'],
+  pline:['Polylinie','PL','Zusammenhängender Linienzug als ein Objekt; C schließt ihn.'],
+  rect:['Rechteck','REC','Rechteck aus zwei Ecken (auch @Breite,Höhe).'],
+  circle:['Kreis','C','Kreis aus Mittelpunkt und Radius (D = Durchmesser).'],
+  circle2:['Kreis 2 Punkte','C2','Kreis über zwei Durchmesser-Endpunkte.'],
+  circle3:['Kreis 3 Punkte','C3','Kreis durch drei Punkte.'],
+  arc3:['Bogen 3 Punkte','A','Bogen durch Start-, Zwischen- und Endpunkt.'],
+  arcc:['Bogen Mitte-Start-Ende','','Bogen aus Mittelpunkt, Startpunkt und Endpunkt (gegen den Uhrzeigersinn).'],
+  ellipse:['Ellipse','EL','Ellipse aus Mitte, erster und zweiter Achse.'],
+  polygon:['Polygon','POL','Regelmäßiges Vieleck (Eckenzahl, Mitte, Radius).'],
+  point:['Punkt','PO','Setzt ein Punktobjekt.'],
+  move:['Verschieben','M','Gewählte Objekte von einem Basispunkt zu einem Ziel verschieben.'],
+  copy:['Kopieren','CO','Gewählte Objekte mehrfach kopieren.'],
+  rotate:['Drehen','RO','Objekte um einen Basispunkt drehen (Winkel in ° tippen; K = Kopie).'],
+  scale:['Skalieren','SC','Objekte um einen Basispunkt vergrößern oder verkleinern (Faktor).'],
+  mirror:['Spiegeln','MI','Objekte an einer Achse aus zwei Punkten spiegeln.'],
+  offset:['Versetzen','O','Parallele Kopie im Abstand erzeugen (Linie, Kreis, Bogen, Polylinie).'],
+  trim:['Stutzen','TR','Teil bis zur nächsten Schnittkante entfernen – den Teil anklicken.'],
+  extend:['Dehnen','EX','Linie oder Bogen bis zur nächsten Kante verlängern – Ende anklicken.'],
+  fillet:['Abrunden','F','Zwei Linien mit einem Radius verrunden (0 = scharfe Ecke).'],
+  chamfer:['Fase','CHA','Zwei Linien mit einer Fase verbinden.'],
+  explode:['Auflösen','X','Polylinie in einzelne Linien zerlegen.'],
+  join:['Verbinden','J','Aneinanderstoßende Linien zu einer Polylinie verbinden.'],
+  array:['Rechteckige Reihe','AR','Objekte in Zeilen und Spalten vervielfältigen.'],
+  arrayp:['Polare Reihe','ARP','Objekte kreisförmig um einen Mittelpunkt vervielfältigen.'],
+  erase:['Löschen','E','Gewählte Objekte löschen (oder Entf-Taste).'],
+  text:['Text','T','Beschriftung platzieren (Text, Höhe und Winkel im Dialog).'],
+  dim:['Bemaßung ausgerichtet','DIM','Maß parallel zur Strecke zwischen zwei Punkten.'],
+  dimh:['Bemaßung horizontal','DIMH','Waagerechtes Maß zwischen zwei Punkten.'],
+  dimv:['Bemaßung vertikal','DIMV','Senkrechtes Maß zwischen zwei Punkten.'],
+  rdim:['Radius / Durchmesser','DR','Maß für Kreis oder Bogen (D/R umschaltbar).'],
+  hatch:['Schraffur','H','Geschlossene Polylinie oder Kreis schraffieren.'],
+  dist:['Abstand messen','DI','Abstand und Winkel zwischen zwei Punkten anzeigen.'],
+  area:['Fläche messen','AREA','Fläche und Umfang eines geschlossenen Objekts anzeigen.'],
+  select:['Wählen','','Objekte anklicken oder mit einem Fenster aufziehen. Beendet das aktive Werkzeug.'],
+  pan:['Pan','PAN','Ansicht verschieben (auch mit zwei Fingern oder mittlerer Maustaste).'],
+  zwin:['Zoom Fenster','ZW','Ausschnitt per Fenster vergrößern.'],
+  zin:['Zoom +','ZI','Ansicht vergrößern.'],
+  zout:['Zoom −','ZO','Ansicht verkleinern.'],
+  zall:['Alles zeigen','Z','Zeigt die gesamte Zeichnung.'],
+  selall:['Alle wählen','Strg+A','Wählt alle sichtbaren, nicht gesperrten Objekte.'],
+  clipcopy:['In Ablage kopieren','Strg+C','Gewählte Objekte in die Zwischenablage kopieren.'],
+  paste:['Einfügen','Strg+V','Objekte aus der Ablage platzieren.']
+};
+Object.assign(TOOLINFO,{
+  spline:['Spline','SPL','Glatte Kurve durch Stützpunkte (U = zurück, C = schließen, Enter = fertig).'],
+  xline:['Konstruktionslinie','XL','Unendliche Hilfslinie (H = waagerecht, V = senkrecht, sonst zwei Punkte). Wird nicht gedruckt.'],
+  leader:['Hinweislinie','LE','Pfeil mit Knickpunkten und Text; Enter beendet die Linie, dann Text eingeben.'],
+  adim:['Winkelmaß','AD','Winkel zwischen zwei Schenkeln bemaßen: Scheitel, zwei Punkte, Lage des Bogens.'],
+  stretch:['Strecken','STR','Mit Fenster von rechts nach links wählen: nur Punkte im Fenster werden verschoben.'],
+  break:['Brechen','BR','Linie, Bogen, Kreis oder Polylinie zwischen zwei Punkten auftrennen (Enter = nur teilen).'],
+  vadd:['Punkt einfügen','VI','Fügt in Polylinie oder Spline einen Punkt an der angeklickten Stelle ein.'],
+  vdel:['Punkt löschen','VL','Entfernt den nächstgelegenen Punkt einer Polylinie oder eines Splines.'],
+  symbol:['Symbol-Bibliothek','SYM','Ventile, Pumpe, Behälter, Nordpfeil, Tür, Fenster … oder eigene Symbole einfügen.'],
+  bgload:['Hintergrundbild laden','BILD','Foto oder Plan als Unterlage laden (JPG, PNG, WebP).'],
+  calib:['Maßstab setzen','CAL','Zwei Punkte einer bekannten Strecke im Bild wählen und die echte Länge eingeben.'],
+  imgmove:['Bild verschieben','','Verschiebt das Hintergrundbild von einem Basispunkt zu einem Zielpunkt.'],
+  imgrot:['Bild ausrichten','','Zwei Punkte einer Linie im Bild wählen, die waagerecht (oder in Soll-Richtung) liegen soll.'],
+  frame:['Zeichnungsrahmen','RAHMEN','Blatt mit Rahmen und Schriftfeld einfügen (Papierformat, Maßstab, Titel, Zeichner …).'],
+  bgvis:['Bild ein/aus','','Blendet das Hintergrundbild ein oder aus.']
+});
+const TGROUPS=[
+  ['Zeichnen',['line','pline','spline','rect','circle','circle2','circle3','arc3','arcc','ellipse','polygon','point','xline']],
+  ['Einfügen',['frame','symbol','bgload','calib','imgmove','imgrot']],
+  ['Beschriften',['text','leader','dim','dimh','dimv','adim','rdim','hatch','dist','area']],
+  ['Ändern',['move','copy','rotate','scale','mirror','stretch','offset','trim','extend','break','fillet','chamfer','explode','join','vadd','vdel','array','arrayp','erase']],
+  ['Ansicht',['select','pan','zwin','zin','zout','zall','selall','clipcopy','paste']]
+];
+const TIP=h('div',{id:'tip',role:'tooltip'});
+let tipT=0,tipHide=0;
+function hideTip(){clearTimeout(tipT);clearTimeout(tipHide);TIP.classList.remove('show')}
+function showTip(btn){
+  const i=TOOLINFO[btn.dataset.id];if(!i)return;
+  TIP.textContent='';TIP.append(h('b',null,i[0],i[1]?h('kbd',null,i[1]):null),i[2]);
+  TIP.style.left='0px';TIP.style.top='0px';TIP.classList.add('show');
+  const r=btn.getBoundingClientRect(),w=TIP.offsetWidth,th=TIP.offsetHeight;
+  let top=r.bottom+8;if(top+th>innerHeight-6)top=Math.max(6,r.top-th-8);
+  TIP.style.left=Math.round(clamp(r.left+r.width/2-w/2,6,Math.max(6,innerWidth-w-6)))+'px';TIP.style.top=Math.round(top)+'px';
+}
+function buildDock(){
+  const bar=$('#tools');bar.textContent='';document.body.append(TIP);
+  for(const[label,ids]of TGROUPS){
+    const row=h('div',{class:'tgi'});
+    for(const id of ids){
+      const i=TOOLINFO[id],b=h('button',{class:'tbtn','data-id':id,type:'button','aria-label':i[0]+(i[1]?` (${i[1]})`:''),'aria-pressed':'false'});
+      b.innerHTML=ICON[id];
+      let lp=false,lpT=0;
+      b.addEventListener('pointerenter',e=>{if(e.pointerType==='mouse'){clearTimeout(tipT);tipT=setTimeout(()=>showTip(b),380)}});
+      b.addEventListener('pointerleave',()=>{hideTip();clearTimeout(lpT)});
+      b.addEventListener('pointerdown',e=>{hideTip();lp=false;if(e.pointerType!=='mouse'){clearTimeout(lpT);lpT=setTimeout(()=>{lp=true;showTip(b);tipHide=setTimeout(hideTip,3200)},480)}});
+      for(const ev of['pointerup','pointercancel'])b.addEventListener(ev,()=>clearTimeout(lpT));
+      b.addEventListener('focus',()=>{if(b.matches(':focus-visible'))showTip(b)});
+      b.addEventListener('blur',hideTip);
+      b.addEventListener('click',()=>{if(lp){lp=false;return}hideTip();act(id);b.blur()});
+      row.append(b);
+    }
+    bar.append(h('div',{class:'tg'},row,h('div',{class:'tgl'},label)));
+  }
+  bar.addEventListener('scroll',hideTip,{passive:true});
+  bar.addEventListener('contextmenu',e=>e.preventDefault());
+  updDock();
+}
+function updDock(){
+  document.querySelectorAll('#tools .tbtn').forEach(b=>{
+    const id=b.dataset.id,tid=id==='symbol'?'symput':id,on=id==='select'?!tool:(!!tool&&tool.id===tid);
+    b.classList.toggle('on',on);b.setAttribute('aria-pressed',on?'true':'false');
+  });
+}
+
 /* ================= Tastatur & Verdrahtung ================= */
 const cin=$('#cin');
 window.addEventListener('keydown',e=>{if(e.key==='Shift'&&!shiftDown){shiftDown=true;updateCursor(cs[0],cs[1])}},true);
@@ -1841,6 +2836,7 @@ $('#modal').addEventListener('pointerdown',e=>{if(e.target===$('#modal'))closeMo
 document.querySelectorAll('.stabs button').forEach(b=>b.onclick=()=>{sideTab=b.dataset.t;renderSide()});
 $('#pname').addEventListener('change',e=>{doc.name=e.target.value.trim().slice(0,60)||'Zeichnung 1';e.target.value=doc.name;dirty();if(sideOpen()&&sideTab==='set')renderSide()});
 $('#pname').addEventListener('keydown',e=>{if(e.key==='Enter')e.target.blur();e.stopPropagation()});
+$('#fimg').addEventListener('change',e=>{const f=e.target.files&&e.target.files[0];e.target.value='';loadBgFile(f)});
 $('#fin').addEventListener('change',e=>{const f=e.target.files&&e.target.files[0];e.target.value='';readFile(f)});
 for(const ev of['dragover','dragenter'])document.addEventListener(ev,e=>{if(e.dataTransfer&&[...(e.dataTransfer.types||[])].includes('Files'))e.preventDefault()});
 document.addEventListener('drop',e=>{if(e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files.length){e.preventDefault();readFile(e.dataTransfer.files[0])}});
