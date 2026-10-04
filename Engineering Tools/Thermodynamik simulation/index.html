@@ -1,0 +1,1664 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Heizwasser-Simulator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Semi+Condensed:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  color-scheme:light dark;
+  --bg:#edf1f5;--panel:#ffffff;--ink:#14202e;--mute:#566679;--line:#d3dce6;--canvas:#f5f7fa;--grid:#c6d1dd;
+  --card:#ffffff;--hd:#e4ebf2;--accent:#0b6aae;--onaccent:#ffffff;--warn:#a85a08;--bad:#b3261e;--ok:#1b7a4f;
+  --font:'Barlow',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --fontc:'Barlow Semi Condensed','Barlow',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0d151e;--panel:#151f2b;--ink:#e5ecf4;--mute:#9aabbd;--line:#283749;--canvas:#101923;--grid:#202e3e;
+    --card:#1a2634;--hd:#223244;--accent:#4aa6e6;--onaccent:#06131f;--warn:#e0954a;--bad:#ef6f66;--ok:#4cc08a;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0d151e;--panel:#151f2b;--ink:#e5ecf4;--mute:#9aabbd;--line:#283749;--canvas:#101923;--grid:#202e3e;
+  --card:#1a2634;--hd:#223244;--accent:#4aa6e6;--onaccent:#06131f;--warn:#e0954a;--bad:#ef6f66;--ok:#4cc08a;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:400 14px/1.4 var(--font);overflow:hidden;-webkit-text-size-adjust:100%}
+button,select,input{font:inherit;color:inherit}
+#app{height:100%;display:flex;flex-direction:column}
+header{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;background:var(--panel);border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:8px;font:600 16px var(--fontc);letter-spacing:.2px;white-space:nowrap}
+.logo{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:7px;background:var(--accent);color:var(--onaccent);font-size:16px}
+.ctl{display:flex;align-items:center;gap:6px;flex:1;justify-content:flex-end}
+.btn{height:36px;min-width:36px;padding:0 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.btn:hover{border-color:var(--mute)}
+.btn:disabled{opacity:.4;cursor:default}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--onaccent);font-weight:600;min-width:86px}
+.btn.danger{color:var(--bad)}
+.btn.small{height:30px;padding:0 10px;font-size:13px}
+select.btn{padding:0 6px}
+#clk{display:flex;flex-direction:column;align-items:flex-end;line-height:1.15;min-width:58px}
+#cal{font-size:11.5px;color:var(--mute);font-variant-numeric:tabular-nums}
+#clock{font-variant-numeric:tabular-nums;font-weight:600}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.chip{height:32px;min-width:38px;padding:0 8px;border:1px solid var(--line);border-radius:8px;background:var(--panel);cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--onaccent)}
+.blk{display:grid;grid-template-columns:1fr 1fr 64px 32px;gap:6px;margin:6px 0;align-items:center}
+.blk input{height:32px;border:1px solid var(--line);border-radius:7px;background:var(--panel);padding:0 6px;width:100%;min-width:0}
+.blk .btn{height:32px;min-width:32px;padding:0}
+.blkh{display:grid;grid-template-columns:1fr 1fr 64px 32px;gap:6px;font-size:12px;color:var(--mute)}
+.wk{width:100%;height:auto;display:block;margin-top:8px;cursor:pointer}
+.wk text{font:500 8px var(--fontc);fill:var(--mute)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+main{flex:1;min-height:0;display:flex;flex-direction:column}
+#stage{position:relative;flex:1;min-height:0;background:var(--canvas);overflow:hidden}
+#svg{width:100%;height:100%;display:block;touch-action:none;user-select:none;-webkit-user-select:none}
+#hint{position:absolute;left:10px;top:10px;right:60px;max-width:420px;padding:6px 10px;border-radius:8px;background:var(--panel);border:1px solid var(--line);font-size:12.5px;color:var(--mute);pointer-events:none}
+#hint.on{color:var(--ink);border-color:var(--accent)}
+#zoom{position:absolute;right:10px;bottom:10px;display:flex;flex-direction:column;gap:6px}
+#zoom .btn{width:36px;padding:0;font-size:18px;box-shadow:0 1px 2px rgba(0,0,0,.12)}
+#warnchip{position:absolute;left:10px;bottom:10px;padding:4px 10px;border-radius:999px;background:var(--panel);border:1px solid var(--line);font-size:12.5px;display:none;cursor:pointer}
+#warnchip.bad{color:var(--bad);border-color:var(--bad)}
+#warnchip.warn{color:var(--warn);border-color:var(--warn)}
+#panel{height:46%;display:flex;flex-direction:column;border-top:1px solid var(--line);background:var(--panel);min-height:0}
+#panel.collapsed{height:44px}
+.tabs{display:flex;border-bottom:1px solid var(--line);flex:none}
+.tab{flex:1;padding:11px 2px 9px;background:none;border:0;border-bottom:2px solid transparent;color:var(--mute);font:600 13.5px var(--fontc);cursor:pointer;white-space:nowrap}
+.tab[aria-selected="true"]{color:var(--accent);border-bottom-color:var(--accent)}
+#collapse{flex:0 0 40px}
+.pane{display:none;flex:1;min-height:0;overflow:auto;padding:12px;-webkit-overflow-scrolling:touch}
+.pane.active{display:block}
+#panel.collapsed .pane{display:none}
+@media (min-width:900px){
+  main{flex-direction:row}
+  #panel,#panel.collapsed{height:auto;width:370px;border-top:0;border-left:1px solid var(--line)}
+  #panel.collapsed .pane.active{display:block}
+  #collapse{display:none}
+}
+@media (max-width:640px){.brand span.t{display:none}}
+h3{margin:16px 0 6px;font:600 14px var(--fontc);letter-spacing:.2px}
+h3:first-child{margin-top:0}
+.pal{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.pbtn{display:flex;gap:10px;align-items:center;text-align:left;padding:9px 10px;border:1px solid var(--line);border-radius:10px;background:var(--panel);cursor:pointer}
+.pbtn:hover{border-color:var(--accent)}
+.pbtn .ic{font-size:21px;width:26px;text-align:center}
+.pbtn b{display:block;font:600 13.5px var(--fontc)}
+.pbtn small{display:block;color:var(--mute);font-size:11.5px;line-height:1.25}
+.row{display:flex;flex-wrap:wrap;gap:8px}
+.note{color:var(--mute);font-size:12.5px;margin:6px 0}
+.prow{display:grid;grid-template-columns:1fr auto;gap:2px 10px;margin:10px 0;align-items:center}
+.prow label{font-size:13px}
+.prow .u{color:var(--mute);font-size:12px;margin-left:4px}
+.prow input[type=number],.prow select,.field{height:32px;border:1px solid var(--line);border-radius:7px;background:var(--panel);padding:0 8px;width:100px;text-align:right;font-variant-numeric:tabular-nums}
+.prow select{width:auto;max-width:170px;text-align:left}
+.prow input[type=range]{grid-column:1/3;width:100%;accent-color:var(--accent);margin:2px 0 0}
+.prow.bool{grid-template-columns:1fr auto}
+.prow.bool input{width:20px;height:20px;accent-color:var(--accent)}
+.field.wide{width:100%;text-align:left}
+.ro{display:grid;grid-template-columns:1fr auto;gap:5px 14px;font-variant-numeric:tabular-nums;font-size:13px}
+.ro span:nth-child(odd){color:var(--mute)}
+.ro span:nth-child(even){font-weight:600;text-align:right}
+.chk{display:flex;align-items:center;gap:8px;margin:6px 0;font-size:13px}
+.chk input{width:18px;height:18px;accent-color:var(--accent)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-bottom:8px}
+.seg button{border:0;background:var(--panel);padding:6px 12px;cursor:pointer;font-size:13px}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--onaccent)}
+#chart{width:100%;height:240px;display:block}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12.5px;margin-top:6px}
+.legend i{display:inline-block;width:12px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle}
+.hint{display:flex;gap:8px;padding:7px 10px;border-radius:8px;margin:6px 0;font-size:13px;background:var(--hd)}
+.hint.bad{border-left:4px solid var(--bad)}
+.hint.warn{border-left:4px solid var(--warn)}
+.hint.info{border-left:4px solid var(--line)}
+textarea.field{width:100%;height:110px;text-align:left;padding:8px;font:12px/1.35 ui-monospace,Menlo,Consolas,monospace;resize:vertical}
+/* SVG */
+.cbody{fill:var(--card);stroke:var(--line);stroke-width:1.5}
+.comp.sel .cbody{stroke:var(--accent);stroke-width:2.5}
+.chead{fill:var(--hd)}
+.cname{font:600 13px var(--fontc);fill:var(--ink)}
+.cicon{font-size:13px}
+.cl1{font:600 13px var(--font);fill:var(--ink);text-anchor:middle;font-variant-numeric:tabular-nums}
+.cl2{font:400 11px var(--font);fill:var(--mute);text-anchor:middle;font-variant-numeric:tabular-nums}
+.plabel{font:500 10px var(--fontc);fill:var(--mute)}
+.pdot{fill:var(--card);stroke:var(--mute);stroke-width:1.5}
+.phit{fill:transparent}
+.port{cursor:crosshair}
+.port.cand .pdot{stroke:var(--accent);stroke-width:3}
+.port.pend .pdot{stroke:var(--accent);stroke-width:4}
+.comp{cursor:grab}
+.comp text{pointer-events:none;user-select:none;-webkit-user-select:none}
+.bar{shape-rendering:crispEdges}
+.barbg{fill:none;stroke:var(--line)}
+.ehit{fill:none;stroke:transparent;stroke-width:20;cursor:pointer;pointer-events:stroke}
+.esel{fill:none;stroke:var(--accent);stroke-width:10;stroke-linecap:round;opacity:0;pointer-events:none}
+.esel.on{opacity:.3}
+.ewire{fill:none;stroke-linecap:round;pointer-events:none}
+.eflow{fill:none;stroke:#fff;stroke-opacity:.85;stroke-width:1.6;stroke-dasharray:2 14;stroke-linecap:round;pointer-events:none;animation:dash 1s linear infinite}
+.paused .eflow{animation-play-state:paused}
+@keyframes dash{to{stroke-dashoffset:-16}}
+@media (prefers-reduced-motion:reduce){.eflow{animation:none}}
+.rubber{fill:none;stroke:var(--accent);stroke-width:2.5;stroke-dasharray:6 5;pointer-events:none}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="brand"><span class="logo">♨</span><span class="t">Heizwasser-Simulator</span></div>
+    <div class="ctl">
+      <button id="run" class="btn primary" aria-label="Simulation starten">▶ Start</button>
+      <button id="reset" class="btn" title="Simulation auf Starttemperatur zurücksetzen" aria-label="Zurücksetzen">⟲</button>
+      <button id="undo" class="btn" title="Rückgängig" aria-label="Rückgängig" disabled>↶</button>
+      <select id="speed" class="btn" aria-label="Simulationsgeschwindigkeit">
+        <option value="1">×1</option>
+        <option value="10">×10</option>
+        <option value="60" selected>×60</option>
+        <option value="300">×300</option>
+        <option value="900">×900</option>
+        <option value="3600">×3600</option>
+        <option value="14400">×14400</option>
+      </select>
+      <div id="clk"><span id="cal">Mo 00:00</span><span id="clock">0:00:00</span></div>
+    </div>
+  </header>
+  <main>
+    <div id="stage">
+      <svg id="svg" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1" style="fill:var(--grid)"/></pattern>
+        </defs>
+        <g id="world">
+          <rect x="-4000" y="-4000" width="8000" height="8000" fill="url(#grid)"/>
+          <g id="edges"></g>
+          <g id="nodes"></g>
+          <path id="rubber" class="rubber" d="" style="display:none"/>
+        </g>
+      </svg>
+      <div id="hint">Bauteil antippen zum Bearbeiten. Zum Verbinden einen Port ziehen oder zwei Ports nacheinander antippen.</div>
+      <div id="warnchip"></div>
+      <div id="zoom">
+        <button class="btn" id="zin" aria-label="Vergrößern">+</button>
+        <button class="btn" id="zout" aria-label="Verkleinern">−</button>
+        <button class="btn" id="zfit" aria-label="Alles anzeigen">⤢</button>
+      </div>
+    </div>
+    <aside id="panel">
+      <div class="tabs" role="tablist">
+        <button class="tab" role="tab" data-tab="pal" aria-selected="true">Bauteile</button>
+        <button class="tab" role="tab" data-tab="props" aria-selected="false">Details</button>
+        <button class="tab" role="tab" data-tab="chart" aria-selected="false">Diagramm</button>
+        <button class="tab" role="tab" data-tab="sys" aria-selected="false">System</button>
+        <button class="tab" id="collapse" aria-label="Bereich ein- oder ausklappen">▾</button>
+      </div>
+      <section class="pane active" id="pane-pal">
+        <h3>Bauteil hinzufügen</h3>
+        <div class="pal" id="palette"></div>
+        <h3>Beispielsysteme</h3>
+        <div class="row">
+          <button class="btn small" data-ex="1">Einfacher Heizkreis</button>
+          <button class="btn small" data-ex="2">Pufferspeicher, 2 Verbraucher</button>
+          <button class="btn small" data-ex="3">Wärmeübertrager</button>
+          <button class="btn small" data-ex="4">Parallel: 2 Erzeuger, 3 Verbraucher</button>
+          <button class="btn small" data-ex="5">3-Wege-Ventile, geregelte Pumpe</button>
+        </div>
+        <p class="note">Ausgang (rechts, gefüllter Verlauf) mit Eingang (links) verbinden. Rücklaufleitungen lassen sich über „Spiegeln“ in Gegenrichtung zeichnen. Für Parallelschaltungen Verteiler und Sammler mit 2 bis 6 Anschlüssen nutzen.</p>
+      </section>
+      <section class="pane" id="pane-props"><div id="props"></div></section>
+      <section class="pane" id="pane-chart">
+        <div class="seg" id="chartmode">
+          <button data-m="T" aria-pressed="true">Temperaturen</button>
+          <button data-m="P" aria-pressed="false">Leistungen</button>
+        </div>
+        <canvas id="chart"></canvas>
+        <div class="legend" id="legend"></div>
+        <p class="note" id="chartnote"></p>
+      </section>
+      <section class="pane" id="pane-sys">
+        <h3>Randbedingungen</h3>
+        <div id="glob"></div>
+        <h3>Druck und Verdampfung</h3>
+        <div id="pres"></div>
+        <div class="row"><button class="btn small" id="pmin">Systemdruck auf Mindestdruck setzen</button></div>
+        <p class="note">Mindestdruck = Dampfdruck der höchsten Temperatur plus Sicherheitszuschlag, geprüft an jeder Leitung. Er gilt je Netz und bezieht sich auf den eingestellten Systemdruck der Druckhaltung.</p>
+        <h3>Energiebilanz seit Start</h3>
+        <div class="ro" id="bal"></div>
+        <p class="note">Erzeugte Wärme minus Abgabe, Verluste und Speicherzuwachs sollte ungefähr null ergeben.</p>
+        <h3>Hinweise</h3>
+        <div id="hints"></div>
+        <h3>Modell sichern und laden</h3>
+        <div class="row">
+          <button class="btn small" id="fexp">Exportieren (.json)</button>
+          <button class="btn small" id="fimp">Datei laden</button>
+          <input type="file" id="ffile" accept=".json,application/json,text/plain" hidden>
+        </div>
+        <p class="note" id="fmsg">Die Datei enthält Bauteile, Verbindungen, Parameter und Randbedingungen. Beim Laden ersetzt sie das aktuelle Modell, „Rückgängig“ holt es zurück. Zusätzlich wird automatisch im Browser gespeichert.</p>
+        <textarea id="json" class="field" spellcheck="false" aria-label="Modell als JSON-Text"></textarea>
+        <div class="row" style="margin-top:8px">
+          <button class="btn small" id="jexp">Als Text anzeigen</button>
+          <button class="btn small" id="jimp">Aus Text laden</button>
+          <button class="btn small danger" id="clear">Alles löschen</button>
+        </div>
+      </section>
+    </aside>
+  </main>
+</div>
+<script>
+'use strict';
+//#CORE-START
+const RHO=983, CPJ=4180;
+const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+const fmt=(x,d=1)=>Number.isFinite(x)?x.toFixed(d):'–';
+const sumA=a=>a.reduce((x,y)=>x+y,0);
+const avgA=a=>sumA(a)/a.length;
+const m3h=m=>m*3600/RHO;
+
+const DN={15:16.1,20:21.7,25:27.3,32:36.0,40:41.9,50:53.1,65:68.9,80:80.9,100:105.3,125:130.0,150:155.0,200:207.3};
+const DNOPT=Object.keys(DN).map(k=>[+k,'DN '+k]);
+const INSOPT=[[0,'ungedämmt'],[20,'20 mm'],[30,'30 mm'],[50,'50 mm'],[80,'80 mm'],[100,'100 mm']];
+const visc=T=>1.78e-6/(1+0.0337*T+0.000221*T*T);
+function pipeU(di,ins){
+  const dO=di+0.007,lam=0.035,al=10;
+  if(ins<=0)return al*Math.PI*dO;
+  const dI=dO+2*ins/1000;
+  return 1/(Math.log(dI/dO)/(2*Math.PI*lam)+1/(al*Math.PI*dI));
+}
+function pipeGeom(c){const di=DN[c.p.dn]/1000;return{di,A:Math.PI*di*di/4,L:c.p.len};}
+function pipeHyd(c,m){
+  const g=pipeGeom(c),T=avgA(c.s.T),v=m/(RHO*g.A),Re=v*g.di/visc(T);
+  let f=0;
+  if(Re>1){f=Re<2300?64/Re:0.25/Math.pow(Math.log10(0.045e-3/(3.7*g.di)+5.74/Math.pow(Re,0.9)),2);}
+  const q=RHO*v*v/2,R=f/g.di*q;
+  return{v,Re,f,R,dp:R*g.L+(c.p.zeta||0)*q};
+}
+const LET='ABCDEF';
+const PM={};
+function portsOf(c){const T=TYPES[c.type];if(!T.mk)return T.ports;const k=c.type+c.p.np;return PM[k]||(PM[k]=T.mk(c.p.np));}
+function dimOf(c){const T=TYPES[c.type];return T.mk?[150,24+Math.max(56,24*c.p.np+8)]:T.dim;}
+const WPARAMS=Array.from({length:6},(_,i)=>({k:'w'+(i+1),l:'Anteil Abgang '+LET[i],u:'%',min:0,max:100,step:1,def:50,show:p=>p.mode==='ratio'&&p.np>i}));
+const through=(I,O)=>{const a=[];I.forEach(i=>{if(i>=0)a.push([i,1]);});O.forEach(o=>{if(o>=0)a.push([o,-1]);});return a.length?[{a,b:0}]:[];};
+const fixedQ=(e,m)=>e>=0?[{a:[[e,1]],b:m}]:[];
+
+let model={glob:{tamb:15,tinit:20,pstat:2,psafe:0.5,t0day:0,t0min:0},nextId:1,comps:[],edges:[]};
+let compMap={};
+let simT=0,flowErr=0,flowNeg=false,hydGroups=[];
+const hist={t:[],ser:{},gen:[],cons:[],loss:[],inp:[]};
+let histDt=5,lastS=-1e9;
+const bal={e0:0};
+
+function maxFlow(c){let m=0;for(const i of c.inp)if(i&&i.m>m)m=i.m;for(const x of c.om)if(x>m)m=x;return m;}
+function inflow(c){let m=0,mt=0;for(const i of c.inp){if(i){m+=i.m;mt+=i.m*i.T;}}c.s.min=m;c.s.Tin=m>1e-9?mt/m:c.s.T[0];}
+function mixStep(c,V,Q,dt){const s=c.s,T0=s.T[0];let sum=0;for(const i of c.inp){if(i)sum+=i.m*(i.T-T0);}s.T[0]=T0+dt*(sum+Q/CPJ)/(RHO*V);}
+function inMix(c){let m=0,mt=0;for(const l of c.links){m+=l.o.m;mt+=l.o.m*outT(l.src,l.sp);}return{m,T:m>1e-9?mt/m:NaN};}
+function inT(c,p){const l=c.links.find(l=>l.p===p);return l?outT(l.src,l.sp):NaN;}
+const outT=(c,p)=>TYPES[c.type].outT(c,p);
+
+let simNow=0;
+const WD=['Mo','Di','Mi','Do','Fr','Sa','So'];
+const pad2=n=>String(n).padStart(2,'0');
+function parseT(v){
+  if(typeof v==='number'&&Number.isFinite(v))return clamp(Math.round(v),0,1440);
+  if(typeof v==='string'){const m=/^(\d{1,2}):(\d{2})$/.exec(v.trim());if(m)return clamp(+m[1]*60+ +m[2],0,1440);}
+  return null;
+}
+const fmtT=m=>pad2(Math.floor(m/60))+':'+pad2(m%60);
+function normSch(o){
+  const out={on:false,off:0,days:[[],[],[],[],[],[],[]]};
+  if(!o||typeof o!=='object')return out;
+  out.on=!!o.on;out.off=clamp(Number.isFinite(+o.off)?+o.off:0,0,150);
+  (Array.isArray(o.days)?o.days:[]).slice(0,7).forEach((d,i)=>{
+    if(!Array.isArray(d))return;
+    for(const b of d){
+      if(!b||typeof b!=='object')continue;
+      const f=parseT(b.from),t0=parseT(b.to);if(f===null||t0===null)continue;
+      let t=t0;if(t===0)t=1440;
+      const lv=b.level===undefined?100:+b.level;
+      out.days[i].push({from:f,to:t,level:clamp(Number.isFinite(lv)?lv:0,0,150)});
+    }
+  });
+  return out;
+}
+function exportP(c){
+  const p=Object.assign({},c.p);
+  if(p.sch)p.sch={on:p.sch.on,off:p.sch.off,days:p.sch.days.map(d=>d.map(b=>({from:fmtT(b.from),to:fmtT(b.to),level:b.level})))};
+  return p;
+}
+function calParts(t){
+  const g=model.glob,a=(g.t0day||0)*1440+(g.t0min||0)+t/60,wk=((a%10080)+10080)%10080,day=Math.floor(wk/1440);
+  return{day,min:wk-day*1440};
+}
+function schedLevel(q,day,min){
+  let lv=-1;const prev=(day+6)%7;
+  for(const b of q.days[day]||[]){
+    if(b.to>b.from){if(min>=b.from&&min<b.to)lv=Math.max(lv,b.level);}
+    else if(min>=b.from)lv=Math.max(lv,b.level);
+  }
+  for(const b of q.days[prev]||[]){if(b.to<=b.from&&b.to>0&&min<b.to)lv=Math.max(lv,b.level);}
+  return lv<0?q.off:lv;
+}
+function schedPct(c,t){
+  const q=c.p.sch;if(!q||!q.on)return 100;
+  const cp=calParts(t);return schedLevel(q,cp.day,cp.min);
+}
+const schedF=c=>schedPct(c,simNow)/100;
+const BAR=1e5,HM=0.09643;
+const kvK=kv=>Math.pow(3600/(RHO*Math.max(kv,1e-3)),2);
+const rq=(k,x)=>k*x*Math.abs(x);
+const pOf=(c,p)=>c.pe&&c.pe[p]>=0&&model.edges[c.pe[p]]?model.edges[c.pe[p]].p:NaN;
+const dpOf=c=>pOf(c,0)-pOf(c,1);
+function thru(E,f,p,r,dpf){
+  const i=E[0],o=E[1];
+  if(i>=0&&o>=0){r.push(f[i]-f[o]);r.push(p[i]-p[o]-dpf(f[o]));}
+  else if(i>=0)r.push(f[i]);
+  else if(o>=0)r.push(f[o]);
+}
+function junc(E,ins,outs,f,p,r){
+  let s=0;const all=[];
+  for(const k of ins){const e=E[k];if(e>=0){s+=f[e];all.push(e);}}
+  for(const k of outs){const e=E[k];if(e>=0){s-=f[e];all.push(e);}}
+  if(!all.length)return;
+  r.push(s);
+  for(let j=1;j<all.length;j++)r.push(p[all[j]]-p[all[0]]);
+}
+function pumpH(c,V){
+  const q=c.p,Hn=q.hn*HM,H0=1.3*Hn,a=(H0-Hn)/(q.qn*q.qn),v0=Math.max(V,0);
+  let h;
+  if(q.mode==='fixed'){const n=q.n/100;h=n*n*H0-a*v0*v0;}
+  else{
+    const nm=q.nmin/100;let hs=q.hs*HM;
+    if(q.mode==='dpv')hs=hs*(0.5+0.5*Math.min(v0/q.qn,1.5));else hs=hs-0.002*hs/q.qn*v0;
+    h=clamp(hs,nm*nm*H0-a*v0*v0,H0-a*v0*v0);
+  }
+  if(V<0)h+=-V*5*H0/q.qn;
+  return h;
+}
+function pumpN(c){
+  const q=c.p;if(q.mode==='fixed')return q.n/100;if(q.mode==='flow')return NaN;
+  if(!q.on)return 0;
+  const Hn=q.hn*HM,H0=1.3*Hn,a=(H0-Hn)/(q.qn*q.qn),V=Math.max(0,m3h(inMix(c).m)),H=c.s.H||0;
+  return clamp(Math.sqrt(Math.max(0,(H+a*V*V)/H0)),q.nmin/100,1);
+}
+const valvePos=c=>c.p.ctl==='manual'?c.p.pos/100:c.s.pos;
+function loadValves(){
+  for(const c of model.comps){
+    if(c.type!=='valve3'||c.p.ctl!=='load')continue;
+    const k=findConsumer(c);c.s.noCons=!k;c.s.cons=k?k.name:'';
+    c.s.pos=k?clamp(Math.max(c.p.pminv/100,k.p.last/100*schedF(k)),0.001,1):1;
+  }
+}
+function srcEta(c,load,T){
+  const p=c.p;
+  if(p.kind==='hp'){const Tv=T+273.15,dT=Math.max(Tv-(p.tq+273.15),5);return clamp(p.gg*Tv/dT,1,9);}
+  if(p.etap>0){const x=clamp((load-0.3)/0.7,0,1);return p.etap+(p.eta-p.etap)*x;}
+  return p.eta;
+}
+function demandOfConsumer(k,tsup){
+  const q=k.p,f=q.last/100*schedF(k);
+  return q.mode==='P'?q.pq*1000*f:q.ua*1000*Math.max(0,tsup-10-q.troom)*f;
+}
+function updateDemandCaps(){
+  if(!hydGroups.length)return;
+  const gOf=new Map();hydGroups.forEach((g,gi)=>g.forEach(e=>gOf.set(e,gi)));
+  const gc=c=>{for(const e of c.pe)if(e>=0&&gOf.has(e))return gOf.get(e);return -1;};
+  const n=hydGroups.length,tmax=new Array(n).fill(-Infinity),base=new Array(n).fill(0);
+  for(const c of model.comps)if(c.type==='source'){const gi=gc(c);if(gi>=0)tmax[gi]=Math.max(tmax[gi],c.p.tset);}
+  for(const c of model.comps){
+    const gi=gc(c);if(gi<0)continue;
+    if(c.type==='consumer')base[gi]+=demandOfConsumer(c,tmax[gi]>-Infinity?tmax[gi]:70);
+    else if(c.type==='pipe'||c.type==='tank')base[gi]+=c.s.loss||0;
+  }
+  let D=base.slice();
+  for(let pass=0;pass<3;pass++){
+    const nd=base.slice();
+    for(const c of model.comps){
+      if(c.type!=='hx')continue;
+      const gp=gOf.get(c.pe[0]>=0?c.pe[0]:c.pe[1]),gs=gOf.get(c.pe[2]>=0?c.pe[2]:c.pe[3]);
+      if(gp!==undefined&&gs!==undefined&&gp!==gs)nd[gp]+=D[gs];
+    }
+    D=nd;
+  }
+  for(let gi=0;gi<n;gi++){
+    const gens=model.comps.filter(c=>c.type==='source'&&c.p.on&&gc(c)===gi);
+    gens.forEach(c=>{c.s.dem=D[gi];});
+    let taken=gens.filter(c=>c.p.cap!=='demand').reduce((a,c)=>a+c.s.Q,0);
+    const lim=gens.filter(c=>c.p.cap==='demand');
+    gens.filter(c=>c.p.cap!=='demand').forEach(c=>{c.s.cap=Infinity;});
+    const levels=[...new Set(lim.map(c=>c.p.prio))].sort((a,b)=>a-b);
+    for(const lv of levels){
+      const set=lim.filter(c=>c.p.prio===lv),wsum=set.reduce((a,c)=>a+(c.s.Pth||c.p.pmax*1000),0)||1;
+      for(const c of set){
+        const budget=Math.max(0,D[gi]*(1+c.p.reserve/100)-taken);
+        c.s.cap=set.length>1?budget*(c.s.Pth||c.p.pmax*1000)/wsum:budget;
+      }
+      taken+=set.reduce((a,c)=>a+c.s.Q,0);
+    }
+  }
+}
+function findConsumer(c){
+  let e=model.edges[c.pe[1]];
+  for(let k=0;k<8&&e;k++){
+    const n=compMap[e.b.c];if(n.type==='consumer')return n;
+    if(['pipe','pump','valve2','prv','hold','source'].includes(n.type))e=model.edges[n.pe[1]];else return null;
+  }
+  return null;
+}
+function demandW(k){const q=k.p;return(q.mode==='P'?q.pq*1000*q.last/100:q.ua*1000*Math.max(0,k.s.T[0]-q.troom)*q.last/100)*schedF(k);}
+const passStep=V=>function(c,dt){inflow(c);c.s.Q=0;mixStep(c,V,0,dt);};
+const passLim=V=>c=>0.5*RHO*V/(maxFlow(c)+1e-6);
+const stdMode=(c)=>c.p.mode;
+
+const TYPES={
+source:{label:'Wärmeerzeuger',icon:'🔥',desc:'Kessel oder Wärmepumpe, bedarfsgeführt möglich',dim:[150,70],chartDef:true,hk:'thru',
+  ports:[{d:'in',s:'L',n:'Rücklauf (Eingang)'},{d:'out',s:'R',n:'Vorlauf (Ausgang)'}],
+  params:[
+    {k:'kind',l:'Art',t:'select',opts:[['boiler','Kessel mit Wirkungsgrad'],['hp','Wärmepumpe mit COP']],def:'boiler',rebuild:1},
+    {k:'tset',l:'Soll-Vorlauftemperatur',u:'°C',min:30,max:130,step:1,def:70},
+    {k:'pmax',l:'Maximale Leistung',u:'kW',min:1,max:500,step:1,def:50},
+    {k:'pbase',l:'Leistungsangabe bezieht sich auf',t:'select',opts:[['th','Wärmeleistung'],['in','Brennstoff- oder Stromleistung']],def:'th'},
+    {k:'eta',l:'Nennwirkungsgrad',u:'',min:0.5,max:6,step:0.01,def:0.95,show:p=>p.kind!=='hp'},
+    {k:'etap',l:'Wirkungsgrad bei 30 % Last (0 = wie Nennwert)',u:'',min:0,max:1.2,step:0.01,def:0,show:p=>p.kind!=='hp'},
+    {k:'gg',l:'Gütegrad gegenüber Carnot',u:'',min:0.2,max:0.8,step:0.01,def:0.5,show:p=>p.kind==='hp'},
+    {k:'tq',l:'Quellentemperatur',u:'°C',min:-20,max:40,step:1,def:7,show:p=>p.kind==='hp'},
+    {k:'cap',l:'Leistungsbegrenzung',t:'select',opts:[['free','nicht begrenzt'],['demand','auf Bedarf begrenzen']],def:'free',rebuild:1},
+    {k:'reserve',l:'Reserve über dem Bedarf',u:'%',min:0,max:100,step:1,def:10,show:p=>p.cap==='demand'},
+    {k:'prio',l:'Priorität in der Kaskade (1 = zuerst)',u:'',min:1,max:5,step:1,def:1,show:p=>p.cap==='demand'},
+    {k:'vol',l:'Wasserinhalt',u:'L',min:2,max:500,step:1,def:40,struct:1},
+    {k:'kv',l:'Hydraulischer Widerstand (Kv)',u:'m³/h',min:1,max:200,step:1,def:12},
+    {k:'on',l:'In Betrieb',t:'bool',def:true}],
+  hres:(c,E,f,p,r)=>thru(E,f,p,r,x=>rq(kvK(c.p.kv),x)),
+  outT:(c,p)=>c.s.T[0],
+  step(c,dt){inflow(c);const p=c.p,s=c.s,V=p.vol/1000,T0=s.T[0];
+    const Pth=p.pbase==='in'?p.pmax*1000*srcEta(c,1,T0):p.pmax*1000;let Q=0;
+    if(p.on&&s.min>1e-5){
+      const Kc=RHO*V*CPJ/20;
+      Q=clamp(s.min*CPJ*(p.tset-s.Tin)+Kc*(p.tset-T0),0,Pth);
+      if(p.cap==='demand')Q=Math.min(Q,s.cap);
+    }
+    s.Pth=Pth;s.eta=srcEta(c,Pth>0?Q/Pth:0,T0);s.Pin=Q/Math.max(s.eta,0.05);
+    s.Q=Q;s.E+=Q*dt;s.Ein+=s.Pin*dt;mixStep(c,V,Q,dt);},
+  lim:c=>0.5*RHO*(c.p.vol/1000)/(maxFlow(c)+1e-6),
+  lines(c){const s=c.s,e=s.eta||srcEta(c,0,s.T[0]);return['T aus '+fmt(s.T[0])+' °C','Q '+fmt(s.Q/1000)+' kW   '+(c.p.kind==='hp'?'COP '+fmt(e,1):'η '+fmt(e*100,0)+' %')];},
+  ro(c){const im=inMix(c),p=c.p,s=c.s,e=s.eta||srcEta(c,0,s.T[0]),Pth=s.Pth||p.pmax*1000;
+    const r=[['Austritt (Vorlauf)',fmt(s.T[0])+' °C'],['Eintritt (Rücklauf)',fmt(im.T)+' °C'],['Volumenstrom',fmt(m3h(im.m),2)+' m³/h'],['Differenzdruck',fmt(dpOf(c),3)+' bar'],
+      [p.kind==='hp'?'COP aktuell':'Wirkungsgrad aktuell',p.kind==='hp'?fmt(e,2):fmt(e*100,1)+' %'],['Wärmeleistung',fmt(s.Q/1000)+' kW'],['Aufnahmeleistung',fmt((s.Pin||0)/1000)+' kW'],['Maximale Wärmeleistung',fmt(Pth/1000)+' kW'],['Auslastung',fmt(s.Q/Pth*100,0)+' %']];
+    if(p.cap==='demand')r.push(['Bedarf im Netz',fmt((s.dem||0)/1000)+' kW'],['Leistungsgrenze durch Bedarf',Number.isFinite(s.cap)?fmt(s.cap/1000)+' kW':'–']);
+    r.push(['Erzeugte Wärme',fmt(s.E/3.6e6)+' kWh'],['Bezogene Energie',fmt(s.Ein/3.6e6)+' kWh'],['Gesamt (Wärme je Bezug)',s.Ein>0?fmt(s.E/s.Ein,2):'–'],
+      ['Dampfdruck bei Soll-Vorlauf',fmt(psat(p.tset),2)+' bar'],['Mindestdruck am Austritt',fmt(psat(p.tset)+model.glob.psafe,2)+' bar'],['Druck am Austritt',fmt(pOf(c,1),2)+' bar'],['Reserve zum Mindestdruck',fmt(pOf(c,1)-psat(p.tset)-model.glob.psafe,2)+' bar']);
+    return r;},
+  actions:[{label:'Systemdruck auf Mindestdruck setzen',fn:c=>applyMinPressure(c)}],
+  stored:c=>RHO*CPJ*c.p.vol/1000*c.s.T[0]},
+
+pump:{label:'Pumpe',icon:'🌀',desc:'Fester Volumenstrom, Konstantdrehzahl oder geregelt',dim:[150,70],hk:'thru',
+  ports:[{d:'in',s:'L',n:'Eingang'},{d:'out',s:'R',n:'Ausgang'}],
+  params:[
+    {k:'mode',l:'Betriebsart',t:'select',opts:[['flow','Fester Volumenstrom (ideal)'],['fixed','Konstantdrehzahl (Kennlinie)'],['dpc','Geregelt: Δp konstant'],['dpv','Geregelt: Δp variabel']],def:'flow',rebuild:1},
+    {k:'flow',l:'Volumenstrom',u:'m³/h',min:0.1,max:50,step:0.1,def:2,show:p=>p.mode==='flow'},
+    {k:'qn',l:'Nennvolumenstrom',u:'m³/h',min:0.5,max:100,step:0.1,def:3,show:p=>p.mode!=='flow'},
+    {k:'hn',l:'Nennförderhöhe',u:'m',min:0.5,max:30,step:0.1,def:4,show:p=>p.mode!=='flow'},
+    {k:'n',l:'Drehzahl',u:'%',min:30,max:100,step:1,def:100,show:p=>p.mode==='fixed'},
+    {k:'hs',l:'Sollförderhöhe',u:'m',min:0.2,max:30,step:0.1,def:2,show:p=>p.mode==='dpc'||p.mode==='dpv'},
+    {k:'nmin',l:'Minimale Drehzahl',u:'%',min:10,max:90,step:1,def:40,show:p=>p.mode==='dpc'||p.mode==='dpv'},
+    {k:'eta',l:'Pumpenwirkungsgrad',u:'',min:0.1,max:0.9,step:0.01,def:0.5},
+    {k:'on',l:'In Betrieb',t:'bool',def:true}],
+  hres(c,E,f,p,r){
+    const q=c.p,i=E[0],o=E[1];
+    if(q.mode==='flow'){
+      const m=q.on?q.flow*RHO/3600:0;
+      if(i>=0&&o>=0){r.push(f[i]-f[o]);r.push(f[o]-m);}else if(i>=0)r.push(f[i]-m);else if(o>=0)r.push(f[o]-m);
+      return;
+    }
+    if(!q.on){if(i>=0&&o>=0){r.push(f[i]-f[o]);r.push(f[o]);}else if(i>=0)r.push(f[i]);else if(o>=0)r.push(f[o]);return;}
+    thru(E,f,p,r,x=>-pumpH(c,x*3600/RHO));
+  },
+  outT:(c,p)=>c.s.T[0],
+  step(c,dt){inflow(c);c.s.Q=0;c.s.Eel+=(c.s.Pel||0)*dt;mixStep(c,0.002,0,dt);},
+  lim:c=>0.5*RHO*0.002/(maxFlow(c)+1e-6),
+  lines(c){const q=c.p,n=pumpN(c);return[fmt(m3h(inMix(c).m),2)+' m³/h','H '+fmt((c.s.H||0)/HM,1)+' m'+(Number.isFinite(n)?'   n '+fmt(n*100,0)+' %':'')];},
+  ro(c){const V=m3h(inMix(c).m),H=c.s.H||0,n=pumpN(c);
+    return[['Volumenstrom',fmt(V,2)+' m³/h'],['Förderhöhe',fmt(H/HM,2)+' m'],['Differenzdruck',fmt(H,3)+' bar'],['Drehzahl',Number.isFinite(n)?fmt(n*100,0)+' %':'–'],['Temperatur',fmt(c.s.T[0])+' °C'],['Hydraulische Leistung',fmt(H*BAR*V/3600,1)+' W'],['Elektrische Leistung',fmt(c.s.Pel||0,1)+' W'],['Pumpenstrom',fmt(c.s.Eel/3.6e6,3)+' kWh']];},
+  stored:c=>RHO*CPJ*0.002*c.s.T[0]},
+
+pipe:{label:'Rohr',icon:'📏',desc:'Länge, Nennweite, Dämmung',dim:[150,76],hk:'thru',
+  ports:[{d:'in',s:'L',n:'Eingang'},{d:'out',s:'R',n:'Ausgang'}],
+  params:[
+    {k:'len',l:'Länge',u:'m',min:1,max:500,step:1,def:20,struct:1},
+    {k:'dn',l:'Nennweite',t:'select',opts:DNOPT,def:32,struct:1},
+    {k:'ins',l:'Dämmstärke',t:'select',opts:INSOPT,def:30},
+    {k:'zeta',l:'Einzelwiderstände Σζ',u:'',min:0,max:50,step:0.5,def:3}],
+  hres:(c,E,f,p,r)=>thru(E,f,p,r,x=>(x<0?-1:1)*pipeHyd(c,Math.abs(x)).dp/BAR),
+  outT:(c,p)=>c.s.T[c.s.T.length-1],
+  step(c,dt){const p=c.p,s=c.s,T=s.T,N=T.length,g=pipeGeom(c),Vc=g.A*g.L/N,Lc=g.L/N,i0=c.inp[0],m=i0.m;
+    const U=pipeU(g.di,p.ins),Ta=model.glob.tamb,a=dt*m/(RHO*Vc),b=dt*U*Lc/(RHO*Vc*CPJ);let loss=0;
+    for(let i=N-1;i>=0;i--){const up=i?T[i-1]:i0.T;loss+=U*Lc*(T[i]-Ta);T[i]+=a*(up-T[i])-b*(T[i]-Ta);}
+    s.loss=loss;s.Q=loss;s.E+=loss*dt;},
+  lim(c){const g=pipeGeom(c),N=c.s.T.length;return 0.5*RHO*(g.A*g.L/N)/(maxFlow(c)+1e-6);},
+  lines(c){const T=c.s.T,m=inMix(c).m,h=pipeHyd(c,m);return[fmt(inT(c,0))+' → '+fmt(T[T.length-1])+' °C','v '+fmt(h.v,2)+' m/s   DN '+c.p.dn];},
+  ro(c){const m=inMix(c).m,h=pipeHyd(c,m),g=pipeGeom(c),V=g.A*g.L*1000,T=c.s.T,Ti=inT(c,0);
+    return[['Eintritt',fmt(Ti)+' °C'],['Austritt',fmt(T[T.length-1])+' °C'],['Temperaturverlust',fmt(Ti-T[T.length-1],2)+' K'],['Volumenstrom',fmt(m3h(m),2)+' m³/h'],['Geschwindigkeit',fmt(h.v,2)+' m/s'],['Druckgefälle R',fmt(h.R,0)+' Pa/m'],['Druckverlust',fmt(h.dp/100,1)+' mbar'],['Druck Eintritt',fmt(pOf(c,0),2)+' bar'],['Wasserinhalt',fmt(V,1)+' L'],['Laufzeit',m>1e-6?fmt(V/1000*RHO/m,0)+' s':'–'],['Wärmeverlust',fmt(c.s.loss,0)+' W']];},
+  stored(c){const g=pipeGeom(c),T=c.s.T;return RHO*CPJ*g.A*g.L/T.length*sumA(T);},
+  profile:c=>c.s.T},
+
+consumer:{label:'Verbraucher',icon:'♨️',desc:'Heizkörper, Lüftung oder Prozess',dim:[150,70],chartDef:true,hk:'thru',
+  ports:[{d:'in',s:'L',n:'Vorlauf (Eingang)'},{d:'out',s:'R',n:'Rücklauf (Ausgang)'}],
+  params:[
+    {k:'mode',l:'Modell',t:'select',opts:[['P','Feste Leistung'],['UA','Heizfläche (UA)']],def:'P',rebuild:1},
+    {k:'pq',l:'Wärmebedarf',u:'kW',min:0.5,max:500,step:0.5,def:20,show:p=>p.mode==='P'},
+    {k:'ua',l:'Heizfläche UA',u:'kW/K',min:0.05,max:20,step:0.05,def:0.5,show:p=>p.mode==='UA'},
+    {k:'troom',l:'Raumtemperatur',u:'°C',min:0,max:40,step:1,def:20,show:p=>p.mode==='UA'},
+    {k:'tmin',l:'Minimale Rücklauftemperatur',u:'°C',min:10,max:60,step:1,def:30,show:p=>p.mode==='P'},
+    {k:'last',l:'Lastfaktor',u:'%',min:0,max:150,step:1,def:100},
+    {k:'vol',l:'Wasserinhalt',u:'L',min:1,max:500,step:1,def:20,struct:1},
+    {k:'kv',l:'Hydraulischer Widerstand (Kv)',u:'m³/h',min:0.5,max:200,step:0.5,def:8}],
+  hres:(c,E,f,p,r)=>thru(E,f,p,r,x=>rq(kvK(c.p.kv),x)),
+  outT:(c,p)=>c.s.T[0],
+  step(c,dt){inflow(c);const p=c.p,s=c.s,V=p.vol/1000,T=s.T[0];let Q;
+    if(p.mode==='P')Q=p.pq*1000*clamp((T-p.tmin)/3,0,1);else Q=Math.max(0,p.ua*1000*(T-p.troom));
+    Q*=p.last/100*schedF(c);s.Q=Q;s.E+=Q*dt;mixStep(c,V,-Q,dt);},
+  lim(c){const V=c.p.vol/1000,C=RHO*V*CPJ,k=c.p.mode==='P'?c.p.pq*1000/3:c.p.ua*1000;return Math.min(0.5*RHO*V/(maxFlow(c)+1e-6),0.5*C/(k+1e-6));},
+  lines(c){const im=inMix(c),q=c.p.sch;return['T aus '+fmt(c.s.T[0])+' °C','Q '+fmt(c.s.Q/1000)+' kW   '+(q&&q.on?'Plan '+fmt(schedPct(c,simNow),0)+' %':'ΔT '+fmt(im.T-c.s.T[0])+' K')];},
+  ro(c){const im=inMix(c),T=c.s.T[0];return[['Eintritt (Vorlauf)',fmt(im.T)+' °C'],['Austritt (Rücklauf)',fmt(T)+' °C'],['Spreizung',fmt(im.T-T)+' K'],['Volumenstrom',fmt(m3h(im.m),2)+' m³/h'],['Differenzdruck',fmt(dpOf(c),3)+' bar'],['Zeitplan',c.p.sch&&c.p.sch.on?fmt(schedPct(c,simNow),0)+' %':'aus'],['Lastfaktor gesamt',fmt(c.p.last*schedPct(c,simNow)/100,0)+' %'],['Wärmeabgabe',fmt(c.s.Q/1000)+' kW'],['Abgegebene Wärme',fmt(c.s.E/3.6e6)+' kWh']];},
+  stored:c=>RHO*CPJ*c.p.vol/1000*c.s.T[0]},
+
+tank:{label:'Pufferspeicher',icon:'🛢️',desc:'Wärmespeicher, geschichtet, 4 Anschlüsse',dim:[150,128],chartDef:true,hk:'junc',
+  ports:[{d:'in',s:'L',n:'Eingang oben',sh:'ein oben'},{d:'out',s:'L',n:'Ausgang unten',sh:'aus unten'},{d:'out',s:'R',n:'Ausgang oben',sh:'aus oben'},{d:'in',s:'R',n:'Eingang unten',sh:'ein unten'}],
+  params:[
+    {k:'vol',l:'Volumen',u:'L',min:100,max:10000,step:50,def:1000,struct:1},
+    {k:'h',l:'Höhe',u:'m',min:0.5,max:4,step:0.1,def:1.8},
+    {k:'n',l:'Anzahl Schichten',u:'',min:2,max:12,step:1,def:8,struct:1},
+    {k:'ua',l:'Wärmeverlust (UA)',u:'W/K',min:0,max:20,step:0.1,def:2.5}],
+  hres:(c,E,f,p,r)=>junc(E,[0,3],[1,2],f,p,r),
+  outT:(c,p)=>p===1?c.s.T[c.s.T.length-1]:c.s.T[0],
+  step(c,dt){const p=c.p,s=c.s,T=s.T,n=T.length,V=p.vol/1000,Vl=V/n,G=2*(V/p.h)/(p.h/n),a=c.inp[0],d=c.inp[3],
+    min=a.m,mbi=d.m,mto=c.om[2],mbo=c.om[1],F=min-mto,Ta=model.glob.tamb,ul=p.ua/n;
+    const b=s.buf&&s.buf.length===n?s.buf:(s.buf=new Array(n));b.fill(0);let loss=0;
+    b[0]+=min*a.T-mto*T[0];b[n-1]+=mbi*d.T-mbo*T[n-1];
+    for(let i=0;i<n-1;i++){const J=F>=0?F*T[i]:F*T[i+1];b[i]-=J;b[i+1]+=J;const k=G*(T[i+1]-T[i])/CPJ;b[i]+=k;b[i+1]-=k;}
+    for(let i=0;i<n;i++){const l=ul*(T[i]-Ta);loss+=l;b[i]-=l/CPJ;}
+    for(let i=0;i<n;i++)T[i]+=dt*b[i]/(RHO*Vl);
+    s.loss=loss;s.Q=loss;s.E+=loss*dt;},
+  lim(c){const p=c.p,n=c.s.T.length,V=p.vol/1000,Vl=V/n,G=2*(V/p.h)/(p.h/n);return Math.min(0.5*RHO*Vl/(2*maxFlow(c)+1e-6),0.5*RHO*Vl*CPJ/(2*G+p.ua/n+1e-9));},
+  lines(c){const T=c.s.T;return[fmt(T[0])+' °C',fmt(T[T.length-1])+' °C'];},
+  ro(c){const T=c.s.T,n=T.length,mean=avgA(T),V=c.p.vol/1000;return[['Temperatur oben',fmt(T[0])+' °C'],['Temperatur unten',fmt(T[n-1])+' °C'],['Mittlere Temperatur',fmt(mean)+' °C'],['Energieinhalt (über Umgebung)',fmt(RHO*CPJ*V*(mean-model.glob.tamb)/3.6e6)+' kWh'],['Ladestrom (oben ein)',fmt(m3h(c.inp[0].m),2)+' m³/h'],['Entnahme (oben aus)',fmt(m3h(c.om[2]),2)+' m³/h'],['Druck im Speicher',fmt(pOf(c,0),2)+' bar'],['Wärmeverlust',fmt(c.s.loss,0)+' W']];},
+  stored(c){const T=c.s.T;return RHO*CPJ*c.p.vol/1000/T.length*sumA(T);},
+  profile:c=>c.s.T},
+
+splitter:{label:'Verteiler',icon:'🔱',desc:'Teilt den Strom auf 2 bis 6 Wege',hk:'junc',
+  mk:n=>{const a=[{d:'in',s:'L',n:'Eingang'}];for(let i=0;i<n;i++)a.push({d:'out',s:'R',n:'Abgang '+LET[i],sh:LET[i]});return a;},
+  params:[
+    {k:'np',l:'Anzahl Abgänge',u:'',min:2,max:6,step:1,def:2,ports:1},
+    {k:'mode',l:'Aufteilung',t:'select',opts:[['ratio','nach Anteilen'],['free','frei (Hydraulik bestimmt)']],def:'ratio',rebuild:1}].concat(WPARAMS),
+  hres(c,E,f,p,r){
+    const I=E[0],O=E.slice(1);
+    if(c.p.mode==='free'){junc(E,[0],O.map((_,k)=>k+1),f,p,r);return;}
+    const w=[];let sw=0;
+    O.forEach((e,k)=>{if(e>=0){const v=Math.max(0,+c.p['w'+(k+1)]||0);w.push([e,v]);sw+=v;}});
+    if(!w.length){if(I>=0)r.push(f[I]);return;}
+    if(sw<=0){w.forEach(x=>r.push(f[x[0]]));if(I>=0)r.push(f[I]);return;}
+    w.forEach(x=>r.push(f[x[0]]-(I>=0?x[1]/sw*f[I]:0)));
+  },
+  sres(c,E,f,p,r){
+    if(c.p.mode==='free'||E[0]<0)return;
+    for(let k=1;k<E.length;k++){const e=E[k];if(e<0)continue;const d=p[E[0]]-p[e];r.push(0.5*(Math.sqrt(d*d+1e-4)-d));r.push(0.02*d);}
+  },
+  outT:(c,p)=>c.s.T[0],
+  step:passStep(0.005),lim:passLim(0.005),
+  lines:c=>['T '+fmt(c.s.T[0])+' °C',fmt(m3h(inMix(c).m),2)+' m³/h'],
+  ro(c){const r=[['Temperatur',fmt(c.s.T[0])+' °C'],['Volumenstrom gesamt',fmt(m3h(inMix(c).m),2)+' m³/h']];c.om.slice(1).forEach((m,i)=>r.push(['Abgang '+LET[i],fmt(m3h(m),2)+' m³/h']));return r;},
+  stored:c=>RHO*CPJ*0.005*c.s.T[0]},
+
+mixer:{label:'Sammler',icon:'🔻',desc:'Führt 2 bis 6 Ströme zusammen',hk:'junc',
+  mk:n=>{const a=[];for(let i=0;i<n;i++)a.push({d:'in',s:'L',n:'Zulauf '+LET[i],sh:LET[i]});a.push({d:'out',s:'R',n:'Ausgang'});return a;},
+  params:[{k:'np',l:'Anzahl Zuläufe',u:'',min:2,max:6,step:1,def:2,ports:1}],
+  hres(c,E,f,p,r){const n=c.p.np,ins=[];for(let i=0;i<n;i++)ins.push(i);junc(E,ins,[n],f,p,r);},
+  outT:(c,p)=>c.s.T[0],
+  step:passStep(0.005),lim:passLim(0.005),
+  lines:c=>['T '+fmt(c.s.T[0])+' °C',fmt(m3h(inMix(c).m),2)+' m³/h'],
+  ro(c){const r=[['Mischtemperatur',fmt(c.s.T[0])+' °C'],['Volumenstrom gesamt',fmt(m3h(inMix(c).m),2)+' m³/h']];for(let i=0;i<c.p.np;i++)r.push(['Zulauf '+LET[i],fmt(inT(c,i))+' °C, '+fmt(m3h(c.inp[i].m),2)+' m³/h']);return r;},
+  stored:c=>RHO*CPJ*0.005*c.s.T[0]},
+
+valve3:{label:'3-Wege-Ventil',icon:'🔀',desc:'Verbraucher oder Bypass, konstanter Gesamtstrom',dim:[150,80],hk:'junc',chartDef:false,
+  ports:[{d:'in',s:'L',n:'Zulauf'},{d:'out',s:'R',n:'Ausgang A (Verbraucher)',sh:'Verbr.'},{d:'out',s:'R',n:'Ausgang B (Bypass)',sh:'Bypass'}],
+  params:[
+    {k:'ctl',l:'Stellung',t:'select',opts:[['manual','Manuell'],['load','Gekoppelt an Last (direkt)'],['auto','Geregelt auf Spreizung']],def:'manual',rebuild:1},
+    {k:'pos',l:'Öffnung zum Verbraucher',u:'%',min:0,max:100,step:1,def:100,show:p=>p.ctl==='manual'},
+    {k:'pminv',l:'Mindestöffnung',u:'%',min:0,max:100,step:1,def:10,show:p=>p.ctl==='load'},
+    {k:'dts',l:'Soll-Spreizung Verbraucher',u:'K',min:3,max:40,step:1,def:15,show:p=>p.ctl==='auto'},
+    {k:'kvs',l:'Kvs-Wert',u:'m³/h',min:0.5,max:100,step:0.5,def:6}],
+  hres(c,E,f,p,r){
+    const i=E[0],a=E[1],b=E[2],pos=valvePos(c),ka=kvK(c.p.kvs*Math.max(pos,0.001)),kb=kvK(c.p.kvs*Math.max(1-pos,0.001));
+    let s=0;if(i>=0)s+=f[i];if(a>=0)s-=f[a];if(b>=0)s-=f[b];
+    if(i>=0||a>=0||b>=0)r.push(s);
+    if(i>=0&&a>=0)r.push(p[i]-p[a]-rq(ka,f[a]));
+    if(i>=0&&b>=0)r.push(p[i]-p[b]-rq(kb,f[b]));
+  },
+  outT:(c,p)=>c.s.T[0],
+  step:passStep(0.005),lim:passLim(0.005),
+  lines:c=>['Stellung '+fmt(valvePos(c)*100,0)+' %',fmt(m3h(c.om[1]),2)+' / '+fmt(m3h(c.om[2]),2)+' m³/h'],
+  ro(c){return[['Stellung zum Verbraucher',fmt(valvePos(c)*100,0)+' %'],['Gekoppelt an',c.p.ctl==='manual'?'–':(c.s.cons||'kein Verbraucher gefunden')],['Zulauf',fmt(m3h(inMix(c).m),2)+' m³/h'],['Verbraucher (A)',fmt(m3h(c.om[1]),2)+' m³/h'],['Bypass (B)',fmt(m3h(c.om[2]),2)+' m³/h'],['Temperatur',fmt(c.s.T[0])+' °C'],['Druck Zulauf',fmt(pOf(c,0),2)+' bar']];},
+  stored:c=>RHO*CPJ*0.005*c.s.T[0]},
+
+valve2:{label:'Regelventil',icon:'🎚️',desc:'Drosselt den Volumenstrom (Kvs, Stellung)',dim:[150,70],hk:'thru',
+  ports:[{d:'in',s:'L',n:'Eingang'},{d:'out',s:'R',n:'Ausgang'}],
+  params:[
+    {k:'pos',l:'Öffnung',u:'%',min:0,max:100,step:1,def:100},
+    {k:'kvs',l:'Kvs-Wert',u:'m³/h',min:0.5,max:100,step:0.5,def:10}],
+  hres:(c,E,f,p,r)=>thru(E,f,p,r,x=>rq(kvK(c.p.kvs*Math.max(c.p.pos/100,0.001)),x)),
+  outT:(c,p)=>c.s.T[0],
+  step:passStep(0.002),lim:passLim(0.002),
+  lines:c=>['Öffnung '+fmt(c.p.pos,0)+' %',fmt(m3h(inMix(c).m),2)+' m³/h   Δp '+fmt(dpOf(c),2)+' bar'],
+  ro(c){return[['Öffnung',fmt(c.p.pos,0)+' %'],['Volumenstrom',fmt(m3h(inMix(c).m),2)+' m³/h'],['Druckverlust',fmt(dpOf(c),3)+' bar'],['Druck Eingang',fmt(pOf(c,0),2)+' bar'],['Druck Ausgang',fmt(pOf(c,1),2)+' bar'],['Temperatur',fmt(c.s.T[0])+' °C']];},
+  stored:c=>RHO*CPJ*0.002*c.s.T[0]},
+
+prv:{label:'Druckminderer',icon:'⏬',desc:'Hält den Druck dahinter auf einen Sollwert',dim:[150,70],hk:'thru',
+  ports:[{d:'in',s:'L',n:'Eingang (Hochdruck)'},{d:'out',s:'R',n:'Ausgang (Niederdruck)'}],
+  params:[
+    {k:'pset',l:'Hinterdruck-Sollwert (absolut)',u:'bar',min:0.2,max:16,step:0.1,def:2.5},
+    {k:'kv',l:'Kv-Wert (offen)',u:'m³/h',min:1,max:200,step:1,def:20}],
+  hres(c,E,f,p,r){
+    const i=E[0],o=E[1];
+    if(i>=0&&o>=0){r.push(f[i]-f[o]);const a=p[i]-rq(kvK(c.p.kv),f[o]),b=c.p.pset,e=0.01;r.push(p[o]-(a+b-Math.sqrt((a-b)*(a-b)+e*e))/2);}
+    else if(i>=0)r.push(f[i]);else if(o>=0)r.push(f[o]);
+  },
+  outT:(c,p)=>c.s.T[0],
+  step:passStep(0.002),lim:passLim(0.002),
+  lines:c=>['Soll '+fmt(c.p.pset,1)+' bar',fmt(pOf(c,0),2)+' → '+fmt(pOf(c,1),2)+' bar'],
+  ro(c){const pi=pOf(c,0),po=pOf(c,1);return[['Druck Eingang',fmt(pi,3)+' bar'],['Druck Ausgang',fmt(po,3)+' bar'],['Druckabbau',fmt(pi-po,3)+' bar'],['Sollwert',fmt(c.p.pset,2)+' bar'],['Volumenstrom',fmt(m3h(inMix(c).m),2)+' m³/h'],['Zustand',po<c.p.pset-0.02?'offen, Eingangsdruck zu niedrig':'regelt']];},
+  stored:c=>RHO*CPJ*0.002*c.s.T[0]},
+
+hold:{label:'Druckhaltung',icon:'🎈',desc:'Ausdehnungsgefäß, legt den Systemdruck fest',dim:[150,70],hk:'thru',
+  ports:[{d:'in',s:'L',n:'Eingang'},{d:'out',s:'R',n:'Ausgang'}],
+  params:[{k:'pstat',l:'Systemdruck',u:'bar',min:0.5,max:16,step:0.1,def:2}],
+  hres(c,E,f,p,r){
+    const i=E[0],o=E[1];
+    if(i>=0&&o>=0){r.push(f[i]-f[o]);r.push(p[i]-p[o]);}else if(i>=0)r.push(f[i]);else if(o>=0)r.push(f[o]);
+    if(i>=0)r.push(p[i]-c.p.pstat);else if(o>=0)r.push(p[o]-c.p.pstat);
+  },
+  outT:(c,p)=>c.s.T[0],
+  step:passStep(0.002),lim:passLim(0.002),
+  lines:c=>[fmt(c.p.pstat,1)+' bar','T '+fmt(c.s.T[0])+' °C'],
+  ro(c){const r=groupReport(c);return[['Systemdruck',fmt(c.p.pstat,2)+' bar'],['Mindest-Systemdruck',r?fmt(r.minP,2)+' bar':'–'],['Reserve',r?fmt(r.anchor-r.minP,2)+' bar':'–'],['Höchste Temperatur im Netz',r?fmt(r.tmax,0)+' °C':'–'],['Temperatur',fmt(c.s.T[0])+' °C'],['Volumenstrom',fmt(m3h(inMix(c).m),2)+' m³/h']];},
+  actions:[{label:'Auf Mindestdruck setzen',fn:c=>applyMinPressure(c)}],
+  stored:c=>RHO*CPJ*0.002*c.s.T[0]},
+
+hx:{label:'Wärmeübertrager',icon:'🔄',desc:'Trennt zwei Kreise, Gegenstrom',dim:[180,96],chartDef:true,hk:'hx',
+  ports:[{d:'in',s:'L',n:'Primär Eingang',sh:'prim ein'},{d:'out',s:'R',n:'Primär Ausgang',sh:'prim aus'},{d:'in',s:'L',n:'Sekundär Eingang',sh:'sek ein'},{d:'out',s:'R',n:'Sekundär Ausgang',sh:'sek aus'}],
+  params:[
+    {k:'ua',l:'Übertragungsfähigkeit UA',u:'kW/K',min:0.5,max:100,step:0.5,def:8},
+    {k:'vol',l:'Wasserinhalt je Seite',u:'L',min:1,max:200,step:1,def:10,struct:1},
+    {k:'kv',l:'Hydraulischer Widerstand je Seite (Kv)',u:'m³/h',min:0.5,max:200,step:0.5,def:10}],
+  hres(c,E,f,p,r){const k=kvK(c.p.kv);thru([E[0],E[1]],f,p,r,x=>rq(k,x));thru([E[2],E[3]],f,p,r,x=>rq(k,x));},
+  outT:(c,p)=>p===1?c.s.T[c.s.T.length-1]:c.s.T2[c.s.T2.length-1],
+  step(c,dt){const p=c.p,s=c.s,P=s.T,S=s.T2,N=P.length,Vc=p.vol/1000/N,G=p.ua*1000/N,ap=c.inp[0],as=c.inp[2],mp=ap.m,ms=as.m;
+    const q=s.buf&&s.buf.length===N?s.buf:(s.buf=new Array(N));let Qt=0;
+    for(let k=0;k<N;k++){q[k]=G*(P[k]-S[N-1-k]);Qt+=q[k];}
+    for(let k=N-1;k>=0;k--){const up=k?P[k-1]:ap.T;P[k]+=dt*(mp*(up-P[k])*CPJ-q[k])/(RHO*Vc*CPJ);}
+    for(let j=N-1;j>=0;j--){const up=j?S[j-1]:as.T;S[j]+=dt*(ms*(up-S[j])*CPJ+q[N-1-j])/(RHO*Vc*CPJ);}
+    s.Q=Qt;},
+  lim(c){const p=c.p,N=c.s.T.length,Vc=p.vol/1000/N,G=p.ua*1000/N;return Math.min(0.5*RHO*Vc/(maxFlow(c)+1e-6),0.5*RHO*Vc*CPJ/(G+1e-9));},
+  lines(c){const P=c.s.T,S=c.s.T2,pi=inT(c,0),si=inT(c,2);return['Q '+fmt(c.s.Q/1000)+' kW','ΔT '+fmt(pi-P[P.length-1])+' / '+fmt(S[S.length-1]-si)+' K'];},
+  ro(c){const P=c.s.T,S=c.s.T2,pi=inT(c,0),si=inT(c,2),po=P[P.length-1],so=S[S.length-1];
+    return[['Übertragene Leistung',fmt(c.s.Q/1000)+' kW'],['Primär ein',fmt(pi)+' °C'],['Primär aus',fmt(po)+' °C'],['Sekundär ein',fmt(si)+' °C'],['Sekundär aus',fmt(so)+' °C'],['Primär-Volumenstrom',fmt(m3h(c.inp[0].m),2)+' m³/h'],['Sekundär-Volumenstrom',fmt(m3h(c.inp[2].m),2)+' m³/h'],['Grädigkeit (prim aus − sek ein)',fmt(po-si)+' K']];},
+  stored(c){const P=c.s.T,S=c.s.T2;return RHO*CPJ*c.p.vol/1000/P.length*(sumA(P)+sumA(S));}}
+};
+
+function defaults(type){const p={};TYPES[type].params.forEach(d=>{p[d.k]=d.def;});return p;}
+function nCells(c){
+  if(c.type==='pipe')return clamp(Math.round(c.p.len/2.5),4,20);
+  if(c.type==='tank')return clamp(Math.round(c.p.n),2,12);
+  if(c.type==='hx')return 5;
+  return 1;
+}
+function ensureState(c){
+  const n=nCells(c),t0=model.glob.tinit,s=c.s||{};
+  const mk=arr=>{
+    if(!arr)return new Array(n).fill(t0);
+    if(arr.length===n)return arr;
+    const o=new Array(n);for(let i=0;i<n;i++)o[i]=arr[Math.min(arr.length-1,Math.floor(i*arr.length/n))];return o;
+  };
+  s.T=mk(s.T);
+  if(c.type==='hx')s.T2=mk(s.T2);
+  s.Q=s.Q||0;s.loss=s.loss||0;s.E=s.E||0;s.Eel=s.Eel||0;s.Ein=s.Ein||0;s.Pin=s.Pin||0;s.Pel=s.Pel||0;if(s.cap===undefined)s.cap=Infinity;s.H=s.H||0;if(s.pos===undefined)s.pos=1;s.buf=null;
+  c.s=s;
+}
+function rebuildIndex(){
+  hydGroups=[];compMap={};model.comps.forEach(c=>{compMap[c.id]=c;});
+  for(const c of model.comps){
+    const T={ports:portsOf(c)};
+    c.pe=T.ports.map(()=>-1);c.om=T.ports.map(()=>0);
+    c.inp=T.ports.map(P=>P.d==='in'?{m:0,T:0}:null);c.links=[];
+    c.chart=(c.chart||[]).slice(0,T.ports.length);while(c.chart.length<T.ports.length)c.chart.push(false);
+  }
+  model.edges.forEach((e,i)=>{
+    const a=compMap[e.a.c],b=compMap[e.b.c];
+    a.pe[e.a.p]=i;b.pe[e.b.p]=i;
+    b.links.push({p:e.b.p,o:b.inp[e.b.p],src:a,sp:e.a.p});
+  });
+  for(const c of model.comps)ensureState(c);
+}
+
+/* ---- Hydraulik: Massenströme und Drücke (Levenberg-Marquardt) ---- */
+function gaussSolve(B,N){
+  for(let i=0;i<N;i++){
+    let p=i;for(let r=i+1;r<N;r++)if(Math.abs(B[r][i])>Math.abs(B[p][i]))p=r;
+    if(p!==i){const t=B[p];B[p]=B[i];B[i]=t;}
+    const d=B[i][i];if(Math.abs(d)<1e-300)continue;
+    for(let r=i+1;r<N;r++){const f=B[r][i]/d;if(f!==0)for(let k=i;k<=N;k++)B[r][k]-=f*B[i][k];}
+  }
+  const x=new Float64Array(N);
+  for(let i=N-1;i>=0;i--){let s=B[i][N];for(let k=i+1;k<N;k++)s-=B[i][k]*x[k];x[i]=Math.abs(B[i][i])<1e-300?0:s/B[i][i];}
+  return x;
+}
+function solveFlows(){
+  loadValves();
+  const edges=model.edges,E=edges.length;flowErr=0;flowNeg=false;
+  if(!E){hydGroups=[];return;}
+  const N=2*E,pst=model.glob.pstat;
+  const par=Array.from({length:E},(_,i)=>i);
+  const find=a=>{while(par[a]!==a){par[a]=par[par[a]];a=par[a];}return a;};
+  const uni=(a,b)=>{if(a>=0&&b>=0)par[find(a)]=find(b);};
+  for(const c of model.comps){
+    const hk=TYPES[c.type].hk,pe=c.pe;
+    if(hk==='thru')uni(pe[0],pe[1]);
+    else if(hk==='hx'){uni(pe[0],pe[1]);uni(pe[2],pe[3]);}
+    else{let a=-1;for(const e of pe){if(e>=0){if(a<0)a=e;else uni(a,e);}}}
+  }
+  const gm={};for(let i=0;i<E;i++){const g=find(i);(gm[g]||(gm[g]=[])).push(i);}
+  const groups=Object.values(gm);
+  hydGroups=groups;
+  let nMain=0;
+  const res=(fv,pv,r)=>{
+    r.length=0;
+    for(const c of model.comps)TYPES[c.type].hres(c,c.pe,fv,pv,r);
+    nMain=r.length;
+    for(const c of model.comps){const T=TYPES[c.type];if(T.sres)T.sres(c,c.pe,fv,pv,r);}
+    for(const g of groups){let s=0;for(const i of g)s+=pv[i];r.push(0.01*(s/g.length-pst));}
+  };
+  const x=new Float64Array(N),fv=x.subarray(0,E),pv=x.subarray(E);
+  edges.forEach((e,i)=>{fv[i]=Number.isFinite(e._f)?e._f:0.2;pv[i]=Number.isFinite(e._p)?e._p:pst;});
+  const xt=new Float64Array(N),ft=xt.subarray(0,E),pt=xt.subarray(E);
+  const r=[],r2=[];
+  res(fv,pv,r);const M=r.length;
+  const dot=a=>{let s=0;for(let i=0;i<a.length;i++)s+=a[i]*a[i];return s;};
+  let cost=dot(r),mu=1e-3;
+  const J=Array.from({length:M},()=>new Float64Array(N));
+  const A=Array.from({length:N},()=>new Float64Array(N+1));
+  const h=1e-6;
+  for(let it=0;it<40&&cost>1e-20;it++){
+    for(let j=0;j<N;j++){
+      const arr=j<E?fv:pv,k=j<E?j:j-E,sv=arr[k];
+      arr[k]=sv+h;res(fv,pv,r2);arr[k]=sv;
+      for(let m=0;m<M;m++)J[m][j]=(r2[m]-r[m])/h;
+    }
+    for(let a=0;a<N;a++)A[a].fill(0);
+    for(let m=0;m<M;m++){
+      const Jm=J[m];
+      for(let a=0;a<N;a++){const ja=Jm[a];if(ja===0)continue;const Aa=A[a];for(let b=0;b<N;b++)Aa[b]+=ja*Jm[b];Aa[N]-=ja*r[m];}
+    }
+    let ok=false;
+    for(let tries=0;tries<10&&!ok;tries++){
+      const B=A.map((row,a)=>{const q=Float64Array.from(row);q[a]+=mu*(row[a]+1e-6)+1e-9;return q;});
+      const d=gaussSolve(B,N);
+      for(let k=0;k<N;k++)xt[k]=x[k]+d[k];
+      res(ft,pt,r2);const c2=dot(r2);
+      if(c2<cost){x.set(xt);r.length=0;for(const v of r2)r.push(v);cost=c2;mu=Math.max(mu*0.3,1e-10);ok=true;}else mu*=6;
+    }
+    if(!ok)break;
+  }
+  res(fv,pv,r);
+  let mx=0;for(let i=0;i<nMain;i++)mx=Math.max(mx,Math.abs(r[i]));
+  flowErr=mx;
+  edges.forEach((e,i)=>{e._f=fv[i];e._p=pv[i];e.p=pv[i];if(fv[i]<-1e-4)flowNeg=true;e.m=fv[i]>1e-6?fv[i]:0;});
+  for(const c of model.comps){
+    if(c.type!=='pump')continue;
+    const i=c.pe[0],o=c.pe[1];
+    if(i>=0&&o>=0){
+      const H=pv[o]-pv[i],V=Math.max(0,fv[o])*3600/RHO;
+      c.s.H=H;c.s.Pel=Math.max(0,H*BAR*V/3600)/c.p.eta;
+    }else{c.s.H=0;c.s.Pel=0;}
+  }
+}
+function refreshFlows(){
+  for(const c of model.comps){c.om.fill(0);for(const i of c.inp)if(i)i.m=0;}
+  for(const e of model.edges){compMap[e.a.c].om[e.a.p]=e.m;compMap[e.b.c].inp[e.b.p].m=e.m;}
+}
+function controlStep(dt){
+  for(const c of model.comps){
+    if(c.type!=='valve3'||c.p.ctl!=='auto')continue;
+    const ca=findConsumer(c);c.s.noCons=!ca;
+    const eIn=model.edges[c.pe[0]],eA=model.edges[c.pe[1]];
+    if(!ca||!eIn||!eA)continue;
+    const mt=Math.min(eIn.m,demandW(ca)/(CPJ*c.p.dts)),err=(mt-eA.m)/(eIn.m+0.02);
+    c.s.pos=clamp(c.s.pos+0.5*err*Math.min(1,dt/15),0.001,1);
+  }
+}
+
+/* ---- Dampfdruck und Mindestdruck ---- */
+function psat(T){
+  const t=clamp(T,1,300),lg=t<100?8.07131-1730.63/(233.426+t):8.14019-1810.94/(244.485+t);
+  return Math.pow(10,lg)*0.00133322;
+}
+function designTemps(){
+  const E=model.edges.length,dt=new Array(E).fill(-Infinity);
+  const pass=['pipe','pump','valve2','valve3','prv','hold','splitter','mixer'];
+  for(const c of model.comps){
+    if(c.type!=='source'||!c.p.on||c.pe[1]<0)continue;
+    const stack=[c.pe[1]];
+    while(stack.length){
+      const ei=stack.pop();if(dt[ei]>=c.p.tset)continue;dt[ei]=c.p.tset;
+      const n=compMap[model.edges[ei].b.c];if(!pass.includes(n.type))continue;
+      portsOf(n).forEach((P,k)=>{if(P.d==='out'&&n.pe[k]>=0)stack.push(n.pe[k]);});
+    }
+  }
+  return dt;
+}
+function pressureReport(){
+  const dtm=designTemps(),rep=[];
+  hydGroups.forEach((g,gi)=>{
+    const has=c=>c.pe.some(e=>e>=0&&g.includes(e));
+    const holds=model.comps.filter(c=>c.type==='hold'&&has(c)),srcs=model.comps.filter(c=>c.type==='source'&&has(c));
+    const anchor=holds.length?holds[0].p.pstat:model.glob.pstat;
+    let need=-Infinity,worst=null,tmax=-Infinity;
+    for(const ei of g){
+      const e=model.edges[ei];if(!e||!Number.isFinite(e.p))continue;
+      const T=Math.max(outT(compMap[e.a.c],e.a.p),dtm[ei]);tmax=Math.max(tmax,T);
+      const n=psat(T)+model.glob.psafe-e.p;if(n>need){need=n;worst=e;}
+    }
+    if(!Number.isFinite(need))return;
+    const label='Netz '+(gi+1)+(srcs.length?' ('+srcs.map(c=>c.name).join(', ')+')':holds.length?' ('+holds[0].name+')':'');
+    rep.push({group:gi,label,holds,anchor,tmax,psat:psat(tmax),need,minP:anchor+need,worst});
+  });
+  return rep;
+}
+function groupReport(c){
+  const gi=hydGroups.findIndex(g=>c.pe.some(e=>e>=0&&g.includes(e)));
+  return gi<0?null:pressureReport().find(r=>r.group===gi)||null;
+}
+function applyMinPressure(c){
+  const rep=pressureReport(),gi=c?hydGroups.findIndex(g=>c.pe.some(e=>e>=0&&g.includes(e))):-1;
+  let gl=null;
+  for(const r of rep){
+    if(c&&r.group!==gi)continue;
+    const v=clamp(Math.ceil(r.minP*10-1e-9)/10,0.5,16);
+    if(r.holds.length)r.holds.forEach(h=>{h.p.pstat=v;});else gl=Math.max(gl===null?0:gl,v);
+  }
+  if(gl!==null)model.glob.pstat=gl;
+}
+
+/* ---- Zeitschritte ---- */
+function substep(h){
+  for(const c of model.comps)for(const l of c.links)l.o.T=outT(l.src,l.sp);
+  for(const c of model.comps)TYPES[c.type].step(c,h);
+}
+function advance(simDt){
+  solveFlows();refreshFlows();controlStep(simDt);updateDemandCaps();
+  let dm=5;for(const c of model.comps){const l=TYPES[c.type].lim(c);if(l<dm)dm=l;}
+  dm=Math.max(dm,0.02);
+  let n=Math.ceil(simDt/dm);if(n>6000){n=6000;simDt=n*dm;}
+  const h=simDt/n;
+  for(let k=0;k<n;k++){simNow=simT+k*h;substep(h);}
+  simT+=simDt;simNow=simT;record();
+}
+function record(){
+  if(simT-lastS<histDt)return;lastS=simT;
+  hist.t.push(simT);let g=0,cn=0,ls=0,ip=0;
+  for(const c of model.comps){
+    portsOf(c).forEach((P,p)=>{
+      if(P.d!=='out')return;const k=c.id+':'+p;let a=hist.ser[k];
+      if(!a)a=hist.ser[k]=new Array(hist.t.length-1).fill(NaN);
+      a.push(outT(c,p));
+    });
+    if(c.type==='source'){g+=c.s.Q;ip+=c.s.Pin||0;}else if(c.type==='consumer')cn+=c.s.Q;else if(c.type==='pipe'||c.type==='tank')ls+=c.s.loss;
+  }
+  hist.inp.push(ip/1000);hist.gen.push(g/1000);hist.cons.push(cn/1000);hist.loss.push(ls/1000);
+  if(hist.t.length>3000){
+    const f=(v,i)=>i%2===0;
+    hist.t=hist.t.filter(f);hist.inp=hist.inp.filter(f);hist.gen=hist.gen.filter(f);hist.cons=hist.cons.filter(f);hist.loss=hist.loss.filter(f);
+    for(const k in hist.ser)hist.ser[k]=hist.ser[k].filter(f);
+    histDt*=2;
+  }
+}
+function totalStored(){let s=0;for(const c of model.comps)s+=TYPES[c.type].stored(c);return s;}
+function resetBalance(){for(const c of model.comps){c.s.E=0;c.s.Ein=0;}bal.e0=totalStored();}
+function balance(){
+  let gen=0,cons=0,loss=0;
+  for(const c of model.comps){if(c.type==='source')gen+=c.s.E;else if(c.type==='consumer')cons+=c.s.E;else if(c.type==='pipe'||c.type==='tank')loss+=c.s.E;}
+  const dE=totalStored()-bal.e0;
+  return{gen,cons,loss,dE,err:gen-cons-loss-dE};
+}
+function resetSim(){
+  simT=0;simNow=0;lastS=-1e9;histDt=5;hist.t=[];hist.ser={};hist.gen=[];hist.cons=[];hist.loss=[];hist.inp=[];
+  for(const c of model.comps)c.s=null;
+  for(const c of model.comps)ensureState(c);
+  resetBalance();
+}
+
+/* ---- Modell aufbauen, sichern, laden ---- */
+function newComp(type,x,y,name,p,flip){
+  const T=TYPES[type];
+  const c={id:model.nextId++,type,x,y,name:name||T.label,flip:!!flip,p:Object.assign(defaults(type),p||{}),chart:[]};
+  c.chart=portsOf(c).map(P=>P.d==='out'&&!!T.chartDef);
+  if(type==='consumer')c.p.sch=normSch(c.p.sch);
+  model.comps.push(c);return c;
+}
+function link(oc,op,ic,ip){model.edges.push({id:model.nextId++,a:{c:oc.id,p:op},b:{c:ic.id,p:ip},m:0});}
+function exportModel(){
+  return{app:'heizwasser-simulator',v:2,glob:model.glob,nextId:model.nextId,
+    comps:model.comps.map(c=>({id:c.id,type:c.type,x:c.x,y:c.y,name:c.name,flip:c.flip,p:c.type==='consumer'?exportP(c):c.p,chart:c.chart})),
+    edges:model.edges.map(e=>({id:e.id,a:e.a,b:e.b}))};
+}
+function importModel(o){
+  const m={glob:Object.assign({tamb:15,tinit:20,pstat:2,psafe:0.5,t0day:0,t0min:0},o.glob||{}),nextId:1,comps:[],edges:[]};
+  const ids={};
+  for(const x of (o.comps||[])){
+    const T=TYPES[x.type];if(!T)continue;
+    const pp=Object.assign(defaults(x.type),x.p||{});
+    if(x.type==='splitter'&&x.p&&x.p.ra!==undefined&&x.p.w1===undefined){pp.w1=x.p.ra;pp.w2=100-x.p.ra;}
+    delete pp.ra;
+    if(x.type==='consumer')pp.sch=normSch(pp.sch);
+    if(T.mk)pp.np=clamp(Math.round(+pp.np||2),2,6);
+    const c={id:+x.id,type:x.type,x:+x.x||0,y:+x.y||0,name:String(x.name||T.label).slice(0,24),flip:!!x.flip,p:pp,chart:[]};
+    c.chart=portsOf(c).map((P,i)=>!!(x.chart&&x.chart[i]));
+    ids[c.id]=c;m.comps.push(c);m.nextId=Math.max(m.nextId,c.id+1);
+  }
+  for(const e of (o.edges||[])){
+    const a=ids[e.a&&e.a.c],b=ids[e.b&&e.b.c];if(!a||!b)continue;
+    const pa=portsOf(a)[e.a.p],pb=portsOf(b)[e.b.p];
+    if(!pa||!pb||pa.d!=='out'||pb.d!=='in')continue;
+    m.edges.push({id:+e.id||m.nextId++,a:{c:a.id,p:e.a.p},b:{c:b.id,p:e.b.p},m:0});
+    m.nextId=Math.max(m.nextId,(+e.id||0)+1);
+  }
+  model=m;rebuildIndex();resetSim();
+}
+function pruneEdges(){
+  model.edges=model.edges.filter(e=>{const a=compMap[e.a.c],b=compMap[e.b.c];if(!a||!b)return false;const pa=portsOf(a)[e.a.p],pb=portsOf(b)[e.b.p];return !!pa&&!!pb&&pa.d==='out'&&pb.d==='in';});
+}
+function loadExample(n){
+  model={glob:{tamb:15,tinit:20,pstat:2,psafe:0.5,t0day:0,t0min:0},nextId:1,comps:[],edges:[]};
+  if(n===1){
+    const E=newComp('source',40,60,'Erzeuger',{tset:70,pmax:40});
+    const P=newComp('pump',250,60,'Umwälzpumpe',{flow:1.5});
+    const VL=newComp('pipe',460,60,'Vorlauf',{len:30,dn:32,ins:30});
+    const V=newComp('consumer',670,60,'Heizkörper',{pq:20,tmin:30});
+    const RL=newComp('pipe',460,230,'Rücklauf',{len:30,dn:32,ins:30},true);
+    link(E,1,P,0);link(P,1,VL,0);link(VL,1,V,0);link(V,1,RL,0);link(RL,1,E,0);
+  }else if(n===2){
+    const E=newComp('source',40,40,'Erzeuger',{tset:75,pmax:60});
+    const P1=newComp('pump',240,40,'Ladepumpe',{flow:2});
+    const S=newComp('tank',450,60,'Pufferspeicher',{vol:1000});
+    const P2=newComp('pump',650,20,'Verbraucherpumpe',{flow:3});
+    const V=newComp('splitter',840,20,'Verteiler',{np:2,w1:40,w2:60});
+    const C1=newComp('consumer',1030,0,'Heizkreis 1',{pq:15,tmin:30});
+    const C2=newComp('consumer',1030,100,'Heizkreis 2',{pq:25,tmin:30});
+    const M=newComp('mixer',900,190,'Sammler',{},true);
+    const RL=newComp('pipe',650,190,'Rücklauf',{len:20,dn:40,ins:30},true);
+    link(E,1,P1,0);link(P1,1,S,0);link(S,1,E,0);
+    link(S,2,P2,0);link(P2,1,V,0);link(V,1,C1,0);link(V,2,C2,0);
+    link(C1,1,M,0);link(C2,1,M,1);link(M,2,RL,0);link(RL,1,S,3);
+  }else if(n===5){
+    const E=newComp('source',40,100,'Erzeuger',{tset:75,pmax:60});
+    const P=newComp('pump',230,100,'Pumpe',{mode:'dpc',qn:3,hn:4,hs:2,nmin:40});
+    const VL=newComp('pipe',420,100,'Vorlauf',{len:30,dn:32,ins:30});
+    const V=newComp('splitter',610,100,'Verteiler',{np:2,mode:'free'});
+    const br=(xb,yb,nm,kw)=>{
+      const W=newComp('valve3',xb,yb,'Ventil '+nm,{ctl:'auto',dts:15,kvs:6});
+      const C=newComp('consumer',xb+210,yb-10,'Verbraucher '+nm,{pq:kw,tmin:30});
+      const M=newComp('mixer',xb+420,yb+10,'Mischung '+nm,{np:2});
+      link(W,1,C,0);link(C,1,M,0);link(W,2,M,1);return[W,M];
+    };
+    const b1=br(790,40,'1',15),b2=br(790,200,'2',25);
+    const M3=newComp('mixer',1420,120,'Sammler',{np:2});
+    const RL=newComp('pipe',1420,300,'Rücklauf',{len:30,dn:32,ins:30},true);
+    const DH=newComp('hold',1200,300,'Druckhaltung',{pstat:2},true);
+    link(E,1,P,0);link(P,1,VL,0);link(VL,1,V,0);link(V,1,b1[0],0);link(V,2,b2[0],0);
+    link(b1[1],2,M3,0);link(b2[1],2,M3,1);link(M3,2,RL,0);link(RL,1,DH,0);link(DH,1,E,0);
+  }else if(n===4){
+    const K1=newComp('source',430,40,'Kessel 1',{tset:70,pmax:30});
+    const K2=newComp('source',430,200,'Kessel 2',{tset:70,pmax:30});
+    const PA=newComp('pump',230,40,'Pumpe Kessel 1',{flow:2});
+    const PB=newComp('pump',230,200,'Pumpe Kessel 2',{flow:1.5});
+    const V1=newComp('splitter',40,120,'Rücklauf-Verteiler',{np:2,mode:'free'});
+    const M1=newComp('mixer',630,110,'Vorlauf-Sammler',{np:2});
+    const VL=newComp('pipe',800,110,'Vorlauf',{len:40,dn:40,ins:30});
+    const V2=newComp('splitter',1000,110,'Verbraucher-Verteiler',{np:3,w1:20,w2:15,w3:10});
+    const C1=newComp('consumer',1200,0,'Verbraucher 1',{pq:20,tmin:30});
+    const C2=newComp('consumer',1200,110,'Verbraucher 2',{pq:15,tmin:30});
+    const C3=newComp('consumer',1200,220,'Verbraucher 3',{pq:10,tmin:30});
+    const M2=newComp('mixer',1000,300,'Rücklauf-Sammler',{np:3},true);
+    const RL=newComp('pipe',700,330,'Rücklauf',{len:40,dn:40,ins:30},true);
+    link(V1,1,PA,0);link(V1,2,PB,0);link(PA,1,K1,0);link(PB,1,K2,0);
+    link(K1,1,M1,0);link(K2,1,M1,1);link(M1,2,VL,0);link(VL,1,V2,0);
+    link(V2,1,C1,0);link(V2,2,C2,0);link(V2,3,C3,0);
+    link(C1,1,M2,0);link(C2,1,M2,1);link(C3,1,M2,2);link(M2,3,RL,0);link(RL,1,V1,0);
+  }else{
+    const E=newComp('source',40,20,'Fernwärme',{tset:90,pmax:200});
+    const P1=newComp('pump',230,20,'Pumpe primär',{flow:1.2});
+    const X=newComp('hx',430,20,'Wärmeübertrager',{ua:8});
+    const R1=newComp('pipe',300,150,'Rücklauf primär',{len:25,dn:32,ins:30},true);
+    const P2=newComp('pump',680,60,'Pumpe sekundär',{flow:3});
+    const C=newComp('consumer',880,60,'Gebäude',{pq:40,tmin:30});
+    const R2=newComp('pipe',680,300,'Rücklauf sekundär',{len:25,dn:40,ins:30},true);
+    link(E,1,P1,0);link(P1,1,X,0);link(X,1,R1,0);link(R1,1,E,0);
+    link(X,3,P2,0);link(P2,1,C,0);link(C,1,R2,0);link(R2,1,X,2);
+  }
+  rebuildIndex();resetSim();
+}
+//#CORE-END
+
+/* =================== Oberfläche =================== */
+const $=s=>document.querySelector(s);
+const NS='http://www.w3.org/2000/svg';
+const svgEl=(n,a)=>{const e=document.createElementNS(NS,n);if(a)for(const k in a)e.setAttribute(k,a[k]);return e;};
+const svg=$('#svg'),world=$('#world'),layerE=$('#edges'),layerN=$('#nodes'),rubber=$('#rubber');
+const view={tx:20,ty:20,k:1};
+let running=false,speed=60,dirty=true,sel=null,pending=null,st=null,pinch=null,chartMode='T';
+const ptrs=new Map();
+const KEY='hw-sim-model-v1';
+const undoStack=[];
+const snap=v=>Math.round(v/10)*10;
+
+function tc(T){
+  if(!Number.isFinite(T))return 'var(--mute)';
+  if(T>80){const k=clamp((T-80)/50,0,1);return 'hsl('+(-60*k).toFixed(0)+' 78% '+(48-8*k).toFixed(0)+'%)';}
+  const x=clamp((T-10)/70,0,1),h=225*Math.pow(1-x,1.3);
+  return 'hsl('+h.toFixed(0)+' 78% 48%)';
+}
+function setT(el,s){if(el._v!==s){el._v=s;el.textContent=s;}}
+function setS(el,prop,v){if(el._s===undefined)el._s={};if(el._s[prop]!==v){el._s[prop]=v;el.style[prop]=v;}}
+
+/* ---- Geometrie ---- */
+function portSide(c,p){const s=portsOf(c)[p].s;return c.flip?(s==='L'?'R':'L'):s;}
+function portPos(c,p){
+  const T={ports:portsOf(c)},D=dimOf(c),w=D[0],h=D[1],side=portSide(c,p),list=[];
+  T.ports.forEach((P,i)=>{if(portSide(c,i)===side)list.push(i);});
+  const k=list.indexOf(p),ly=24+(h-24)*(k+1)/(list.length+1),lx=side==='L'?0:w;
+  return{x:c.x+lx,y:c.y+ly,lx,ly,side};
+}
+function edgeD(e){
+  const a=compMap[e.a.c],b=compMap[e.b.c],A=portPos(a,e.a.p),B=portPos(b,e.b.p);
+  const dx=clamp(Math.abs(B.x-A.x)*0.5,40,180),s1=A.side==='R'?1:-1,s2=B.side==='R'?1:-1;
+  return 'M'+A.x+' '+A.y+'C'+(A.x+s1*dx)+' '+A.y+' '+(B.x+s2*dx)+' '+B.y+' '+B.x+' '+B.y;
+}
+
+/* ---- Zeichnen ---- */
+function buildComp(c){
+  const T=Object.assign({},TYPES[c.type],{ports:portsOf(c)}),D=dimOf(c),w=D[0],h=D[1],hd=24;
+  const g=svgEl('g',{class:'comp','data-comp':c.id,transform:'translate('+c.x+' '+c.y+')'});
+  g.append(svgEl('rect',{class:'cbody',width:w,height:h,rx:8}));
+  g.append(svgEl('path',{class:'chead',d:'M0 '+hd+'V8a8 8 0 0 1 8-8H'+(w-8)+'a8 8 0 0 1 8 8V'+hd+'Z'}));
+  const ic=svgEl('text',{class:'cicon',x:9,y:17});ic.textContent=T.icon;g.append(ic);
+  const nm=svgEl('text',{class:'cname',x:30,y:17});nm.textContent=c.name;g.append(nm);
+  const el={g,nm,ports:[],bars:null};
+  let y1=46,y2=62;
+  if(c.type==='pipe'){y1=42;y2=70;}
+  if(c.type==='splitter'||c.type==='mixer'){y1=24+(h-24)/2-2;y2=y1+16;}
+  if(c.type==='hx'){y1=56;y2=76;}
+  if(c.type==='tank'){y1=39;y2=123;}
+  el.l1=svgEl('text',{class:'cl1',x:w/2,y:y1});el.l2=svgEl('text',{class:'cl2',x:w/2,y:y2});
+  g.append(el.l1,el.l2);
+  if(c.type==='pipe'){
+    const N=c.s.T.length,bw=(w-20)/N;el.bars=[];
+    for(let i=0;i<N;i++){const r=svgEl('rect',{class:'bar',x:10+i*bw,y:47,width:bw+0.5,height:9});g.append(r);el.bars.push(r);}
+    g.append(svgEl('rect',{class:'barbg',x:10,y:47,width:w-20,height:9}));
+  }
+  if(c.type==='tank'){
+    const N=c.s.T.length,bh=66/N;el.bars=[];
+    for(let i=0;i<N;i++){const r=svgEl('rect',{class:'bar',x:62,y:44+i*bh,width:26,height:bh+0.5});g.append(r);el.bars.push(r);}
+    g.append(svgEl('rect',{class:'barbg',x:62,y:44,width:26,height:66}));
+  }
+  const multi={L:0,R:0};T.ports.forEach((P,i)=>{multi[portSide(c,i)]++;});
+  T.ports.forEach((P,p)=>{
+    const pp=portPos(c,p),pg=svgEl('g',{class:'port '+P.d,'data-port':c.id+':'+p});
+    pg.append(svgEl('circle',{class:'phit',cx:pp.lx,cy:pp.ly,r:16}));
+    const dot=svgEl('circle',{class:'pdot',cx:pp.lx,cy:pp.ly,r:6});pg.append(dot);
+    const tt=svgEl('title');tt.textContent=P.n;pg.append(tt);
+    g.append(pg);el.ports[p]={g:pg,dot};
+    if(P.sh&&multi[pp.side]>1){
+      const t=svgEl('text',{class:'plabel',x:pp.side==='L'?11:w-11,y:pp.ly+3.5,'text-anchor':pp.side==='L'?'start':'end'});
+      t.textContent=P.sh;g.append(t);
+    }
+  });
+  c.el=el;layerN.append(g);
+}
+function buildEdge(e){
+  const g=svgEl('g'),hit=svgEl('path',{class:'ehit','data-edge':e.id}),selp=svgEl('path',{class:'esel'}),wire=svgEl('path',{class:'ewire'}),fl=svgEl('path',{class:'eflow'});
+  g.append(hit,selp,wire,fl);e.el={g,hit,sel:selp,wire,fl};layerE.append(g);
+  const d=edgeD(e);[hit,selp,wire,fl].forEach(p=>p.setAttribute('d',d));
+}
+function renderAll(){
+  layerN.textContent='';layerE.textContent='';
+  model.edges.forEach(buildEdge);model.comps.forEach(buildComp);
+  applySel();dirty=true;
+}
+function refreshEdgePaths(){for(const e of model.edges){const d=edgeD(e);for(const p of [e.el.hit,e.el.sel,e.el.wire,e.el.fl])p.setAttribute('d',d);}}
+function applySel(){
+  for(const c of model.comps)c.el.g.classList.toggle('sel',!!sel&&sel.k==='c'&&sel.id===c.id);
+  for(const e of model.edges)e.el.sel.classList.toggle('on',!!sel&&sel.k==='e'&&sel.id===e.id);
+}
+function updateView(){
+  for(const c of model.comps){
+    const T=TYPES[c.type],L=T.lines(c);
+    setT(c.el.l1,L[0]);setT(c.el.l2,L[1]);
+    if(c.el.bars){const arr=T.profile(c),N=arr.length;c.el.bars.forEach((r,i)=>{const idx=(c.type==='pipe'&&c.flip)?N-1-i:i;setS(r,'fill',tc(arr[idx]));});}
+    portsOf(c).forEach((P,p)=>{
+      const d=c.el.ports[p].dot;let col;
+      if(P.d==='out')col=tc(outT(c,p));
+      else{const l=c.links.find(l=>l.p===p);col=l?tc(outT(l.src,l.sp)):'var(--card)';}
+      setS(d,'fill',c.pe[p]>=0?col:'var(--card)');
+    });
+  }
+  for(const e of model.edges){
+    const a=compMap[e.a.c],m=e.m,el=e.el;
+    setS(el.wire,'stroke',tc(outT(a,e.a.p)));
+    setS(el.wire,'strokeWidth',(2+Math.min(m,4)*1.1).toFixed(1));
+    setS(el.fl,'opacity',m>1e-6?'1':'0');
+    if(m>1e-6)setS(el.fl,'animationDuration',(Math.round(16/(10+30*Math.min(m,3))*20)/20||0.05)+'s');
+  }
+}
+function applyView(){world.setAttribute('transform','translate('+view.tx+' '+view.ty+') scale('+view.k+')');}
+function toWorld(cx,cy){const r=svg.getBoundingClientRect();return[(cx-r.left-view.tx)/view.k,(cy-r.top-view.ty)/view.k];}
+function zoomAt(cx,cy,f){
+  const r=svg.getBoundingClientRect(),k=clamp(view.k*f,0.25,3),wx=(cx-r.left-view.tx)/view.k,wy=(cy-r.top-view.ty)/view.k;
+  view.k=k;view.tx=cx-r.left-wx*k;view.ty=cy-r.top-wy*k;applyView();
+}
+function fitView(){
+  const r=svg.getBoundingClientRect();
+  if(!model.comps.length||r.width<10){view.k=1;view.tx=20;view.ty=20;applyView();return;}
+  let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+  for(const c of model.comps){const d=dimOf(c);x0=Math.min(x0,c.x);y0=Math.min(y0,c.y);x1=Math.max(x1,c.x+d[0]);y1=Math.max(y1,c.y+d[1]);}
+  const pad=36,k=clamp(Math.min((r.width-2*pad)/(x1-x0),(r.height-2*pad)/(y1-y0)),0.25,1.4);
+  view.k=k;view.tx=(r.width-(x1-x0)*k)/2-x0*k;view.ty=(r.height-(y1-y0)*k)/2-y0*k;applyView();
+}
+
+/* ---- Bearbeiten ---- */
+function pushUndo(){undoStack.push(JSON.stringify(exportModel()));if(undoStack.length>40)undoStack.shift();$('#undo').disabled=false;}
+function undo(){
+  const s=undoStack.pop();if(!s)return;
+  importModel(JSON.parse(s));sel=null;pending=null;renderAll();buildProps();scheduleSave();
+  $('#undo').disabled=!undoStack.length;
+}
+let saveT=0;
+function scheduleSave(){clearTimeout(saveT);saveT=setTimeout(()=>{try{localStorage.setItem(KEY,JSON.stringify(exportModel()));}catch(_){}},400);}
+function topoChanged(){rebuildIndex();resetBalance();renderAll();dirty=true;scheduleSave();}
+function addComp(type){
+  pushUndo();
+  const r=svg.getBoundingClientRect(),[wx,wy]=toWorld(r.left+r.width/2,r.top+r.height/2),j=(model.comps.length%6)*18;
+  const n=model.comps.filter(c=>c.type===type).length+1;
+  const c=newComp(type,0,0,TYPES[type].label+' '+n),d=dimOf(c);
+  c.x=snap(wx-d[0]/2+j);c.y=snap(wy-d[1]/2+j);
+  topoChanged();select('c',c.id,false);
+}
+function removeSel(){
+  if(!sel)return;pushUndo();
+  if(sel.k==='c'){model.edges=model.edges.filter(e=>e.a.c!==sel.id&&e.b.c!==sel.id);model.comps=model.comps.filter(c=>c.id!==sel.id);}
+  else model.edges=model.edges.filter(e=>e.id!==sel.id);
+  sel=null;topoChanged();buildProps();
+}
+function connect(c1,p1,c2,p2){
+  const P1=portsOf(c1)[p1],P2=portsOf(c2)[p2];
+  if(c1===c2||P1.d===P2.d)return false;
+  const o=P1.d==='out'?[c1,p1,c2,p2]:[c2,p2,c1,p1];
+  pushUndo();
+  model.edges=model.edges.filter(e=>!((e.a.c===o[0].id&&e.a.p===o[1])||(e.b.c===o[2].id&&e.b.p===o[3])));
+  link(o[0],o[1],o[2],o[3]);topoChanged();
+  $('#hint').textContent='Verbunden. Zum Entfernen die Leitung antippen und „Entfernen“ wählen.';
+  return true;
+}
+function select(k,id,tab=true){
+  sel=k?{k,id}:null;applySel();buildProps();
+  if(k&&tab){showTab('props');$('#panel').classList.remove('collapsed');}
+}
+function markCands(c,p){
+  const d=portsOf(c)[p].d;
+  for(const o of model.comps){if(o===c)continue;portsOf(o).forEach((P,i)=>{if(P.d!==d)o.el.ports[i].g.classList.add('cand');});}
+}
+function clearCands(){document.querySelectorAll('.port.cand,.port.pend').forEach(e=>e.classList.remove('cand','pend'));}
+function setPending(c,p){
+  pending={c:c.id,p};clearCands();c.el.ports[p].g.classList.add('pend');markCands(c,p);
+  const h=$('#hint');h.classList.add('on');h.textContent='Port gewählt ('+portsOf(c)[p].n+'). Jetzt den Ziel-Port antippen.';
+}
+function clearPending(){pending=null;clearCands();const h=$('#hint');h.classList.remove('on');h.textContent='Bauteil antippen zum Bearbeiten. Zum Verbinden einen Port ziehen oder zwei Ports nacheinander antippen.';}
+function tapPort(c,p){
+  if(pending){
+    if(pending.c===c.id&&pending.p===p){clearPending();return;}
+    const c1=compMap[pending.c];
+    if(c1&&connect(c1,pending.p,c,p)){clearPending();return;}
+  }
+  setPending(c,p);
+}
+function drawRubber(ev){
+  const c=st.c,p=st.p,pp=portPos(c,p),[wx,wy]=toWorld(ev.clientX,ev.clientY);
+  const dx=clamp(Math.abs(wx-pp.x)*0.5,30,120),s=pp.side==='R'?1:-1;
+  rubber.style.display='';
+  rubber.setAttribute('d','M'+pp.x+' '+pp.y+'C'+(pp.x+s*dx)+' '+pp.y+' '+(wx-s*dx)+' '+wy+' '+wx+' '+wy);
+}
+function cancelInteraction(){st=null;rubber.style.display='none';if(!pending)clearCands();}
+
+svg.addEventListener('pointerdown',ev=>{
+  if(ev.pointerType==='mouse'&&ev.button!==0)return;
+  try{svg.setPointerCapture(ev.pointerId);}catch(_){}
+  ptrs.set(ev.pointerId,{x:ev.clientX,y:ev.clientY});
+  if(ptrs.size===2){cancelInteraction();const[a,b]=[...ptrs.values()];pinch={d:Math.hypot(a.x-b.x,a.y-b.y)||1,cx:(a.x+b.x)/2,cy:(a.y+b.y)/2,v:{...view}};return;}
+  if(ptrs.size>2)return;
+  const t=ev.target,pe=t.closest('[data-port]'),ce=t.closest('[data-comp]'),ee=t.closest('[data-edge]'),[wx,wy]=toWorld(ev.clientX,ev.clientY);
+  const base={sx:ev.clientX,sy:ev.clientY,moved:false};
+  if(pe){const[cid,p]=pe.dataset.port.split(':').map(Number);st=Object.assign(base,{k:'conn',c:compMap[cid],p});if(!pending)markCands(st.c,p);}
+  else if(ce){const c=compMap[+ce.dataset.comp];st=Object.assign(base,{k:'drag',c,ox:wx-c.x,oy:wy-c.y,pushed:false});}
+  else if(ee)st=Object.assign(base,{k:'edge',id:+ee.dataset.edge});
+  else st=Object.assign(base,{k:'pan',tx:view.tx,ty:view.ty});
+});
+svg.addEventListener('pointermove',ev=>{
+  if(!ptrs.has(ev.pointerId))return;
+  ptrs.set(ev.pointerId,{x:ev.clientX,y:ev.clientY});
+  if(pinch){
+    const[a,b]=[...ptrs.values()];if(!b)return;
+    const r=svg.getBoundingClientRect(),d=Math.hypot(a.x-b.x,a.y-b.y),cx=(a.x+b.x)/2,cy=(a.y+b.y)/2,k=clamp(pinch.v.k*d/pinch.d,0.25,3);
+    const wx=(pinch.cx-r.left-pinch.v.tx)/pinch.v.k,wy=(pinch.cy-r.top-pinch.v.ty)/pinch.v.k;
+    view.k=k;view.tx=cx-r.left-wx*k;view.ty=cy-r.top-wy*k;applyView();return;
+  }
+  if(!st)return;
+  if(Math.hypot(ev.clientX-st.sx,ev.clientY-st.sy)>5)st.moved=true;
+  if(!st.moved)return;
+  if(st.k==='pan'){view.tx=st.tx+ev.clientX-st.sx;view.ty=st.ty+ev.clientY-st.sy;applyView();}
+  else if(st.k==='drag'){
+    if(!st.pushed){pushUndo();st.pushed=true;}
+    const[wx,wy]=toWorld(ev.clientX,ev.clientY);st.c.x=snap(wx-st.ox);st.c.y=snap(wy-st.oy);
+    st.c.el.g.setAttribute('transform','translate('+st.c.x+' '+st.c.y+')');refreshEdgePaths();
+  }else if(st.k==='conn')drawRubber(ev);
+});
+function endPtr(ev){
+  if(!ptrs.has(ev.pointerId))return;
+  ptrs.delete(ev.pointerId);
+  if(pinch){if(ptrs.size<2)pinch=null;st=null;return;}
+  const s=st;st=null;rubber.style.display='none';if(!s)return;
+  if(ev.type==='pointercancel'){if(!pending)clearCands();return;}
+  if(s.k==='conn'){
+    if(s.moved){
+      const t=document.elementFromPoint(ev.clientX,ev.clientY),pe=t&&t.closest&&t.closest('[data-port]');
+      if(!pending)clearCands();
+      if(pe){const[cid,p]=pe.dataset.port.split(':').map(Number);const c2=compMap[cid];if(c2)connect(s.c,s.p,c2,p);}
+    }else{if(!pending)clearCands();tapPort(s.c,s.p);}
+  }else if(s.k==='drag'){if(!s.moved){if(pending)clearPending();select('c',s.c.id);}else scheduleSave();}
+  else if(s.k==='edge'){if(!s.moved){if(pending)clearPending();select('e',s.id);}}
+  else if(s.k==='pan'){if(!s.moved){if(pending)clearPending();select(null);}}
+}
+svg.addEventListener('pointerup',endPtr);
+svg.addEventListener('pointercancel',endPtr);
+svg.addEventListener('wheel',ev=>{ev.preventDefault();zoomAt(ev.clientX,ev.clientY,Math.exp(-ev.deltaY*0.0015));},{passive:false});
+$('#zin').onclick=()=>{const r=svg.getBoundingClientRect();zoomAt(r.left+r.width/2,r.top+r.height/2,1.25);};
+$('#zout').onclick=()=>{const r=svg.getBoundingClientRect();zoomAt(r.left+r.width/2,r.top+r.height/2,0.8);};
+$('#zfit').onclick=fitView;
+document.addEventListener('keydown',ev=>{
+  const tag=(ev.target.tagName||'').toLowerCase();if(tag==='input'||tag==='textarea'||tag==='select')return;
+  if(ev.key==='Delete'||ev.key==='Backspace'){removeSel();}
+  else if(ev.key===' '){ev.preventDefault();toggleRun();}
+});
+
+/* ---- Panel ---- */
+function showTab(name){
+  document.querySelectorAll('.tab[data-tab]').forEach(t=>t.setAttribute('aria-selected',t.dataset.tab===name?'true':'false'));
+  document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('active',p.id==='pane-'+name));
+  if(name==='chart')requestAnimationFrame(drawChart);
+  if(name==='sys')buildGlob();
+}
+document.querySelectorAll('.tab[data-tab]').forEach(t=>t.onclick=()=>{showTab(t.dataset.tab);$('#panel').classList.remove('collapsed');});
+$('#collapse').onclick=()=>$('#panel').classList.toggle('collapsed');
+
+const pal=$('#palette');
+for(const k of Object.keys(TYPES)){
+  const T=TYPES[k],b=document.createElement('button');b.className='pbtn';
+  b.innerHTML='<span class="ic">'+T.icon+'</span><span><b>'+T.label+'</b><small>'+T.desc+'</small></span>';
+  b.onclick=()=>addComp(k);pal.append(b);
+}
+document.querySelectorAll('[data-ex]').forEach(b=>b.onclick=()=>{
+  pushUndo();loadExample(+b.dataset.ex);sel=null;pending=null;renderAll();buildProps();fitView();scheduleSave();
+});
+
+function portCountChanged(c,old,v){
+  if(c.type==='mixer')for(const e of model.edges)if(e.a.c===c.id&&e.a.p===old)e.a.p=v;
+  pruneEdges();rebuildIndex();resetBalance();renderAll();dirty=true;scheduleSave();
+}
+function paramRow(c,d,box){
+  const row=document.createElement('div'),id='p_'+d.k;
+  const after=()=>{
+    if(d.struct){ensureState(c);resetBalance();renderAll();}
+    if(d.rebuild)buildProps();
+    dirty=true;scheduleSave();
+  };
+  if(d.t==='bool'){
+    row.className='prow bool';row.innerHTML='<label for="'+id+'">'+d.l+'</label><input id="'+id+'" type="checkbox">';
+    const i=row.querySelector('input');i.checked=!!c.p[d.k];i.onchange=()=>{c.p[d.k]=i.checked;after();};
+  }else if(d.t==='select'){
+    row.className='prow';row.innerHTML='<label for="'+id+'">'+d.l+'</label><select id="'+id+'"></select>';
+    const s=row.querySelector('select');
+    d.opts.forEach(o=>{const op=document.createElement('option');op.value=o[0];op.textContent=o[1];s.append(op);});
+    s.value=String(c.p[d.k]);
+    s.onchange=()=>{c.p[d.k]=(typeof d.def==='number')?+s.value:s.value;after();};
+  }else{
+    row.className='prow';
+    row.innerHTML='<label for="'+id+'">'+d.l+(d.u?'<span class="u">'+d.u+'</span>':'')+'</label><input id="'+id+'" type="number" inputmode="decimal" min="'+d.min+'" max="'+d.max+'" step="'+d.step+'"><input type="range" aria-label="'+d.l+'" min="'+d.min+'" max="'+d.max+'" step="'+d.step+'">';
+    const n=row.querySelector('input[type=number]'),r=row.querySelector('input[type=range]');
+    n.value=c.p[d.k];r.value=c.p[d.k];
+    const apply=v=>{const old=c.p[d.k];c.p[d.k]=v;if(d.ports&&old!==v)portCountChanged(c,old,v);else after();};
+    n.oninput=()=>{const v=parseFloat(n.value.replace(',','.'));if(Number.isFinite(v)&&v>=d.min&&v<=d.max){r.value=v;apply(v);}};
+    n.onchange=()=>{let v=parseFloat(n.value.replace(',','.'));if(!Number.isFinite(v))v=c.p[d.k];v=clamp(Math.round(v/d.step)*d.step,d.min,d.max);n.value=v;r.value=v;apply(v);if(d.ports)buildProps();};
+    r.oninput=()=>{const v=parseFloat(r.value);n.value=v;apply(v);};
+    if(d.ports)r.onchange=()=>buildProps();
+  }
+  box.append(row);
+}
+function buildProps(){
+  const el=$('#props');el.textContent='';
+  if(!sel){el.innerHTML='<p class="note">Nichts ausgewählt. Ein Bauteil oder eine Leitung auf der Zeichenfläche antippen.</p>';return;}
+  if(sel.k==='e'){
+    const e=model.edges.find(x=>x.id===sel.id);if(!e){sel=null;buildProps();return;}
+    const a=compMap[e.a.c],b=compMap[e.b.c];
+    el.innerHTML='<h3>Leitung</h3><p class="note">'+esc(a.name)+' ('+portsOf(a)[e.a.p].n+') → '+esc(b.name)+' ('+portsOf(b)[e.b.p].n+')</p><div class="ro" id="ro"></div><div class="row" style="margin-top:12px"><button class="btn small danger" id="del">Entfernen</button></div>';
+    $('#del').onclick=removeSel;slowUpdate(true);return;
+  }
+  const c=compMap[sel.id];if(!c){sel=null;buildProps();return;}
+  const T=TYPES[c.type];
+  el.innerHTML='<h3>'+T.icon+' '+T.label+'</h3><div class="prow" style="grid-template-columns:1fr"><input class="field wide" id="nm" maxlength="22" aria-label="Name"></div><div class="row"><button class="btn small" id="flip">Spiegeln</button><button class="btn small" id="dup">Duplizieren</button><button class="btn small danger" id="del">Entfernen</button></div><div id="pbox"></div>';
+  const nm=$('#nm');nm.value=c.name;nm.oninput=()=>{c.name=nm.value;c.el.nm.textContent=nm.value;scheduleSave();};
+  $('#flip').onclick=()=>{pushUndo();c.flip=!c.flip;renderAll();scheduleSave();};
+  $('#dup').onclick=()=>{pushUndo();const n=newComp(c.type,c.x+30,c.y+30,c.name,JSON.parse(JSON.stringify(c.p)),c.flip);n.chart=c.chart.slice();topoChanged();select('c',n.id,false);};
+  $('#del').onclick=removeSel;
+  const pb=$('#pbox');
+  const vis=T.params.filter(d=>!d.show||d.show(c.p));
+  if(vis.length){const h=document.createElement('h3');h.textContent='Parameter';pb.append(h);vis.forEach(d=>paramRow(c,d,pb));}
+  if(c.type==='consumer'){const sb=document.createElement('div');pb.append(sb);buildSched(c,sb);}
+  if(T.actions){
+    const ar=document.createElement('div');ar.className='row';ar.style.marginTop='10px';
+    T.actions.forEach(a=>{const b=document.createElement('button');b.className='btn small';b.textContent=a.label;b.onclick=()=>{a.fn(c);dirty=true;scheduleSave();buildProps();};ar.append(b);});
+    pb.append(ar);
+  }
+  const outs=portsOf(c).map((P,i)=>[P,i]).filter(x=>x[0].d==='out');
+  if(outs.length){
+    const h=document.createElement('h3');h.textContent='Im Diagramm zeigen';pb.append(h);
+    outs.forEach(([P,i])=>{
+      const l=document.createElement('label');l.className='chk';l.innerHTML='<input type="checkbox"><span>Temperatur '+P.n+'</span>';
+      const cb=l.querySelector('input');cb.checked=!!c.chart[i];cb.onchange=()=>{c.chart[i]=cb.checked;scheduleSave();};pb.append(l);
+    });
+  }
+  const h=document.createElement('h3');h.textContent='Messwerte';pb.append(h);
+  const ro=document.createElement('div');ro.className='ro';ro.id='ro';pb.append(ro);
+  slowUpdate(true);
+}
+let schDay=null;
+const SCH_PRESETS=[
+  ['buero','Büro: Mo–Fr 07:00–17:00',[[[420,1020,100]],[]]],
+  ['zwei','Zweischicht: Mo–Fr 06:00–22:00',[[[360,1320,100]],[]]],
+  ['drei','Dreischicht: Mo–Fr rund um die Uhr',[[[0,1440,100]],[]]],
+  ['wohnen','Wohnen: morgens, abends, mittags 40 %',[[[360,480,100],[480,1020,40],[1020,1320,100]],[[480,1380,100]]]],
+  ['dauer','Dauerbetrieb 24/7',[[[0,1440,100]],[[0,1440,100]]]],
+  ['leer','Leer (alles aus)',[[],[]]]
+];
+function buildSched(c,box){
+  box.textContent='';
+  const q=c.p.sch||(c.p.sch=normSch(null));
+  if(schDay===null)schDay=calParts(simT).day;
+  const upd=()=>{dirty=true;scheduleSave();};
+  const again=()=>{upd();buildSched(c,box);};
+  const h=document.createElement('h3');h.textContent='Zeitplan';box.append(h);
+  const r0=document.createElement('div');r0.className='prow bool';r0.innerHTML='<label for="sc_on">Zeitplan aktiv</label><input id="sc_on" type="checkbox">';
+  const on=r0.querySelector('input');on.checked=q.on;on.onchange=()=>{q.on=on.checked;if(q.on&&!q.days.some(d=>d.length)){applyPreset('buero');}else again();};
+  box.append(r0);
+  const note0=document.createElement('p');note0.className='note';note0.textContent='Der Plan skaliert den Wärmebedarf. Außerhalb der Zeitfenster gilt die Grundlast. Zusammen mit dem Lastfaktor ergibt sich die Last.';box.append(note0);
+  const r1=document.createElement('div');r1.className='prow';r1.innerHTML='<label for="sc_off">Grundlast außerhalb<span class="u">%</span></label><input id="sc_off" type="number" min="0" max="150" step="5">';
+  const off=r1.querySelector('input');off.value=q.off;off.onchange=()=>{q.off=clamp(parseFloat(off.value)||0,0,150);off.value=q.off;again();};
+  box.append(r1);
+  const pr=document.createElement('div');pr.className='prow';pr.innerHTML='<label for="sc_pre">Vorlage</label><select id="sc_pre"><option value="">wählen …</option>'+SCH_PRESETS.map(x=>'<option value="'+x[0]+'">'+x[1]+'</option>').join('')+'</select>';
+  const ps=pr.querySelector('select');ps.onchange=()=>{if(ps.value)applyPreset(ps.value);};box.append(pr);
+  function applyPreset(k){
+    const pst=SCH_PRESETS.find(x=>x[0]===k);if(!pst)return;
+    const mk=a=>a.map(b=>({from:b[0],to:b[1],level:b[2]}));
+    q.days=[0,1,2,3,4,5,6].map(i=>mk(pst[2][i<5?0:1]));q.on=true;again();
+  }
+  const chips=document.createElement('div');chips.className='chips';
+  WD.forEach((d,i)=>{const b=document.createElement('button');b.className='chip';b.textContent=d;b.setAttribute('aria-pressed',i===schDay?'true':'false');b.onclick=()=>{schDay=i;buildSched(c,box);};chips.append(b);});
+  box.append(chips);
+  const hd=document.createElement('div');hd.className='blkh';hd.innerHTML='<span>von</span><span>bis</span><span>Last %</span><span></span>';box.append(hd);
+  const blocks=q.days[schDay];
+  blocks.forEach((b,bi)=>{
+    const row=document.createElement('div');row.className='blk';
+    const f=document.createElement('input');f.type='time';f.value=fmtT(b.from%1440);
+    const t=document.createElement('input');t.type='time';t.value=fmtT(b.to%1440);
+    const l=document.createElement('input');l.type='number';l.min=0;l.max=150;l.step=5;l.value=b.level;
+    const x=document.createElement('button');x.className='btn';x.textContent='✕';x.setAttribute('aria-label','Zeitfenster entfernen');
+    f.onchange=()=>{const v=parseT(f.value);if(v!==null){b.from=v;if(b.to===0)b.to=1440;}again();};
+    t.onchange=()=>{let v=parseT(t.value);if(v!==null){if(v===0)v=1440;b.to=v;}again();};
+    l.onchange=()=>{b.level=clamp(parseFloat(l.value)||0,0,150);again();};
+    x.onclick=()=>{blocks.splice(bi,1);again();};
+    row.append(f,t,l,x);box.append(row);
+  });
+  if(!blocks.length){const e=document.createElement('p');e.className='note';e.textContent='Kein Zeitfenster an diesem Tag: ganztägig Grundlast.';box.append(e);}
+  const ar=document.createElement('div');ar.className='row';ar.style.marginTop='8px';
+  const add=document.createElement('button');add.className='btn small';add.textContent='+ Zeitfenster';
+  add.onclick=()=>{blocks.push({from:360,to:1320,level:100});again();};ar.append(add);
+  [['Auf Mo–Fr kopieren',[0,1,2,3,4]],['Auf Sa+So kopieren',[5,6]],['Auf alle Tage kopieren',[0,1,2,3,4,5,6]]].forEach(([lab,ds])=>{
+    const b=document.createElement('button');b.className='btn small';b.textContent=lab;
+    b.onclick=()=>{const src=JSON.parse(JSON.stringify(blocks));ds.forEach(d=>{if(d!==schDay)q.days[d]=JSON.parse(JSON.stringify(src));});again();};ar.append(b);
+  });
+  box.append(ar);
+  const W=18+24*9,svgw=document.createElementNS(NS,'svg');svgw.setAttribute('viewBox','0 0 '+W+' 92');svgw.setAttribute('class','wk');svgw.setAttribute('role','img');svgw.setAttribute('aria-label','Wochenübersicht des Zeitplans');
+  for(let d=0;d<7;d++){
+    const tx=svgEl('text',{x:0,y:18+d*10+7});tx.textContent=WD[d];svgw.append(tx);
+    for(let hh=0;hh<24;hh++){
+      const lv=q.on?schedLevel(q,d,hh*60+30):100,r=svgEl('rect',{x:18+hh*9,y:12+d*10,width:8.4,height:9,rx:1.5,'data-d':d});
+      r.style.fill='var(--accent)';r.style.opacity=(0.07+0.93*Math.min(lv/100,1)).toFixed(2);svgw.append(r);
+    }
+    if(d===schDay)svgw.append(Object.assign(svgEl('rect',{x:17,y:11+d*10,width:W-16,height:11,rx:2,fill:'none',stroke:'var(--ink)','stroke-width':0.6})));
+  }
+  for(let hh=0;hh<=24;hh+=6){const tx=svgEl('text',{x:18+hh*9,y:8,'text-anchor':hh===24?'end':hh?'middle':'start'});tx.textContent=hh;svgw.append(tx);}
+  svgw.append(svgEl('rect',{id:'schnow',x:0,y:0,width:1.6,height:11,fill:'var(--ink)'}));
+  svgw.onclick=ev=>{const r=svgw.getBoundingClientRect(),y=(ev.clientY-r.top)/r.height*92,d=Math.floor((y-12)/10);if(d>=0&&d<7){schDay=d;buildSched(c,box);}};
+  box.append(svgw);
+  const cap=document.createElement('p');cap.className='note';cap.textContent='Wochenübersicht: je dunkler, desto höher die Last. Die Linie zeigt die aktuelle Simulationszeit. Zeile antippen wählt den Tag. Ein Ende von 00:00 heißt 24:00, ein Ende vor dem Beginn geht über Mitternacht.';box.append(cap);
+  updateSchedNow();
+}
+function updateSchedNow(){
+  const n=$('#schnow');if(!n)return;
+  const cp=calParts(simT);n.setAttribute('x',(18+cp.min/60*9-0.8).toFixed(1));n.setAttribute('y',11+cp.day*10);
+}
+function esc(s){return String(s).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));}
+function roHtml(rows){return rows.map(r=>'<span>'+r[0]+'</span><span>'+r[1]+'</span>').join('');}
+
+function buildGlob(){
+  const g=$('#glob');g.textContent='';
+  [{k:'tamb',l:'Umgebungstemperatur',u:'°C',min:-20,max:40,step:1},{k:'tinit',l:'Starttemperatur Wasser',u:'°C',min:5,max:90,step:1},{k:'pstat',l:'Systemdruck (Bezug)',u:'bar',min:0.5,max:16,step:0.1},{k:'psafe',l:'Sicherheitszuschlag Verdampfung',u:'bar',min:0,max:3,step:0.1}].forEach(d=>{
+    const row=document.createElement('div');row.className='prow';
+    row.innerHTML='<label for="g_'+d.k+'">'+d.l+'<span class="u">'+d.u+'</span></label><input id="g_'+d.k+'" type="number" min="'+d.min+'" max="'+d.max+'" step="'+d.step+'">';
+    const n=row.querySelector('input');n.value=model.glob[d.k];
+    n.onchange=()=>{const v=clamp(parseFloat(n.value)||0,d.min,d.max);n.value=v;model.glob[d.k]=v;scheduleSave();if(d.k==='tinit')note('Starttemperatur gilt ab dem nächsten Zurücksetzen (⟲).');};
+    g.append(row);
+  });
+  const r1=document.createElement('div');r1.className='prow';
+  r1.innerHTML='<label for="g_t0day">Startwochentag</label><select id="g_t0day">'+WD.map((d,i)=>'<option value="'+i+'">'+d+'</option>').join('')+'</select>';
+  const sd=r1.querySelector('select');sd.value=String(model.glob.t0day||0);
+  sd.onchange=()=>{model.glob.t0day=+sd.value;dirty=true;scheduleSave();$('#cal').textContent=calStr(simT);};
+  const r2=document.createElement('div');r2.className='prow';
+  r2.innerHTML='<label for="g_t0min">Startuhrzeit</label><input id="g_t0min" type="time" class="field" style="width:110px;text-align:left">';
+  const st=r2.querySelector('input');st.value=fmtT((model.glob.t0min||0)%1440);
+  st.onchange=()=>{const v=parseT(st.value);if(v!==null){model.glob.t0min=v%1440;dirty=true;scheduleSave();$('#cal').textContent=calStr(simT);}};
+  g.append(r1,r2);
+}
+function note(t){const h=$('#hint');h.textContent=t;}
+
+/* ---- Hinweise ---- */
+function computeHints(){
+  const h=[];
+  if(flowErr>0.003)h.push({l:'bad',t:'Hydraulik widersprüchlich oder nicht gelöst: Kreislauf schließen, Pumpen und Ventile prüfen.'});
+  if(flowNeg)h.push({l:'warn',t:'Rückströmung berechnet. Verbindungen, Pumpen und Ventile prüfen.'});
+  for(const r of pressureReport()){
+    if(r.need>0.0005){const w=r.worst;h.push({l:'bad',t:'Verdampfungsgefahr in '+esc(r.label)+': Druck an „'+esc(compMap[w.a.c].name)+'“ liegt '+fmt(r.need,2)+' bar unter Dampfdruck plus Zuschlag. Systemdruck auf mindestens '+fmt(Math.ceil(r.minP*10-1e-9)/10,1)+' bar setzen (aktuell '+fmt(r.anchor,1)+' bar).'});}
+  }
+  if(model.comps.some(c=>c.type==='prv')&&!model.comps.some(c=>c.type==='hold'))h.push({l:'warn',t:'Druckminderer ohne Druckhaltung: Absolutdrücke sind nur Bezugswerte. Eine Druckhaltung einfügen.'});
+  for(const c of model.comps){
+    portsOf(c).forEach((P,p)=>{if(c.pe[p]<0)h.push({l:'info',t:esc(c.name)+': '+P.n+' nicht angeschlossen.'});});
+    if(c.type==='pipe'){
+      const m=c.inp[0].m,x=pipeHyd(c,m);
+      if(m>1e-6&&x.v>1.5)h.push({l:'bad',t:esc(c.name)+': '+fmt(x.v,2)+' m/s ist zu schnell. Größere Nennweite wählen.'});
+      else if(m>1e-6&&x.v>1.0)h.push({l:'warn',t:esc(c.name)+': '+fmt(x.v,2)+' m/s liegt über dem üblichen Auslegungswert.'});
+      if(m>1e-6&&x.R>300)h.push({l:'warn',t:esc(c.name)+': Druckgefälle '+fmt(x.R,0)+' Pa/m ist hoch.'});
+    }
+    if(c.type==='source'&&c.p.on&&c.s.Q>=c.p.pmax*1000-1&&c.s.T[0]<c.p.tset-1)h.push({l:'warn',t:esc(c.name)+': Leistungsgrenze erreicht, Soll-Vorlauf wird nicht gehalten.'});
+    if(c.type==='consumer'&&c.p.mode==='P'&&running&&c.s.Q<c.p.pq*1000*c.p.last/100*schedF(c)*0.9&&c.p.last>0&&schedF(c)>0&&c.s.T[0]<c.p.tmin+1)h.push({l:'warn',t:esc(c.name)+': Wärmebedarf wird nicht gedeckt, Rücklauf liegt an der Mindesttemperatur.'});
+    if(c.type==='valve3'&&c.p.ctl!=='manual'&&c.s.noCons)h.push({l:'warn',t:esc(c.name)+': Hinter Ausgang A wurde kein Verbraucher gefunden. Regelung ist inaktiv.'});
+  }
+  return h;
+}
+
+/* ---- Diagramm ---- */
+const PAL=['#e4572e','#1a7fd0','#2f9e6f','#9b5de5','#d69e00','#00a6a6','#c2417b','#6b7280'];
+function chartSeries(){
+  const out=[];
+  if(chartMode==='P'){
+    out.push({name:'Erzeuger (Wärme)',color:PAL[0],d:hist.gen},{name:'Bezug (Brennstoff oder Strom)',color:PAL[3],d:hist.inp},{name:'Verbraucher',color:PAL[1],d:hist.cons},{name:'Verluste',color:PAL[4],d:hist.loss});
+    return out;
+  }
+  let i=0;
+  for(const c of model.comps){
+    const PL=portsOf(c),nOut=PL.filter(P=>P.d==='out').length;
+    PL.forEach((P,p)=>{
+      if(P.d==='out'&&c.chart[p]&&hist.ser[c.id+':'+p])out.push({name:c.name+(nOut>1?' '+P.n:''),color:PAL[i++%PAL.length],d:hist.ser[c.id+':'+p]});
+    });
+  }
+  return out;
+}
+function niceTicks(lo,hi,n){
+  const r=hi-lo||1,raw=r/n,mag=Math.pow(10,Math.floor(Math.log10(raw))),f=raw/mag,s=(f<1.5?1:f<3?2:f<7?5:10)*mag,o=[];
+  for(let v=Math.ceil(lo/s)*s;v<=hi+1e-9;v+=s)o.push(v);return o;
+}
+let legendKey='';
+function drawChart(){
+  const cv=$('#chart');if(!$('#pane-chart').classList.contains('active'))return;
+  const dpr=window.devicePixelRatio||1,w=cv.clientWidth,h=cv.clientHeight;
+  if(!w||!h)return;
+  if(cv.width!==Math.round(w*dpr)||cv.height!==Math.round(h*dpr)){cv.width=Math.round(w*dpr);cv.height=Math.round(h*dpr);}
+  const g=cv.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,w,h);
+  const css=getComputedStyle(document.documentElement),mute=css.getPropertyValue('--mute').trim(),line=css.getPropertyValue('--line').trim();
+  const ser=chartSeries(),key=ser.map(s=>s.name+s.color).join('|')+chartMode;
+  if(key!==legendKey){legendKey=key;$('#legend').innerHTML=ser.map(s=>'<span><i style="background:'+s.color+'"></i>'+esc(s.name)+'</span>').join('');}
+  $('#chartnote').textContent=ser.length?'':(chartMode==='T'?'Keine Messstelle gewählt. Bei einem Bauteil unter „Details“ die Temperatur für das Diagramm aktivieren.':'');
+  const L=44,R=10,Tp=10,B=24,pw=w-L-R,ph=h-Tp-B;
+  const n=hist.t.length;
+  g.font='11px Barlow,system-ui,sans-serif';g.fillStyle=mute;g.strokeStyle=line;g.lineWidth=1;
+  if(n<2||!ser.length){g.fillText(n<2?'Simulation starten, um Verläufe zu sehen.':'',L+8,Tp+20);}
+  let lo=Infinity,hi=-Infinity;
+  for(const s of ser)for(const v of s.d)if(Number.isFinite(v)){lo=Math.min(lo,v);hi=Math.max(hi,v);}
+  if(!Number.isFinite(lo)){lo=0;hi=chartMode==='T'?100:10;}
+  if(chartMode==='P')lo=Math.min(0,lo);
+  const padv=(hi-lo)*0.08||1;lo=chartMode==='P'?lo:lo-padv;hi+=padv;
+  const tmax=Math.max(60,hist.t[n-1]||60);
+  const X=t=>L+t/tmax*pw,Y=v=>Tp+ph-(v-lo)/(hi-lo)*ph;
+  for(const v of niceTicks(lo,hi,5)){g.beginPath();g.moveTo(L,Y(v));g.lineTo(L+pw,Y(v));g.stroke();g.textAlign='right';g.fillText(v%1?v.toFixed(1):String(v),L-6,Y(v)+4);}
+  const unit=tmax<600?1:tmax<10800?60:tmax<172800?3600:86400,ul=unit===1?'s':unit===60?'min':unit===3600?'h':'d';
+  for(const v of niceTicks(0,tmax/unit,5)){g.beginPath();g.moveTo(X(v*unit),Tp);g.lineTo(X(v*unit),Tp+ph);g.stroke();g.textAlign='center';g.fillText(v+' '+ul,X(v*unit),h-8);}
+  g.textAlign='left';g.fillText(chartMode==='T'?'°C':'kW',4,Tp+8);
+  g.lineWidth=2;g.lineJoin='round';
+  for(const s of ser){
+    g.strokeStyle=s.color;g.beginPath();let pen=false;
+    for(let i=0;i<n&&i<s.d.length;i++){const v=s.d[i];if(!Number.isFinite(v)){pen=false;continue;}const x=X(hist.t[i]),y=Y(v);if(pen)g.lineTo(x,y);else{g.moveTo(x,y);pen=true;}}
+    g.stroke();
+  }
+}
+document.querySelectorAll('#chartmode button').forEach(b=>b.onclick=()=>{
+  chartMode=b.dataset.m;document.querySelectorAll('#chartmode button').forEach(x=>x.setAttribute('aria-pressed',x===b?'true':'false'));drawChart();
+});
+
+/* ---- Laufende Anzeige ---- */
+function calStr(t){const c=calParts(t);return WD[c.day]+' '+pad2(Math.floor(c.min/60))+':'+pad2(Math.floor(c.min%60));}
+function clockStr(t){t=Math.floor(t);return Math.floor(t/3600)+':'+String(Math.floor(t/60)%60).padStart(2,'0')+':'+String(t%60).padStart(2,'0');}
+let lastSlow=0;
+function slowUpdate(force){
+  const now=performance.now();if(!force&&now-lastSlow<250)return;lastSlow=now;updateSchedNow();
+  const ro=$('#ro');
+  if(ro&&sel){
+    if(sel.k==='c'&&compMap[sel.id])ro.innerHTML=roHtml(TYPES[compMap[sel.id].type].ro(compMap[sel.id]));
+    else if(sel.k==='e'){
+      const e=model.edges.find(x=>x.id===sel.id);
+      if(e){const T=outT(compMap[e.a.c],e.a.p);ro.innerHTML=roHtml([['Volumenstrom',fmt(m3h(e.m),2)+' m³/h'],['Massenstrom',fmt(e.m,3)+' kg/s'],['Temperatur',fmt(T)+' °C'],['Druck',fmt(e.p,3)+' bar']]);}
+    }
+  }
+  if($('#pane-sys').classList.contains('active')){
+    const b=balance();
+    $('#bal').innerHTML=roHtml([['Erzeugte Wärme',fmt(b.gen/3.6e6,2)+' kWh'],['Bezogene Energie (Brennstoff, Strom)',fmt(model.comps.reduce((a,c)=>a+(c.type==='source'?c.s.Ein:0),0)/3.6e6,2)+' kWh'],['Abgegebene Wärme',fmt(b.cons/3.6e6,2)+' kWh'],['Verluste (Rohre, Speicher)',fmt(b.loss/3.6e6,2)+' kWh'],['Speicherzuwachs',fmt(b.dE/3.6e6,2)+' kWh'],['Bilanzabweichung',fmt(b.err/3.6e6,3)+' kWh'],['Pumpenstrom (nicht in Bilanz)',fmt(model.comps.reduce((a,c)=>a+(c.type==='pump'?c.s.Eel:0),0)/3.6e6,3)+' kWh']]);
+    $('#pres').innerHTML=pressureReport().map(r=>{const ok=r.need<=0.0005;return '<div class="hint '+(ok?'info':'bad')+'"><div style="width:100%"><b>'+esc(r.label)+'</b><div class="ro" style="margin-top:6px">'+roHtml([['Höchste Temperatur',fmt(r.tmax,0)+' °C'],['Dampfdruck dabei',fmt(r.psat,2)+' bar'],['Mindest-Systemdruck',fmt(r.minP,2)+' bar'],['Eingestellter Systemdruck',fmt(r.anchor,2)+' bar'],['Reserve',fmt(r.anchor-r.minP,2)+' bar']])+'</div></div></div>';}).join('')||'<p class="note">Noch kein Netz verbunden.</p>';
+    const hs=computeHints();
+    $('#hints').innerHTML=hs.length?hs.map(x=>'<div class="hint '+x.l+'">'+x.t+'</div>').join(''):'<p class="note">Keine Auffälligkeiten.</p>';
+  }
+  const hs=computeHints().filter(x=>x.l!=='info'),chip=$('#warnchip');
+  if(hs.length){chip.style.display='block';chip.className=hs.some(x=>x.l==='bad')?'bad':'warn';chip.textContent='⚠ '+hs.length+(hs.length===1?' Hinweis':' Hinweise');}
+  else chip.style.display='none';
+}
+$('#warnchip').onclick=()=>{showTab('sys');$('#panel').classList.remove('collapsed');slowUpdate(true);};
+
+function toggleRun(){
+  running=!running;$('#run').textContent=running?'⏸ Pause':'▶ Start';$('#run').setAttribute('aria-label',running?'Simulation pausieren':'Simulation starten');
+  svg.classList.toggle('paused',!running);
+}
+$('#run').onclick=toggleRun;
+$('#reset').onclick=()=>{resetSim();dirty=true;slowUpdate(true);drawChart();};
+$('#undo').onclick=undo;
+$('#pmin').onclick=()=>{pushUndo();applyMinPressure(null);dirty=true;scheduleSave();buildGlob();buildProps();slowUpdate(true);note('Systemdruck auf den Mindestdruck gesetzt (aufgerundet auf 0,1 bar).');};
+$('#speed').onchange=e=>{speed=+e.target.value;};
+
+function fnote(t){$('#fmsg').textContent=t;note(t);}
+function loadText(t){
+  try{
+    const o=JSON.parse(t);
+    if(!o||!Array.isArray(o.comps))throw new Error('format');
+    pushUndo();importModel(o);sel=null;pending=null;renderAll();buildProps();fitView();scheduleSave();
+    fnote('Modell geladen: '+model.comps.length+' Bauteile, '+model.edges.length+' Verbindungen.');
+  }catch(_){fnote('Die Datei ist kein gültiges Modell.');}
+}
+let dl=null;
+try{if(window.claude&&window.claude.use)window.claude.use('downloads').then(d=>{dl=d;}).catch(()=>{});}catch(_){}
+$('#fexp').onclick=async()=>{
+  const txt=JSON.stringify(exportModel(),null,1);
+  if(!dl){$('#json').value=txt;$('#json').select();fnote('Direkter Download ist hier nicht verfügbar. Den Text unten kopieren und als .json-Datei speichern.');return;}
+  try{await dl.save({filename:'heizwasser-modell.json',data:txt});fnote('Modell exportiert.');}
+  catch(e){if(e&&e.code==='declined')return;$('#json').value=txt;fnote('Download nicht möglich. Den Text unten kopieren und als .json-Datei speichern.');}
+};
+$('#fimp').onclick=()=>$('#ffile').click();
+$('#ffile').onchange=ev=>{
+  const f=ev.target.files&&ev.target.files[0];if(!f)return;
+  const rd=new FileReader();
+  rd.onload=()=>loadText(String(rd.result));
+  rd.onerror=()=>fnote('Die Datei konnte nicht gelesen werden.');
+  rd.readAsText(f);ev.target.value='';
+};
+$('#jexp').onclick=()=>{$('#json').value=JSON.stringify(exportModel());$('#json').select();};
+$('#jimp').onclick=()=>loadText($('#json').value);
+$('#clear').onclick=()=>{pushUndo();model={glob:model.glob,nextId:1,comps:[],edges:[]};rebuildIndex();resetSim();sel=null;renderAll();buildProps();scheduleSave();};
+
+let lastTs=0,lastChart=0;
+function frame(ts){
+  const dtr=Math.min(0.1,Math.max(0,(ts-lastTs)/1000));lastTs=ts;
+  if(running){advance(dtr*speed);dirty=true;}
+  else if(dirty){solveFlows();refreshFlows();updateDemandCaps();}
+  if(dirty||running){updateView();$('#clock').textContent=clockStr(simT);$('#cal').textContent=calStr(simT);dirty=false;}
+  slowUpdate();
+  if(ts-lastChart>200){lastChart=ts;drawChart();}
+  requestAnimationFrame(frame);
+}
+
+/* ---- Start ---- */
+(function init(){
+  let ok=false;
+  try{const s=localStorage.getItem(KEY);if(s){const o=JSON.parse(s);if(o&&o.comps&&o.comps.length){importModel(o);ok=true;}}}catch(_){}
+  if(!ok)loadExample(1);
+  svg.classList.add('paused');
+  renderAll();buildProps();
+  requestAnimationFrame(()=>{fitView();});
+  window.addEventListener('resize',()=>{drawChart();});
+  if(window.ResizeObserver)new ResizeObserver(()=>{if(!view._fit){const r=svg.getBoundingClientRect();if(r.width>10){view._fit=1;fitView();}}}).observe($('#stage'));
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
