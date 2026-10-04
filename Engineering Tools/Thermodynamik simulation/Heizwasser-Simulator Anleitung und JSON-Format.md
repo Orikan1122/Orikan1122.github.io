@@ -10,7 +10,7 @@ Der Simulator berechnet Volumenströme, Drücke und Temperaturen eines Heizwasse
 2. Einen Ausgang (rechts) auf einen Eingang (links) ziehen. Alternativ beide Ports nacheinander antippen.
 3. Das Bauteil antippen und im Tab **Details** die Parameter einstellen.
 4. Den Kreis schließen: Der Rücklauf führt zurück zum Erzeuger. Mindestens eine Pumpe ist nötig, eine Druckhaltung wird empfohlen.
-5. **▶ Start** drücken. Die Geschwindigkeit (×1 bis ×14400) wählst du oben.
+5. **▶ Start** drücken. Die Geschwindigkeit (×1 bis ×86400) wählst du oben.
 6. Im Tab **System** Hinweise und Energiebilanz prüfen, im Tab **Diagramm** die Verläufe ansehen.
 
 ### Rechenannahmen
@@ -44,23 +44,24 @@ Alles passiert auf der Zeichenfläche und in den vier Tabs darunter (am Computer
 | ▶ Start / ⏸ Pause | startet oder pausiert die Simulation (Leertaste am Computer) |
 | ⟲ | setzt alle Temperaturen auf die Starttemperatur zurück und leert das Diagramm |
 | ↶ | macht die letzte Änderung rückgängig (bis zu 40 Schritte) |
-| ×1 bis ×14400 | Simulationsgeschwindigkeit: ×60 bedeutet 1 Minute je Sekunde |
+| ×1 bis ×86400 | Simulationsgeschwindigkeit: ×60 bedeutet 1 Minute je Sekunde |
 | Uhr | oben Wochentag und Uhrzeit der Simulation (zum Beispiel Mo 06:00), darunter die Laufzeit als h:mm:ss |
 
-### Die vier Tabs
+### Die fünf Tabs
 
 | Tab | Inhalt |
 | --- | --- |
 | Bauteile | Bauteile hinzufügen, Beispielsysteme laden |
 | Details | Name, Spiegeln, Duplizieren, Entfernen, Parameter (Zahlenfeld und Schieber), Auswahl für das Diagramm, Messwerte live |
 | Diagramm | Temperaturen oder Leistungen über der Zeit. Welche Temperaturen erscheinen, wählst du je Bauteil in den Details. |
-| System | Umgebungstemperatur, Starttemperatur, Systemdruck, Sicherheitszuschlag, Startwochentag und Startuhrzeit, Druck und Verdampfung, Energiebilanz, Hinweise, Export und Import |
+| System | Umgebungstemperatur, Starttemperatur, Systemdruck, Sicherheitszuschlag, Startwochentag und Startuhrzeit, Außentemperatur und Heizgrenze, Modell prüfen, gespeicherte Modelle, Druck und Verdampfung, Energiebilanz, Hinweise, Export und Import |
+| Auswertung | Kennzahlen, Energiefluss, Kosten und CO₂, Export (CSV, Bericht, Schema) und Szenarienvergleich |
 
 Parameter lassen sich auch während der Simulation ändern. Mit **▾** rechts in der Tableiste klappst du den Bereich auf dem Handy ein. Die Meldung **⚠** links unten öffnet die Hinweise.
 
 ## Bauteil-Referenz
 
-Jedes Bauteil hat eine Typ-Kennung (`type` in der JSON-Datei), Anschlüsse mit fester Nummer und Parameter im Objekt `p`. Fehlende Parameter ergänzt der Import mit den Standardwerten. Die Portnummern brauchst du für die Verbindungen.
+Jedes Bauteil hat eine Typ-Kennung (`type` in der JSON-Datei), Anschlüsse mit fester Nummer und Parameter im Objekt `p`. Fehlende Parameter ergänzt der Import mit den Standardwerten. Die Portnummern brauchst du für die Verbindungen. Parameter der Erweiterungen stehen am Ende dieses Abschnitts.
 
 ### Wärmeerzeuger (`source`)
 
@@ -231,6 +232,67 @@ Anschlüsse: **0** Primär Eingang, **1** Primär Ausgang, **2** Sekundär Einga
 | `vol` | Wasserinhalt je Seite | L | 1 bis 200 | 10 |
 | `kv` | hydraulischer Widerstand je Seite | m³/h | 0,5 bis 200 | 10 |
 
+### Rückschlagklappe (`check`)
+
+Sperrt Rückströmung und lässt Vorwärtsstrom mit geringem Druckverlust durch. Anschlüsse: **0** Eingang, **1** Ausgang.
+
+| Schlüssel | Bedeutung | Einheit | Bereich | Standard |
+| --- | --- | --- | --- | --- |
+| `kv` | Kv-Wert im offenen Zustand | m³/h | 1 bis 300 | 30 |
+
+### Regler (`ctrl`)
+
+Der Regler hat keine Anschlüsse. Wirkung und Beispiele stehen im Abschnitt Wetter, Regler und Zeitpläne.
+
+| Schlüssel | Bedeutung | Einheit | Bereich | Standard |
+| --- | --- | --- | --- | --- |
+| `mode` | Funktion: `hyst` (Zweipunktregler) oder `curve` (Heizkurve) | – | – | `hyst` |
+| `act` | `id` des Aktors (Erzeuger oder Pumpe, bei `curve` nur Erzeuger), 0 = keiner | – | – | 0 |
+| `sens` | Fühlercode (nur `hyst`): `out` für die Außentemperatur, `ID:tt`, `ID:tm`, `ID:tb` für Speicher oben, Mitte, unten, `ID:pN` für Ausgang N eines Bauteils | – | – | `out` |
+| `ton` | Einschalten unter (nur `hyst`) | °C | −40 bis 130 | 45 |
+| `toff` | Ausschalten über (nur `hyst`) | °C | −40 bis 130 | 55 |
+| `trun` | Mindestlaufzeit (nur `hyst`) | min | 0 bis 240 | 0 |
+| `tpause` | Mindestpause (nur `hyst`) | min | 0 bis 240 | 0 |
+| `tvmin` | Vorlauf bei Heizgrenze (nur `curve`) | °C | 20 bis 130 | 35 |
+| `tvmax` | Vorlauf bei Normaußentemperatur (nur `curve`) | °C | 20 bis 130 | 70 |
+
+Beispiel für `sens`: `"57:tm"` ist die Mitte des Speichers mit der `id` 57, `"12:p1"` der Ausgang 1 des Bauteils 12.
+
+### Weitere Parameter von Erzeuger, Verbraucher und Rohr
+
+Erzeuger (`source`), zusätzlich zur Tabelle oben:
+
+| Schlüssel | Bedeutung | Einheit | Bereich | Standard |
+| --- | --- | --- | --- | --- |
+| `curve` | Vorlauf nach Heizkurve | true/false | – | false |
+| `tvmin` | Vorlauf bei Heizgrenze (nur mit `curve`) | °C | 20 bis 130 | 35 |
+| `tqsrc` | Wärmequelle (nur `hp`): `fix` oder `out` (Außenluft) | – | – | `fix` |
+| `dtq` | Quelle gegenüber Außentemperatur (nur `hp` mit `out`) | K | −15 bis 10 | −2 |
+| `qk` | Leistungsänderung je K Quellentemperatur (nur `hp`) | % | 0 bis 6 | 3 |
+| `defr` | Abtauverlust bei etwa 1 °C (nur `hp` mit `out`) | % | 0 bis 30 | 0 |
+| `pmin` | Mindestlast, darunter Takten, 0 = aus | % | 0 bis 80 | 0 |
+| `trun` | Mindestlaufzeit beim Takten (nur mit `pmin` > 0) | min | 1 bis 60 | 10 |
+| `tpause` | Mindestpause beim Takten (nur mit `pmin` > 0) | min | 1 bis 60 | 5 |
+| `tred` | Absenkung des Vorlaufs außerhalb des Zeitplans | K | 0 bis 60 | 0 |
+| `carrier` | Energieträger: `gas`, `oil`, `el`, `fw`, `wood`, `other` | – | – | `gas` |
+| `co2f` | CO₂-Faktor | kg/kWh | 0 bis 1 | 0,2 |
+| `price` | Energiepreis | je kWh | 0 bis 2 | 0,11 |
+
+Verbraucher (`consumer`), zusätzlich:
+
+| Schlüssel | Bedeutung | Einheit | Bereich | Standard |
+| --- | --- | --- | --- | --- |
+| `mode` | zusätzlich `FH` für Fußbodenheizung | – | – | `P` |
+| `cf` | Wärmespeicherung des Estrichs (nur `FH`) | kWh/K | 0,05 bis 20 | 2,5 |
+| `tvreq` | Mindest-Vorlauftemperatur, 0 = keine | °C | 0 bis 130 | 0 |
+| `tdep` | Last folgt der Außentemperatur | true/false | – | false |
+
+Rohr (`pipe`), zusätzlich:
+
+| Schlüssel | Bedeutung | Einheit | Erlaubte Werte | Standard |
+| --- | --- | --- | --- | --- |
+| `env` | Umgebung: `tamb` (globale Raumtemperatur) oder `tout` (Außenluft) | – | – | `tamb` |
+
 ## Hydraulik und Pumpen
 
 Der Simulator löst Volumenströme und Drücke gleichzeitig. Die Temperaturrechnung nutzt danach die berechneten Ströme.
@@ -314,6 +376,114 @@ Vorlauftemperaturen bis 130 °C sind möglich (`tset` des Erzeugers). Oberhalb v
 
 Der Gesamtstrom bleibt ungefähr konstant, weil der Bypass das Schließen des Verbraucherzweigs ausgleicht. Dadurch mischt sich warmes Bypasswasser in den Rücklauf und hebt die Rücklauftemperatur an.
 
+## Wetter, Regler und Zeitpläne
+
+Außentemperatur, Regelung und Betriebszeiten machen das Modell zu einem Jahresmodell. Alles hier lässt sich mit dem Tab **System** und den Details der Bauteile einstellen.
+
+### Außentemperatur und Heizkurve
+
+- **Verlauf:** Im Tab System unter „Außentemperatur und Heizgrenze“ wählst du konstant (`tconst`), Jahresgang (Jahresmittel `tmean`, Jahresamplitude `tseas`, Tagesamplitude `tday`, Starttag `doy0`) oder eine Zeitreihe aus CSV (Werte in °C, Zeitschritt in Minuten, wiederholt sich).
+- **Jahresgang:** Der kälteste Tag ist der 15. Januar, der wärmste Zeitpunkt des Tages 15:00 Uhr. Mit 9 °C Mittel, 10 K Jahres- und 4 K Tagesamplitude liegt die Temperatur Mitte Januar um 03:00 bei −5 °C und im Juli um 15:00 bei 23 °C.
+- **Heizgrenze und Normaußentemperatur:** `tgr` (Standard 15 °C) und `tnorm` (Standard −10 °C) legen die Heizkurve fest. Der Vorlauf steigt linear von `tvmin` bei der Heizgrenze auf `tset` bei der Normaußentemperatur.
+- **Erzeuger:** Mit „Vorlauf nach Heizkurve“ (`curve`) folgt der Soll-Vorlauf der Außentemperatur. `tset` ist dann der höchste Vorlauf.
+- **Verbraucher:** Mit „Last folgt der Außentemperatur“ (`tdep`) gilt der Faktor (Heizgrenze − Außentemperatur) ÷ (Heizgrenze − Normaußentemperatur), begrenzt auf 0 bis 1,5. Bei 2,5 °C und den Standardgrenzen sind das 50 %.
+- **Weitere Wirkung:** Die Kopfleiste zeigt die aktuelle Außentemperatur, das Diagramm auf Wunsch ebenfalls. Rohre können mit `env` = `tout` an der Außenluft liegen. Wärmepumpen können die Außenluft als Quelle nutzen.
+
+### Zeitpläne für Erzeuger und Pumpen
+
+Der Zeitplan der Verbraucher gilt auch für Erzeuger und Pumpen. Die Prozentwerte bedeuten dort etwas anderes.
+
+| Bauteil | Wirkung der Prozentwerte |
+| --- | --- |
+| Verbraucher | skalieren die Last |
+| Erzeuger | skalieren die verfügbare Leistung (Freigabe), 0 % schaltet ab. `tred` senkt außerhalb der Freigabe zusätzlich den Soll-Vorlauf um so viele Kelvin. |
+| Pumpe | skalieren Volumenstrom (`flow`), Drehzahl (`fixed`) oder Sollförderhöhe (`dpc`, `dpv`), 0 % schaltet aus |
+
+### Regler (`ctrl`)
+
+Der Regler hat keine Anschlüsse und führt kein Wasser. Er verknüpft einen Fühler mit einem Aktor.
+
+- **Zweipunktregler (`hyst`):** schaltet den Aktor (Erzeuger oder Pumpe) ein, wenn der Fühler unter `ton` fällt, und aus, wenn er `toff` übersteigt. `trun` und `tpause` sind Mindestlaufzeit und Mindestpause in Minuten. Das ist die typische Speicherladung. Mehrere Regler am selben Aktor wirken als UND.
+- **Fühler:** Außentemperatur, ein Speicher (oben, Mitte, unten) oder jeder Ausgang eines Bauteils.
+- **Heizkurve (`curve`):** setzt den Soll-Vorlauf eines Erzeugers aus der Außentemperatur, von `tvmin` bei der Heizgrenze bis `tvmax` bei der Normaußentemperatur.
+- **Auswertung:** Regler werden einmal je Bildschritt ausgewertet. Bei sehr hohem Tempo sind Mindestlaufzeiten deshalb gröber. Im Test hielt ein Regler mit 50 und 56 °C die Speichermitte zwischen 47,5 und 56,2 °C bei 10 Schaltvorgängen in 12 Stunden.
+
+### Wärmepumpe genauer
+
+- **Quelle:** feste Temperatur `tq` oder Außenluft mit Versatz `dtq`.
+- **Leistung:** ändert sich um `qk` % je Kelvin Quellentemperatur gegenüber 7 °C, begrenzt auf 30 % bis 160 %.
+- **Abtauen:** Bei Außenluft senkt `defr` Leistung und COP um bis zu diesen Prozent. Am stärksten wirkt es bei etwa 1 °C, unter −5 °C und über 7 °C gar nicht.
+- **Mindestlast und Takten:** Fordert die Regelung weniger als `pmin` % der Leistung, läuft das Gerät getaktet: `trun` Minuten bei Mindestlast, danach eine Pause von mindestens `tpause` Minuten, passend zum geforderten Anteil. Das gilt auch für Kessel.
+- **Beispiel:** Bei 55 °C Vorlauf, Gütegrad 0,5, 30 kW Nennleistung und 10 % Abtauverlust ergaben Quellen von 10, 1 und −10 °C einen COP von 3,65, 2,73 und 2,52 bei 32,7, 22,1 und 14,7 kW Leistung.
+
+### Weitere Verbrauchertypen
+
+- **Fußbodenheizung (`mode` = `FH`):** Wasser gibt Wärme über 3 × UA an den Estrich ab, der Estrich über UA an den Raum. Der Estrich speichert `cf` kWh/K und reagiert träge.
+- **Mindest-Vorlauf (`tvreq`):** Unterhalb dieser Vorlauftemperatur nimmt der Verbraucher nichts ab, für Prozesswärme oder Trinkwarmwasser mit 60 °C. Beim Modell `P` zählt das als Unterversorgung.
+- **Trinkwarmwasser:** ein Verbraucher mit Modell `P`, `tvreq` 60 °C und einem Zeitplan mit Zapfspitzen.
+- **Lastprofil aus CSV:** kW-Werte ersetzen den Wärmebedarf im Modell `P`, siehe JSON-Feld `prof`.
+- **Rückschlagklappe (`check`):** sperrt Rückströmung und lässt Vorwärtsstrom durch.
+
+## Auswertung, Export und Szenarien
+
+Der Tab **Auswertung** fasst den Lauf seit dem Start zusammen. Die Werte beginnen nach einem Neustart (⟲) oder einer Änderung am Aufbau neu.
+
+### Kennzahlen, Kosten und CO₂
+
+- **Kennzahlen:** erzeugte Wärme, bezogene Energie, Jahresarbeitszahl bzw. Gesamtwirkungsgrad, abgegebene Wärme, Verluste von Rohren und Speichern (auch in % der Erzeugung), Pumpenstrom, Kosten, CO₂, Spitzenleistung, Vollbenutzungsstunden, Wärmebedarf und Unterversorgung. Bei mehreren Erzeugern kommt eine Tabelle je Erzeuger dazu.
+- **Energieträger:** je Erzeuger Erdgas, Heizöl, Strom, Fernwärme, Holz oder Sonstiges. Die Vorgaben sind Richtwerte und sollten angepasst werden:
+
+| Energieträger | CO₂-Faktor in kg/kWh | Preis je kWh |
+| --- | --- | --- |
+| Erdgas | 0,20 | 0,11 |
+| Heizöl | 0,27 | 0,10 |
+| Strom | 0,12 | 0,22 |
+| Fernwärme | 0,10 | 0,13 |
+| Holz | 0,03 | 0,08 |
+
+- **Pumpenstrom:** Preis und CO₂-Faktor stellst du im Tab Auswertung ein (`elprice`, `elco2`). Die Währung ist frei wählbar (`cur`, Standard CHF).
+- **Energiefluss:** Das Diagramm zeigt Bezug und Umweltwärme, die erzeugte Wärme und ihren Weg zu Verbrauchern, Netzverlusten, Speicher und Erzeugerverlusten.
+
+### Export
+
+| Export | Inhalt |
+| --- | --- |
+| Verläufe (.csv) | Zeit, Außentemperatur, Leistungen und alle Temperaturen aus dem Diagramm. Trenner Semikolon, Komma als Dezimalzeichen. |
+| Kennzahlen (.csv) | alle Kennzahlen und die Tabelle je Erzeuger |
+| Bericht (.html) | Kennzahlen, Energiefluss, Annahmen, Anlagenschema, Bauteilliste mit Parametern und Szenarien in einer Datei |
+| Schema (.png, .svg) | das Anlagenschema als Bild |
+
+Ist ein direkter Download nicht möglich, erscheint der Text zum Kopieren.
+
+### Messreihen vergleichen
+
+Im Tab **Diagramm** unter „Messreihe vergleichen“ lädst du Messdaten als CSV: eine Spalte mit Werten und dem Zeitschritt in Minuten oder zwei Spalten mit Zeit in Stunden ab Simulationsstart und Wert. Die Messreihe erscheint gestrichelt im Diagramm Temperaturen oder Leistungen, je nach Größe. Bis zu 8 Messreihen werden mit dem Modell gespeichert (`meas`).
+
+### Szenarien
+
+- **Lauf berechnen und speichern:** simuliert die gewählte Dauer (1 bis 366 Tage) ab der Starttemperatur mit dem aktuellen Modell, einschließlich Zeitplänen und Wetter, und speichert Kennzahlen und eine Kopie des Modells. Zwei Tage dauern im Test etwa 0,3 Sekunden.
+- **Aktuellen Stand speichern:** übernimmt die Kennzahlen des laufenden Modells.
+- **Vergleich:** Die Tabelle zeigt bis zu 8 Szenarien nebeneinander mit Prozentwerten gegenüber der ersten Spalte. **Laden** stellt das Modell eines Szenarios wieder her.
+- **Speicherort:** der Browser. Bei vollem Speicher bleiben die Kennzahlen, die Modellkopie entfällt.
+
+## Werkzeuge: Prüfen, Auslegen, Vorlagen
+
+### Modell prüfen
+
+Im Tab **System** prüft **Modell prüfen** doppelte IDs, Parameterwerte (Bereich und Auswahlwerte), mehrfach belegte Ports, Verbindungen mit sich selbst, Regler-Verweise, Netze ohne laufende Pumpe, Verbraucher ohne Erzeuger, die Hydraulik, Verdampfungsgefahr, offene Anschlüsse, Ventilautorität unter 0,25 und die Rohrgeschwindigkeit. **Parameter korrigieren** setzt ungültige Auswahlwerte auf den Standard und begrenzt Zahlen auf ihren Bereich. Nach dem Laden einer Datei weist die App auf Auffälligkeiten hin.
+
+### Auslegungshilfen
+
+- **Rohr:** zeigt die empfohlene Nennweite für höchstens 1,0 m/s und 200 Pa/m. Ein Knopf übernimmt sie.
+- **Pumpe:** zeigt den empfohlenen Nennpunkt (Volumenstrom plus 10 %, Förderhöhe plus 20 %). Ein Knopf übernimmt ihn in `qn` und `hn`.
+- **Ventile:** zeigen die Autorität als Näherung: Druckverlust des offenen Ventils geteilt durch dessen Summe mit dem Restdruck aus der größten Pumpenförderhöhe, sowie einen Kvs-Vorschlag.
+
+### Mehrfachauswahl, Vorlagen und Modelle
+
+- **Mehrfachauswahl:** mit **☑** neben dem Zoom oder mit Umschalt- oder Strg-Klick mehrere Bauteile wählen. Ziehen verschiebt alle gemeinsam. **Kopieren**, **Einfügen** (auch Strg+C und Strg+V) und **Löschen** wirken auf die Auswahl. Verbindungen innerhalb der Auswahl werden mitkopiert.
+- **Vorlagen:** Im Tab Bauteile gibt es drei eingebaute Vorlagen (Verbraucher mit 3-Wege-Ventil, Erzeuger mit geregelter Pumpe und Druckhaltung, Wärmepumpe mit Speicher und Ladereglung). Aus einer Auswahl speicherst du eigene Vorlagen im Browser.
+- **Gespeicherte Modelle:** Im Tab System legst du mehrere Modelle unter Namen im Browser ab und lädst sie wieder.
+
 ## JSON-Format
 
 Eine Modell-Datei ist ein einziges JSON-Objekt in UTF-8 mit drei Teilen: Randbedingungen (`glob`), Bauteile (`comps`) und Verbindungen (`edges`). Gespeichert wird das Modell, nicht der Simulationsstand.
@@ -352,16 +522,16 @@ Eine Modell-Datei ist ein einziges JSON-Objekt in UTF-8 mit drei Teilen: Randbed
 | Feld | Typ | Pflicht | Bedeutung |
 | --- | --- | --- | --- |
 | `id` | ganze Zahl | ja | eindeutige Nummer, auf die die Verbindungen verweisen. Vergib Zahlen im ganzen Modell nur einmal, auch nicht doppelt zu Verbindungs-IDs. |
-| `type` | Text | ja | Typ-Kennung: `source`, `pump`, `pipe`, `consumer`, `tank`, `splitter`, `mixer`, `valve3`, `valve2`, `prv`, `hold`, `hx`. Unbekannte Typen werden übersprungen. |
+| `type` | Text | ja | Typ-Kennung: `source`, `pump`, `pipe`, `consumer`, `tank`, `splitter`, `mixer`, `valve3`, `valve2`, `prv`, `hold`, `hx`, check, ctrl. Unbekannte Typen werden übersprungen. |
 | `x`, `y` | Zahl | ja | Position der linken oberen Ecke in Pixeln, y zeigt nach unten. Raster 10 ist üblich. |
 | `name` | Text | nein | Anzeigename, höchstens 24 Zeichen. Standard ist der Typname. |
 | `flip` | true/false | nein | vertauscht die Anschlussseiten links und rechts, Standard false |
 | `p` | Objekt | nein | Parameter, siehe Bauteil-Referenz. Beim Verbraucher enthält p.sch zusätzlich den Zeitplan. Fehlende Schlüssel erhalten Standardwerte, unbekannte bleiben wirkungslos. |
 | `chart` | Liste true/false | nein | je Portnummer, ob die Temperatur dieses Ausgangs im Diagramm erscheint. Fehlende Einträge zählen als false. |
 
-### Zeitplan (`p.sch`, nur Verbraucher)
+### Zeitplan (`p.sch`, Verbraucher, Erzeuger, Pumpe)
 
-Das Objekt `sch` steht im Parameterobjekt `p` eines Verbrauchers. Fehlt es, ist der Verbraucher ohne Zeitplan im Dauerbetrieb.
+Das Objekt `sch` steht im Parameterobjekt `p` eines Verbrauchers, Erzeugers oder einer Pumpe. Fehlt es, gilt Dauerbetrieb ohne Zeitplan.
 
 | Feld | Typ | Bedeutung |
 | --- | --- | --- |
@@ -391,6 +561,45 @@ Beispiel: Büro von Montag bis Freitag 06:00 bis 17:00 mit 20 % Grundlast, am Wo
 
 Der Import prüft die Zeiten beim Laden. Fenster mit ungültiger Uhrzeit werden übersprungen, Prozentwerte auf 0 bis 150 begrenzt. Beim Export schreibt die App die Uhrzeiten immer als `"HH:MM"`.
 
+### Weitere Felder: Wetter, Kosten, Lastprofil und Messreihen
+
+| Feld | Typ | Bedeutung |
+| --- | --- | --- |
+| `glob.wx` | Objekt | Außentemperatur: `mode` (`const`, `year` oder `series`), `tconst`, `tmean`, `tseas`, `tday`, `doy0`, `step` (Minuten je Wert) und `series` (Liste in °C oder null) |
+| `glob.tgr`, `glob.tnorm` | Zahl | Heizgrenze (Standard 15) und Normaußentemperatur (Standard −10) in °C |
+| `glob.elprice`, `glob.elco2`, `glob.cur` | Zahl, Zahl, Text | Strompreis je kWh und CO₂-Faktor in kg/kWh für Pumpenstrom, Währung (Standard CHF) |
+| `glob.showTout` | true/false | Außentemperatur im Diagramm zeigen |
+| `meas` | Liste | Messreihen, höchstens 8. Je Eintrag `name`, `mode` (`T` Temperatur oder `P` Leistung), `t` (Stunden ab Start) und `v` (Werte) |
+| `p.sch` | Objekt | Zeitplan wie beim Verbraucher, auch bei `source` und `pump` |
+| `p.prof` | Objekt oder null | Lastprofil eines Verbrauchers: `on`, `step` (Minuten je Wert) und `vals` (kW, höchstens 20000 Werte) |
+
+Beispiel für `glob` mit Jahresgang:
+
+```json
+"glob": {
+  "tamb": 15, "tinit": 20, "pstat": 2, "psafe": 0.5,
+  "wx": { "mode": "year", "tmean": 9, "tseas": 10, "tday": 4, "doy0": 15 },
+  "tgr": 15, "tnorm": -10, "elprice": 0.22, "elco2": 0.12, "cur": "CHF"
+}
+```
+
+Beispiel für einen Verbraucher mit Lastprofil und Mindest-Vorlauf:
+
+```json
+{ "id": 4, "type": "consumer", "x": 670, "y": 60, "name": "Halle",
+  "p": { "mode": "P", "pq": 20, "tvreq": 60,
+         "prof": { "on": true, "step": 60,
+                   "vals": [5,5,5,5,5,5,20,20,20,20,20,20,20,20,20,20,20,20,20,20,5,5,5,5] } } }
+```
+
+Beispiel für `meas`:
+
+```json
+"meas": [ { "name": "Vorlauf gemessen", "mode": "T", "t": [0, 1, 2], "v": [62.1, 63.4, 63.0] } ]
+```
+
+Das Lastprofil beginnt um 00:00 des Starttags und wiederholt sich nach seiner Länge. Zeitreihe und Messreihen haben je Eintrag höchstens 20000 Werte, Zeiten in `meas` sind Stunden ab Simulationsstart.
+
 ### Verbindung (`edges`)
 
 | Feld | Typ | Pflicht | Bedeutung |
@@ -409,7 +618,7 @@ Das Wasser fließt von `a` nach `b`:
 
 | Typ | Eingänge | Ausgänge |
 | --- | --- | --- |
-| `source`, `pump`, `pipe`, `consumer`, `valve2`, `prv`, `hold` | 0 | 1 |
+| `source`, `pump`, `pipe`, `consumer`, `valve2`, `prv`, `hold`, check | 0 | 1 |
 | `tank` | 0 (oben), 3 (unten) | 1 (unten), 2 (oben) |
 | `splitter` | 0 | 1 bis `np` (A = 1, B = 2, …) |
 | `mixer` | 0 bis `np` − 1 (A = 0, B = 1, …) | `np` |
@@ -575,13 +784,14 @@ json.dump({"app": "heizwasser-simulator", "v": 2, "comps": comps, "edges": edges
 | Rohr: zu schnell | über 1,0 m/s Warnung, über 1,5 m/s kritisch, über 300 Pa/m Druckgefälle Warnung | größere Nennweite `dn` |
 | Port nicht angeschlossen | Hinweis ohne Folgen, der Port bleibt ohne Strom | Port verbinden, wenn er gebraucht wird |
 | Verdampfungsgefahr in Netz … | Der Druck an einer Leitung liegt unter Dampfdruck plus Sicherheitszuschlag, typisch bei Vorlauf über 100 °C. | Systemdruck erhöhen, am einfachsten im Tab System mit „Systemdruck auf Mindestdruck setzen“ |
+| Unterversorgung … % des Wärmebedarfs | Ein Verbraucher mit Modell P erhält zu wenig Leistung oder Vorlauftemperatur, oder sein Mindest-Vorlauf wird nicht erreicht. | Soll-Vorlauf, Erzeugerleistung, Pumpe oder Ventilstellung prüfen |
 
 ### Grenzen des Modells
 
 - Wasser hat eine feste Dichte von 983 kg/m³. Bei 130 °C ist die reale Dichte etwa 5 % niedriger, Volumenströme weichen dort entsprechend leicht ab.
 - Die Rohrwand speichert keine Wärme. Es gibt eine globale Umgebungstemperatur.
 - Die Pumpenkennlinie ist eine Parabel mit 1,3 · Hn bei Strom 0. Der Wirkungsgrad ist konstant.
-- Geregelt wird nur im 3-Wege-Ventil (Spreizung). Der Erzeuger regelt immer auf seine Soll-Vorlauftemperatur. Fühler und eigene Regler gibt es nicht. Zeitpläne gibt es nur für Verbraucher.
+- Geregelt wird im 3-Wege-Ventil (Spreizung oder Last), im Erzeuger (Soll-Vorlauf, Heizkurve, Bedarfsbegrenzung) und über Zweipunktregler. PI-Regelungen und Mischerregelungen gibt es nicht.
 - Für den Wärmetransport zählt nur die Strömung in Pfeilrichtung. Rückströmung wird gemeldet, aber nicht simuliert.
 - Ein Verteiler im Modus `ratio` entkoppelt die Hydraulik. Die Pumpenförderhöhe davor ist dann eine Näherung.
 - Der Simulationsstand ist nicht Teil der JSON-Datei. Nach dem Laden beginnt die Simulation bei der Starttemperatur.
