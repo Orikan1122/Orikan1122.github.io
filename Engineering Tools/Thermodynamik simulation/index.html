@@ -251,7 +251,17 @@ textarea.field{width:100%;height:110px;text-align:left;padding:8px;font:12px/1.3
         <div class="ro" id="kpi"></div>
         <div id="kpiper"></div>
         <h3>Energiefluss</h3>
+        <div class="prow"><label for="sk_left">Quellen</label><select id="sk_left"><option value="src">einzelne Erzeuger</option><option value="cat">nach Herkunft</option></select></div>
+        <div class="prow"><label for="sk_right">Senken</label><select id="sk_right"><option value="cons4">einzelne Verbraucher und Verbleib</option><option value="cons">einzelne Verbraucher</option><option value="cat">nur Wärmesenken</option></select></div>
         <div id="sankey"></div>
+        <div class="row" style="margin-top:8px">
+          <button class="btn small" id="sk_rep">Energiefluss-Bericht (.html)</button>
+          <button class="btn small" id="sk_png">Energiefluss (.png)</button>
+          <button class="btn small" id="sk_svg">Energiefluss (.svg)</button>
+        </div>
+        <p class="note">Der Bericht enthält das Diagramm, Kennzahlen sowie Tabellen für jeden Erzeuger und jeden Verbraucher. Er lässt sich im Browser über Drucken auch als PDF speichern.</p>
+        <h3>Verbraucher einzeln</h3>
+        <div id="consk" style="overflow:auto"></div>
         <h3>Abwärme und Wärmesenken</h3>
         <div id="heat"></div>
         <h3>Anlagengruppen</h3>
@@ -808,18 +818,20 @@ function valveAuth(c){
 function applyCarrier(c,v){c.p.carrier=v;const d=CARRIER_DEF[v];if(d){c.p.co2f=d.co2f;c.p.price=d.price;}}
 function kpis(){
   let gen=0,ein=0,cons=0,loss=0,pel=0,fuel=0,co2=0,ed=0,edef=0,pnom=0,rec=0,env=0,lossG=0,toGen=0;
-  const per=[],g=model.glob,recBy={comp:0,wtw:0,wta:0,proc:0,oth:0},sk={produkt:0,abwasser:0,abluft:0,raum:0,tww:0,zirk:0,spv:0,dhwrest:0};let dv=0;
+  const per=[],consList=[],g=model.glob,recBy={comp:0,wtw:0,wta:0,proc:0,oth:0},sk={produkt:0,abwasser:0,abluft:0,raum:0,tww:0,zirk:0,spv:0,dhwrest:0};let dv=0;
   for(const c of model.comps){
     if(c.type==='source'){
       const e=c.s.E/3.6e6,i=c.s.Ein/3.6e6;gen+=e;ein+=i;
       if(c.p.kind==='rec'){rec+=e;recBy[c.p.rcat]=(recBy[c.p.rcat]||0)+e;}
       else{fuel+=i*c.p.price;co2+=i*c.p.co2f;pnom+=(c.s.Pth||c.p.pmax*1000)/1000;toGen+=Math.min(e,i);env+=Math.max(0,e-i);lossG+=Math.max(0,i-e);}
-      per.push({name:c.name,gen:e,ein:i,jaz:i>0?e/i:NaN,cost:c.p.kind==='rec'?0:i*c.p.price,co2:c.p.kind==='rec'?0:i*c.p.co2f,rec:c.p.kind==='rec'});
+      per.push({name:c.name,gen:e,ein:i,jaz:i>0?e/i:NaN,cost:c.p.kind==='rec'?0:i*c.p.price,co2:c.p.kind==='rec'?0:i*c.p.co2f,rec:c.p.kind==='rec',kind:c.p.kind,rcat:c.p.rcat,env:c.p.kind==='rec'?0:Math.max(0,e-i),lossG:c.p.kind==='rec'?0:Math.max(0,i-e)});
     }else if(c.type==='consumer'){
       const e=c.s.E/3.6e6,sp=c.p.sp||0,sw=c.p.sw||0,sa=c.p.sa||0;cons+=e;ed+=c.s.Ed/3.6e6;edef+=c.s.Edef/3.6e6;
       sk.produkt+=e*sp/100;sk.abwasser+=e*sw/100;sk.abluft+=e*sa/100;sk.raum+=e*Math.max(0,100-sp-sw-sa)/100;
+      consList.push({name:c.name,type:'consumer',group:(groupOf(c.id)||{}).name||'',e,produkt:e*sp/100,abwasser:e*sw/100,abluft:e*sa/100,raum:e*Math.max(0,100-sp-sw-sa)/100,tww:0,zirk:0,spv:0,dhwrest:0});
     }else if(c.type==='dhw'){
       const e=c.s.E/3.6e6,eu=c.s.Eu/3.6e6,ez=c.s.Ez/3.6e6,es=c.s.Es/3.6e6;cons+=e;sk.tww+=eu;sk.zirk+=ez;sk.spv+=es;sk.dhwrest+=Math.max(0,e-eu-ez-es);dv+=c.s.Vd;
+      consList.push({name:c.name,type:'dhw',group:(groupOf(c.id)||{}).name||'',e,produkt:0,abwasser:0,abluft:0,raum:0,tww:eu,zirk:ez,spv:es,dhwrest:Math.max(0,e-eu-ez-es)});
     }
     else if(c.type==='pipe'||c.type==='tank')loss+=c.s.E/3.6e6;
     else if(c.type==='pump')pel+=c.s.Eel/3.6e6;
@@ -827,7 +839,7 @@ function kpis(){
   const costEl=pel*g.elprice,co2El=pel*g.elco2,paid=gen-rec,pot=sk.abwasser+sk.abluft,back=recBy.wtw+recBy.wta;
   return{t:simT,gen,ein,jaz:ein>0?paid/ein:NaN,cons,loss,lossPct:gen>0?loss/gen*100:NaN,pel,cost:fuel+costEl,costFuel:fuel,costEl,co2:co2+co2El,co2Fuel:co2,co2El,
     peak:kpiPeak/1000,fullh:pnom>0?paid/pnom:NaN,demand:ed,deficit:edef,per,rec,recBy,env,lossG,toGen,sinks:sk,dhwVol:dv,
-    potential:pot,recovered:back,recRate:pot>0?back/pot*100:NaN};
+    potential:pot,recovered:back,recRate:pot>0?back/pot*100:NaN,consList};
 }
 function groupKpis(){
   return model.groups.map(g=>{
@@ -2540,34 +2552,103 @@ const KP=[
 ];
 const kpUnit=r=>typeof r.u==='function'?r.u():r.u;
 const kpLabel=r=>r.l+(kpUnit(r)?' ['+kpUnit(r)+']':'');
-function sankeySVG(k,ink){
-  const sk=k.sinks||{produkt:0,abwasser:0,abluft:0,raum:0,tww:0,zirk:0,spv:0,dhwrest:0},rb=k.recBy||{comp:0,wtw:0,wta:0,proc:0,oth:0};
-  const gen=k.gen,restSys=Math.max(0,gen-k.cons-k.loss)+sk.dhwrest;
-  const Lf=[['Bezug',k.ein,'#e4572e'],['Umweltwärme',k.env,'#2f9e6f'],['Kompressoren',rb.comp,'#d69e00'],['WT Abwasser',rb.wtw,'#1a7fd0'],['WT Abluft',rb.wta,'#00a6a6'],['Prozess',rb.proc,'#9b5de5'],['Sonst. Abwärme',rb.oth,'#6b7280']].filter(x=>x[1]>1e-6).map(x=>({name:x[0],v:x[1],col:x[2]}));
-  const Rf=[['Produkt',sk.produkt,'#1a7fd0'],['Abwasser',sk.abwasser,'#7a5c3e'],['Abluft',sk.abluft,'#8d99ae'],['Raum, sonstige',sk.raum,'#2f9e6f'],['Trinkwarmwasser',sk.tww,'#00a6a6'],['Zirkulation',sk.zirk,'#c2417b'],['Speicherverlust WW',sk.spv,'#b0413e'],['Netzverluste',k.loss,'#9b5de5'],['Speicher, Rest',restSys,'#6b7280']].filter(x=>x[1]>1e-6).map(x=>({name:x[0],v:x[1],col:x[2]}));
-  if(!(gen>0.01)||!Lf.length)return '<p class="note">Noch keine Energie umgesetzt. Simulation starten, dann erscheint der Energiefluss.</p>';
-  const lossG=k.lossG||0;if(lossG>1e-6)Rf.push({name:'Erzeugerverluste',v:lossG,col:'#b0413e',fromLeft:true});
-  const nw=14,gap=8,rows=Math.max(Lf.length,Rf.length),H=Math.max(260,rows*34+50),usable=H-40-gap*(rows-1),totL=Lf.reduce((a,n)=>a+n.v,0),totR=Rf.reduce((a,n)=>a+n.v,0);
-  const sc=usable/Math.max(totL,totR,gen),W=640,xl=175,xm=320,xr=455;
-  const place=(list,x)=>{const tot=list.reduce((a,n)=>a+Math.max(n.v*sc,2),0)+gap*(list.length-1);let y=20+(H-40-tot)/2;for(const n of list){n.x=x;n.h=Math.max(n.v*sc,2);n.y=y;n.oy=y;n.iy=y;y+=n.h+gap;}};
-  place(Lf,xl);place(Rf,xr);
-  const M={name:'Wärme im Netz',v:gen,col:'#d69e00',x:xm,h:gen*sc};M.y=20+(H-40-M.h)/2;M.oy=M.y;M.iy=M.y;
-  let out='<svg viewBox="0 0 '+W+' '+H+'" width="100%" style="max-width:700px;color:'+ink+'" role="img" aria-label="Energiefluss">';
-  const flow=(a,b,v,col)=>{if(v<=1e-6)return;const h=Math.max(v*sc,1),x1=a.x+nw,x2=b.x,xm2=(x1+x2)/2,y1=a.oy,y2=b.iy;a.oy+=h;b.iy+=h;
-    out+='<path d="M'+x1+' '+y1+'C'+xm2+' '+y1+' '+xm2+' '+y2+' '+x2+' '+y2+'L'+x2+' '+(y2+h)+'C'+xm2+' '+(y2+h)+' '+xm2+' '+(y1+h)+' '+x1+' '+(y1+h)+'Z" fill="'+col+'" fill-opacity="0.35"/>';};
-  const bez=Lf.find(n=>n.name==='Bezug'),lg=Rf.find(n=>n.fromLeft);
-  for(const n of Lf)flow(n,M,n===bez?Math.min(k.toGen!=null?k.toGen:n.v,n.v):n.v,n.col);
-  if(bez&&lg)flow(bez,lg,lg.v,lg.col);
-  for(const n of Rf)if(!n.fromLeft)flow(M,n,n.v,n.col);
-  const tot=Math.max(totL,totR);
-  const node=(n,side)=>{
-    out+='<rect x="'+n.x+'" y="'+n.y+'" width="'+nw+'" height="'+n.h+'" fill="'+n.col+'"/>';
-    const ty=n.y+n.h/2,pct=' ('+(n.v/tot*100).toFixed(0)+' %)',x=side==='l'?n.x-6:n.x+nw+6,an=side==='l'?'end':'start';
-    out+='<text x="'+x+'" y="'+(ty-2)+'" text-anchor="'+an+'" font-size="11" font-weight="600" fill="'+ink+'">'+n.name+'</text><text x="'+x+'" y="'+(ty+11)+'" text-anchor="'+an+'" font-size="10.5" fill="'+ink+'" fill-opacity="0.75">'+n.v.toFixed(n.v<10?2:1)+' kWh'+pct+'</text>';
-  };
-  Lf.forEach(n=>node(n,'l'));Rf.forEach(n=>node(n,'r'));
-  out+='<rect x="'+M.x+'" y="'+M.y+'" width="'+nw+'" height="'+M.h+'" fill="'+M.col+'"/><text x="'+(M.x+nw/2)+'" y="'+(M.y-6)+'" text-anchor="middle" font-size="11" font-weight="600" fill="'+ink+'">'+M.name+' '+gen.toFixed(gen<10?2:1)+' kWh</text>';
-  return out+'</svg>';
+let sankeyOpt={left:'src',right:'cons4'};
+try{const o=JSON.parse(localStorage.getItem('hw-sim-sankey')||'null');if(o&&['src','cat'].includes(o.left)&&['cons4','cons','cat'].includes(o.right))sankeyOpt=o;}catch(_){}
+const SK_CAT=[['produkt','Produkt','#1a7fd0'],['abwasser','Abwasser','#7a5c3e'],['abluft','Abluft','#8d99ae'],['raum','Raum, sonstige','#2f9e6f'],['tww','Trinkwarmwasser','#00a6a6'],['zirk','Zirkulation','#c2417b'],['spv','Speicherverlust WW','#b0413e'],['dhwrest','Speicher WW, Zunahme','#6b7280']];
+const SK_REC={comp:'#d69e00',wtw:'#1a7fd0',wta:'#00a6a6',proc:'#9b5de5',oth:'#6b7280'};
+function sankeyBuild(k,opt,ink,bg,abs){
+  const sk=k.sinks||{},rb=k.recBy||{comp:0,wtw:0,wta:0,proc:0,oth:0},nodes=[],links=[],byId={};
+  const add=(id,layer,name,col,tail)=>{if(byId[id])return byId[id];const n={id,layer,name,col,tail:!!tail,in:0,out:0,v:0};nodes.push(n);byId[id]=n;return n;};
+  const link=(a,b,v,col)=>{if(v>1e-6&&byId[a]&&byId[b])links.push({a:byId[a],b:byId[b],v,col});};
+  const gen=k.gen,restSys=Math.max(0,gen-k.cons-k.loss);
+  add('net',1,'Wärme im Netz','#d69e00');add('lossG',2,'Erzeugerverluste','#b0413e',true);add('loss',2,'Netzverluste','#9b5de5',true);add('rest',2,'Speicher, Rest','#6b7280',true);
+  const palSrc=['#e4572e','#c8452a','#f0764f','#a83a2e'];let si=0;
+  if(opt.left==='src'){
+    (k.per||[]).forEach((p,i)=>{
+      if(p.rec){const col=SK_REC[p.rcat]||SK_REC.oth;add('s'+i,0,p.name,col);link('s'+i,'net',p.gen,col);}
+      else{const col=palSrc[si++%palSrc.length];add('s'+i,0,p.name+(p.kind==='hp'?' (Strom)':''),col);link('s'+i,'net',Math.min(p.gen,p.ein),col);link('s'+i,'lossG',p.lossG||0,'#b0413e');
+        if((p.env||0)>1e-6){add('e'+i,0,'Umweltwärme '+p.name,'#2f9e6f');link('e'+i,'net',p.env,'#2f9e6f');}}
+    });
+  }else{
+    [['Bezug',k.ein,'#e4572e'],['Umweltwärme',k.env,'#2f9e6f'],['Kompressoren',rb.comp,SK_REC.comp],['WT Abwasser',rb.wtw,SK_REC.wtw],['WT Abluft',rb.wta,SK_REC.wta],['Prozess',rb.proc,SK_REC.proc],['Sonst. Abwärme',rb.oth,SK_REC.oth]].forEach((x,i)=>{
+      if(x[1]>1e-6){add('l'+i,0,x[0],x[2]);link('l'+i,'net',i===0?Math.min(k.toGen!=null?k.toGen:x[1],x[1]):x[1],x[2]);}
+    });
+    if(byId.l0)link('l0','lossG',k.lossG||0,'#b0413e');
+  }
+  if(opt.right==='cat'){
+    SK_CAT.forEach(c=>{if(sk[c[0]]>1e-6){add('k'+c[0],2,c[1],c[2]);link('net','k'+c[0],sk[c[0]],c[2]);}});
+  }else{
+    const list=(k.consList||[]).slice().sort((x,y)=>y.e-x.e);
+    list.forEach((c,i)=>{
+      const dom=c.type==='dhw'?'#00a6a6':[['produkt','#1a7fd0'],['abwasser','#7a5c3e'],['abluft','#8d99ae'],['raum','#2f9e6f']].sort((x,y)=>c[y[0]]-c[x[0]])[0][1];
+      add('c'+i,2,c.name,dom);link('net','c'+i,c.e,dom);
+      if(opt.right==='cons4')SK_CAT.forEach(cd=>{const v=c[cd[0]]||0;if(v>1e-6){add('k'+cd[0],3,cd[1],cd[2]);link('c'+i,'k'+cd[0],v,cd[2]);}});
+    });
+  }
+  link('net','loss',k.loss,'#9b5de5');link('net','rest',restSys,'#6b7280');
+  for(const l of links){l.a.out+=l.v;l.b.in+=l.v;}
+  const vis=nodes.filter(n=>n.in>1e-6||n.out>1e-6);vis.forEach(n=>{n.v=Math.max(n.in,n.out);});
+  if(!vis.length||!(gen>0.01))return null;
+  const nLay=1+Math.max(...vis.map(n=>n.layer)),layers=[];
+  for(let i=0;i<nLay;i++)layers.push(vis.filter(n=>n.layer===i).sort((a,b)=>(a.tail-b.tail)||(b.v-a.v)));
+  const nw=14,gap=8,rows=Math.max(...layers.map(l=>l.length)),H=Math.max(300,rows*30+70),W=nLay>=4?860:700,ML=190,MR=nLay>=4?170:190;
+  const MINH=20;
+  let sc=Math.min(...layers.filter(l=>l.length).map(l=>(H-60-gap*(l.length-1))/Math.max(l.reduce((a,n)=>a+n.v,0),1e-9)));
+  const fits=q=>layers.every(l=>l.reduce((a,n)=>a+Math.max(n.v*q,MINH),0)+gap*(l.length-1)<=H-50);
+  for(let i=0;i<60&&!fits(sc);i++)sc*=0.92;
+  const xs=i=>ML+(W-ML-MR-nw)*i/Math.max(nLay-1,1);
+  layers.forEach((l,i)=>{
+    const tot=l.reduce((a,n)=>a+Math.max(n.v*sc,MINH),0)+gap*(l.length-1);let y=25+(H-50-tot)/2;
+    for(const n of l){n.x=xs(i);n.h=Math.max(n.v*sc,MINH);n.y=y;y+=n.h+gap;}
+  });
+  for(const n of vis){n.outL=links.filter(l=>l.a===n).sort((p,q)=>p.b.y-q.b.y);n.inL=links.filter(l=>l.b===n).sort((p,q)=>p.a.y-q.a.y);}
+  for(const n of vis){let oy=n.y;for(const l of n.outL){l.y1=oy;oy+=l.v*sc;}let iy=n.y;for(const l of n.inL){l.y2=iy;iy+=l.v*sc;}}
+  const tot=Math.max(...layers.map(l=>l.reduce((a,n)=>a+n.v,0))),fm=v=>v.toFixed(v<10?2:1),esc2=x=>String(x).replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));
+  let out='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+W+' '+H+'"'+(abs?' width="'+W+'" height="'+H+'"':' width="100%" style="max-width:'+W+'px;color:'+ink+'"')+' role="img" aria-label="Energiefluss">';
+  if(abs)out+='<rect width="'+W+'" height="'+H+'" fill="'+bg+'"/>';
+  for(const l of links){
+    const h=Math.max(l.v*sc,0.8),x1=l.a.x+nw,x2=l.b.x,xm=(x1+x2)/2;
+    out+='<path d="M'+x1+' '+l.y1+'C'+xm+' '+l.y1+' '+xm+' '+l.y2+' '+x2+' '+l.y2+'L'+x2+' '+(l.y2+h)+'C'+xm+' '+(l.y2+h)+' '+xm+' '+(l.y1+h)+' '+x1+' '+(l.y1+h)+'Z" fill="'+l.col+'" fill-opacity="0.38"><title>'+esc2(l.a.name)+' → '+esc2(l.b.name)+': '+fm(l.v)+' kWh</title></path>';
+  }
+  const halo='paint-order:stroke;stroke:'+bg+';stroke-width:3px;stroke-linejoin:round';
+  for(const n of vis){
+    out+='<rect x="'+n.x+'" y="'+n.y+'" width="'+nw+'" height="'+n.h+'" fill="'+n.col+'"><title>'+esc2(n.name)+': '+fm(n.v)+' kWh</title></rect>';
+    const nm=esc2(n.name.length>26?n.name.slice(0,25)+'…':n.name),val=fm(n.v)+' kWh ('+(n.v/tot*100).toFixed(0)+' %)',ty=n.y+n.h/2;
+    if(n.layer===0)out+='<text x="'+(n.x-6)+'" y="'+(ty-2)+'" text-anchor="end" font-size="11" font-weight="600" fill="'+ink+'" style="'+halo+'">'+nm+'</text><text x="'+(n.x-6)+'" y="'+(ty+11)+'" text-anchor="end" font-size="10.5" fill="'+ink+'" fill-opacity="0.8" style="'+halo+'">'+val+'</text>';
+    else if(n.layer===1)out+='<text x="'+(n.x+nw/2)+'" y="'+(n.y-8)+'" text-anchor="middle" font-size="11" font-weight="600" fill="'+ink+'" style="'+halo+'">'+nm+' '+fm(n.v)+' kWh</text>';
+    else out+='<text x="'+(n.x+nw+6)+'" y="'+(ty-2)+'" font-size="11" font-weight="600" fill="'+ink+'" style="'+halo+'">'+nm+'</text><text x="'+(n.x+nw+6)+'" y="'+(ty+11)+'" font-size="10.5" fill="'+ink+'" fill-opacity="0.8" style="'+halo+'">'+val+'</text>';
+  }
+  return{svg:out+'</svg>',w:W,h:H};
+}
+function sankeySVG(k,ink,bg,abs){
+  const r=sankeyBuild(k,sankeyOpt,ink,bg||'#ffffff',abs);
+  return r?r.svg:'<p class="note">Noch keine Energie umgesetzt. Simulation starten, dann erscheint der Energiefluss.</p>';
+}
+function consumerHTML(k){
+  const a=(k.consList||[]).slice().sort((x,y)=>y.e-x.e),tot=a.reduce((s2,x)=>s2+x.e,0);
+  if(!a.length)return '<p class="note">Keine Verbraucher im Modell.</p>';
+  const rows=a.map(c=>'<tr><td>'+esc(c.name)+'</td><td>'+esc(c.group||'–')+'</td><td>'+fmt(c.e,1)+'</td><td>'+(tot>0?fmt(c.e/tot*100,1):'–')+' %</td><td>'+fmt(c.produkt,1)+'</td><td>'+fmt(c.abwasser,1)+'</td><td>'+fmt(c.abluft,1)+'</td><td>'+fmt(c.raum,1)+'</td><td>'+fmt(c.tww,1)+'</td><td>'+fmt(c.zirk,1)+'</td><td>'+fmt(c.spv+c.dhwrest,1)+'</td></tr>').join('');
+  const sum=key=>fmt(a.reduce((s2,x)=>s2+x[key],0),1);
+  return '<table class="cmp"><tr><th>Verbraucher</th><th>Gruppe</th><th>Wärme kWh</th><th>Anteil</th><th>Produkt</th><th>Abwasser</th><th>Abluft</th><th>Raum, sonst.</th><th>Warmwasser</th><th>Zirkulation</th><th>Speicher WW</th></tr>'+rows+'<tr><td><b>Summe</b></td><td></td><td><b>'+fmt(tot,1)+'</b></td><td></td><td>'+sum('produkt')+'</td><td>'+sum('abwasser')+'</td><td>'+sum('abluft')+'</td><td>'+sum('raum')+'</td><td>'+sum('tww')+'</td><td>'+sum('zirk')+'</td><td>'+fmt(a.reduce((s2,x)=>s2+x.spv+x.dhwrest,0),1)+'</td></tr></table>';
+}
+function sourceHTML(k){
+  if(!k.per.length)return '<p class="note">Keine Erzeuger im Modell.</p>';
+  return '<table class="cmp"><tr><th>Erzeuger</th><th>Art</th><th>Wärme kWh</th><th>Bezug kWh</th><th>Arbeitszahl</th><th>Kosten</th><th>CO₂ kg</th></tr>'+k.per.map(p=>'<tr><td>'+esc(p.name)+'</td><td>'+(p.rec?'Abwärme, '+esc(RCAT[p.rcat]||''):p.kind==='hp'?'Wärmepumpe':'Kessel')+'</td><td>'+fmt(p.gen,1)+'</td><td>'+fmt(p.ein,1)+'</td><td>'+fmt(p.jaz,2)+'</td><td>'+fmt(p.cost,2)+'</td><td>'+fmt(p.co2,1)+'</td></tr>').join('')+'</table>';
+}
+function sankeyReportHTML(){
+  const k=kpis(),g=model.glob,e=esc;
+  const css='body{font:14px/1.45 system-ui,sans-serif;max-width:980px;margin:24px auto;padding:0 16px;color:#14202e}h1{font-size:22px;margin-bottom:2px}h2{font-size:16px;margin-top:26px;border-bottom:1px solid #d3dce6;padding-bottom:4px}table{border-collapse:collapse;width:100%;margin:8px 0;font-size:12.5px}th,td{border-bottom:1px solid #d3dce6;padding:4px 7px;text-align:right;vertical-align:top}th:first-child,td:first-child{text-align:left}svg{max-width:100%;height:auto}.n{color:#566679;font-size:12px}button{font:inherit;padding:6px 12px;border-radius:8px;border:1px solid #0b6aae;background:#0b6aae;color:#fff;cursor:pointer}@media print{.noprint{display:none}body{margin:8mm;max-width:none}h2{break-after:avoid}table,svg{break-inside:avoid}}';
+  const opt=({src:'einzelne Erzeuger',cat:'nach Herkunft'})[sankeyOpt.left]+', '+({cons4:'einzelne Verbraucher und Verbleib',cons:'einzelne Verbraucher',cat:'nur Wärmesenken'})[sankeyOpt.right];
+  let h='<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><title>Energiefluss-Bericht</title><style>'+css+'</style></head><body>';
+  h+='<p class="noprint"><button onclick="window.print()">Drucken oder als PDF speichern</button></p>';
+  h+='<h1>Energiefluss-Bericht</h1><p class="n">Heizwasser-Simulator, erstellt am '+new Date().toLocaleDateString('de-CH')+'. Simulationszeit '+clockStr(k.t)+' ('+fmt(k.t/86400,1)+' Tage), Start '+WD[g.t0day]+' '+fmtT(g.t0min%1440)+'. Darstellung: '+opt+'.</p>';
+  h+='<h2>Energiefluss</h2>'+sankeySVG(k,'#14202e','#ffffff',false);
+  h+='<h2>Kennzahlen</h2><table><tr><th>Kennzahl</th><th>Wert</th></tr>'+[KP[0],KP[1],KP[2],KP[3],KP[4],KP[5],KP[7],KP[10]].map(r=>'<tr><td>'+e(kpLabel(r))+'</td><td>'+fmt(r.v(k),r.d)+'</td></tr>').join('')+'</table>';
+  h+='<h2>Erzeuger einzeln</h2>'+sourceHTML(k)+'<h2>Verbraucher einzeln</h2>'+consumerHTML(k);
+  h+='<h2>Abwärme und Wärmesenken</h2>'+heatHTML(k);
+  h+='<h2>Datenqualität, Quellen und Annahmen</h2>'+dqHTML();
+  h+='<p class="n">Die Werte gelten für die bisher simulierte Zeit seit dem Start oder der letzten Änderung am Aufbau. Annahmen sind in der Datenqualität aufgeführt.</p></body></html>';
+  return h;
 }
 function heatHTML(k){
   const sk=k.sinks||{},rb=k.recBy||{},L=k.ein+k.env+k.rec,C=k.cons,pc=(v,t)=>t>1e-9?' ('+fmt(v/t*100,0)+' %)':'';
@@ -2596,6 +2677,7 @@ function dqHTML(){
   return h;
 }
 function buildEval(){
+  skSel();
   const box=$('#costin');box.textContent='';const g=model.glob;
   gNum(box,'Strompreis (Pumpen)','je kWh',g,'elprice',0,2,0.005,null);
   gNum(box,'CO₂-Faktor Strom (Pumpen)','kg/kWh',g,'elco2',0,1,0.005,null);
@@ -2609,7 +2691,8 @@ function updateEval(){
   const k=kpis(),b=balance();
   $('#kpi').innerHTML=roHtml([['Simulationszeit',clockStr(k.t)+' ('+fmt(k.t/86400,1)+' Tage)']].concat(KP.map(r=>[esc(kpLabel(r)),fmt(r.v(k),r.d)])));
   $('#kpiper').innerHTML=k.per.length>1?'<table class="cmp" style="margin-top:8px"><tr><th>Erzeuger</th><th>Wärme kWh</th><th>Bezug kWh</th><th>Arbeitszahl</th><th>Kosten</th><th>CO₂ kg</th></tr>'+k.per.map(p=>'<tr><td>'+esc(p.name)+'</td><td>'+fmt(p.gen,1)+'</td><td>'+fmt(p.ein,1)+'</td><td>'+fmt(p.jaz,2)+'</td><td>'+fmt(p.cost,2)+'</td><td>'+fmt(p.co2,1)+'</td></tr>').join('')+'</table>':'';
-  $('#sankey').innerHTML=sankeySVG(k,'currentColor');
+  $('#sankey').innerHTML=sankeySVG(k,'currentColor','var(--panel)',false);
+  $('#consk').innerHTML=consumerHTML(k);
   $('#heat').innerHTML=heatHTML(k);$('#grpk').innerHTML=groupHTML();$('#dhwk').innerHTML=dhwHTML();$('#dq').innerHTML=dqHTML();
 }
 let dl=null;
@@ -2635,6 +2718,8 @@ function kpiCSV(){
   KP.forEach(r=>L.push(r.l+';'+csvNum(r.v(k),r.d)+';'+kpUnit(r)));
   L.push('','Erzeuger;Wärme [kWh];Bezug [kWh];Arbeitszahl;Kosten;CO2 [kg]');
   k.per.forEach(p=>L.push([p.name,csvNum(p.gen,2),csvNum(p.ein,2),csvNum(p.jaz,2),csvNum(p.cost,2),csvNum(p.co2,2)].join(';')));
+  L.push('','Verbraucher;Gruppe;Wärme [kWh];Produkt [kWh];Abwasser [kWh];Abluft [kWh];Raum, sonstige [kWh];Warmwasser [kWh];Zirkulation [kWh];Speicher WW [kWh]');
+  (k.consList||[]).forEach(c=>L.push([c.name,c.group||'',csvNum(c.e,2),csvNum(c.produkt,2),csvNum(c.abwasser,2),csvNum(c.abluft,2),csvNum(c.raum,2),csvNum(c.tww,2),csvNum(c.zirk,2),csvNum(c.spv+c.dhwrest,2)].join(';')));
   return '\ufeff'+L.join('\r\n');
 }
 function schemaSVG(){
@@ -2673,7 +2758,7 @@ function reportHTML(){
   h+='<h1>Heizwasser-Simulator: Bericht</h1><p class="n">Erstellt am '+new Date().toLocaleDateString('de-CH')+'. Simulationszeit '+clockStr(k.t)+' ('+fmt(k.t/86400,1)+' Tage), Start '+WD[g.t0day]+' '+fmtT(g.t0min%1440)+'.</p>';
   h+='<h2>Kennzahlen</h2><table>'+[['Kennzahl','Wert']].map(r=>'<tr><th>'+r[0]+'</th><th>'+r[1]+'</th></tr>').join('')+KP.map(r=>'<tr><td>'+e(kpLabel(r))+'</td><td>'+fmt(r.v(k),r.d)+'</td></tr>').join('')+'</table>';
   if(k.per.length)h+='<table><tr><th>Erzeuger</th><th>Wärme kWh</th><th>Bezug kWh</th><th>Arbeitszahl</th><th>Kosten</th><th>CO₂ kg</th></tr>'+k.per.map(p=>'<tr><td>'+e(p.name)+'</td><td>'+fmt(p.gen,1)+'</td><td>'+fmt(p.ein,1)+'</td><td>'+fmt(p.jaz,2)+'</td><td>'+fmt(p.cost,2)+'</td><td>'+fmt(p.co2,1)+'</td></tr>').join('')+'</table>';
-  h+='<h2>Energiefluss</h2>'+sankeySVG(k,'#14202e')+'<h2>Abwärme und Wärmesenken</h2>'+heatHTML(k)+'<h2>Anlagengruppen</h2>'+groupHTML()+'<h2>Warmwasser</h2>'+dhwHTML()+'<h2>Datenqualität, Quellen und Annahmen</h2>'+dqHTML();
+  h+='<h2>Energiefluss</h2>'+sankeySVG(k,'#14202e','#ffffff',false)+'<h2>Verbraucher einzeln</h2>'+consumerHTML(k)+'<h2>Abwärme und Wärmesenken</h2>'+heatHTML(k)+'<h2>Anlagengruppen</h2>'+groupHTML()+'<h2>Warmwasser</h2>'+dhwHTML()+'<h2>Datenqualität, Quellen und Annahmen</h2>'+dqHTML();
   h+='<h2>Annahmen</h2><p>Außentemperatur: '+(w.mode==='const'?'konstant '+fmt(w.tconst,1)+' °C':w.mode==='year'?'Jahresgang, Mittel '+fmt(w.tmean,1)+' °C, Jahresamplitude '+fmt(w.tseas,1)+' K, Tagesamplitude '+fmt(w.tday,1)+' K':'Zeitreihe aus CSV')+'. Heizgrenze '+fmt(g.tgr,1)+' °C, Normaußentemperatur '+fmt(g.tnorm,1)+' °C. Strom für Pumpen: '+fmt(g.elprice,3)+' '+e(g.cur)+' je kWh, '+fmt(g.elco2,3)+' kg CO₂ je kWh. Systemdruck '+fmt(g.pstat,1)+' bar, Sicherheitszuschlag '+fmt(g.psafe,1)+' bar.</p>';
   if(sch)h+='<h2>Anlagenschema</h2>'+sch.svg;
   h+='<h2>Bauteile</h2><table><tr><th>Name</th><th>Typ</th><th class="l">Parameter</th></tr>'+model.comps.map(c=>'<tr><td>'+e(c.name)+'</td><td class="l">'+e(TYPES[c.type].label)+'</td><td class="l">'+e(paramSummary(c))+'</td></tr>').join('')+'</table>';
@@ -2910,6 +2995,12 @@ $('#jimp').onclick=()=>loadText($('#json').value);
 $('#vcheck').onclick=()=>showValidation(validateModel());
 $('#vfix').onclick=()=>{pushUndo();const n=fixParams();renderAll();buildProps();showValidation(validateModel());scheduleSave();note(n?n+' Parameter korrigiert.':'Nichts zu korrigieren.');};
 $('#mdl_save').onclick=()=>{const nm=($('#mdl_name').value||'').trim()||('Modell '+(Object.keys(loadModels()).length+1)),o=loadModels();o[nm]=JSON.stringify(exportModel());if(saveModels(o)){buildModels();$('#mdl_name').value='';note('Modell „'+nm+'“ gespeichert.');}else note('Speicher voll: Modell konnte nicht gespeichert werden.');};
+function skSel(){$('#sk_left').value=sankeyOpt.left;$('#sk_right').value=sankeyOpt.right;}
+function skChange(){sankeyOpt={left:$('#sk_left').value,right:$('#sk_right').value};try{localStorage.setItem('hw-sim-sankey',JSON.stringify(sankeyOpt));}catch(_){}updateEval();}
+$('#sk_left').onchange=skChange;$('#sk_right').onchange=skChange;
+$('#sk_rep').onclick=()=>saveFile('energiefluss-bericht.html',sankeyReportHTML(),'Energiefluss-Bericht');
+$('#sk_svg').onclick=()=>{const r=sankeyBuild(kpis(),sankeyOpt,'#14202e','#ffffff',true);if(!r){$('#expmsg').textContent='Noch kein Energiefluss vorhanden.';return;}saveFile('energiefluss.svg',r.svg,'Energiefluss');};
+$('#sk_png').onclick=async()=>{const r=sankeyBuild(kpis(),sankeyOpt,'#14202e','#ffffff',true);if(!r){$('#expmsg').textContent='Noch kein Energiefluss vorhanden.';return;}try{const b=await svgToPng(r.svg,r.w,r.h);saveFile('energiefluss.png',b,'Energiefluss');}catch(_){$('#expmsg').textContent='PNG nicht möglich. Stattdessen Energiefluss (.svg) exportieren.';}};
 $('#xcsv').onclick=()=>saveFile('verlaeufe.csv',historyCSV(),'Verläufe');
 $('#xkpi').onclick=()=>saveFile('kennzahlen.csv',kpiCSV(),'Kennzahlen');
 $('#xrep').onclick=()=>saveFile('bericht-heizwasser.html',reportHTML(),'Bericht');
