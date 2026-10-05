@@ -864,7 +864,20 @@
           <option value="total_units">Total Units</option>
         </select>
       </div>
+
+      <hr style="margin: 15px 0;">
+
+      <div style="background:#eafaf1; padding:8px; border-radius:5px; border:1px solid #107c41;">
+        <label style="color:#107c41; font-weight:bold;">SKU-Liter Export</label>
+        <button onclick="exportVolumeBySkuAllYears()" style="width:100%; margin-top:5px; background:#107c41; color:white; border:none; padding:7px 8px; border-radius:4px; cursor:pointer; font-size:11px; font-weight:bold;">
+          &#128229; Alle Jahre als Excel
+        </button>
+        <div style="font-size:9.5px; color:#555; margin-top:5px; line-height:1.3;">
+          Erstellt je Jahr ein Tabellenblatt mit Litern pro SKU und Monat.
+        </div>
+      </div>
     </div>
+
 
     <!-- RECHTE SEITE: Visuals -->
     <div class="dash-chart" style="flex:1; background: #e8eaed; padding: 15px; border-radius: 8px; min-width: 0; margin-left: 15px;">
@@ -7144,8 +7157,13 @@ function updateCPM() {
     // Wenn es Transhipment ist und die Checkbox AUS ist -> sofort abbrechen (ignorieren)
     if (isTrans && !inclTrans) return;
 
+    // Plant "Transhipment" in der Zeile selbst hat Vorrang vor dem Mapping (Brand|Package),
+    // sonst wird ein gleichnamiges Dietlikon-/Vals-Produkt fälschlich als Dietlikon/Vals gezählt.
+    const rowIsTransSales = pRawSales.includes("transhipment") || pRawSales.includes("transshipment");
     let herkunft = "(Blank)";
-    if (mOrigin) {
+    if (rowIsTransSales) {
+        herkunft = "Import";
+    } else if (mOrigin) {
         if (mOrigin.includes("vals")) herkunft = "Vals";
         else if (mOrigin.includes("dietlikon")) herkunft = "Dietlikon";
         else if (isTrans || mOrigin.includes("import")) herkunft = "Import";
@@ -7230,8 +7248,12 @@ function updateCPM() {
     // Wenn es Transhipment ist und die Checkbox AUS ist -> Zeile überspringen (wird nicht in Tabelle/Charts geladen)
     if (isTrans && !inclTrans) return;
 
+    // Plant "Transhipment" in der Zeile selbst hat Vorrang vor dem Mapping (Brand|Package)
+    const rowIsTransCons = pRaw.includes("transhipment") || pRaw.includes("transshipment");
     let herkunft = "(Blank)";
-    if (mOrigin) {
+    if (rowIsTransCons) {
+        herkunft = "Import";
+    } else if (mOrigin) {
         if (mOrigin.includes("vals")) herkunft = "Vals";
         else if (mOrigin.includes("dietlikon")) herkunft = "Dietlikon";
         else if (isTrans || mOrigin.includes("import")) herkunft = "Import";
@@ -7827,6 +7849,7 @@ let currentB2CFiltered = [];
 
 function getOriginLabel(plantStr) {
     let p = String(plantStr || '').toLowerCase();
+    if(p.includes('transhipment') || p.includes('transshipment')) return 'Import';
     if(p.includes('dietlikon') || p.includes('vals')) return 'CH';
     if(p === '' || p === 'n/a' || p === 'null' || p === 'undefined') return 'Unknown';
     return 'Import';
@@ -9885,6 +9908,9 @@ function previewSyncData() {
 // VOLUMEN ANALYSE DASHBOARD LOGIK
 // ============================================================
 let volCharts = {};
+
+// HIER DIE NEUE FUNKTION exportVolumeBySkuAllYears()
+// aus meiner letzten Nachricht vollständig einfügen.
 
 function updateVolumeAnalysis() {
   if (!globalRows || globalRows.length === 0) return;
