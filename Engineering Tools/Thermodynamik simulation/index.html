@@ -67,7 +67,7 @@ main{flex:1;min-height:0;display:flex;flex-direction:column}
 #warnchip{position:absolute;left:10px;bottom:10px;padding:4px 10px;border-radius:999px;background:var(--panel);border:1px solid var(--line);font-size:12.5px;display:none;cursor:pointer}
 #warnchip.bad{color:var(--bad);border-color:var(--bad)}
 #warnchip.warn{color:var(--warn);border-color:var(--warn)}
-#panel{height:46%;display:flex;flex-direction:column;border-top:1px solid var(--line);background:var(--panel);min-height:0}
+#panel{height:var(--ph,46%);display:flex;flex-direction:column;border-top:1px solid var(--line);background:var(--panel);min-height:0}
 #panel.collapsed{height:44px}
 .tabs{display:flex;border-bottom:1px solid var(--line);flex:none}
 .tab{flex:1;padding:11px 2px 9px;background:none;border:0;border-bottom:2px solid transparent;color:var(--mute);font:600 13px var(--fontc);cursor:pointer;white-space:nowrap}
@@ -76,9 +76,19 @@ main{flex:1;min-height:0;display:flex;flex-direction:column}
 .pane{display:none;flex:1;min-height:0;overflow:auto;padding:12px;-webkit-overflow-scrolling:touch}
 .pane.active{display:block}
 #panel.collapsed .pane{display:none}
+#split{flex:none;position:relative;z-index:6;display:block;height:14px;cursor:row-resize;background:var(--line);touch-action:none;user-select:none;-webkit-user-select:none}
+#split::before{content:"";position:absolute;left:0;right:0;top:-8px;bottom:-8px}
+#split::after{content:"";position:absolute;left:50%;top:50%;width:46px;height:4px;transform:translate(-50%,-50%);border-radius:3px;background:var(--mute);opacity:.6}
+#split:hover,#split.drag,#split:focus-visible{background:var(--accent)}
+#split:hover::after,#split.drag::after,#split:focus-visible::after{background:var(--onaccent);opacity:.95}
+main:has(#panel.collapsed) #split{display:none}
 @media (min-width:900px){
   main{flex-direction:row}
-  #panel,#panel.collapsed{height:auto;width:370px;border-top:0;border-left:1px solid var(--line)}
+  main:has(#panel.collapsed) #split{display:block}
+  #split{width:14px;height:auto;cursor:col-resize}
+  #split::before{top:0;bottom:0;left:-8px;right:-8px}
+  #split::after{width:4px;height:46px}
+  #panel,#panel.collapsed{height:auto;width:var(--pw,370px);border-top:0;border-left:1px solid var(--line)}
   #panel.collapsed .pane.active{display:block}
   #collapse{display:none}
 }
@@ -171,18 +181,25 @@ textarea.field{width:100%;height:110px;text-align:left;padding:8px;font:12px/1.3
     <div class="brand"><span class="logo">♨</span><span class="t">Heizwasser-Simulator</span></div>
     <div class="ctl">
       <button id="run" class="btn primary" aria-label="Simulation starten">▶ Start</button>
-      <button id="reset" class="btn" title="Simulation auf Starttemperatur zurücksetzen" aria-label="Zurücksetzen">⟲</button>
+      <button id="reset" class="btn" title="Reset: Simulation auf Zeit 0 und Starttemperatur zurücksetzen (Modell bleibt)" aria-label="Simulation zurücksetzen">⟲</button>
       <button id="undo" class="btn" title="Rückgängig" aria-label="Rückgängig" disabled>↶</button>
-      <select id="speed" class="btn" aria-label="Simulationsgeschwindigkeit">
+      <button id="clearall" class="btn" title="Alles löschen: Bauteile, Verbindungen, Gruppen, Messreihen und Einstellungen. Zweimal klicken zum Bestätigen. Mit ↶ rückgängig." aria-label="Alles löschen">🗑</button>
+      <select id="speed" class="btn" aria-label="Simulationsgeschwindigkeit" title="Simulationsgeschwindigkeit. Die erreichbare Geschwindigkeit hängt von der Rechenleistung und der Modellgrösse ab.">
         <option value="1">×1</option>
         <option value="10">×10</option>
-        <option value="60" selected>×60</option>
+        <option value="60" selected>×60 (1 min/s)</option>
         <option value="300">×300</option>
         <option value="900">×900</option>
-        <option value="3600">×3600</option>
+        <option value="3600">×3600 (1 h/s)</option>
         <option value="14400">×14400</option>
-        <option value="86400">×86400</option>
+        <option value="86400">×86400 (1 Tag/s)</option>
+        <option value="259200">×259200 (3 Tage/s)</option>
+        <option value="604800">×604800 (1 Woche/s)</option>
+        <option value="2592000">×2.6 Mio (30 Tage/s)</option>
+        <option value="31536000">×31.5 Mio (1 Jahr/s)</option>
+        <option value="1e12">Maximum</option>
       </select>
+      <span id="effspd" aria-live="polite" style="display:none;font-size:11.5px;color:var(--warn);white-space:nowrap"></span>
       <div id="clk"><span id="cal">Mo 00:00</span><span id="clock">0:00:00</span></div>
     </div>
   </header>
@@ -209,6 +226,7 @@ textarea.field{width:100%;height:110px;text-align:left;padding:8px;font:12px/1.3
         <button class="btn" id="zfit" aria-label="Alles anzeigen">⤢</button>
       </div>
     </div>
+    <div id="split" role="separator" aria-orientation="vertical" tabindex="0" aria-label="Breite des Seitenbereichs ändern. Ziehen oder Pfeiltasten, Doppelklick setzt zurück." title="Ziehen zum Vergrößern oder Verkleinern, Doppelklick setzt zurück"></div>
     <aside id="panel">
       <div class="tabs" role="tablist">
         <button class="tab" role="tab" data-tab="pal" aria-selected="true">Bauteile</button>
@@ -282,6 +300,7 @@ textarea.field{width:100%;height:110px;text-align:left;padding:8px;font:12px/1.3
         </div>
         <textarea id="exptext" class="field" spellcheck="false" aria-label="Exporttext" style="display:none;margin-top:8px"></textarea>
         <p class="note" id="expmsg"></p>
+        <div class="row" id="expact" style="display:none;gap:6px;flex-wrap:wrap;margin-top:6px"></div>
         <h3>Szenarien vergleichen</h3>
         <div class="prow"><label for="sc_name">Name</label><input id="sc_name" class="field" style="width:150px;text-align:left" maxlength="24"></div>
         <div class="prow"><label for="sc_days">Dauer des Laufs<span class="u">Tage</span></label><input id="sc_days" type="number" min="1" max="366" step="1" value="7"></div>
@@ -929,8 +948,14 @@ function fixParams(){
   if(n){rebuildIndex();resetBalance();}
   return n;
 }
-const passStep=V=>function(c,dt){inflow(c);c.s.Q=0;mixStep(c,V,0,dt);};
-const passLim=V=>c=>0.5*RHO*V/(maxFlow(c)+1e-6);
+/* Durchlauf-Knoten (Verteiler, Sammler, Ventile, Druckhaltung): kleine Mischzelle, exakt (exponentiell) gelöst.
+   Dadurch unbedingt stabil, der Zeitschritt wird nicht mehr von diesen Knoten begrenzt (ca. 3-fach schneller bei grossen Netzen). */
+const passStep=V=>function(c,dt){
+  inflow(c);c.s.Q=0;
+  let sm=0,smT=0;for(const i of c.inp){if(i){sm+=i.m;smT+=i.m*i.T;}}
+  if(sm>1e-9){const Tin=smT/sm,a=sm/(RHO*V);c.s.T[0]=Tin+(c.s.T[0]-Tin)*Math.exp(-a*dt);}
+};
+const passLim=V=>c=>5;
 const stdMode=(c)=>c.p.mode;
 
 const TYPES={
@@ -2145,6 +2170,47 @@ function showTab(name){
 }
 document.querySelectorAll('.tab[data-tab]').forEach(t=>t.onclick=()=>{showTab(t.dataset.tab);$('#panel').classList.remove('collapsed');});
 $('#collapse').onclick=()=>$('#panel').classList.toggle('collapsed');
+/* Seitenbereich variabel: Ziehen am Trennbalken, Pfeiltasten, Doppelklick = Standard */
+(function(){
+  const PK='hw-sim-panel-v1',panel=$('#panel'),split=$('#split'),main=document.querySelector('main');
+  const mq=window.matchMedia('(min-width:900px)'),wide=()=>mq.matches;
+  let cfg={w:null,h:null},raf=0,drag=null;
+  try{const o=JSON.parse(localStorage.getItem(PK)||'null');if(o&&typeof o==='object')cfg={w:+o.w>0?+o.w:null,h:+o.h>0?+o.h:null};}catch(_){}
+  const save=()=>{try{localStorage.setItem(PK,JSON.stringify(cfg));}catch(_){}};
+  function limits(){const r=main.getBoundingClientRect();return wide()?{min:280,max:Math.max(280,Math.min(1200,r.width-260))}:{min:120,max:Math.max(120,r.height-150)};}
+  function apply(){
+    const L=limits();
+    if(cfg.w)panel.style.setProperty('--pw',clamp(cfg.w,L.min,L.max)+'px');else panel.style.removeProperty('--pw');
+    if(cfg.h)panel.style.setProperty('--ph',clamp(cfg.h,L.min,L.max)+'px');else panel.style.removeProperty('--ph');
+    split.setAttribute('aria-orientation',wide()?'vertical':'horizontal');
+    if(!raf)raf=requestAnimationFrame(()=>{raf=0;try{drawChart();}catch(_){}});
+  }
+  const cur=()=>{const r=panel.getBoundingClientRect();return Math.round(wide()?r.width:r.height);};
+  const setSize=v=>{const L=limits();v=clamp(Math.round(v),L.min,L.max);if(wide())cfg.w=v;else cfg.h=v;apply();};
+  split.addEventListener('pointerdown',e=>{
+    if(e.button!==undefined&&e.button!==0)return;
+    drag=e.pointerId;try{split.setPointerCapture(e.pointerId);}catch(_){}
+    split.classList.add('drag');document.body.style.userSelect='none';e.preventDefault();
+  });
+  split.addEventListener('pointermove',e=>{
+    if(drag===null)return;
+    const r=main.getBoundingClientRect();
+    setSize(wide()?r.right-e.clientX:r.bottom-e.clientY);
+  });
+  const end=e=>{if(drag===null)return;drag=null;split.classList.remove('drag');document.body.style.userSelect='';try{split.releasePointerCapture(e.pointerId);}catch(_){}save();};
+  split.addEventListener('pointerup',end);split.addEventListener('pointercancel',end);
+  split.addEventListener('dblclick',()=>{cfg={w:null,h:null};apply();save();});
+  split.addEventListener('keydown',e=>{
+    const st=e.shiftKey?80:24;let d=0;
+    if(wide()){if(e.key==='ArrowLeft')d=st;else if(e.key==='ArrowRight')d=-st;}
+    else{if(e.key==='ArrowUp')d=st;else if(e.key==='ArrowDown')d=-st;}
+    if(e.key==='Home'){cfg={w:null,h:null};apply();save();e.preventDefault();return;}
+    if(!d)return;e.preventDefault();setSize(cur()+d);save();
+  });
+  try{mq.addEventListener('change',apply);}catch(_){try{mq.addListener(apply);}catch(__){}}
+  window.addEventListener('resize',apply);
+  apply();
+})();
 
 const pal=$('#palette');
 for(const k of Object.keys(TYPES)){
@@ -2696,12 +2762,69 @@ function updateEval(){
   $('#heat').innerHTML=heatHTML(k);$('#grpk').innerHTML=groupHTML();$('#dhwk').innerHTML=dhwHTML();$('#dq').innerHTML=dqHTML();
 }
 let dl=null;
-try{if(window.claude&&window.claude.use)window.claude.use('downloads').then(d=>{dl=d;}).catch(()=>{});}catch(_){}
+async function getDl(){
+  if(dl)return dl;
+  try{if(window.claude&&window.claude.use)dl=await window.claude.use('downloads');}catch(_){dl=null;}
+  return dl;
+}
+getDl();
+const MIMES={html:'text/html',csv:'text/csv',svg:'image/svg+xml',png:'image/png',txt:'text/plain',json:'application/json'};
+function anchorSave(name,data){
+  try{
+    const ext=(name.split('.').pop()||'').toLowerCase();
+    const blob=data instanceof Blob?data:new Blob([data],{type:(MIMES[ext]||'application/octet-stream')+';charset=utf-8'});
+    const url=URL.createObjectURL(blob),a=document.createElement('a');
+    a.href=url;a.download=name;a.style.display='none';document.body.appendChild(a);a.click();
+    setTimeout(()=>{a.remove();URL.revokeObjectURL(url);},8000);
+    return true;
+  }catch(_){return false;}
+}
+/* Ergebnis: saved | declined | error (mit code) | anchor (Browser-Download ausgelöst) | none */
+async function tryDownload(name,data){
+  const d=await getDl();
+  if(d){
+    try{await d.save({filename:name,data});return{state:'saved',d};}
+    catch(e){const code=(e&&e.code)||'unbekannt';return{state:code==='declined'?'declined':'error',code,d};}
+  }
+  return{state:anchorSave(name,data)?'anchor':'none'};
+}
+function expActions(list){
+  const el=$('#expact');if(!el)return;
+  el.innerHTML='';
+  list.forEach(([label,fn])=>{const b=document.createElement('button');b.className='btn small';b.textContent=label;b.onclick=fn;el.appendChild(b);});
+  el.style.display=list.length?'flex':'none';
+}
 async function saveFile(name,data,label){
   const out=$('#expmsg'),ta=$('#exptext');
-  if(dl){try{await dl.save({filename:name,data});out.textContent=label+' exportiert.';ta.style.display='none';return;}catch(e){if(e&&e.code==='declined')return;}}
-  if(typeof data==='string'){ta.style.display='block';ta.value=data;ta.select();out.textContent='Direkter Download ist hier nicht verfügbar. Text kopieren und als '+name+' speichern.';}
-  else out.textContent='Download nicht möglich.';
+  ta.style.display='none';expActions([]);
+  const say=t=>{out.textContent=t;try{note(t);}catch(_){}};
+  const isText=typeof data==='string';
+  const showText=()=>{if(!isText)return;ta.style.display='block';ta.value=data;ta.select();};
+  const r=await tryDownload(name,data);
+  if(r.state==='saved'){say(label+' gespeichert ('+name+').');return;}
+  if(r.state==='declined'){say('Speichern abgebrochen.');return;}
+  const acts=[];
+  if(r.state==='error'){
+    if(isText&&(r.code==='extension_not_enabled'||r.code==='rejected_extension')){
+      const alt=name.replace(/\.[^.]+$/,'')+'.txt';
+      acts.push(['Als .txt speichern',async()=>{
+        const r2=await tryDownload(alt,data);
+        if(r2.state==='saved'){say(label+' als '+alt+' gespeichert. Zum Öffnen in '+name+' umbenennen.');expActions([]);}
+        else if(r2.state!=='declined')say('Auch .txt konnte nicht gespeichert werden (Code: '+(r2.code||r2.state)+').');
+      }]);
+    }
+    if(isText)acts.push(['Text anzeigen',showText]);
+    expActions(acts);
+    say('Download nicht möglich (Code: '+r.code+').'+(r.code==='rate_limited'?' Bitte kurz warten und noch einmal klicken.':'')+(r.code==='extension_not_enabled'||r.code==='rejected_extension'?' Das Dateiformat ist in dieser Ansicht für Downloads gesperrt.':''));
+    return;
+  }
+  if(r.state==='anchor'){
+    if(isText)expActions([['Text anzeigen',showText]]);
+    say(label+': Download ausgelöst ('+name+'). Falls keine Datei erscheint, ist der Download in dieser Ansicht gesperrt.');
+    return;
+  }
+  showText();
+  say('Download nicht möglich. Text kopieren und als '+name+' speichern.');
 }
 const csvNum=(x,d)=>Number.isFinite(x)?String(+x.toFixed(d)).replace('.',','):'';
 function historyCSV(){
@@ -2964,7 +3087,7 @@ $('#run').onclick=toggleRun;
 $('#reset').onclick=()=>{resetSim();dirty=true;slowUpdate(true);drawChart();};
 $('#undo').onclick=undo;
 $('#pmin').onclick=()=>{pushUndo();applyMinPressure(null);dirty=true;scheduleSave();buildGlob();buildProps();slowUpdate(true);note('Systemdruck auf den Mindestdruck gesetzt (aufgerundet auf 0,1 bar).');};
-$('#speed').onchange=e=>{speed=+e.target.value;};
+$('#speed').onchange=e=>{speed=+e.target.value;simDebt=0;effShown=false;$('#effspd').style.display='none';};
 
 function fnote(t){$('#fmsg').textContent=t;note(t);}
 function loadText(t){
@@ -2978,9 +3101,12 @@ function loadText(t){
 }
 $('#fexp').onclick=async()=>{
   const txt=JSON.stringify(exportModel(),null,1);
-  if(!dl){$('#json').value=txt;$('#json').select();fnote('Direkter Download ist hier nicht verfügbar. Den Text unten kopieren und als .json-Datei speichern.');return;}
-  try{await dl.save({filename:'heizwasser-modell.json',data:txt});fnote('Modell exportiert.');}
-  catch(e){if(e&&e.code==='declined')return;$('#json').value=txt;fnote('Download nicht möglich. Den Text unten kopieren und als .json-Datei speichern.');}
+  const r=await tryDownload('heizwasser-modell.json',txt);
+  if(r.state==='saved'){fnote('Modell exportiert.');return;}
+  if(r.state==='declined')return;
+  if(r.state==='anchor'){fnote('Download ausgelöst (heizwasser-modell.json). Falls keine Datei erscheint, den Text unten kopieren.');$('#json').value=txt;return;}
+  $('#json').value=txt;$('#json').select();
+  fnote('Download nicht möglich'+(r.code?' (Code: '+r.code+')':'')+'. Den Text unten kopieren und als .json-Datei speichern.');
 };
 $('#fimp').onclick=()=>$('#ffile').click();
 $('#ffile').onchange=ev=>{
@@ -3009,12 +3135,45 @@ $('#xpng').onclick=async()=>{const r=schemaSVG();if(!r){$('#expmsg').textContent
 $('#sc_run').onclick=startRunScenario;
 $('#sc_stop').onclick=()=>{if(runState)runState.cancel=true;};
 $('#sc_now').onclick=()=>{const nm=($('#sc_name').value||'').trim()||('Stand '+(loadScen().length+1));const ok=addScenario(nm,simT/86400);$('#sc_msg').textContent=ok?'Aktueller Stand als „'+nm+'“ gespeichert.':'Speicher voll.';$('#sc_name').value='';buildScenTable();};
-$('#clear').onclick=()=>{pushUndo();model={glob:model.glob,nextId:1,comps:[],edges:[]};rebuildIndex();resetSim();sel=null;renderAll();buildProps();scheduleSave();};
+function clearAll(){
+  pushUndo();
+  model={glob:normGlob(null),nextId:1,comps:[],edges:[],meas:[],groups:[]};
+  rebuildIndex();resetSim();sel=null;msel.clear();pending=null;
+  renderAll();buildProps();buildGlob();buildWx();showTab('pal');scheduleSave();dirty=true;
+  try{fitView();}catch(_){}
+}
+let clrT=0;
+function disarmClear(){const b=$('#clearall');clearTimeout(clrT);delete b.dataset.arm;b.textContent='🗑';b.classList.remove('danger');}
+$('#clearall').onclick=()=>{
+  const b=$('#clearall');
+  if(!b.dataset.arm){b.dataset.arm='1';b.textContent='Wirklich löschen?';b.classList.add('danger');clrT=setTimeout(disarmClear,4000);note('Nochmals klicken, um alles zu löschen. Mit ↶ lässt es sich rückgängig machen.');return;}
+  disarmClear();clearAll();note('Alles gelöscht. Mit ↶ rückgängig machen.');
+};
+$('#clear').onclick=()=>{clearAll();note('Alles gelöscht. Mit ↶ rückgängig machen.');};
 
-let lastTs=0,lastChart=0;
+let lastTs=0,lastChart=0,simDebt=0,effShown=false,effT=0,effS=0,effR=0;
+function runFast(dtr){
+  /* Simulationszeit, die in diesem Bild fällig ist; wird in Schritten von höchstens 15 min (ab ×86400: 1 h) mit Zeitbudget nachgerechnet. */
+  simDebt=Math.min(simDebt+dtr*speed,Math.max(speed*0.12,1));
+  const t0=performance.now(),budget=speed>=3600?22:14,start=simT;
+  while(simDebt>1e-3&&performance.now()-t0<budget){
+    const step=Math.min(simDebt,speed>=86400?3600:speed>=3600?900:Math.max(1,simDebt));
+    const before=simT;advance(step);const done=simT-before;
+    simDebt-=Math.max(done,1e-3);
+    if(done<=0)break;
+  }
+  effS+=simT-start;effR+=dtr;
+  if(effR>=1){
+    const eff=effS/effR;effS=0;effR=0;
+    const slow=speed<1e11&&eff<speed*0.75,mx=speed>=1e11;
+    const el=$('#effspd');
+    if(slow||mx){el.textContent=(mx?'Max: ':'läuft mit ')+'×'+Math.round(eff).toLocaleString('de-CH').replace(/’/g,'’');el.style.display='inline';el.style.color=mx?'var(--mute)':'var(--warn)';el.title=mx?'Erreichte Geschwindigkeit':'Rechenleistung begrenzt die gewählte Geschwindigkeit.';}
+    else el.style.display='none';
+  }
+}
 function frame(ts){
   const dtr=Math.min(0.1,Math.max(0,(ts-lastTs)/1000));lastTs=ts;
-  if(running){advance(dtr*speed);dirty=true;}
+  if(running){runFast(dtr);dirty=true;}
   else if(dirty){solveFlows();refreshFlows();updateDemandCaps();}
   if(dirty||running){updateView();$('#clock').textContent=clockStr(simT);$('#cal').textContent=calStr(simT)+'  '+fmt(toutAt(simT),0)+' °C';dirty=false;}
   slowUpdate();
