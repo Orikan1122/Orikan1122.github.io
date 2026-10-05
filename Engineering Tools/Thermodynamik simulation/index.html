@@ -144,6 +144,13 @@ textarea.field{width:100%;height:110px;text-align:left;padding:8px;font:12px/1.3
 .paused .eflow{animation-play-state:paused}
 @keyframes dash{to{stroke-dashoffset:-16}}
 @media (prefers-reduced-motion:reduce){.eflow{animation:none}}
+.gframe{pointer-events:none}
+.ghead{cursor:grab}
+.gtitle{font:600 12.5px var(--fontc);pointer-events:none;user-select:none;-webkit-user-select:none}
+.gsum{font:400 11px var(--font);pointer-events:none;user-select:none;-webkit-user-select:none;fill:var(--mute);font-variant-numeric:tabular-nums}
+.gtog{font:600 13px var(--font);fill:var(--ink)}
+.gsel{fill:none;stroke:var(--accent);stroke-width:2.5}
+.badge{pointer-events:none}
 .comp.msel .cbody{stroke:var(--accent);stroke-width:2.5;stroke-dasharray:6 3}
 #zmulti[aria-pressed="true"]{background:var(--accent);color:var(--onaccent);border-color:var(--accent)}
 .tplrow{display:flex;gap:4px}
@@ -187,6 +194,7 @@ textarea.field{width:100%;height:110px;text-align:left;padding:8px;font:12px/1.3
         </defs>
         <g id="world">
           <rect x="-4000" y="-4000" width="8000" height="8000" fill="url(#grid)"/>
+          <g id="groups"></g>
           <g id="edges"></g>
           <g id="nodes"></g>
           <path id="rubber" class="rubber" d="" style="display:none"/>
@@ -244,6 +252,14 @@ textarea.field{width:100%;height:110px;text-align:left;padding:8px;font:12px/1.3
         <div id="kpiper"></div>
         <h3>Energiefluss</h3>
         <div id="sankey"></div>
+        <h3>Abwärme und Wärmesenken</h3>
+        <div id="heat"></div>
+        <h3>Anlagengruppen</h3>
+        <div id="grpk"></div>
+        <h3>Warmwasser</h3>
+        <div id="dhwk"></div>
+        <h3>Datenqualität</h3>
+        <div id="dq"></div>
         <h3>Annahmen für Kosten und CO₂</h3>
         <div id="costin"></div>
         <h3>Export</h3>
@@ -315,7 +331,7 @@ const sumA=a=>a.reduce((x,y)=>x+y,0);
 const avgA=a=>sumA(a)/a.length;
 const m3h=m=>m*3600/RHO;
 
-const DN={15:16.1,20:21.7,25:27.3,32:36.0,40:41.9,50:53.1,65:68.9,80:80.9,100:105.3,125:130.0,150:155.0,200:207.3};
+const DN={15:16.1,20:21.7,25:27.3,32:36.0,40:41.9,50:53.1,65:68.9,80:80.9,100:105.3,125:130.0,150:155.0,200:207.3,250:260.4,300:309.7,350:339.6,400:388.8};
 const DNOPT=Object.keys(DN).map(k=>[+k,'DN '+k]);
 const INSOPT=[[0,'ungedämmt'],[20,'20 mm'],[30,'30 mm'],[50,'50 mm'],[80,'80 mm'],[100,'100 mm']];
 const visc=T=>1.78e-6/(1+0.0337*T+0.000221*T*T);
@@ -353,7 +369,32 @@ function normGlob(g){
   o.cur=String(o.cur||'CHF').slice(0,6);
   return o;
 }
-let model={glob:defGlob(),nextId:1,comps:[],edges:[],meas:[]};
+const STATUS=[['unknown','nicht angegeben'],['measured','gemessen'],['mfr','Herstellerangabe'],['calc','berechnet'],['est','geschätzt'],['assumed','Annahme'],['open','offen, zu klären']];
+function normMeta(m){
+  const o={src:'',note:'',status:'unknown'};
+  if(m&&typeof m==='object'){o.src=String(m.src||'').slice(0,160);o.note=String(m.note||'').slice(0,500);if(STATUS.some(x=>x[0]===m.status))o.status=m.status;}
+  return o;
+}
+const metaUsed=m=>!!m&&(m.src||m.note||m.status!=='unknown');
+function normGroups(arr,ids){
+  const out=[],used=new Set();let nid=1;
+  for(const g of (Array.isArray(arr)?arr:[])){
+    if(!g||typeof g!=='object')continue;
+    const mem=[...new Set((Array.isArray(g.members)?g.members:[]).map(Number))].filter(i=>ids.has(i)&&!used.has(i));
+    if(!mem.length)continue;
+    mem.forEach(i=>used.add(i));
+    let id=Number.isFinite(+g.id)&&+g.id>0?+g.id:nid;while(out.some(x=>x.id===id))id++;nid=Math.max(nid,id+1);
+    out.push({id,name:String(g.name||'Gruppe').slice(0,30),color:/^#[0-9a-fA-F]{6}$/.test(g.color||'')?g.color:'#0b6aae',members:mem,collapsed:!!g.collapsed,note:String(g.note||'').slice(0,300),gx:g.gx!=null&&Number.isFinite(+g.gx)?+g.gx:null,gy:g.gy!=null&&Number.isFinite(+g.gy)?+g.gy:null});
+  }
+  return out;
+}
+const groupOf=cid=>model.groups.find(g=>g.members.includes(cid))||null;
+function dropFromGroups(ids){
+  const set=new Set(ids);
+  model.groups.forEach(g=>{g.members=g.members.filter(i=>!set.has(i));});
+  model.groups=model.groups.filter(g=>g.members.length);
+}
+let model={glob:defGlob(),nextId:1,comps:[],edges:[],meas:[],groups:[]};
 let kpiPeak=0;
 let compMap={};
 let simT=0,flowErr=0,flowNeg=false,hydGroups=[];
@@ -395,7 +436,7 @@ function normSch(o){
 }
 function exportP(c){
   const p=Object.assign({},c.p);
-  if(p.prof)p.prof={on:p.prof.on,step:p.prof.step,vals:p.prof.vals};
+  if(p.prof)p.prof={on:p.prof.on,step:p.prof.step,vals:p.prof.vals,scale:p.prof.scale,interp:p.prof.interp,loop:p.prof.loop,align:p.prof.align,w0:p.prof.w0};
   if(p.sch)p.sch={on:p.sch.on,off:p.sch.off,days:p.sch.days.map(d=>d.map(b=>({from:fmtT(b.from),to:fmtT(b.to),level:b.level})))};
   return p;
 }
@@ -436,25 +477,70 @@ function junc(E,ins,outs,f,p,r){
   r.push(s);
   for(let j=1;j<all.length;j++)r.push(p[all[j]]-p[all[0]]);
 }
-function pumpH(c,V){
-  const q=c.p,pf=pumpF(c),Hn=q.hn*HM,H0=1.3*Hn,a=(H0-Hn)/(q.qn*q.qn),v0=Math.max(V,0);
-  let h;
-  if(q.mode==='fixed'){const n=Math.min(q.n/100*pf,1.2);h=n*n*H0-a*v0*v0;}
-  else{
-    const nm=q.nmin/100;let hs=q.hs*HM*Math.min(pf,1.5);
-    if(q.mode==='dpv')hs=hs*(0.5+0.5*Math.min(v0/q.qn,1.5));else hs=hs-0.002*hs/q.qn*v0;
-    h=clamp(hs,nm*nm*H0-a*v0*v0,H0-a*v0*v0);
+function normPC(o){
+  if(!o||typeof o!=='object')return null;
+  const q=(o.q||[]).map(Number),h=(o.h||[]).map(Number),e=(o.e||[]).map(Number),pts=[];
+  for(let i=0;i<Math.min(q.length,h.length);i++)if(Number.isFinite(q[i])&&Number.isFinite(h[i])&&q[i]>=0&&h[i]>=0)pts.push([q[i],h[i],Number.isFinite(e[i])&&e[i]>0?(e[i]>1.5?e[i]/100:e[i]):0]);
+  if(pts.length<2)return null;
+  pts.sort((x,y)=>x[0]-y[0]);
+  const out=[pts[0]];
+  for(const pt of pts.slice(1)){if(pt[0]-out[out.length-1][0]<1e-6)continue;pt[1]=Math.min(pt[1],out[out.length-1][1]);out.push(pt);}
+  if(out.length<2)return null;
+  return{q:out.map(x=>x[0]),h:out.map(x=>x[1]),e:out.map(x=>clamp(x[2],0,0.95))};
+}
+function Hc(c,v){
+  const q=c.p;
+  if(q.pc){
+    const Q=q.pc.q,H=q.pc.h,n=Q.length;
+    if(v<=Q[0])return H[0]*HM;
+    if(v>=Q[n-1]){const sl=Math.min((H[n-1]-H[n-2])/(Q[n-1]-Q[n-2]),-0.05*Math.max(H[0],0.5)/Q[n-1]);return Math.max(H[n-1]+sl*(v-Q[n-1]),-5)*HM;}
+    let i=1;while(Q[i]<v)i++;
+    const f=(v-Q[i-1])/(Q[i]-Q[i-1]);return(H[i-1]+(H[i]-H[i-1])*f)*HM;
   }
-  if(V<0)h+=-V*5*H0/q.qn;
+  const Hn=q.hn*HM,H0=1.3*Hn,a=(H0-Hn)/(q.qn*q.qn);return H0-a*v*v;
+}
+function pumpH(c,V){
+  const q=c.p,pf=pumpF(c),v0=Math.max(V,0);let h;
+  if(q.mode==='fixed'){const n=Math.min(q.n/100*pf,1.2);h=n>0.01?n*n*Hc(c,v0/n):0;}
+  else{
+    const nm=q.nmin/100,hi=Hc(c,v0),lo=nm*nm*Hc(c,v0/nm);let hs=q.hs*HM*Math.min(pf,1.5);
+    if(q.mode==='dpv')hs=hs*(0.5+0.5*Math.min(v0/q.qn,1.5));else hs=hs-0.002*hs/q.qn*v0;
+    h=clamp(hs,Math.min(lo,hi),hi);
+  }
+  if(V<0)h+=-V*5*Math.max(Hc(c,0),0.05)/Math.max(q.qn,0.5);
   return h;
 }
-function pumpN(c){
-  const q=c.p;if(q.mode==='fixed')return Math.min(q.n/100*pumpF(c),1.2);if(q.mode==='flow')return NaN;
+function pumpSpeed(c,V,H){
+  const q=c.p;
+  if(q.mode==='fixed')return Math.min(q.n/100*pumpF(c),1.2);
+  if(q.mode==='flow')return NaN;
   if(!pumpOn(c))return 0;
-  const Hn=q.hn*HM,H0=1.3*Hn,a=(H0-Hn)/(q.qn*q.qn),V=Math.max(0,m3h(inMix(c).m)),H=c.s.H||0;
-  return clamp(Math.sqrt(Math.max(0,(H+a*V*V)/H0)),q.nmin/100,1);
+  let lo=q.nmin/100,hi=1;const v=Math.max(V,0),f=n=>n*n*Hc(c,v/n);
+  if(H>=f(hi))return 1;if(H<=f(lo))return lo;
+  for(let i=0;i<30;i++){const m=(lo+hi)/2;if(f(m)<H)lo=m;else hi=m;}
+  return(lo+hi)/2;
 }
-const valvePos=c=>c.p.ctl==='manual'?c.p.pos/100:c.s.pos;
+const pumpN=c=>pumpSpeed(c,m3h(inMix(c).m),c.s.H||0);
+function pumpEta(c,V,n){
+  const pc=c.p.pc;
+  if(pc&&pc.e.some(x=>x>0)){
+    const Q=[],E=[];pc.q.forEach((x,i)=>{if(pc.e[i]>0){Q.push(x);E.push(pc.e[i]);}});
+    const v=Math.max(V,0)/Math.max(n,0.2);
+    if(Q.length===1)return Math.max(E[0],0.1);
+    if(v<=Q[0])return Math.max(E[0],0.1);
+    if(v>=Q[Q.length-1])return Math.max(E[E.length-1],0.1);
+    let i=1;while(Q[i]<v)i++;
+    return Math.max(E[i-1]+(E[i]-E[i-1])*(v-Q[i-1])/(Q[i]-Q[i-1]),0.1);
+  }
+  return c.p.eta;
+}
+function valveKv(kvs,pos,chr){
+  const x=clamp(pos,0,1);let k;
+  if(chr==='eq')k=Math.pow(50,x-1)*Math.min(1,x/0.05);else k=x;
+  return kvs*Math.max(k,0.001);
+}
+const valveOpen=c=>c.s.ext&&c.s.ext.pos!=null?c.s.ext.pos:c.p.pos/100;
+const valvePos=c=>c.s.ext&&c.s.ext.pos!=null?c.s.ext.pos:(c.p.ctl==='manual'?c.p.pos/100:c.s.pos);
 function loadValves(){
   for(const c of model.comps){
     if(c.type!=='valve3'||c.p.ctl!=='load')continue;
@@ -463,6 +549,7 @@ function loadValves(){
   }
 }
 function demandOfConsumer(k,tsup){
+  if(k.type==='dhw')return dhwDemandW(k);
   const q=k.p,f=loadF(k);
   return q.mode==='P'?baseDemandW(k)*f:q.ua*1000*Math.max(0,tsup-10-q.troom)*f;
 }
@@ -474,7 +561,7 @@ function updateDemandCaps(){
   for(const c of model.comps)if(c.type==='source'){const gi=gc(c);if(gi>=0)tmax[gi]=Math.max(tmax[gi],c.p.tset);}
   for(const c of model.comps){
     const gi=gc(c);if(gi<0)continue;
-    if(c.type==='consumer')base[gi]+=demandOfConsumer(c,tmax[gi]>-Infinity?tmax[gi]:70);
+    if(c.type==='consumer'||c.type==='dhw')base[gi]+=demandOfConsumer(c,tmax[gi]>-Infinity?tmax[gi]:70);
     else if(c.type==='pipe'||c.type==='tank')base[gi]+=c.s.loss||0;
   }
   let D=base.slice();
@@ -507,12 +594,13 @@ function updateDemandCaps(){
 function findConsumer(c){
   let e=model.edges[c.pe[1]];
   for(let k=0;k<8&&e;k++){
-    const n=compMap[e.b.c];if(n.type==='consumer')return n;
+    const n=compMap[e.b.c];if(n.type==='consumer'||n.type==='dhw')return n;
     if(['pipe','pump','valve2','prv','hold','source'].includes(n.type))e=model.edges[n.pe[1]];else return null;
   }
   return null;
 }
-function demandW(k){const q=k.p;return q.mode==='P'?baseDemandW(k)*loadF(k):q.ua*1000*Math.max(0,k.s.T[0]-q.troom)*loadF(k);}
+function demandW(k){if(k.type==='dhw')return dhwDemandW(k);const q=k.p;return q.mode==='P'?baseDemandW(k)*loadF(k):q.ua*1000*Math.max(0,k.s.T[0]-q.troom)*loadF(k);}
+const RCAT={comp:'Kompressoren',wtw:'Wärmetauscher Abwasser',wta:'Wärmetauscher Abluft',proc:'Prozess, Produktkühlung',oth:'Sonstige'};
 const CARRIERS=[['gas','Erdgas'],['oil','Heizöl'],['el','Strom'],['fw','Fernwärme'],['wood','Holz'],['other','Sonstiges']];
 const CARRIER_DEF={gas:{co2f:0.20,price:0.11},oil:{co2f:0.27,price:0.10},el:{co2f:0.12,price:0.22},fw:{co2f:0.10,price:0.13},wood:{co2f:0.03,price:0.08}};
 const isHp=p=>p.kind==='hp';
@@ -534,10 +622,18 @@ function normProf(o){
   if(!o||typeof o!=='object')return null;
   const vals=(Array.isArray(o.vals)?o.vals:[]).map(Number).filter(Number.isFinite).map(v=>Math.max(0,v)).slice(0,20000);
   if(!vals.length)return null;
-  return{on:o.on!==false,step:clamp(+o.step||60,1,1440),vals,max:Math.max(...vals)};
+  const sc=Number.isFinite(+o.scale)&&+o.scale>0?+o.scale:1;
+  return{on:o.on!==false,step:clamp(+o.step||60,0.1,1440),vals,scale:sc,interp:o.interp==='step'?'step':'lin',loop:o.loop!==false,align:o.align==='cal'?'cal':'day',w0:Number.isFinite(+o.w0)?+o.w0:0,max:Math.max(...vals)*sc};
 }
-function profAt(pr,t,t0min){const n=pr.vals.length,x=(((t0min+t/60)/pr.step)%n+n)%n,i=Math.floor(x),f=x-i;return pr.vals[i]*(1-f)+pr.vals[(i+1)%n]*f;}
-const baseDemandW=c=>(c.p.prof&&c.p.prof.on?profAt(c.p.prof,simNow,model.glob.t0min||0):c.p.pq)*1000;
+function profAt(pr,t){
+  const g=model.glob,base=pr.align==='cal'?(g.t0day||0)*1440+(g.t0min||0):(g.t0min||0),n=pr.vals.length,x=(base+t/60-pr.w0)/pr.step;
+  let xi=x;if(pr.loop)xi=((x%n)+n)%n;else if(x<0||x>=n)return 0;
+  const i=Math.floor(xi),f=xi-i;
+  if(pr.interp==='step')return pr.vals[i]*pr.scale;
+  const j=pr.loop?(i+1)%n:Math.min(i+1,n-1);
+  return(pr.vals[i]*(1-f)+pr.vals[j]*f)*pr.scale;
+}
+const baseDemandW=c=>(c.p.prof&&c.p.prof.on?profAt(c.p.prof,simNow):c.p.pq)*1000;
 function normMeas(x){
   if(!x||typeof x!=='object')return null;
   const t=(Array.isArray(x.t)?x.t:[]).map(Number),v=(Array.isArray(x.v)?x.v:[]).map(Number),n=Math.min(t.length,v.length,20000),tt=[],vv=[];
@@ -554,14 +650,63 @@ function parseCSV(text){
   }
   return rows;
 }
+function parseTS(str){
+  let m=/^\s*(\d{4})-(\d{2})-(\d{2})[T ](\d{1,2}):(\d{2})(?::(\d{2}))?/.exec(str),y,mo,d,h,mi,se;
+  if(m){y=+m[1];mo=+m[2];d=+m[3];h=+m[4];mi=+m[5];se=+(m[6]||0);}
+  else{m=/^\s*(\d{1,2})\.(\d{1,2})\.(\d{4})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?/.exec(str);if(!m)return null;d=+m[1];mo=+m[2];y=+m[3];h=+m[4];mi=+m[5];se=+(m[6]||0);}
+  return Date.UTC(y,mo-1,d,h,mi,se)/60000;
+}
+function parseSeries(text){
+  const lines=String(text).split(/\r?\n/).map(l=>l.trim()).filter(l=>l&&l[0]!=='#');
+  if(!lines.length)return null;
+  const delim=lines[0].includes(';')?';':lines[0].includes('\t')?'\t':',',dec=delim!==',',rows=[];
+  for(const l of lines){
+    const cells=l.split(delim).map(x=>x.trim()),ts=parseTS(cells[0]),nums=cells.slice(ts!==null?1:0).map(x=>Number(dec?x.replace(',','.'):x));
+    if(nums.length&&nums.every(Number.isFinite))rows.push({ts,nums});
+  }
+  if(!rows.length)return null;
+  if(rows.every(r=>r.ts!==null)){
+    const f=rows[0].ts,day=Math.floor(f/1440),wd=(((day+3)%7)+7)%7;
+    return{t:rows.map(r=>(r.ts-f)/60),v:rows.map(r=>r.nums[0]),hasTs:true,w0:wd*1440+(f-day*1440)};
+  }
+  if(rows.every(r=>r.nums.length>=2))return{t:rows.map(r=>r.nums[0]),v:rows.map(r=>r.nums[1]),hasTs:false,w0:rows[0].nums[0]*60};
+  return{t:null,v:rows.map(r=>r.nums[0]),hasTs:false,w0:0};
+}
+function resampleSeries(t,v,stepMin,interp){
+  const d=[];for(let i=1;i<t.length;i++)if(t[i]>t[i-1])d.push((t[i]-t[i-1])*60);
+  d.sort((a,b)=>a-b);const med=d.length?d[Math.floor(d.length/2)]:stepMin,step=med>0.05?Math.round(med*100)/100:stepMin;
+  const n=Math.min(20000,Math.floor((t[t.length-1]-t[0])*60/step)+1),out=[];let j=0;
+  for(let k=0;k<n;k++){
+    const x=t[0]+k*step/60+1e-9;while(j<t.length-1&&t[j+1]<=x)j++;
+    if(j>=t.length-1)out.push(v[t.length-1]);
+    else if(interp==='step'||t[j+1]===t[j])out.push(v[j]);
+    else{const f=clamp((x-t[j])/(t[j+1]-t[j]),0,1);out.push(v[j]+(v[j+1]-v[j])*f);}
+  }
+  return{vals:out,step};
+}
+function seriesFromCSV(text,stepMin,interp){
+  const sr=parseSeries(text);if(!sr)return null;
+  if(!sr.t)return{t:sr.v.map((_,i)=>i*stepMin/60),v:sr.v,vals:sr.v,step:stepMin,w0:0,hasTs:false};
+  const rs=resampleSeries(sr.t,sr.v,stepMin,interp||'lin');
+  return{t:sr.t,v:sr.v,vals:rs.vals,step:rs.step,w0:sr.w0,hasTs:sr.hasTs};
+}
+function dhwDraw(c){const q=c.p;return Math.max(0,(q.prof&&q.prof.on?profAt(q.prof,simNow):q.qpk)*q.last/100*schedF(c));}
+function dhwTk(c){
+  const q=c.p,w=model.glob.wx;if(!(q.tka>0)||w.mode!=='year')return q.tk;
+  const days=(w.doy0-1)+((model.glob.t0min||0)+simNow/60)/1440;return q.tk-q.tka*Math.cos(2*Math.PI*(days-45)/365);
+}
+const dhwQz=c=>c.p.zq/60*(RHO/1000)*CPJ*c.p.zdt;
+function dhwDemandW(c){const q=c.p,Ta=model.glob.tamb,md=dhwDraw(c)/60000*RHO;return md*CPJ*Math.max(0,q.tw-dhwTk(c))+dhwQz(c)+q.ua*Math.max(0,q.tw-Ta);}
+const pumpVol=c=>0.002*Math.max(1,(c.p.mode==='flow'?c.p.flow:c.p.qn)/5);
 const pumpOn=c=>c.p.on&&(!c.s.ext||c.s.ext.on)&&(!c.p.sch||!c.p.sch.on||schedPct(c,simNow)>0);
-const pumpF=c=>c.p.sch&&c.p.sch.on?clamp(schedPct(c,simNow)/100,0,1.5):1;
+const pumpF=c=>(c.p.sch&&c.p.sch.on?clamp(schedPct(c,simNow)/100,0,1.5):1)*(c.s.ext&&c.s.ext.pf!=null?c.s.ext.pf:1);
 const bump=T=>clamp(1-Math.abs(T-1)/6,0,1);
 function srcTq(c){const p=c.p;return p.tqsrc==='out'?getTout()+(p.dtq||0):p.tq;}
 function srcFd(c){return c.p.kind==='hp'&&c.p.tqsrc==='out'?1-c.p.defr/100*bump(srcTq(c)):1;}
 function srcCap(c){if(c.p.kind!=='hp')return 1;return clamp(1+c.p.qk/100*(srcTq(c)-7),0.3,1.6)*srcFd(c);}
 function srcEta(c,load,T){
   const p=c.p;
+  if(p.kind==='rec')return 1;
   if(p.kind==='hp'){const Tv=T+273.15,dT=Math.max(Tv-(srcTq(c)+273.15),5);return clamp(p.gg*Tv/dT*srcFd(c),1,9);}
   if(p.etap>0){const x=clamp((load-0.3)/0.7,0,1);return p.etap+(p.eta-p.etap)*x;}
   return p.eta;
@@ -577,6 +722,7 @@ function sensOptions(){
   const o=[['out','Außentemperatur']];
   for(const c of model.comps){
     if(c.type==='tank')o.push([c.id+':tt',c.name+' oben'],[c.id+':tm',c.name+' Mitte'],[c.id+':tb',c.name+' unten']);
+    else if(c.type==='dhw')o.push([c.id+':ts',c.name+', Warmwasserspeicher']);
     else portsOf(c).forEach((P,i)=>{if(P.d==='out')o.push([c.id+':p'+i,c.name+', '+P.n]);});
   }
   return o;
@@ -585,14 +731,21 @@ function sensRead(code){
   if(code==='out')return getTout();
   const m=/^(\d+):(.+)$/.exec(code||'');if(!m)return NaN;
   const c=compMap[+m[1]];if(!c||!c.s)return NaN;
+  if(c.type==='dhw')return m[2]==='ts'?c.s.Ts:outT(c,1);
   if(c.type==='tank'){const T=c.s.T;return m[2]==='tt'?T[0]:m[2]==='tb'?T[T.length-1]:T[Math.floor(T.length/2)];}
   return m[2][0]==='p'?outT(c,+m[2].slice(1)):NaN;
 }
+function srcOptions(){return[[0,'kein Erzeuger']].concat(model.comps.filter(x=>x.type==='source').map(x=>[x.id,x.name]));}
+function pumpOptions(){return[[0,'keine Pumpe']].concat(model.comps.filter(x=>x.type==='pump').map(x=>[x.id,x.name]));}
 function actOptions(c){
-  return[[0,'kein Aktor']].concat(model.comps.filter(x=>x.type==='source'||(x.type==='pump'&&c.p.mode==='hyst')).map(x=>[x.id,x.name+' ('+TYPES[x.type].label+')']));
+  const m=c.p.mode,ok=x=>m==='curve'?x.type==='source':m==='pi'?(x.type==='valve2'||x.type==='valve3'||x.type==='pump'):(x.type==='source'||x.type==='pump');
+  return[[0,'kein Aktor']].concat(model.comps.filter(ok).map(x=>[x.id,x.name+' ('+TYPES[x.type].label+')']));
 }
 function runControllers(dt){
-  for(const c of model.comps){if(!c.s.ext)c.s.ext={on:true,tset:null};c.s.ext.on=true;c.s.ext.tset=null;}
+  for(const c of model.comps){
+    if(!c.s.ext)c.s.ext={on:true,tset:null,pos:null,pf:null};
+    const e=c.s.ext;e.on=true;e.tset=null;e.pos=null;e.pf=null;
+  }
   for(const c of model.comps){
     if(c.type!=='ctrl')continue;
     const s=c.s,p=c.p,a=compMap[p.act];
@@ -603,9 +756,35 @@ function runControllers(dt){
         if(want!==s.on&&s.t>=(s.on?p.trun:p.tpause)*60){s.on=want;s.t=0;}
       }
       if(a&&a.s.ext)a.s.ext.on=a.s.ext.on&&s.on;
-    }else{
+    }else if(p.mode==='curve'){
       const t=heatCurve(p.tvmin,p.tvmax,getTout());s.val=t;
       if(a&&a.type==='source'&&a.s.ext)a.s.ext.tset=t;
+    }else if(p.mode==='pi'){
+      const v=sensRead(p.sens);s.val=v;
+      if(s.i===undefined)s.i=0;
+      if(Number.isFinite(v)){
+        const err=p.dirv==='cool'?v-p.tsoll:p.tsoll-v,kp=p.kp/100,ymin=p.ymin/100,ymax=p.ymax/100,y=p.y0/100+kp*err+s.i;
+        if(p.ti>0&&((y<ymax&&y>ymin)||(y>=ymax&&err<0)||(y<=ymin&&err>0)))s.i+=kp*err*Math.min(dt,p.ti)/p.ti;
+        s.y=clamp(p.y0/100+kp*err+s.i,ymin,ymax);
+      }
+      if(s.y===undefined)s.y=p.y0/100;
+      if(a&&a.s.ext){if(a.type==='pump')a.s.ext.pf=s.y;else a.s.ext.pos=s.y;}
+    }else if(p.mode==='cascade'){
+      const pairs=[];
+      for(let k=1;k<=4;k++){const sc=compMap[p['a'+k]];if(sc&&sc.type==='source')pairs.push({src:sc,pump:compMap[p['b'+k]]});}
+      const N=pairs.length;if(!N)continue;
+      if(s.n===undefined){s.n=1;s.tu=0;s.td=0;s.off=0;s.rt=0;}
+      s.n=clamp(s.n,1,N);
+      if(p.rotd>0){s.rt+=dt;if(s.rt>=p.rotd*86400){s.rt=0;s.off=(s.off+1)%N;}}
+      const order=pairs.map((_,i)=>pairs[(i+s.off)%N]),act=order.slice(0,s.n),pth=x=>x.src.s.Pth||x.src.p.pmax*1000;
+      let Q=0,P=0,Pb=0;
+      for(const x of act){Q+=x.src.s.Q;P+=pth(x);}
+      for(const x of order.slice(0,Math.max(s.n-1,0)))Pb+=pth(x);
+      if(s.n<N&&P>0&&Q/P>=p.son/100)s.tu+=dt;else s.tu=0;
+      if(s.n>1&&Q<=p.soff/100*Pb)s.td+=dt;else s.td=0;
+      if(s.tu>=p.tup*60){s.n++;s.tu=0;s.td=0;}else if(s.td>=p.tdn*60){s.n--;s.td=0;s.tu=0;}
+      order.forEach((x,i)=>{if(i>=s.n){if(x.src.s.ext)x.src.s.ext.on=false;if(x.pump&&x.pump.s.ext)x.pump.s.ext.on=false;}});
+      s.act=order.slice(0,s.n).map(x=>x.src.name).join(', ');s.load=P>0?Q/P:0;s.N=N;
     }
   }
 }
@@ -628,16 +807,41 @@ function valveAuth(c){
 /* ---- Auswertung, Läufe, Modellprüfung ---- */
 function applyCarrier(c,v){c.p.carrier=v;const d=CARRIER_DEF[v];if(d){c.p.co2f=d.co2f;c.p.price=d.price;}}
 function kpis(){
-  let gen=0,ein=0,cons=0,loss=0,pel=0,fuel=0,co2=0,ed=0,edef=0,pnom=0;const per=[],g=model.glob;
+  let gen=0,ein=0,cons=0,loss=0,pel=0,fuel=0,co2=0,ed=0,edef=0,pnom=0,rec=0,env=0,lossG=0,toGen=0;
+  const per=[],g=model.glob,recBy={comp:0,wtw:0,wta:0,proc:0,oth:0},sk={produkt:0,abwasser:0,abluft:0,raum:0,tww:0,zirk:0,spv:0,dhwrest:0};let dv=0;
   for(const c of model.comps){
-    if(c.type==='source'){const e=c.s.E/3.6e6,i=c.s.Ein/3.6e6;gen+=e;ein+=i;fuel+=i*c.p.price;co2+=i*c.p.co2f;pnom+=(c.s.Pth||c.p.pmax*1000)/1000;per.push({name:c.name,gen:e,ein:i,jaz:i>0?e/i:NaN,cost:i*c.p.price,co2:i*c.p.co2f});}
-    else if(c.type==='consumer'){cons+=c.s.E/3.6e6;ed+=c.s.Ed/3.6e6;edef+=c.s.Edef/3.6e6;}
+    if(c.type==='source'){
+      const e=c.s.E/3.6e6,i=c.s.Ein/3.6e6;gen+=e;ein+=i;
+      if(c.p.kind==='rec'){rec+=e;recBy[c.p.rcat]=(recBy[c.p.rcat]||0)+e;}
+      else{fuel+=i*c.p.price;co2+=i*c.p.co2f;pnom+=(c.s.Pth||c.p.pmax*1000)/1000;toGen+=Math.min(e,i);env+=Math.max(0,e-i);lossG+=Math.max(0,i-e);}
+      per.push({name:c.name,gen:e,ein:i,jaz:i>0?e/i:NaN,cost:c.p.kind==='rec'?0:i*c.p.price,co2:c.p.kind==='rec'?0:i*c.p.co2f,rec:c.p.kind==='rec'});
+    }else if(c.type==='consumer'){
+      const e=c.s.E/3.6e6,sp=c.p.sp||0,sw=c.p.sw||0,sa=c.p.sa||0;cons+=e;ed+=c.s.Ed/3.6e6;edef+=c.s.Edef/3.6e6;
+      sk.produkt+=e*sp/100;sk.abwasser+=e*sw/100;sk.abluft+=e*sa/100;sk.raum+=e*Math.max(0,100-sp-sw-sa)/100;
+    }else if(c.type==='dhw'){
+      const e=c.s.E/3.6e6,eu=c.s.Eu/3.6e6,ez=c.s.Ez/3.6e6,es=c.s.Es/3.6e6;cons+=e;sk.tww+=eu;sk.zirk+=ez;sk.spv+=es;sk.dhwrest+=Math.max(0,e-eu-ez-es);dv+=c.s.Vd;
+    }
     else if(c.type==='pipe'||c.type==='tank')loss+=c.s.E/3.6e6;
     else if(c.type==='pump')pel+=c.s.Eel/3.6e6;
   }
-  const costEl=pel*g.elprice,co2El=pel*g.elco2;
-  return{t:simT,gen,ein,jaz:ein>0?gen/ein:NaN,cons,loss,lossPct:gen>0?loss/gen*100:NaN,pel,cost:fuel+costEl,costFuel:fuel,costEl,co2:co2+co2El,co2Fuel:co2,co2El,
-    peak:kpiPeak/1000,fullh:pnom>0?gen/pnom:NaN,demand:ed,deficit:edef,per};
+  const costEl=pel*g.elprice,co2El=pel*g.elco2,paid=gen-rec,pot=sk.abwasser+sk.abluft,back=recBy.wtw+recBy.wta;
+  return{t:simT,gen,ein,jaz:ein>0?paid/ein:NaN,cons,loss,lossPct:gen>0?loss/gen*100:NaN,pel,cost:fuel+costEl,costFuel:fuel,costEl,co2:co2+co2El,co2Fuel:co2,co2El,
+    peak:kpiPeak/1000,fullh:pnom>0?paid/pnom:NaN,demand:ed,deficit:edef,per,rec,recBy,env,lossG,toGen,sinks:sk,dhwVol:dv,
+    potential:pot,recovered:back,recRate:pot>0?back/pot*100:NaN};
+}
+function groupKpis(){
+  return model.groups.map(g=>{
+    const o={name:g.name,gen:0,ein:0,rec:0,cons:0,loss:0,pel:0,produkt:0,abwasser:0,abluft:0};
+    for(const id of g.members){
+      const c=compMap[id];if(!c)continue;
+      if(c.type==='source'){o.gen+=c.s.E/3.6e6;o.ein+=c.s.Ein/3.6e6;if(c.p.kind==='rec')o.rec+=c.s.E/3.6e6;}
+      else if(c.type==='consumer'){const e=c.s.E/3.6e6;o.cons+=e;o.produkt+=e*(c.p.sp||0)/100;o.abwasser+=e*(c.p.sw||0)/100;o.abluft+=e*(c.p.sa||0)/100;}
+      else if(c.type==='dhw')o.cons+=c.s.E/3.6e6;
+      else if(c.type==='pipe'||c.type==='tank')o.loss+=c.s.E/3.6e6;
+      else if(c.type==='pump')o.pel+=c.s.Eel/3.6e6;
+    }
+    return o;
+  });
 }
 function newRun(days){resetSim();return{target:days*86400,dt:clamp(days*86400/3000,300,3600)};}
 function runSlice(run,ms){const t0=Date.now();while(simT<run.target&&Date.now()-t0<ms)advance(Math.min(run.dt,run.target-simT));return simT>=run.target;}
@@ -685,6 +889,17 @@ function validateModel(){
     if((c.type==='valve2'||c.type==='valve3')&&c.p.kvs){const a=valveAuth(c);if(Number.isFinite(a)&&a<0.25)add('info',c.name+': Ventilautorität etwa '+a.toFixed(2)+', Regelwirkung gering. Kleineren Kvs-Wert prüfen.');}
     if(c.type==='pipe'){const m=c.inp[0].m;if(m>1e-6){const h=pipeHyd(c,m);if(h.v>1.5)add('bad',c.name+': '+h.v.toFixed(2)+' m/s, empfohlen DN '+recommendDN(c)+'.');else if(h.v>1.0)add('warn',c.name+': '+h.v.toFixed(2)+' m/s, empfohlen DN '+recommendDN(c)+'.');}}
   }
+  for(const c of model.comps){
+    if(c.type==='consumer'&&(c.p.sp+c.p.sw+c.p.sa)>100.0001)add('warn',c.name+': Verbleib der Wärme (Produkt, Abwasser, Abluft) ergibt zusammen mehr als 100 %.');
+    if(c.type==='dhw'){
+      if(simT>3600&&c.s.Ts<55)add('bad',c.name+': Warmwasserspeicher unter 55 °C, Legionellengefahr.');
+      else if(c.p.zq>0&&c.s.Ts-c.p.zdt<55&&c.s.Ts>=55)add('warn',c.name+': Rücklauf der Zirkulation unter 55 °C, Auskühlung im Netz verringern oder Speicher wärmer fahren.');
+    }
+    if(c.type==='pump'&&c.p.pc&&c.p.mode==='flow')add('info',c.name+': Die Herstellerkennlinie wirkt nur bei Konstantdrehzahl und geregelter Betriebsart.');
+  }
+  const weak=model.comps.filter(c=>c.meta&&['assumed','est','open'].includes(c.meta.status)).length,unk=model.comps.filter(c=>!c.meta||c.meta.status==='unknown').length;
+  if(weak)add('info',weak+' Bauteile haben den Datenstatus Annahme, geschätzt oder offen.');
+  if(unk&&model.comps.length)add('info',unk+' von '+model.comps.length+' Bauteilen ohne Datenstatus.');
   if(!out.length)add('ok','Keine Auffälligkeiten.');
   return out;
 }
@@ -710,15 +925,16 @@ const TYPES={
 source:{label:'Wärmeerzeuger',icon:'🔥',desc:'Kessel oder Wärmepumpe, Heizkurve, Bedarfsführung',dim:[150,70],chartDef:true,hk:'thru',
   ports:[{d:'in',s:'L',n:'Rücklauf (Eingang)'},{d:'out',s:'R',n:'Vorlauf (Ausgang)'}],
   params:[
-    {k:'kind',l:'Art',t:'select',opts:[['boiler','Kessel mit Wirkungsgrad'],['hp','Wärmepumpe mit COP']],def:'boiler',rebuild:1,
+    {k:'kind',l:'Art',t:'select',opts:[['boiler','Kessel mit Wirkungsgrad'],['hp','Wärmepumpe mit COP'],['rec','Abwärmequelle (Rückgewinnung)']],def:'boiler',rebuild:1,
       onset:(c,v)=>{if(v==='hp'&&c.p.carrier==='gas')applyCarrier(c,'el');if(v==='boiler'&&c.p.carrier==='el')applyCarrier(c,'gas');}},
     {k:'tset',l:'Soll-Vorlauftemperatur (bei Heizkurve: maximal)',u:'°C',min:30,max:130,step:1,def:70},
     {k:'curve',l:'Vorlauf nach Heizkurve',t:'bool',def:false,rebuild:1},
     {k:'tvmin',l:'Vorlauf bei Heizgrenze',u:'°C',min:20,max:130,step:1,def:35,show:p=>p.curve},
-    {k:'pmax',l:'Maximale Leistung',u:'kW',min:1,max:500,step:1,def:50},
-    {k:'pbase',l:'Leistungsangabe bezieht sich auf',t:'select',opts:[['th','Wärmeleistung'],['in','Brennstoff- oder Stromleistung']],def:'th'},
-    {k:'eta',l:'Nennwirkungsgrad',u:'',min:0.5,max:6,step:0.01,def:0.95,show:p=>!isHp(p)},
-    {k:'etap',l:'Wirkungsgrad bei 30 % Last (0 = wie Nennwert)',u:'',min:0,max:1.2,step:0.01,def:0,show:p=>!isHp(p)},
+    {k:'pmax',l:'Maximale Leistung',u:'kW',min:1,max:5000,step:1,def:50},
+    {k:'rcat',l:'Herkunft der Abwärme',t:'select',opts:[['comp','Kompressoren (Druckluft, Kälte)'],['wtw','Wärmetauscher Abwasser'],['wta','Wärmetauscher Abluft'],['proc','Prozess, Produktkühlung'],['oth','Sonstige']],def:'comp',show:p=>p.kind==='rec'},
+    {k:'pbase',l:'Leistungsangabe bezieht sich auf',t:'select',opts:[['th','Wärmeleistung'],['in','Brennstoff- oder Stromleistung']],def:'th',show:p=>p.kind!=='rec'},
+    {k:'eta',l:'Nennwirkungsgrad',u:'',min:0.5,max:6,step:0.01,def:0.95,show:p=>p.kind==='boiler'},
+    {k:'etap',l:'Wirkungsgrad bei 30 % Last (0 = wie Nennwert)',u:'',min:0,max:1.2,step:0.01,def:0,show:p=>p.kind==='boiler'},
     {k:'gg',l:'Gütegrad gegenüber Carnot',u:'',min:0.2,max:0.8,step:0.01,def:0.5,show:isHp},
     {k:'tqsrc',l:'Wärmequelle',t:'select',opts:[['fix','feste Temperatur'],['out','Außenluft']],def:'fix',show:isHp,rebuild:1},
     {k:'tq',l:'Quellentemperatur',u:'°C',min:-20,max:40,step:1,def:7,show:p=>isHp(p)&&p.tqsrc!=='out'},
@@ -729,21 +945,21 @@ source:{label:'Wärmeerzeuger',icon:'🔥',desc:'Kessel oder Wärmepumpe, Heizku
     {k:'trun',l:'Mindestlaufzeit beim Takten',u:'min',min:1,max:60,step:1,def:10,show:p=>p.pmin>0},
     {k:'tpause',l:'Mindestpause beim Takten',u:'min',min:1,max:60,step:1,def:5,show:p=>p.pmin>0},
     {k:'tred',l:'Absenkung des Vorlaufs außerhalb des Zeitplans',u:'K',min:0,max:60,step:1,def:0,show:p=>!!(p.sch&&p.sch.on)},
-    {k:'cap',l:'Leistungsbegrenzung',t:'select',opts:[['free','nicht begrenzt'],['demand','auf Bedarf begrenzen']],def:'free',rebuild:1},
+    {k:'cap',l:'Leistungsbegrenzung',t:'select',opts:[['free','nicht begrenzt'],['demand','auf Bedarf begrenzen']],def:'free',rebuild:1,show:p=>p.kind!=='rec'},
     {k:'reserve',l:'Reserve über dem Bedarf',u:'%',min:0,max:100,step:1,def:10,show:p=>p.cap==='demand'},
     {k:'prio',l:'Priorität in der Kaskade (1 = zuerst)',u:'',min:1,max:5,step:1,def:1,show:p=>p.cap==='demand'},
-    {k:'carrier',l:'Energieträger',t:'select',opts:CARRIERS,def:'gas',rebuild:1,onset:(c,v)=>applyCarrier(c,v)},
-    {k:'co2f',l:'CO₂-Faktor (Richtwert, bitte anpassen)',u:'kg/kWh',min:0,max:1,step:0.005,def:0.2},
-    {k:'price',l:'Energiepreis (Richtwert, bitte anpassen)',u:'je kWh',min:0,max:2,step:0.005,def:0.11},
-    {k:'vol',l:'Wasserinhalt',u:'L',min:2,max:500,step:1,def:40,struct:1},
-    {k:'kv',l:'Hydraulischer Widerstand (Kv)',u:'m³/h',min:1,max:200,step:1,def:12},
+    {k:'carrier',l:'Energieträger',t:'select',opts:CARRIERS,def:'gas',rebuild:1,onset:(c,v)=>applyCarrier(c,v),show:p=>p.kind!=='rec'},
+    {k:'co2f',l:'CO₂-Faktor (Richtwert, bitte anpassen)',u:'kg/kWh',min:0,max:1,step:0.005,def:0.2,show:p=>p.kind!=='rec'},
+    {k:'price',l:'Energiepreis (Richtwert, bitte anpassen)',u:'je kWh',min:0,max:2,step:0.005,def:0.11,show:p=>p.kind!=='rec'},
+    {k:'vol',l:'Wasserinhalt',u:'L',min:2,max:5000,step:1,def:40,struct:1},
+    {k:'kv',l:'Hydraulischer Widerstand (Kv)',u:'m³/h',min:1,max:2000,step:1,def:12},
     {k:'on',l:'In Betrieb',t:'bool',def:true}],
   hres:(c,E,f,p,r)=>thru(E,f,p,r,x=>rq(kvK(c.p.kv),x)),
   outT:(c,p)=>c.s.T[0],
   step(c,dt){inflow(c);const p=c.p,s=c.s,V=p.vol/1000,T0=s.T[0];
     const lv=p.sch&&p.sch.on?clamp(schedPct(c,simNow)/100,0,1):1;
     const on=p.on&&(!s.ext||s.ext.on)&&lv>0,tsetE=srcTset(c);
-    const PthN=p.pbase==='in'?p.pmax*1000*srcEta(c,1,T0):p.pmax*1000,Pth=PthN*srcCap(c)*lv;
+    const PthN=p.kind==='rec'?(p.prof&&p.prof.on?profAt(p.prof,simNow)*1000:p.pmax*1000):(p.pbase==='in'?p.pmax*1000*srcEta(c,1,T0):p.pmax*1000),Pth=PthN*srcCap(c)*lv;
     let Qreq=0,Q=0;
     if(on&&s.min>1e-5){
       const Kc=RHO*V*CPJ/20;
@@ -758,13 +974,14 @@ source:{label:'Wärmeerzeuger',icon:'🔥',desc:'Kessel oder Wärmepumpe, Heizku
       if(cy.on&&cy.t>=Ton){cy.on=false;cy.t=0;}else if(!cy.on&&cy.t>=Toff){cy.on=true;cy.t=0;}
       Q=cy.on?Pm:0;
     }else if(s.cyc){s.cyc.on=true;s.cyc.t=0;}
-    s.Pth=Pth;s.tsetE=tsetE;s.eta=srcEta(c,Pth>0?Q/Pth:0,T0);s.Pin=Q/Math.max(s.eta,0.05);
+    s.Pth=Pth;s.tsetE=tsetE;s.eta=srcEta(c,Pth>0?Q/Pth:0,T0);s.Pin=p.kind==='rec'?0:Q/Math.max(s.eta,0.05);
     s.Q=Q;s.E+=Q*dt;s.Ein+=s.Pin*dt;mixStep(c,V,Q,dt);},
   lim:c=>0.5*RHO*(c.p.vol/1000)/(maxFlow(c)+1e-6),
-  lines(c){const s=c.s,e=s.eta||srcEta(c,0,s.T[0]);return['T aus '+fmt(s.T[0])+' °C','Q '+fmt(s.Q/1000)+' kW   '+(c.p.kind==='hp'?'COP '+fmt(e,1):'η '+fmt(e*100,0)+' %')];},
+  lines(c){const s=c.s,e=s.eta||srcEta(c,0,s.T[0]);return['T aus '+fmt(s.T[0])+' °C','Q '+fmt(s.Q/1000)+' kW   '+(c.p.kind==='rec'?'Abwärme':c.p.kind==='hp'?'COP '+fmt(e,1):'η '+fmt(e*100,0)+' %')];},
   ro(c){const im=inMix(c),p=c.p,s=c.s,e=s.eta||srcEta(c,0,s.T[0]),Pth=s.Pth||p.pmax*1000;
     const r=[['Austritt (Vorlauf)',fmt(s.T[0])+' °C'],['Soll-Vorlauf aktuell',fmt(s.tsetE||p.tset)+' °C'],['Eintritt (Rücklauf)',fmt(im.T)+' °C'],['Volumenstrom',fmt(m3h(im.m),2)+' m³/h'],['Differenzdruck',fmt(dpOf(c),3)+' bar'],
       [p.kind==='hp'?'COP aktuell':'Wirkungsgrad aktuell',p.kind==='hp'?fmt(e,2):fmt(e*100,1)+' %'],['Wärmeleistung',fmt(s.Q/1000)+' kW'],['Aufnahmeleistung',fmt((s.Pin||0)/1000)+' kW'],['Maximale Wärmeleistung',fmt(Pth/1000)+' kW'],['Auslastung',fmt(s.Q/Pth*100,0)+' %']];
+    if(p.kind==='rec')r.push(['Herkunft der Abwärme',(RCAT[p.rcat]||p.rcat)],['Verfügbare Abwärme',fmt((s.Pth||0)/1000)+' kW']);
     if(p.kind==='hp')r.push(['Quellentemperatur',fmt(srcTq(c))+' °C'],['Leistungsfaktor Quelle',fmt(srcCap(c)*100,0)+' %']);
     if(p.pmin>0)r.push(['Takten',s.cyc?(s.cyc.on?'läuft':'Pause'):'nicht aktiv']);
     if(p.cap==='demand')r.push(['Bedarf im Netz',fmt((s.dem||0)/1000)+' kW'],['Leistungsgrenze durch Bedarf',Number.isFinite(s.cap)?fmt(s.cap/1000)+' kW':'–']);
@@ -779,11 +996,11 @@ pump:{label:'Pumpe',icon:'🌀',desc:'Fester Volumenstrom, Kennlinie oder gerege
   ports:[{d:'in',s:'L',n:'Eingang'},{d:'out',s:'R',n:'Ausgang'}],
   params:[
     {k:'mode',l:'Betriebsart',t:'select',opts:[['flow','Fester Volumenstrom (ideal)'],['fixed','Konstantdrehzahl (Kennlinie)'],['dpc','Geregelt: Δp konstant'],['dpv','Geregelt: Δp variabel']],def:'flow',rebuild:1},
-    {k:'flow',l:'Volumenstrom',u:'m³/h',min:0.1,max:50,step:0.1,def:2,show:p=>p.mode==='flow'},
-    {k:'qn',l:'Nennvolumenstrom',u:'m³/h',min:0.5,max:100,step:0.1,def:3,show:p=>p.mode!=='flow'},
-    {k:'hn',l:'Nennförderhöhe',u:'m',min:0.5,max:30,step:0.1,def:4,show:p=>p.mode!=='flow'},
+    {k:'flow',l:'Volumenstrom',u:'m³/h',min:0.1,max:600,step:0.1,def:2,show:p=>p.mode==='flow'},
+    {k:'qn',l:'Nennvolumenstrom',u:'m³/h',min:0.5,max:600,step:0.1,def:3,show:p=>p.mode==='dpv'||(p.mode!=='flow'&&!p.pc)},
+    {k:'hn',l:'Nennförderhöhe',u:'m',min:0.5,max:150,step:0.1,def:4,show:p=>p.mode!=='flow'&&!p.pc},
     {k:'n',l:'Drehzahl',u:'%',min:30,max:100,step:1,def:100,show:p=>p.mode==='fixed'},
-    {k:'hs',l:'Sollförderhöhe',u:'m',min:0.2,max:30,step:0.1,def:2,show:p=>p.mode==='dpc'||p.mode==='dpv'},
+    {k:'hs',l:'Sollförderhöhe',u:'m',min:0.2,max:150,step:0.1,def:2,show:p=>p.mode==='dpc'||p.mode==='dpv'},
     {k:'nmin',l:'Minimale Drehzahl',u:'%',min:10,max:90,step:1,def:40,show:p=>p.mode==='dpc'||p.mode==='dpv'},
     {k:'eta',l:'Pumpenwirkungsgrad',u:'',min:0.1,max:0.9,step:0.01,def:0.5},
     {k:'on',l:'In Betrieb',t:'bool',def:true}],
@@ -798,18 +1015,18 @@ pump:{label:'Pumpe',icon:'🌀',desc:'Fester Volumenstrom, Kennlinie oder gerege
     thru(E,f,p,r,x=>-pumpH(c,x*3600/RHO));
   },
   outT:(c,p)=>c.s.T[0],
-  step(c,dt){inflow(c);c.s.Q=0;c.s.Eel+=(c.s.Pel||0)*dt;mixStep(c,0.002,0,dt);},
-  lim:c=>0.5*RHO*0.002/(maxFlow(c)+1e-6),
+  step(c,dt){inflow(c);c.s.Q=0;c.s.Eel+=(c.s.Pel||0)*dt;mixStep(c,pumpVol(c),0,dt);},
+  lim:c=>0.5*RHO*pumpVol(c)/(maxFlow(c)+1e-6),
   lines(c){const q=c.p,n=pumpN(c);return[fmt(m3h(inMix(c).m),2)+' m³/h','H '+fmt((c.s.H||0)/HM,1)+' m'+(Number.isFinite(n)?'   n '+fmt(n*100,0)+' %':'')];},
   ro(c){const V=m3h(inMix(c).m),H=c.s.H||0,n=pumpN(c);
-    return[['Volumenstrom',fmt(V,2)+' m³/h'],['Förderhöhe',fmt(H/HM,2)+' m'],['Differenzdruck',fmt(H,3)+' bar'],['Drehzahl',Number.isFinite(n)?fmt(n*100,0)+' %':'–'],['Temperatur',fmt(c.s.T[0])+' °C'],['Hydraulische Leistung',fmt(H*BAR*V/3600,1)+' W'],['Elektrische Leistung',fmt(c.s.Pel||0,1)+' W'],['Pumpenstrom',fmt(c.s.Eel/3.6e6,3)+' kWh'],['Empfohlener Nennpunkt',V>0.05&&H>0.01?fmt(V*1.1,1)+' m³/h bei '+fmt(H/HM*1.2,1)+' m':'–']];},
-  actions:[{label:'Nennpunkt aus Betriebspunkt übernehmen',fn:c=>{const V=m3h(inMix(c).m),H=(c.s.H||0)/HM;if(V>0.05&&H>0.05){c.p.qn=clamp(Math.round(V*11)/10,0.5,100);c.p.hn=clamp(Math.round(H*12)/10,0.5,30);}}}],
-  stored:c=>RHO*CPJ*0.002*c.s.T[0]},
+    return[['Volumenstrom',fmt(V,2)+' m³/h'],['Förderhöhe',fmt(H/HM,2)+' m'],['Differenzdruck',fmt(H,3)+' bar'],['Drehzahl',Number.isFinite(n)?fmt(n*100,0)+' %':'–'],['Temperatur',fmt(c.s.T[0])+' °C'],['Hydraulische Leistung',fmt(H*BAR*V/3600,1)+' W'],['Pumpenwirkungsgrad',fmt(pumpEta(c,V,Number.isFinite(n)&&n>0?n:1)*100,0)+' %'],['Elektrische Leistung',fmt(c.s.Pel||0,1)+' W'],['Kennlinie',c.p.pc?'Herstellerkennlinie, '+c.p.pc.q.length+' Punkte':'Parabel aus Nennpunkt'],['Pumpenstrom',fmt(c.s.Eel/3.6e6,3)+' kWh'],['Empfohlener Nennpunkt',V>0.05&&H>0.01?fmt(V*1.1,1)+' m³/h bei '+fmt(H/HM*1.2,1)+' m':'–']];},
+  actions:[{label:'Nennpunkt aus Betriebspunkt übernehmen',fn:c=>{const V=m3h(inMix(c).m),H=(c.s.H||0)/HM;if(V>0.05&&H>0.05){c.p.qn=clamp(Math.round(V*11)/10,0.5,600);c.p.hn=clamp(Math.round(H*12)/10,0.5,150);}}}],
+  stored:c=>RHO*CPJ*pumpVol(c)*c.s.T[0]},
 
 pipe:{label:'Rohr',icon:'📏',desc:'Länge, Nennweite, Dämmung',dim:[150,76],hk:'thru',
   ports:[{d:'in',s:'L',n:'Eingang'},{d:'out',s:'R',n:'Ausgang'}],
   params:[
-    {k:'len',l:'Länge',u:'m',min:1,max:500,step:1,def:20,struct:1},
+    {k:'len',l:'Länge',u:'m',min:1,max:5000,step:1,def:20,struct:1},
     {k:'dn',l:'Nennweite',t:'select',opts:DNOPT,def:32,struct:1},
     {k:'ins',l:'Dämmstärke',t:'select',opts:INSOPT,def:30},
     {k:'zeta',l:'Einzelwiderstände Σζ',u:'',min:0,max:50,step:0.5,def:3},
@@ -832,16 +1049,19 @@ consumer:{label:'Verbraucher',icon:'♨️',desc:'Heizkörper, Fußbodenheizung,
   ports:[{d:'in',s:'L',n:'Vorlauf (Eingang)'},{d:'out',s:'R',n:'Rücklauf (Ausgang)'}],
   params:[
     {k:'mode',l:'Modell',t:'select',opts:[['P','Feste Leistung'],['UA','Heizfläche (UA)'],['FH','Fußbodenheizung (UA, Estrich)']],def:'P',rebuild:1},
-    {k:'pq',l:'Wärmebedarf',u:'kW',min:0.5,max:500,step:0.5,def:20,show:p=>p.mode==='P'},
+    {k:'pq',l:'Wärmebedarf',u:'kW',min:0.5,max:5000,step:0.5,def:20,show:p=>p.mode==='P'},
     {k:'ua',l:'Heizfläche UA',u:'kW/K',min:0.05,max:20,step:0.05,def:0.5,show:p=>p.mode!=='P'},
     {k:'troom',l:'Raumtemperatur',u:'°C',min:0,max:40,step:1,def:20,show:p=>p.mode!=='P'},
     {k:'cf',l:'Wärmespeicherung Estrich',u:'kWh/K',min:0.05,max:20,step:0.05,def:2.5,show:p=>p.mode==='FH'},
     {k:'tmin',l:'Minimale Rücklauftemperatur',u:'°C',min:10,max:60,step:1,def:30,show:p=>p.mode==='P'},
     {k:'tvreq',l:'Mindest-Vorlauftemperatur (0 = keine)',u:'°C',min:0,max:130,step:1,def:0},
     {k:'tdep',l:'Last folgt der Außentemperatur (Heizgrenze)',t:'bool',def:false},
+    {k:'sp',l:'Verbleib der Wärme: an das Produkt',u:'%',min:0,max:100,step:1,def:0},
+    {k:'sw',l:'Verbleib der Wärme: an das Abwasser',u:'%',min:0,max:100,step:1,def:0},
+    {k:'sa',l:'Verbleib der Wärme: an die Abluft',u:'%',min:0,max:100,step:1,def:0},
     {k:'last',l:'Lastfaktor',u:'%',min:0,max:150,step:1,def:100},
-    {k:'vol',l:'Wasserinhalt',u:'L',min:1,max:500,step:1,def:20,struct:1},
-    {k:'kv',l:'Hydraulischer Widerstand (Kv)',u:'m³/h',min:0.5,max:200,step:0.5,def:8}],
+    {k:'vol',l:'Wasserinhalt',u:'L',min:1,max:5000,step:1,def:20,struct:1},
+    {k:'kv',l:'Hydraulischer Widerstand (Kv)',u:'m³/h',min:0.5,max:2000,step:0.5,def:8}],
   hres:(c,E,f,p,r)=>thru(E,f,p,r,x=>rq(kvK(c.p.kv),x)),
   outT:(c,p)=>c.s.T[0],
   step(c,dt){inflow(c);const p=c.p,s=c.s,V=p.vol/1000,T=s.T[0],fl=loadF(c),gate=p.tvreq>0?clamp((s.Tin-p.tvreq)/3,0,1):1;let Q=0;
@@ -871,7 +1091,7 @@ consumer:{label:'Verbraucher',icon:'♨️',desc:'Heizkörper, Fußbodenheizung,
 tank:{label:'Pufferspeicher',icon:'🛢️',desc:'Wärmespeicher, geschichtet, 4 Anschlüsse',dim:[150,128],chartDef:true,hk:'junc',
   ports:[{d:'in',s:'L',n:'Eingang oben',sh:'ein oben'},{d:'out',s:'L',n:'Ausgang unten',sh:'aus unten'},{d:'out',s:'R',n:'Ausgang oben',sh:'aus oben'},{d:'in',s:'R',n:'Eingang unten',sh:'ein unten'}],
   params:[
-    {k:'vol',l:'Volumen',u:'L',min:100,max:10000,step:50,def:1000,struct:1},
+    {k:'vol',l:'Volumen',u:'L',min:100,max:100000,step:50,def:1000,struct:1},
     {k:'h',l:'Höhe',u:'m',min:0.5,max:4,step:0.1,def:1.8},
     {k:'n',l:'Anzahl Schichten',u:'',min:2,max:12,step:1,def:8,struct:1},
     {k:'ua',l:'Wärmeverlust (UA)',u:'W/K',min:0,max:20,step:0.1,def:2.5}],
@@ -932,9 +1152,10 @@ valve3:{label:'3-Wege-Ventil',icon:'🔀',desc:'Verbraucher oder Bypass, konstan
     {k:'pos',l:'Öffnung zum Verbraucher',u:'%',min:0,max:100,step:1,def:100,show:p=>p.ctl==='manual'},
     {k:'pminv',l:'Mindestöffnung',u:'%',min:0,max:100,step:1,def:10,show:p=>p.ctl==='load'},
     {k:'dts',l:'Soll-Spreizung Verbraucher',u:'K',min:3,max:40,step:1,def:15,show:p=>p.ctl==='auto'},
-    {k:'kvs',l:'Kvs-Wert',u:'m³/h',min:0.5,max:100,step:0.5,def:6}],
+    {k:'kvs',l:'Kvs-Wert',u:'m³/h',min:0.5,max:1000,step:0.5,def:6},
+    {k:'chr',l:'Kennlinie',t:'select',opts:[['lin','linear'],['eq','gleichprozentig']],def:'lin'}],
   hres(c,E,f,p,r){
-    const i=E[0],a=E[1],b=E[2],pos=valvePos(c),ka=kvK(c.p.kvs*Math.max(pos,0.001)),kb=kvK(c.p.kvs*Math.max(1-pos,0.001));
+    const i=E[0],a=E[1],b=E[2],pos=valvePos(c),ka=kvK(valveKv(c.p.kvs,pos,c.p.chr)),kb=kvK(valveKv(c.p.kvs,1-pos,c.p.chr));
     let s=0;if(i>=0)s+=f[i];if(a>=0)s-=f[a];if(b>=0)s-=f[b];
     if(i>=0||a>=0||b>=0)r.push(s);
     if(i>=0&&a>=0)r.push(p[i]-p[a]-rq(ka,f[a]));
@@ -950,19 +1171,20 @@ valve2:{label:'Regelventil',icon:'🎚️',desc:'Drosselt den Volumenstrom (Kvs,
   ports:[{d:'in',s:'L',n:'Eingang'},{d:'out',s:'R',n:'Ausgang'}],
   params:[
     {k:'pos',l:'Öffnung',u:'%',min:0,max:100,step:1,def:100},
-    {k:'kvs',l:'Kvs-Wert',u:'m³/h',min:0.5,max:100,step:0.5,def:10}],
-  hres:(c,E,f,p,r)=>thru(E,f,p,r,x=>rq(kvK(c.p.kvs*Math.max(c.p.pos/100,0.001)),x)),
+    {k:'kvs',l:'Kvs-Wert',u:'m³/h',min:0.5,max:1000,step:0.5,def:10},
+    {k:'chr',l:'Kennlinie',t:'select',opts:[['lin','linear'],['eq','gleichprozentig']],def:'lin'}],
+  hres:(c,E,f,p,r)=>thru(E,f,p,r,x=>rq(kvK(valveKv(c.p.kvs,valveOpen(c),c.p.chr)),x)),
   outT:(c,p)=>c.s.T[0],
   step:passStep(0.002),lim:passLim(0.002),
-  lines:c=>['Öffnung '+fmt(c.p.pos,0)+' %',fmt(m3h(inMix(c).m),2)+' m³/h   Δp '+fmt(dpOf(c),2)+' bar'],
-  ro(c){return[['Öffnung',fmt(c.p.pos,0)+' %'],['Volumenstrom',fmt(m3h(inMix(c).m),2)+' m³/h'],['Druckverlust',fmt(dpOf(c),3)+' bar'],['Druck Eingang',fmt(pOf(c,0),2)+' bar'],['Druck Ausgang',fmt(pOf(c,1),2)+' bar'],['Autorität (Näherung)',fmt(valveAuth(c),2)],['Kvs-Vorschlag (Autorität 0,5)',fmt(kvsHint(c),1)+' m³/h'],['Temperatur',fmt(c.s.T[0])+' °C']];},
+  lines:c=>['Öffnung '+fmt(valveOpen(c)*100,0)+' %',fmt(m3h(inMix(c).m),2)+' m³/h   Δp '+fmt(dpOf(c),2)+' bar'],
+  ro(c){return[['Öffnung',fmt(valveOpen(c)*100,0)+' %'],['Volumenstrom',fmt(m3h(inMix(c).m),2)+' m³/h'],['Druckverlust',fmt(dpOf(c),3)+' bar'],['Druck Eingang',fmt(pOf(c,0),2)+' bar'],['Druck Ausgang',fmt(pOf(c,1),2)+' bar'],['Autorität (Näherung)',fmt(valveAuth(c),2)],['Kvs-Vorschlag (Autorität 0,5)',fmt(kvsHint(c),1)+' m³/h'],['Temperatur',fmt(c.s.T[0])+' °C']];},
   stored:c=>RHO*CPJ*0.002*c.s.T[0]},
 
 prv:{label:'Druckminderer',icon:'⏬',desc:'Hält den Druck dahinter auf einen Sollwert',dim:[150,70],hk:'thru',
   ports:[{d:'in',s:'L',n:'Eingang (Hochdruck)'},{d:'out',s:'R',n:'Ausgang (Niederdruck)'}],
   params:[
     {k:'pset',l:'Hinterdruck-Sollwert (absolut)',u:'bar',min:0.2,max:16,step:0.1,def:2.5},
-    {k:'kv',l:'Kv-Wert (offen)',u:'m³/h',min:1,max:200,step:1,def:20}],
+    {k:'kv',l:'Kv-Wert (offen)',u:'m³/h',min:1,max:2000,step:1,def:20}],
   hres(c,E,f,p,r){
     const i=E[0],o=E[1];
     if(i>=0&&o>=0){r.push(f[i]-f[o]);const a=p[i]-rq(kvK(c.p.kv),f[o]),b=c.p.pset,e=0.01;r.push(p[o]-(a+b-Math.sqrt((a-b)*(a-b)+e*e))/2);}
@@ -991,7 +1213,7 @@ hold:{label:'Druckhaltung',icon:'🎈',desc:'Ausdehnungsgefäß, legt den System
 
 check:{label:'Rückschlagklappe',icon:'⇥',desc:'Sperrt Rückströmung',dim:[150,70],hk:'thru',
   ports:[{d:'in',s:'L',n:'Eingang'},{d:'out',s:'R',n:'Ausgang'}],
-  params:[{k:'kv',l:'Kv-Wert (offen)',u:'m³/h',min:1,max:300,step:1,def:30}],
+  params:[{k:'kv',l:'Kv-Wert (offen)',u:'m³/h',min:1,max:3000,step:1,def:30}],
   hres:(c,E,f,p,r)=>thru(E,f,p,r,x=>rq(kvK(c.p.kv),x)+(x<0?200*x:0)),
   outT:(c,p)=>c.s.T[0],
   step:passStep(0.002),lim:passLim(0.002),
@@ -999,36 +1221,90 @@ check:{label:'Rückschlagklappe',icon:'⇥',desc:'Sperrt Rückströmung',dim:[15
   ro(c){const V=m3h(inMix(c).m);return[['Volumenstrom',fmt(V,2)+' m³/h'],['Druckverlust',fmt(dpOf(c),3)+' bar'],['Zustand',V>0.01?'offen':'gesperrt'],['Temperatur',fmt(c.s.T[0])+' °C']];},
   stored:c=>RHO*CPJ*0.002*c.s.T[0]},
 
-ctrl:{label:'Regler',icon:'🎛️',desc:'Zweipunktregler, Speicherladung oder Heizkurve',dim:[150,70],hk:'junc',
+ctrl:{label:'Regler',icon:'🎛️',desc:'Zweipunkt, PI, Heizkurve, Kesselkaskade',dim:[150,70],hk:'junc',
   ports:[],
   params:[
-    {k:'mode',l:'Funktion',t:'select',opts:[['hyst','Zweipunktregler (Hysterese)'],['curve','Heizkurve für Erzeuger']],def:'hyst',rebuild:1},
-    {k:'act',l:'Aktor',t:'select',optsFn:c=>actOptions(c),def:0},
-    {k:'sens',l:'Fühler',t:'select',optsFn:()=>sensOptions(),def:'out',show:p=>p.mode==='hyst'},
+    {k:'mode',l:'Funktion',t:'select',opts:[['hyst','Zweipunktregler (Hysterese)'],['pi','PI-Regler für Ventil oder Pumpe'],['curve','Heizkurve für Erzeuger'],['cascade','Kesselkaskade']],def:'hyst',rebuild:1},
+    {k:'act',l:'Aktor',t:'select',optsFn:c=>actOptions(c),def:0,show:p=>p.mode!=='cascade'},
+    {k:'sens',l:'Fühler',t:'select',optsFn:()=>sensOptions(),def:'out',show:p=>p.mode==='hyst'||p.mode==='pi'},
     {k:'ton',l:'Einschalten unter',u:'°C',min:-40,max:130,step:0.5,def:45,show:p=>p.mode==='hyst'},
     {k:'toff',l:'Ausschalten über',u:'°C',min:-40,max:130,step:0.5,def:55,show:p=>p.mode==='hyst'},
     {k:'trun',l:'Mindestlaufzeit',u:'min',min:0,max:240,step:1,def:0,show:p=>p.mode==='hyst'},
     {k:'tpause',l:'Mindestpause',u:'min',min:0,max:240,step:1,def:0,show:p=>p.mode==='hyst'},
+    {k:'tsoll',l:'Sollwert am Fühler',u:'°C',min:-40,max:130,step:0.5,def:60,show:p=>p.mode==='pi'},
+    {k:'dirv',l:'Wirkrichtung',t:'select',opts:[['heat','mehr öffnen, wenn es zu kalt ist'],['cool','mehr öffnen, wenn es zu warm ist']],def:'heat',show:p=>p.mode==='pi'},
+    {k:'kp',l:'Verstärkung (Proportionalanteil)',u:'% je K',min:0.1,max:100,step:0.1,def:10,show:p=>p.mode==='pi'},
+    {k:'ti',l:'Nachstellzeit (0 = nur P)',u:'s',min:0,max:3600,step:5,def:120,show:p=>p.mode==='pi'},
+    {k:'y0',l:'Arbeitspunkt',u:'%',min:0,max:100,step:1,def:50,show:p=>p.mode==='pi'},
+    {k:'ymin',l:'Stellgröße minimal',u:'%',min:0,max:100,step:1,def:0,show:p=>p.mode==='pi'},
+    {k:'ymax',l:'Stellgröße maximal',u:'%',min:0,max:100,step:1,def:100,show:p=>p.mode==='pi'},
     {k:'tvmin',l:'Vorlauf bei Heizgrenze',u:'°C',min:20,max:130,step:1,def:35,show:p=>p.mode==='curve'},
-    {k:'tvmax',l:'Vorlauf bei Normaußentemperatur',u:'°C',min:20,max:130,step:1,def:70,show:p=>p.mode==='curve'}],
+    {k:'tvmax',l:'Vorlauf bei Normaußentemperatur',u:'°C',min:20,max:130,step:1,def:70,show:p=>p.mode==='curve'},
+    {k:'a1',l:'Stufe 1, Erzeuger',t:'select',optsFn:()=>srcOptions(),def:0,show:p=>p.mode==='cascade'},
+    {k:'b1',l:'Stufe 1, Pumpe',t:'select',optsFn:()=>pumpOptions(),def:0,show:p=>p.mode==='cascade'},
+    {k:'a2',l:'Stufe 2, Erzeuger',t:'select',optsFn:()=>srcOptions(),def:0,show:p=>p.mode==='cascade'},
+    {k:'b2',l:'Stufe 2, Pumpe',t:'select',optsFn:()=>pumpOptions(),def:0,show:p=>p.mode==='cascade'},
+    {k:'a3',l:'Stufe 3, Erzeuger',t:'select',optsFn:()=>srcOptions(),def:0,show:p=>p.mode==='cascade'},
+    {k:'b3',l:'Stufe 3, Pumpe',t:'select',optsFn:()=>pumpOptions(),def:0,show:p=>p.mode==='cascade'},
+    {k:'a4',l:'Stufe 4, Erzeuger',t:'select',optsFn:()=>srcOptions(),def:0,show:p=>p.mode==='cascade'},
+    {k:'b4',l:'Stufe 4, Pumpe',t:'select',optsFn:()=>pumpOptions(),def:0,show:p=>p.mode==='cascade'},
+    {k:'son',l:'Nächste Stufe zuschalten ab Auslastung',u:'%',min:30,max:100,step:1,def:90,show:p=>p.mode==='cascade'},
+    {k:'tup',l:'Verzögerung beim Zuschalten',u:'min',min:0,max:120,step:1,def:5,show:p=>p.mode==='cascade'},
+    {k:'soff',l:'Stufe abschalten unter Auslastung der Stufen darunter',u:'%',min:10,max:100,step:1,def:50,show:p=>p.mode==='cascade'},
+    {k:'tdn',l:'Verzögerung beim Abschalten',u:'min',min:0,max:240,step:1,def:10,show:p=>p.mode==='cascade'},
+    {k:'rotd',l:'Führungskessel wechseln alle (0 = nie)',u:'Tage',min:0,max:365,step:1,def:0,show:p=>p.mode==='cascade'}],
   hres:()=>{},
   outT:()=>NaN,
   step(){},
   lim:()=>1e9,
-  lines(c){const a=compMap[c.p.act],s=c.s;
-    if(c.p.mode==='hyst')return['Fühler '+fmt(s.val)+' °C',(a?a.name:'kein Aktor')+': '+(s.on===false?'AUS':'EIN')];
+  lines(c){const a=compMap[c.p.act],s=c.s,m=c.p.mode;
+    if(m==='hyst')return['Fühler '+fmt(s.val)+' °C',(a?a.name:'kein Aktor')+': '+(s.on===false?'AUS':'EIN')];
+    if(m==='pi')return['Fühler '+fmt(s.val)+' °C','Stell '+fmt((s.y===undefined?c.p.y0/100:s.y)*100,0)+' %'+(a?'  '+a.name:'')];
+    if(m==='cascade')return['Stufen '+(s.n||1)+' von '+(s.N||'–'),'Last '+fmt((s.load||0)*100,0)+' %'];
     return['Soll '+fmt(s.val)+' °C',(a?a.name:'kein Aktor')];},
   ro(c){const s=c.s,p=c.p,a=compMap[p.act];
     if(p.mode==='hyst')return[['Fühlerwert',fmt(s.val)+' °C'],['Zustand',s.on===false?'aus':'ein'],['Aktor',a?a.name:'keiner'],['Seit letztem Schalten',fmt((s.t||0)/60,0)+' min']];
+    if(p.mode==='pi')return[['Fühlerwert',fmt(s.val)+' °C'],['Sollwert',fmt(p.tsoll)+' °C'],['Regelabweichung',fmt(p.dirv==='cool'?s.val-p.tsoll:p.tsoll-s.val,2)+' K'],['Stellgröße',fmt((s.y===undefined?p.y0/100:s.y)*100,1)+' %'],['Aktor',a?a.name:'keiner']];
+    if(p.mode==='cascade')return[['Aktive Stufen',(s.n||1)+' von '+(s.N||'–')],['Aktive Erzeuger',s.act||'–'],['Auslastung der aktiven Stufen',fmt((s.load||0)*100,0)+' %'],['Führungskessel-Versatz',String(s.off||0)]];
     return[['Außentemperatur',fmt(getTout())+' °C'],['Vorlauf-Sollwert',fmt(s.val)+' °C'],['Aktor',a?a.name:'keiner']];},
   stored:()=>0},
+
+dhw:{label:'Trinkwarmwasser',icon:'🚿',desc:'Speicher mit Kaltwasser, Entnahme und Zirkulation',dim:[150,70],chartDef:true,hk:'thru',
+  ports:[{d:'in',s:'L',n:'Heizung Vorlauf (Eingang)'},{d:'out',s:'R',n:'Heizung Rücklauf (Ausgang)'}],
+  params:[
+    {k:'vs',l:'Speichervolumen Warmwasser',u:'L',min:50,max:50000,step:10,def:500},
+    {k:'tw',l:'Soll-Warmwassertemperatur',u:'°C',min:40,max:90,step:1,def:60},
+    {k:'tk',l:'Kaltwassertemperatur',u:'°C',min:2,max:30,step:0.5,def:10},
+    {k:'tka',l:'Jahresschwankung Kaltwasser (nur mit Jahresgang)',u:'K',min:0,max:10,step:0.5,def:0},
+    {k:'qpk',l:'Entnahme bei 100 % (Spitze)',u:'L/min',min:0,max:3000,step:1,def:40},
+    {k:'last',l:'Lastfaktor Entnahme',u:'%',min:0,max:300,step:1,def:100},
+    {k:'zq',l:'Zirkulation, Volumenstrom',u:'L/min',min:0,max:2000,step:1,def:10},
+    {k:'zdt',l:'Zirkulation, Auskühlung im Netz',u:'K',min:0,max:20,step:0.5,def:5},
+    {k:'ua',l:'Wärmeverlust des Speichers (UA)',u:'W/K',min:0,max:200,step:0.5,def:3},
+    {k:'uac',l:'Heizregister (UA)',u:'kW/K',min:0.2,max:500,step:0.1,def:8},
+    {k:'vol',l:'Wasserinhalt Heizseite',u:'L',min:1,max:5000,step:1,def:20,struct:1},
+    {k:'kv',l:'Hydraulischer Widerstand (Kv)',u:'m³/h',min:0.5,max:2000,step:0.5,def:8}],
+  hres:(c,E,f,p,r)=>thru(E,f,p,r,x=>rq(kvK(c.p.kv),x)),
+  outT:(c,p)=>c.s.T[0],
+  step(c,dt){inflow(c);const p=c.p,s=c.s,V=p.vol/1000,T=s.T[0],Ts=s.Ts,Vs=p.vs/1000,Ta=model.glob.tamb;
+    const md=dhwDraw(c)/60000*RHO,Tk=dhwTk(c),Qc=Math.max(0,p.uac*1000*(T-Ts)),Qd=md*CPJ*(Ts-Tk),Qz=dhwQz(c),Ql=p.ua*(Ts-Ta);
+    s.Ts=Ts+dt*(Qc-Qd-Qz-Ql)/(RHO*Vs*CPJ);
+    s.Q=Qc;s.E+=Qc*dt;s.Eu+=Qd*dt;s.Ez+=Qz*dt;s.Es+=Ql*dt;s.Vd+=md/RHO*dt;s.md=md;s.Qd=Qd;s.Qz=Qz;s.Ql=Ql;s.Tk=Tk;
+    mixStep(c,V,-Qc,dt);},
+  lim(c){const p=c.p,V=p.vol/1000,Cs=RHO*(p.vs/1000)*CPJ,Ch=RHO*V*CPJ,md=p.qpk*Math.max(p.last,100)/100/60000*RHO;
+    return Math.min(0.5*RHO*V/(maxFlow(c)+1e-6),0.5*Ch/(p.uac*1000+1e-6),0.5*Cs/(p.uac*1000+p.ua+md*CPJ+1e-6));},
+  lines(c){const s=c.s;return['Speicher '+fmt(s.Ts)+' °C',fmt((s.md||0)*60000/RHO,0)+' L/min   Zirk. '+fmt((s.Qz||0)/1000,1)+' kW'];},
+  ro(c){const s=c.s,p=c.p,im=inMix(c);
+    return[['Warmwasserspeicher',fmt(s.Ts)+' °C'],['Kaltwasser',fmt(s.Tk||dhwTk(c))+' °C'],['Entnahme aktuell',fmt((s.md||0)*60000/RHO,0)+' L/min'],['Nutzwärme der Entnahme',fmt((s.Qd||0)/1000,1)+' kW'],['Zirkulationsverlust',fmt((s.Qz||0)/1000,2)+' kW'],['Rücklauf der Zirkulation',fmt(s.Ts-p.zdt)+' °C'],['Speicherverlust',fmt(s.Ql||0,0)+' W'],['Heizleistung aus dem Netz',fmt(s.Q/1000)+' kW'],['Heizung Eintritt',fmt(im.T)+' °C'],['Heizung Austritt',fmt(s.T[0])+' °C'],['Volumenstrom Heizung',fmt(m3h(im.m),2)+' m³/h'],
+      ['Entnommenes Wasser',fmt(s.Vd,1)+' m³'],['Nutzwärme',fmt(s.Eu/3.6e6,1)+' kWh'],['Zirkulation',fmt(s.Ez/3.6e6,1)+' kWh'],['Speicherverlust gesamt',fmt(s.Es/3.6e6,1)+' kWh'],['Entnommene Wärme aus dem Netz',fmt(s.E/3.6e6,1)+' kWh']];},
+  stored:c=>RHO*CPJ*c.p.vol/1000*c.s.T[0]},
 
 hx:{label:'Wärmeübertrager',icon:'🔄',desc:'Trennt zwei Kreise, Gegenstrom',dim:[180,96],chartDef:true,hk:'hx',
   ports:[{d:'in',s:'L',n:'Primär Eingang',sh:'prim ein'},{d:'out',s:'R',n:'Primär Ausgang',sh:'prim aus'},{d:'in',s:'L',n:'Sekundär Eingang',sh:'sek ein'},{d:'out',s:'R',n:'Sekundär Ausgang',sh:'sek aus'}],
   params:[
-    {k:'ua',l:'Übertragungsfähigkeit UA',u:'kW/K',min:0.5,max:100,step:0.5,def:8},
-    {k:'vol',l:'Wasserinhalt je Seite',u:'L',min:1,max:200,step:1,def:10,struct:1},
-    {k:'kv',l:'Hydraulischer Widerstand je Seite (Kv)',u:'m³/h',min:0.5,max:200,step:0.5,def:10}],
+    {k:'ua',l:'Übertragungsfähigkeit UA',u:'kW/K',min:0.5,max:1000,step:0.5,def:8},
+    {k:'vol',l:'Wasserinhalt je Seite',u:'L',min:1,max:5000,step:1,def:10,struct:1},
+    {k:'kv',l:'Hydraulischer Widerstand je Seite (Kv)',u:'m³/h',min:0.5,max:2000,step:0.5,def:10}],
   hres(c,E,f,p,r){const k=kvK(c.p.kv);thru([E[0],E[1]],f,p,r,x=>rq(k,x));thru([E[2],E[3]],f,p,r,x=>rq(k,x));},
   outT:(c,p)=>p===1?c.s.T[c.s.T.length-1]:c.s.T2[c.s.T2.length-1],
   step(c,dt){const p=c.p,s=c.s,P=s.T,S=s.T2,N=P.length,Vc=p.vol/1000/N,G=p.ua*1000/N,ap=c.inp[0],as=c.inp[2],mp=ap.m,ms=as.m;
@@ -1060,7 +1336,7 @@ function ensureState(c){
   };
   s.T=mk(s.T);
   if(c.type==='hx')s.T2=mk(s.T2);
-  s.Q=s.Q||0;s.loss=s.loss||0;s.E=s.E||0;s.Eel=s.Eel||0;s.Ein=s.Ein||0;s.Pin=s.Pin||0;s.Pel=s.Pel||0;if(s.cap===undefined)s.cap=Infinity;s.H=s.H||0;if(s.pos===undefined)s.pos=1;if(!s.ext)s.ext={on:true,tset:null};s.Ed=s.Ed||0;s.Edef=s.Edef||0;if(c.type==='consumer'&&s.Tf===undefined)s.Tf=t0;s.buf=null;
+  s.Q=s.Q||0;s.loss=s.loss||0;s.E=s.E||0;s.Eel=s.Eel||0;s.Ein=s.Ein||0;s.Pin=s.Pin||0;s.Pel=s.Pel||0;if(s.cap===undefined)s.cap=Infinity;s.H=s.H||0;if(s.pos===undefined)s.pos=1;if(!s.ext)s.ext={on:true,tset:null,pos:null,pf:null};s.Ed=s.Ed||0;s.Edef=s.Edef||0;if(c.type==='consumer'&&s.Tf===undefined)s.Tf=t0;if(c.type==='dhw'){if(s.Ts===undefined)s.Ts=t0;s.Eu=s.Eu||0;s.Ez=s.Ez||0;s.Es=s.Es||0;s.Vd=s.Vd||0;}s.buf=null;
   c.s=s;
 }
 function rebuildIndex(){
@@ -1156,7 +1432,7 @@ function solveFlows(){
     const i=c.pe[0],o=c.pe[1];
     if(i>=0&&o>=0){
       const H=pv[o]-pv[i],V=Math.max(0,fv[o])*3600/RHO;
-      c.s.H=H;c.s.Pel=Math.max(0,H*BAR*V/3600)/c.p.eta;
+      const nn=pumpSpeed(c,V,H);c.s.H=H;c.s.Pel=Math.max(0,H*BAR*V/3600)/pumpEta(c,V,Number.isFinite(nn)&&nn>0?nn:1);
     }else{c.s.H=0;c.s.Pel=0;}
   }
 }
@@ -1252,7 +1528,7 @@ function record(){
       if(!a)a=hist.ser[k]=new Array(hist.t.length-1).fill(NaN);
       a.push(outT(c,p));
     });
-    if(c.type==='source'){g+=c.s.Q;ip+=c.s.Pin||0;}else if(c.type==='consumer')cn+=c.s.Q;else if(c.type==='pipe'||c.type==='tank')ls+=c.s.loss;
+    if(c.type==='source'){g+=c.s.Q;ip+=c.s.Pin||0;}else if(c.type==='consumer'||c.type==='dhw')cn+=c.s.Q;else if(c.type==='pipe'||c.type==='tank')ls+=c.s.loss;
   }
   hist.tout.push(toutAt(simT));hist.inp.push(ip/1000);hist.gen.push(g/1000);hist.cons.push(cn/1000);hist.loss.push(ls/1000);
   if(hist.t.length>3000){
@@ -1263,10 +1539,10 @@ function record(){
   }
 }
 function totalStored(){let s=0;for(const c of model.comps)s+=TYPES[c.type].stored(c);return s;}
-function resetBalance(){for(const c of model.comps){c.s.E=0;c.s.Ein=0;c.s.Ed=0;c.s.Edef=0;}bal.e0=totalStored();}
+function resetBalance(){for(const c of model.comps){c.s.E=0;c.s.Ein=0;c.s.Ed=0;c.s.Edef=0;if(c.type==='dhw'){c.s.Eu=0;c.s.Ez=0;c.s.Es=0;c.s.Vd=0;}}bal.e0=totalStored();}
 function balance(){
   let gen=0,cons=0,loss=0;
-  for(const c of model.comps){if(c.type==='source')gen+=c.s.E;else if(c.type==='consumer')cons+=c.s.E;else if(c.type==='pipe'||c.type==='tank')loss+=c.s.E;}
+  for(const c of model.comps){if(c.type==='source')gen+=c.s.E;else if(c.type==='consumer'||c.type==='dhw')cons+=c.s.E;else if(c.type==='pipe'||c.type==='tank')loss+=c.s.E;}
   const dE=totalStored()-bal.e0;
   return{gen,cons,loss,dE,err:gen-cons-loss-dE};
 }
@@ -1282,28 +1558,31 @@ function newComp(type,x,y,name,p,flip){
   const T=TYPES[type];
   const c={id:model.nextId++,type,x,y,name:name||T.label,flip:!!flip,p:Object.assign(defaults(type),p||{}),chart:[]};
   c.chart=portsOf(c).map(P=>P.d==='out'&&!!T.chartDef);
-  if(type==='consumer'||type==='source'||type==='pump')c.p.sch=normSch(c.p.sch);
-  if(type==='consumer')c.p.prof=normProf(c.p.prof);
+  if(['consumer','source','pump','dhw'].includes(type))c.p.sch=normSch(c.p.sch);
+  if(['consumer','source','dhw'].includes(type))c.p.prof=normProf(c.p.prof);
+  if(type==='pump')c.p.pc=normPC(c.p.pc);
+  c.meta=normMeta(c.meta);
   model.comps.push(c);return c;
 }
 function link(oc,op,ic,ip){model.edges.push({id:model.nextId++,a:{c:oc.id,p:op},b:{c:ic.id,p:ip},m:0});}
 function exportModel(){
   return{app:'heizwasser-simulator',v:2,glob:model.glob,nextId:model.nextId,
-    comps:model.comps.map(c=>({id:c.id,type:c.type,x:c.x,y:c.y,name:c.name,flip:c.flip,p:c.p.sch||c.p.prof?exportP(c):c.p,chart:c.chart})),
-    edges:model.edges.map(e=>({id:e.id,a:e.a,b:e.b})),meas:model.meas};
+    comps:model.comps.map(c=>({id:c.id,type:c.type,x:c.x,y:c.y,name:c.name,flip:c.flip,p:c.p.sch||c.p.prof?exportP(c):c.p,chart:c.chart,...(metaUsed(c.meta)?{meta:c.meta}:{})})),
+    edges:model.edges.map(e=>({id:e.id,a:e.a,b:e.b})),meas:model.meas,groups:model.groups.map(g=>({id:g.id,name:g.name,color:g.color,members:g.members.slice(),collapsed:g.collapsed,note:g.note,gx:g.gx,gy:g.gy}))};
 }
 function importModel(o){
-  const m={glob:normGlob(o.glob),nextId:1,comps:[],edges:[],meas:(Array.isArray(o.meas)?o.meas:[]).map(normMeas).filter(Boolean).slice(0,8)};
+  const m={glob:normGlob(o.glob),nextId:1,comps:[],edges:[],meas:(Array.isArray(o.meas)?o.meas:[]).map(normMeas).filter(Boolean).slice(0,8),groups:[]};
   const ids={};
   for(const x of (o.comps||[])){
     const T=TYPES[x.type];if(!T)continue;
     const pp=Object.assign(defaults(x.type),x.p||{});
     if(x.type==='splitter'&&x.p&&x.p.ra!==undefined&&x.p.w1===undefined){pp.w1=x.p.ra;pp.w2=100-x.p.ra;}
     delete pp.ra;
-    if(['consumer','source','pump'].includes(x.type))pp.sch=normSch(pp.sch);
-    if(x.type==='consumer')pp.prof=normProf(pp.prof);
+    if(['consumer','source','pump','dhw'].includes(x.type))pp.sch=normSch(pp.sch);
+    if(['consumer','source','dhw'].includes(x.type))pp.prof=normProf(pp.prof);
+    if(x.type==='pump')pp.pc=normPC(pp.pc);
     if(T.mk)pp.np=clamp(Math.round(+pp.np||2),2,6);
-    const c={id:+x.id,type:x.type,x:+x.x||0,y:+x.y||0,name:String(x.name||T.label).slice(0,24),flip:!!x.flip,p:pp,chart:[]};
+    const c={id:+x.id,type:x.type,x:+x.x||0,y:+x.y||0,name:String(x.name||T.label).slice(0,24),flip:!!x.flip,p:pp,chart:[],meta:normMeta(x.meta)};
     c.chart=portsOf(c).map((P,i)=>!!(x.chart&&x.chart[i]));
     ids[c.id]=c;m.comps.push(c);m.nextId=Math.max(m.nextId,c.id+1);
   }
@@ -1314,13 +1593,14 @@ function importModel(o){
     m.edges.push({id:+e.id||m.nextId++,a:{c:a.id,p:e.a.p},b:{c:b.id,p:e.b.p},m:0});
     m.nextId=Math.max(m.nextId,(+e.id||0)+1);
   }
+  m.groups=normGroups(o.groups,new Set(m.comps.map(c=>c.id)));
   model=m;rebuildIndex();resetSim();
 }
 function pruneEdges(){
   model.edges=model.edges.filter(e=>{const a=compMap[e.a.c],b=compMap[e.b.c];if(!a||!b)return false;const pa=portsOf(a)[e.a.p],pb=portsOf(b)[e.b.p];return !!pa&&!!pb&&pa.d==='out'&&pb.d==='in';});
 }
 function loadExample(n){
-  model={glob:defGlob(),nextId:1,comps:[],edges:[],meas:[]};
+  model={glob:defGlob(),nextId:1,comps:[],edges:[],meas:[],groups:[]};
   if(n===1){
     const E=newComp('source',40,60,'Erzeuger',{tset:70,pmax:40});
     const P=newComp('pump',250,60,'Umwälzpumpe',{flow:1.5});
@@ -1395,7 +1675,7 @@ function loadExample(n){
 const $=s=>document.querySelector(s);
 const NS='http://www.w3.org/2000/svg';
 const svgEl=(n,a)=>{const e=document.createElementNS(NS,n);if(a)for(const k in a)e.setAttribute(k,a[k]);return e;};
-const svg=$('#svg'),world=$('#world'),layerE=$('#edges'),layerN=$('#nodes'),rubber=$('#rubber');
+const svg=$('#svg'),world=$('#world'),layerG=$('#groups'),layerE=$('#edges'),layerN=$('#nodes'),rubber=$('#rubber');
 const view={tx:20,ty:20,k:1};
 let running=false,speed=60,dirty=true,sel=null,pending=null,st=null,pinch=null,chartMode='T';
 let msel=new Set(),multiMode=false,clip=null;
@@ -1421,13 +1701,47 @@ function portPos(c,p){
   const k=list.indexOf(p),ly=24+(h-24)*(k+1)/(list.length+1),lx=side==='L'?0:w;
   return{x:c.x+lx,y:c.y+ly,lx,ly,side};
 }
+const GPAD=22,GHEAD=24;
+function memberBox(g){
+  let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+  for(const id of g.members){const c=compMap[id];if(!c)continue;const d=dimOf(c);x0=Math.min(x0,c.x);y0=Math.min(y0,c.y);x1=Math.max(x1,c.x+d[0]);y1=Math.max(y1,c.y+d[1]);}
+  return x0>1e8?null:{x:x0-GPAD,y:y0-GPAD-GHEAD,w:x1-x0+2*GPAD,h:y1-y0+2*GPAD+GHEAD};
+}
+function groupBox(g){
+  if(g.collapsed){const n=(g._cross||[]).length,gx=g.gx!=null?g.gx:0,gy=g.gy!=null?g.gy:0;return{x:gx,y:gy,w:230,h:Math.max(84,46+n*14+14)};}
+  return memberBox(g);
+}
+function prepGroups(){
+  for(const g of model.groups){
+    const set=new Set(g.members);g._cross=[];
+    for(const e of model.edges){const ia=set.has(e.a.c),ib=set.has(e.b.c);if(ia!==ib)g._cross.push(e.id);}
+  }
+}
+function collapsedAnchor(g,e,role){
+  const b=groupBox(g),k=Math.max(0,(g._cross||[]).indexOf(e.id));
+  return role==='out'?{x:b.x+b.w,y:b.y+44+k*14,side:'R'}:{x:b.x,y:b.y+44+k*14,side:'L'};
+}
+function edgeEnds(e){
+  const a=compMap[e.a.c],b=compMap[e.b.c],ga=groupOf(a.id),gb=groupOf(b.id),ca=!!(ga&&ga.collapsed),cb=!!(gb&&gb.collapsed);
+  if(ca&&cb&&ga===gb)return null;
+  return{A:ca?collapsedAnchor(ga,e,'out'):portPos(a,e.a.p),B:cb?collapsedAnchor(gb,e,'in'):portPos(b,e.b.p)};
+}
 function edgeD(e){
-  const a=compMap[e.a.c],b=compMap[e.b.c],A=portPos(a,e.a.p),B=portPos(b,e.b.p);
+  const en=edgeEnds(e);if(!en)return 'M0 0';
+  const A=en.A,B=en.B;
   const dx=clamp(Math.abs(B.x-A.x)*0.5,40,180),s1=A.side==='R'?1:-1,s2=B.side==='R'?1:-1;
   return 'M'+A.x+' '+A.y+'C'+(A.x+s1*dx)+' '+A.y+' '+(B.x+s2*dx)+' '+B.y+' '+B.x+' '+B.y;
 }
 
 /* ---- Zeichnen ---- */
+const STATUS_COL={measured:'#1b7a4f',mfr:'#0b6aae',calc:'#00a6a6',est:'#d69e00',assumed:'#c2417b',open:'#b3261e'};
+function setBadge(c,node){
+  const b=node||(c.el&&c.el.badge);if(!b)return;
+  const m=c.meta||{status:'unknown'},col=STATUS_COL[m.status];
+  b.style.display=col?'':'none';if(col){b.style.fill=col;b.style.stroke=m.note?'var(--ink)':'none';b.style.strokeWidth='1.5';}
+  let t=b.querySelector('title');if(!t){t=svgEl('title');b.append(t);}
+  t.textContent=(STATUS.find(x=>x[0]===m.status)||['',''])[1]+(m.src?', Quelle: '+m.src:'')+(m.note?'. '+m.note:'');
+}
 function buildComp(c){
   const T=Object.assign({},TYPES[c.type],{ports:portsOf(c)}),D=dimOf(c),w=D[0],h=D[1],hd=24;
   const g=svgEl('g',{class:'comp','data-comp':c.id,transform:'translate('+c.x+' '+c.y+')'});
@@ -1436,6 +1750,7 @@ function buildComp(c){
   const ic=svgEl('text',{class:'cicon',x:9,y:17});ic.textContent=T.icon;g.append(ic);
   const nm=svgEl('text',{class:'cname',x:30,y:17});nm.textContent=c.name;g.append(nm);
   const el={g,nm,ports:[],bars:null};
+  el.badge=svgEl('circle',{class:'badge',cx:w-12,cy:12,r:5});g.append(el.badge);setBadge(c,el.badge);
   let y1=46,y2=62;
   if(c.type==='pipe'){y1=42;y2=70;}
   if(c.type==='splitter'||c.type==='mixer'){y1=24+(h-24)/2-2;y2=y1+16;}
@@ -1472,15 +1787,55 @@ function buildEdge(e){
   g.append(hit,selp,wire,fl);e.el={g,hit,sel:selp,wire,fl};layerE.append(g);
   const d=edgeD(e);[hit,selp,wire,fl].forEach(p=>p.setAttribute('d',d));
 }
-function renderAll(){
-  layerN.textContent='';layerE.textContent='';
-  model.edges.forEach(buildEdge);model.comps.forEach(buildComp);
-  applySel();dirty=true;
+function renderGroups(){
+  layerG.textContent='';prepGroups();
+  for(const g of model.groups){
+    const b=groupBox(g);if(!b)continue;
+    const el={},col=g.color,gr=svgEl('g',{});
+    if(g.collapsed){
+      const r=svgEl('rect',{x:b.x,y:b.y,width:b.w,height:b.h,rx:10,'data-group':g.id});gr.append(r);
+      r.style.fill=col;r.style.fillOpacity='0.14';r.style.stroke=col;r.style.strokeWidth='2';r.style.cursor='grab';
+      const tg=svgEl('text',{x:b.x+12,y:b.y+22,class:'gtog','data-gtoggle':g.id});tg.textContent='▸';gr.append(tg);
+      el.title=svgEl('text',{x:b.x+30,y:b.y+22,class:'gtitle'});gr.append(el.title);
+      el.sum=svgEl('text',{x:b.x+12,y:b.y+38,class:'gsum'});gr.append(el.sum);
+    }else{
+      const fr=svgEl('rect',{x:b.x,y:b.y,width:b.w,height:b.h,rx:14,class:'gframe'});
+      fr.style.fill=col;fr.style.fillOpacity='0.07';fr.style.stroke=col;fr.style.strokeWidth='1.5';fr.style.strokeDasharray='8 4';gr.append(fr);
+      const hd=svgEl('rect',{x:b.x,y:b.y,width:b.w,height:GHEAD,rx:14,class:'ghead','data-group':g.id});hd.style.fill=col;hd.style.fillOpacity='0.18';gr.append(hd);
+      const tg=svgEl('text',{x:b.x+10,y:b.y+17,class:'gtog','data-gtoggle':g.id});tg.textContent='▾';gr.append(tg);
+      el.title=svgEl('text',{x:b.x+28,y:b.y+17,class:'gtitle'});gr.append(el.title);
+      el.sum=svgEl('text',{x:b.x+b.w-10,y:b.y+17,class:'gsum','text-anchor':'end'});gr.append(el.sum);
+    }
+    if(sel&&sel.k==='g'&&sel.id===g.id){const sr=svgEl('rect',{x:b.x-2,y:b.y-2,width:b.w+4,height:(g.collapsed?b.h:GHEAD)+4,rx:12,class:'gsel'});gr.append(sr);}
+    g.el=el;layerG.append(gr);
+  }
+  updateGroupText();
 }
-function refreshEdgePaths(){for(const e of model.edges){const d=edgeD(e);for(const p of [e.el.hit,e.el.sel,e.el.wire,e.el.fl])p.setAttribute('d',d);}}
+function updateGroupText(){
+  for(const g of model.groups){
+    if(!g.el||!g.el.title)continue;
+    let ge=0,ve=0,re=0,nh=0;
+    for(const id of g.members){const c=compMap[id];if(!c)continue;nh++;
+      if(c.type==='source'){if(c.p.kind==='rec')re+=c.s.Q;else ge+=c.s.Q;}else if(c.type==='consumer'||c.type==='dhw')ve+=c.s.Q;}
+    const parts=[];if(ge>0.5)parts.push('Erz. '+fmt(ge/1000,0)+' kW');if(re>0.5)parts.push('Rückg. '+fmt(re/1000,0)+' kW');if(ve>0.5)parts.push('Verbr. '+fmt(ve/1000,0)+' kW');
+    setT(g.el.title,g.name+' ('+nh+')');setT(g.el.sum,parts.join('   ')||'ruht');
+  }
+}
+function applyGroupVis(){
+  for(const c of model.comps){const g=groupOf(c.id);c.el.g.style.display=g&&g.collapsed?'none':'';}
+  for(const e of model.edges){const en=edgeEnds(e);e.el.g.style.display=en?'':'none';}
+}
+function renderAll(){
+  for(const id of [...msel])if(!compMap[id])msel.delete(id);
+  layerN.textContent='';layerE.textContent='';prepGroups();
+  model.edges.forEach(buildEdge);model.comps.forEach(buildComp);
+  renderGroups();applyGroupVis();applySel();dirty=true;
+}
+function refreshEdgePaths(){prepGroups();for(const e of model.edges){const d=edgeD(e);for(const p of [e.el.hit,e.el.sel,e.el.wire,e.el.fl])p.setAttribute('d',d);}}
 function applySel(){
   for(const c of model.comps){c.el.g.classList.toggle('sel',!!sel&&sel.k==='c'&&sel.id===c.id);c.el.g.classList.toggle('msel',msel.has(c.id));}
   for(const e of model.edges)e.el.sel.classList.toggle('on',!!sel&&sel.k==='e'&&sel.id===e.id);
+  renderGroups();
 }
 function updateView(){
   for(const c of model.comps){
@@ -1494,6 +1849,7 @@ function updateView(){
       setS(d,'fill',c.pe[p]>=0?col:'var(--card)');
     });
   }
+  updateGroupText();
   for(const e of model.edges){
     const a=compMap[e.a.c],m=e.m,el=e.el;
     setS(el.wire,'stroke',tc(outT(a,e.a.p)));
@@ -1536,9 +1892,10 @@ function addComp(type){
   topoChanged();select('c',c.id,false);
 }
 function removeSel(){
-  if(msel.size){pushUndo();const ids=new Set(msel);model.edges=model.edges.filter(e=>!ids.has(e.a.c)&&!ids.has(e.b.c));model.comps=model.comps.filter(c=>!ids.has(c.id));msel.clear();sel=null;topoChanged();buildProps();return;}
+  if(msel.size){pushUndo();const ids=new Set(msel);dropFromGroups([...ids]);model.edges=model.edges.filter(e=>!ids.has(e.a.c)&&!ids.has(e.b.c));model.comps=model.comps.filter(c=>!ids.has(c.id));msel.clear();sel=null;topoChanged();buildProps();return;}
   if(!sel)return;pushUndo();
-  if(sel.k==='c'){model.edges=model.edges.filter(e=>e.a.c!==sel.id&&e.b.c!==sel.id);model.comps=model.comps.filter(c=>c.id!==sel.id);}
+  if(sel.k==='g'){model.groups=model.groups.filter(g=>g.id!==sel.id);sel=null;renderAll();buildProps();scheduleSave();return;}
+  if(sel.k==='c'){dropFromGroups([sel.id]);model.edges=model.edges.filter(e=>e.a.c!==sel.id&&e.b.c!==sel.id);model.comps=model.comps.filter(c=>c.id!==sel.id);}
   else model.edges=model.edges.filter(e=>e.id!==sel.id);
   sel=null;topoChanged();buildProps();
 }
@@ -1552,6 +1909,19 @@ function connect(c1,p1,c2,p2){
   $('#hint').textContent='Verbunden. Zum Entfernen die Leitung antippen und „Entfernen“ wählen.';
   return true;
 }
+function toggleCollapse(g){
+  pushUndo();
+  if(!g.collapsed){const b=memberBox(g);if(b){g.gx=b.x;g.gy=b.y;}}
+  g.collapsed=!g.collapsed;msel.clear();renderAll();buildProps();scheduleSave();
+}
+function makeGroup(name,color){
+  const ids=selIds();if(!ids.length)return;
+  pushUndo();dropFromGroups(ids);
+  const g={id:Math.max(0,...model.groups.map(x=>x.id))+1,name:name||'Gruppe',color:color||'#0b6aae',members:ids.slice(),collapsed:false,note:'',gx:null,gy:null};
+  model.groups.push(g);msel.clear();sel={k:'g',id:g.id};renderAll();buildProps();showTab('props');scheduleSave();
+}
+const GPRESET=[['HT (Hochtemperatur)','HT','#e4572e'],['NT (Niedertemperatur)','NT','#2f9e6f'],['Produktionslinie','Produktionslinie','#9b5de5'],['Abwärmenutzung','Abwärmenutzung','#d69e00'],['Warmwasser','Warmwasser','#00a6a6']];
+const GCOL=['#0b6aae','#e4572e','#2f9e6f','#9b5de5','#d69e00','#00a6a6','#c2417b','#6b7280'];
 function toggleMulti(id){
   if(sel&&sel.k==='c'&&!msel.size)msel.add(sel.id);
   sel=null;if(msel.has(id))msel.delete(id);else msel.add(id);
@@ -1560,7 +1930,7 @@ function toggleMulti(id){
 function selIds(){return msel.size?[...msel]:(sel&&sel.k==='c'?[sel.id]:[]);}
 function snapshotComps(ids){
   const set=new Set(ids);
-  return{comps:model.comps.filter(c=>set.has(c.id)).map(c=>({id:c.id,type:c.type,x:c.x,y:c.y,name:c.name,flip:c.flip,p:JSON.parse(JSON.stringify(exportP(c))),chart:c.chart.slice()})),
+  return{comps:model.comps.filter(c=>set.has(c.id)).map(c=>({id:c.id,type:c.type,x:c.x,y:c.y,name:c.name,flip:c.flip,p:JSON.parse(JSON.stringify(exportP(c))),chart:c.chart.slice(),meta:c.meta?JSON.parse(JSON.stringify(c.meta)):null})),
     edges:model.edges.filter(e=>set.has(e.a.c)&&set.has(e.b.c)).map(e=>({a:{c:e.a.c,p:e.a.p},b:{c:e.b.c,p:e.b.p}}))};
 }
 function insertSnapshot(sn,wx,wy,offset){
@@ -1571,12 +1941,13 @@ function insertSnapshot(sn,wx,wy,offset){
   const dx=offset?40:snap(wx-(x0+x1)/2),dy=offset?40:snap(wy-(y0+y1)/2),map={},made=[];
   for(const c of sn.comps){
     const n=newComp(c.type,c.x+dx,c.y+dy,c.name,JSON.parse(JSON.stringify(c.p)),c.flip);
+    n.meta=normMeta(c.meta);
     const np=portsOf(n).length;n.chart=(c.chart||[]).slice(0,np);while(n.chart.length<np)n.chart.push(false);
     map[c.id]=n;made.push(n);
   }
   for(const n of made){
     if(n.type!=='ctrl')continue;
-    if(map[n.p.act])n.p.act=map[n.p.act].id;
+    for(const key of ['act','a1','a2','a3','a4','b1','b2','b3','b4'])if(map[n.p[key]])n.p[key]=map[n.p[key]].id;
     const m=/^(\d+):(.+)$/.exec(n.p.sens||'');if(m&&map[+m[1]])n.p.sens=map[+m[1]].id+':'+m[2];
   }
   for(const e of sn.edges){const a=map[e.a.c],b=map[e.b.c];if(a&&b)link(a,e.a.p,b,e.b.p);}
@@ -1587,6 +1958,30 @@ function copySel(){const ids=selIds();if(!ids.length)return;clip=snapshotComps(i
 function pasteClip(){if(!clip)return;insertSnapshot(clip,0,0,true);clip.comps.forEach(c=>{c.x+=40;c.y+=40;});}
 const TPL_KEY='hw-sim-templates-v1';
 const TPL_BUILTIN=[
+  {name:'Kesselkaskade mit 2 Kesseln',comps:[
+    {id:1,type:'splitter',x:0,y:60,name:'Rücklauf-Verteiler',flip:false,p:{np:2,mode:'free'}},
+    {id:2,type:'pump',x:210,y:0,name:'Pumpe Kessel 1',flip:false,p:{flow:20},meta:{status:'assumed',src:'',note:'Volumenstrom je Kessel prüfen'}},
+    {id:3,type:'pump',x:210,y:130,name:'Pumpe Kessel 2',flip:false,p:{flow:20}},
+    {id:4,type:'source',x:420,y:0,name:'Kessel 1',flip:false,p:{tset:80,pmax:1000,vol:400,kv:300},meta:{status:'assumed',src:'',note:'Leistung laut Typenschild eintragen'}},
+    {id:5,type:'source',x:420,y:130,name:'Kessel 2',flip:false,p:{tset:80,pmax:1000,vol:400,kv:300}},
+    {id:6,type:'mixer',x:630,y:60,name:'Vorlauf-Sammler',flip:false,p:{np:2}},
+    {id:7,type:'ctrl',x:420,y:270,name:'Kaskade',flip:false,p:{mode:'cascade',a1:4,b1:2,a2:5,b2:3,son:90,tup:5,soff:50,tdn:10}}],
+   edges:[{a:{c:1,p:1},b:{c:2,p:0}},{a:{c:1,p:2},b:{c:3,p:0}},{a:{c:2,p:1},b:{c:4,p:0}},{a:{c:3,p:1},b:{c:5,p:0}},{a:{c:4,p:1},b:{c:6,p:0}},{a:{c:5,p:1},b:{c:6,p:1}}]},
+  {name:'CIP-Anlage (Prozessverbraucher)',comps:[
+    {id:1,type:'consumer',x:0,y:0,name:'CIP',flip:false,p:{mode:'P',pq:150,tmin:45,tvreq:85,sp:0,sw:70,sa:10,vol:300,kv:40,sch:{on:true,off:0,days:[[{from:'05:00',to:'07:00',level:100},{from:'13:00',to:'15:00',level:100}],[{from:'05:00',to:'07:00',level:100},{from:'13:00',to:'15:00',level:100}],[{from:'05:00',to:'07:00',level:100},{from:'13:00',to:'15:00',level:100}],[{from:'05:00',to:'07:00',level:100},{from:'13:00',to:'15:00',level:100}],[{from:'05:00',to:'07:00',level:100},{from:'13:00',to:'15:00',level:100}],[],[]]}},meta:{status:'assumed',src:'Typischer Richtwert',note:'Leistung, Zeiten und Verbleib der Wärme durch Messdaten ersetzen (CSV-Profil)'}}],edges:[]},
+  {name:'KZE (Kurzzeiterhitzer)',comps:[
+    {id:1,type:'consumer',x:0,y:0,name:'KZE',flip:false,p:{mode:'P',pq:400,tmin:50,tvreq:88,sp:85,sw:5,sa:0,vol:200,kv:60,sch:{on:true,off:0,days:[[{from:'06:00',to:'22:00',level:100}],[{from:'06:00',to:'22:00',level:100}],[{from:'06:00',to:'22:00',level:100}],[{from:'06:00',to:'22:00',level:100}],[{from:'06:00',to:'22:00',level:100}],[],[]]}},meta:{status:'assumed',src:'Typischer Richtwert',note:'Produktstrom und Temperaturen prüfen, Lastprofil aus CSV einlesen'}}],edges:[]},
+  {name:'Flaschenwaschmaschine',comps:[
+    {id:1,type:'consumer',x:0,y:0,name:'Flaschenwäscher',flip:false,p:{mode:'P',pq:300,tmin:40,tvreq:80,sp:30,sw:45,sa:20,vol:400,kv:50,sch:{on:true,off:5,days:[[{from:'06:00',to:'22:00',level:100}],[{from:'06:00',to:'22:00',level:100}],[{from:'06:00',to:'22:00',level:100}],[{from:'06:00',to:'22:00',level:100}],[{from:'06:00',to:'22:00',level:100}],[],[]]}},meta:{status:'assumed',src:'Typischer Richtwert',note:'Verbleib der Wärme (Produkt, Abwasser, Abluft) und Lastprofil durch Messungen ersetzen'}}],edges:[]},
+  {name:'Kompressor-Abwärme',comps:[
+    {id:1,type:'pump',x:0,y:0,name:'Pumpe Rückgewinnung',flip:false,p:{flow:10}},
+    {id:2,type:'source',x:210,y:0,name:'Kompressor-Abwärme',flip:false,p:{kind:'rec',rcat:'comp',tset:70,pmax:120,vol:100,kv:80,sch:{on:true,off:20,days:[[{from:'05:00',to:'22:00',level:100}],[{from:'05:00',to:'22:00',level:100}],[{from:'05:00',to:'22:00',level:100}],[{from:'05:00',to:'22:00',level:100}],[{from:'05:00',to:'22:00',level:100}],[],[]]}},meta:{status:'assumed',src:'',note:'Rückgewinnbare Leistung aus Kompressorleistung und Laufzeit ableiten (CSV-Profil)'}}],
+   edges:[{a:{c:1,p:1},b:{c:2,p:0}}]},
+  {name:'Warmwasser mit Zirkulation und Ladung',comps:[
+    {id:1,type:'pump',x:0,y:0,name:'Ladepumpe',flip:false,p:{flow:3}},
+    {id:2,type:'dhw',x:210,y:0,name:'Warmwasser',flip:false,p:{vs:1000,tw:60,tk:10,qpk:60,zq:15,zdt:5,ua:4,uac:15,sch:{on:true,off:5,days:[[{from:'06:00',to:'08:30',level:100},{from:'11:30',to:'13:00',level:60},{from:'17:00',to:'21:00',level:80}],[{from:'06:00',to:'08:30',level:100},{from:'11:30',to:'13:00',level:60},{from:'17:00',to:'21:00',level:80}],[{from:'06:00',to:'08:30',level:100},{from:'11:30',to:'13:00',level:60},{from:'17:00',to:'21:00',level:80}],[{from:'06:00',to:'08:30',level:100},{from:'11:30',to:'13:00',level:60},{from:'17:00',to:'21:00',level:80}],[{from:'06:00',to:'08:30',level:100},{from:'11:30',to:'13:00',level:60},{from:'17:00',to:'21:00',level:80}],[{from:'08:00',to:'11:00',level:70}],[{from:'08:00',to:'11:00',level:70}]]}},meta:{status:'assumed',src:'Typischer Richtwert',note:'Entnahmeprofil durch Zählerdaten ersetzen'}},
+    {id:3,type:'ctrl',x:210,y:140,name:'Ladereglung',flip:false,p:{mode:'hyst',act:1,sens:'2:ts',ton:55,toff:62,trun:2,tpause:2}}],
+   edges:[{a:{c:1,p:1},b:{c:2,p:0}}]},
   {name:'Verbraucher mit 3-Wege-Ventil, Last gekoppelt',comps:[
     {id:1,type:'valve3',x:0,y:0,name:'3-Wege-Ventil',flip:false,p:{ctl:'load',pminv:10,kvs:6}},
     {id:2,type:'consumer',x:210,y:-10,name:'Verbraucher',flip:false,p:{pq:15,tmin:30}},
@@ -1655,10 +2050,12 @@ svg.addEventListener('pointerdown',ev=>{
   ptrs.set(ev.pointerId,{x:ev.clientX,y:ev.clientY});
   if(ptrs.size===2){cancelInteraction();const[a,b]=[...ptrs.values()];pinch={d:Math.hypot(a.x-b.x,a.y-b.y)||1,cx:(a.x+b.x)/2,cy:(a.y+b.y)/2,v:{...view}};return;}
   if(ptrs.size>2)return;
-  const t=ev.target,pe=t.closest('[data-port]'),ce=t.closest('[data-comp]'),ee=t.closest('[data-edge]'),[wx,wy]=toWorld(ev.clientX,ev.clientY);
+  const t=ev.target,pe=t.closest('[data-port]'),ce=t.closest('[data-comp]'),gt=t.closest('[data-gtoggle]'),ge=t.closest('[data-group]'),ee=t.closest('[data-edge]'),[wx,wy]=toWorld(ev.clientX,ev.clientY);
   const base={sx:ev.clientX,sy:ev.clientY,moved:false};
   if(pe){const[cid,p]=pe.dataset.port.split(':').map(Number);st=Object.assign(base,{k:'conn',c:compMap[cid],p});if(!pending)markCands(st.c,p);}
   else if(ce){const c=compMap[+ce.dataset.comp];st=Object.assign(base,{k:'drag',c,ox:wx-c.x,oy:wy-c.y,pushed:false});}
+  else if(gt)st=Object.assign(base,{k:'gtog',g:model.groups.find(x=>x.id===+gt.dataset.gtoggle)});
+  else if(ge)st=Object.assign(base,{k:'gdrag',g:model.groups.find(x=>x.id===+ge.dataset.group),lx:wx,ly:wy,pushed:false});
   else if(ee)st=Object.assign(base,{k:'edge',id:+ee.dataset.edge});
   else st=Object.assign(base,{k:'pan',tx:view.tx,ty:view.ty});
 });
@@ -1680,7 +2077,16 @@ svg.addEventListener('pointermove',ev=>{
     const[wx,wy]=toWorld(ev.clientX,ev.clientY),nx=snap(wx-st.ox),ny=snap(wy-st.oy),ddx=nx-st.c.x,ddy=ny-st.c.y;
     const movers=msel.has(st.c.id)?[...msel].map(i=>compMap[i]).filter(Boolean):[st.c];
     for(const m of movers){m.x+=ddx;m.y+=ddy;m.el.g.setAttribute('transform','translate('+m.x+' '+m.y+')');}
-    refreshEdgePaths();
+    renderGroups();refreshEdgePaths();
+  }else if(st.k==='gdrag'&&st.g){
+    const[wx,wy]=toWorld(ev.clientX,ev.clientY),ddx=Math.round((wx-st.lx)/10)*10,ddy=Math.round((wy-st.ly)/10)*10;
+    if(ddx||ddy){
+      if(!st.pushed){pushUndo();st.pushed=true;}
+      st.lx+=ddx;st.ly+=ddy;
+      for(const id of st.g.members){const m=compMap[id];if(!m)continue;m.x+=ddx;m.y+=ddy;m.el.g.setAttribute('transform','translate('+m.x+' '+m.y+')');}
+      if(st.g.collapsed){st.g.gx=(st.g.gx||0)+ddx;st.g.gy=(st.g.gy||0)+ddy;}
+      renderGroups();refreshEdgePaths();
+    }
   }else if(st.k==='conn')drawRubber(ev);
 });
 function endPtr(ev){
@@ -1697,6 +2103,8 @@ function endPtr(ev){
     }else{if(!pending)clearCands();tapPort(s.c,s.p);}
   }else if(s.k==='drag'){if(!s.moved){if(multiMode||ev.shiftKey||ev.ctrlKey||ev.metaKey)toggleMulti(s.c.id);else{if(pending)clearPending();select('c',s.c.id);}}else scheduleSave();}
   else if(s.k==='edge'){if(!s.moved){if(pending)clearPending();select('e',s.id);}}
+  else if(s.k==='gtog'){if(!s.moved&&s.g)toggleCollapse(s.g);}
+  else if(s.k==='gdrag'){if(!s.moved&&s.g)select('g',s.g.id);else scheduleSave();}
   else if(s.k==='pan'){if(!s.moved){if(pending)clearPending();select(null);}}
 }
 svg.addEventListener('pointerup',endPtr);
@@ -1772,7 +2180,9 @@ function paramRow(c,d,box){
 function buildProps(){
   const el=$('#props');el.textContent='';
   if(msel.size){
-    el.innerHTML='<h3>Auswahl</h3><p class="note">'+msel.size+' Bauteile gewählt. Weitere Bauteile antippen fügt sie hinzu oder nimmt sie heraus (☑ oder Umschalt-Klick). Ziehen verschiebt alle gemeinsam.</p><div class="row"><button class="btn small" id="m_copy">Kopieren</button><button class="btn small" id="m_paste"'+(clip?'':' disabled')+'>Einfügen</button><button class="btn small danger" id="m_del">Löschen</button><button class="btn small" id="m_clr">Auswahl aufheben</button></div><h3>Als Vorlage speichern</h3><div class="prow"><label for="m_name">Name</label><input id="m_name" class="field" style="width:150px;text-align:left" maxlength="40"></div><div class="row"><button class="btn small" id="m_tpl">Vorlage speichern</button></div>';
+    el.innerHTML='<h3>Auswahl</h3><p class="note">'+msel.size+' Bauteile gewählt. Weitere Bauteile antippen fügt sie hinzu oder nimmt sie heraus (☑ oder Umschalt-Klick). Ziehen verschiebt alle gemeinsam.</p><div class="row"><button class="btn small" id="m_copy">Kopieren</button><button class="btn small" id="m_paste"'+(clip?'':' disabled')+'>Einfügen</button><button class="btn small danger" id="m_del">Löschen</button><button class="btn small" id="m_clr">Auswahl aufheben</button></div><h3>Gruppe bilden</h3><div class="prow"><label for="g_name">Name</label><input id="g_name" class="field" style="width:150px;text-align:left" maxlength="30"></div><div class="row" id="g_pre"></div><div class="row" style="margin-top:6px"><button class="btn small" id="g_make">Gruppe bilden</button></div><h3>Als Vorlage speichern</h3><div class="prow"><label for="m_name">Name</label><input id="m_name" class="field" style="width:150px;text-align:left" maxlength="40"></div><div class="row"><button class="btn small" id="m_tpl">Vorlage speichern</button></div>';
+    GPRESET.forEach(x=>{const b=document.createElement('button');b.className='btn small';b.textContent=x[1];b.onclick=()=>makeGroup(x[1],x[2]);$('#g_pre').append(b);});
+    $('#g_make').onclick=()=>makeGroup(($('#g_name').value||'').trim()||('Gruppe '+(model.groups.length+1)),GCOL[model.groups.length%GCOL.length]);
     $('#m_copy').onclick=copySel;$('#m_paste').onclick=pasteClip;$('#m_del').onclick=removeSel;$('#m_clr').onclick=()=>select(null);
     $('#m_tpl').onclick=()=>{const nm=($('#m_name').value||'').trim()||('Vorlage '+(loadTpls().length+1));const a=loadTpls();a.push(Object.assign({name:nm},snapshotComps([...msel])));if(saveTpls(a)){buildTpls();note('Vorlage gespeichert. Sie steht im Tab Bauteile unter Vorlagen.');}else note('Vorlage konnte nicht gespeichert werden.');};
     return;
@@ -1783,6 +2193,22 @@ function buildProps(){
     const a=compMap[e.a.c],b=compMap[e.b.c];
     el.innerHTML='<h3>Leitung</h3><p class="note">'+esc(a.name)+' ('+portsOf(a)[e.a.p].n+') → '+esc(b.name)+' ('+portsOf(b)[e.b.p].n+')</p><div class="ro" id="ro"></div><div class="row" style="margin-top:12px"><button class="btn small danger" id="del">Entfernen</button></div>';
     $('#del').onclick=removeSel;slowUpdate(true);return;
+  }
+  if(sel.k==='g'){
+    const g=model.groups.find(x=>x.id===sel.id);if(!g){sel=null;buildProps();return;}
+    el.innerHTML='<h3>Anlagengruppe</h3><div class="prow" style="grid-template-columns:1fr"><input class="field wide" id="gn" maxlength="30" aria-label="Gruppenname"></div><div class="row" id="gp"></div><div class="chips" id="gc" style="margin-top:8px"></div><div class="prow" style="grid-template-columns:1fr"><textarea class="field" id="gnote" style="height:70px;text-align:left" placeholder="Kommentar zur Gruppe" maxlength="300"></textarea></div><div class="row"><button class="btn small" id="gtog"></button><button class="btn small danger" id="gdel">Gruppe auflösen</button></div><h3>Mitglieder</h3><div id="gm"></div><h3>Messwerte</h3><div class="ro" id="ro"></div>';
+    const gn=$('#gn');gn.value=g.name;gn.oninput=()=>{g.name=gn.value||'Gruppe';updateGroupText();scheduleSave();};
+    GPRESET.forEach(x=>{const b=document.createElement('button');b.className='btn small';b.textContent=x[1];b.onclick=()=>{g.name=x[1];g.color=x[2];renderGroups();buildProps();scheduleSave();};$('#gp').append(b);});
+    GCOL.forEach(cl=>{const b=document.createElement('button');b.className='chip';b.style.background=cl;b.style.minWidth='28px';b.style.borderColor=cl===g.color?'var(--ink)':'transparent';b.setAttribute('aria-label','Farbe '+cl);b.onclick=()=>{g.color=cl;renderGroups();buildProps();scheduleSave();};$('#gc').append(b);});
+    const gnote=$('#gnote');gnote.value=g.note||'';gnote.oninput=()=>{g.note=gnote.value;scheduleSave();};
+    $('#gtog').textContent=g.collapsed?'Ausklappen':'Einklappen';$('#gtog').onclick=()=>toggleCollapse(g);
+    $('#gdel').onclick=removeSel;
+    g.members.forEach(id=>{const m=compMap[id];if(!m)return;const row=document.createElement('div');row.className='row';row.style.alignItems='center';row.style.margin='3px 0';
+      const lab=document.createElement('span');lab.style.flex='1';lab.textContent=TYPES[m.type].icon+' '+m.name;
+      const x=document.createElement('button');x.className='btn small';x.textContent='✕';x.setAttribute('aria-label','aus der Gruppe entfernen');
+      x.onclick=()=>{pushUndo();g.members=g.members.filter(i=>i!==id);if(!g.members.length)model.groups=model.groups.filter(q=>q!==g);if(!model.groups.includes(g))sel=null;renderAll();buildProps();scheduleSave();};
+      row.append(lab,x);$('#gm').append(row);});
+    slowUpdate(true);return;
   }
   const c=compMap[sel.id];if(!c){sel=null;buildProps();return;}
   const T=TYPES[c.type];
@@ -1795,8 +2221,10 @@ function buildProps(){
   const pb=$('#pbox');
   const vis=T.params.filter(d=>!d.show||d.show(c.p));
   if(vis.length){const h=document.createElement('h3');h.textContent='Parameter';pb.append(h);vis.forEach(d=>paramRow(c,d,pb));}
-  if(c.type==='consumer'||c.type==='source'||c.type==='pump'){const sb=document.createElement('div');pb.append(sb);buildSched(c,sb);}
-  if(c.type==='consumer'){const pf=document.createElement('div');pb.append(pf);buildProfile(c,pf);}
+  if(['consumer','source','pump','dhw'].includes(c.type)){const sb=document.createElement('div');pb.append(sb);buildSched(c,sb);}
+  if(c.type==='consumer'||c.type==='dhw'||(c.type==='source'&&c.p.kind==='rec')){const pf=document.createElement('div');pb.append(pf);buildProfile(c,pf);}
+  if(c.type==='pump'){const pc=document.createElement('div');pb.append(pc);buildPumpCurve(c,pc);}
+  buildMetaBox(c,pb);
   if(T.actions){
     const ar=document.createElement('div');ar.className='row';ar.style.marginTop='10px';
     T.actions.forEach(a=>{const b=document.createElement('button');b.className='btn small';b.textContent=a.label;b.onclick=()=>{a.fn(c);dirty=true;scheduleSave();renderAll();buildProps();};ar.append(b);});
@@ -1816,6 +2244,7 @@ function buildProps(){
 }
 let schDay=null;
 const SCH_CFG={
+  dhw:{h:'Zeitplan (Entnahme)',note:'Der Plan skaliert die Entnahme (Spitzenwert oder Profil). Außerhalb der Zeitfenster gilt die Grundentnahme.',off:'Grundentnahme außerhalb',lv:'Entnahme %'},
   consumer:{h:'Zeitplan',note:'Der Plan skaliert den Wärmebedarf. Außerhalb der Zeitfenster gilt die Grundlast. Zusammen mit dem Lastfaktor ergibt sich die Last.',off:'Grundlast außerhalb',lv:'Last %'},
   source:{h:'Zeitplan (Freigabe)',note:'Der Plan skaliert die verfügbare Leistung: 100 % volle Freigabe, 0 % aus. Mit „Absenkung des Vorlaufs“ sinkt außerhalb der Freigabe auch der Sollwert.',off:'Freigabe außerhalb',lv:'Freigabe %'},
   pump:{h:'Zeitplan (Pumpe)',note:'Der Plan skaliert Volumenstrom, Drehzahl oder Sollförderhöhe. 0 % schaltet die Pumpe aus.',off:'Anteil außerhalb',lv:'Anteil %'}
@@ -1907,7 +2336,8 @@ function csvInput(box,stepDefault,withStep){
   if(withStep){const row=document.createElement('div');row.className='prow';row.innerHTML='<label>Zeitschritt bei einer Spalte<span class="u">min</span></label><input type="number" min="1" max="1440" step="1">';st=row.querySelector('input');st.value=stepDefault;box.append(row);}
   return{ta,st};
 }
-function csvToSeries(text,stepMin){
+function csvToSeries(text,stepMin,interp){return seriesFromCSV(text,stepMin,interp);}
+function csvToSeriesOld(text,stepMin){
   const rows=parseCSV(text);if(!rows.length)return null;
   if(rows[0].length>=2){const t=rows.map(r=>r[0]),v=rows.map(r=>r[1]);let step=stepMin;if(t.length>1&&t[1]>t[0])step=(t[1]-t[0])*60;return{t,v,step};}
   return{t:rows.map((r,i)=>i*stepMin/60),v:rows.map(r=>r[0]),step:stepMin};
@@ -1919,7 +2349,70 @@ function gNum(box,label,unit,obj,key,min,max,step,after){
   n.onchange=()=>{const v=clamp(parseFloat(String(n.value).replace(',','.')),min,max);if(Number.isFinite(v)){obj[key]=v;n.value=v;}dirty=true;scheduleSave();if(after)after();};
   box.append(row);
 }
+function buildMetaBox(c,pb){
+  const h=document.createElement('h3');h.textContent='Datenstatus, Quelle und Kommentar';pb.append(h);
+  const m=c.meta||(c.meta=normMeta(null));
+  const r=document.createElement('div');r.className='prow';r.innerHTML='<label for="mt_st">Datenstatus</label><select id="mt_st">'+STATUS.map(x=>'<option value="'+x[0]+'">'+x[1]+'</option>').join('')+'</select>';
+  const sl=r.querySelector('select');sl.value=m.status;sl.onchange=()=>{m.status=sl.value;setBadge(c);scheduleSave();};pb.append(r);
+  const r2=document.createElement('div');r2.className='prow';r2.style.gridTemplateColumns='1fr';r2.innerHTML='<input class="field wide" id="mt_src" maxlength="160" placeholder="Quelle, z. B. Datenblatt, Zähler, Messung vom …" aria-label="Quelle">';
+  const si=r2.querySelector('input');si.value=m.src;si.oninput=()=>{m.src=si.value;setBadge(c);scheduleSave();};pb.append(r2);
+  const r3=document.createElement('div');r3.className='prow';r3.style.gridTemplateColumns='1fr';r3.innerHTML='<textarea class="field" id="mt_note" style="height:70px;text-align:left" maxlength="500" placeholder="Kommentar, Annahmen, offene Fragen" aria-label="Kommentar"></textarea>';
+  const ta=r3.querySelector('textarea');ta.value=m.note;ta.oninput=()=>{m.note=ta.value;setBadge(c);scheduleSave();};pb.append(r3);
+  const g=groupOf(c.id);if(g){const n=document.createElement('p');n.className='note';n.textContent='Gruppe: '+g.name;pb.append(n);}
+}
+function buildPumpCurve(c,box){
+  box.textContent='';
+  const h=document.createElement('h3');h.textContent='Herstellerkennlinie';box.append(h);
+  const pc=c.p.pc,info=document.createElement('p');info.className='note';
+  info.textContent=pc?'Kennlinie aus '+pc.q.length+' Punkten, '+fmt(pc.q[0],1)+' bis '+fmt(pc.q[pc.q.length-1],1)+' m³/h, Förderhöhe '+fmt(pc.h[0],1)+' m bei Nullstrom'+(pc.e.some(x=>x>0)?', mit Wirkungsgradkennlinie.':'.'):'Keine Herstellerkennlinie, die Pumpe nutzt die Parabel aus dem Nennpunkt.';
+  box.append(info);
+  const ex=document.createElement('p');ex.className='note';ex.textContent='CSV mit Spalten Volumenstrom in m³/h, Förderhöhe in m und optional Wirkungsgrad (0 bis 1 oder in %). Gilt bei 100 % Drehzahl. Die Kennlinie wirkt bei Konstantdrehzahl und geregelter Betriebsart.';box.append(ex);
+  const inp=csvInput(box,60,false),row=document.createElement('div');row.className='row';row.style.marginTop='8px';
+  const ok=document.createElement('button');ok.className='btn small';ok.textContent='Kennlinie übernehmen';
+  ok.onclick=()=>{
+    const rows=parseCSV(inp.ta.value).filter(r=>r.length>=2),n=normPC({q:rows.map(r=>r[0]),h:rows.map(r=>r[1]),e:rows.map(r=>r[2]||0)});
+    if(!n){info.textContent='Mindestens zwei Punkte mit Volumenstrom und Förderhöhe einfügen.';return;}
+    c.p.pc=n;if(c.p.mode==='flow')c.p.mode='fixed';dirty=true;scheduleSave();buildProps();
+  };
+  const bsp=document.createElement('button');bsp.className='btn small';bsp.textContent='Beispiel einfügen';
+  bsp.onclick=()=>{inp.ta.value='0;12;\n10;11.6;45\n20;10.6;62\n30;8.8;70\n40;6.0;62\n50;2.5;45';};
+  row.append(ok,bsp);
+  if(pc){const rm=document.createElement('button');rm.className='btn small danger';rm.textContent='Kennlinie entfernen';rm.onclick=()=>{c.p.pc=null;dirty=true;scheduleSave();buildProps();};row.append(rm);}
+  box.append(row);
+}
 function buildProfile(c,box){
+  box.textContent='';
+  const dh=c.type==='dhw',rec=c.type==='source';
+  const h=document.createElement('h3');h.textContent=dh?'Entnahmeprofil aus CSV':rec?'Abwärmeprofil aus CSV':'Lastprofil aus CSV';box.append(h);
+  const pr=c.p.prof,info=document.createElement('p');info.className='note';const un=dh?'L/min':'kW';
+  info.textContent=pr?'Profil '+(pr.on?'aktiv':'ausgeschaltet')+': '+pr.vals.length+' Werte, '+fmt(pr.step,1)+' min je Wert, '+fmt(pr.vals.length*pr.step/60,1)+' Stunden Länge, Spitze '+fmt(pr.max,1)+' '+un+', '+(pr.interp==='step'?'stufig':'linear')+', '+(pr.loop?'wiederholt':'einmalig')+', '+(pr.align==='cal'?'am Kalender ausgerichtet':'ab Start des Tages')+'.':(dh?'Kein Profil geladen. Die Entnahme folgt Spitzenwert und Zeitplan.':rec?'Kein Profil geladen. Die Abwärme folgt dem festen Wert und dem Zeitplan.':'Kein Profil geladen. Der Wärmebedarf bleibt der feste Wert.');
+  box.append(info);
+  const ex=document.createElement('p');ex.className='note';
+  ex.textContent='Eine Spalte mit Werten oder Zeit und Wert. Die Zeit kann ein Zeitstempel (2026-10-06 14:30 oder 06.10.2026 14:30) oder Stunden ab Start sein. Mit Zeitstempeln richtet sich das Profil nach Wochentag und Uhrzeit der Daten. Unregelmäßige Daten werden regelmäßig abgetastet.';box.append(ex);
+  const inp=csvInput(box,pr?pr.step:60,true);
+  const mk=(lab,html)=>{const d=document.createElement('div');d.className='prow';d.innerHTML='<label>'+lab+'</label>'+html;box.append(d);return d.querySelector('select,input');};
+  const unit=dh?null:mk('Einheit der Werte','<select><option value="1">kW</option><option value="1000">MW</option><option value="0.001">W</option><option value="e">kWh je Intervall</option></select>');
+  const interp=mk('Zwischenwerte','<select><option value="lin">linear</option><option value="step">stufig (Chargen, CIP)</option></select>');interp.value=pr?pr.interp:'lin';
+  const al=mk('Ausrichtung','<select><option value="auto">automatisch (Kalender bei Zeitstempeln)</option><option value="day">ab Start des Tages</option><option value="cal">am Wochenkalender</option></select>');
+  const loop=document.createElement('label');loop.className='chk';loop.innerHTML='<input type="checkbox"><span>Profil wiederholen</span>';const lc=loop.querySelector('input');lc.checked=pr?pr.loop:true;box.append(loop);
+  const row=document.createElement('div');row.className='row';row.style.marginTop='8px';
+  const ok=document.createElement('button');ok.className='btn small';ok.textContent='Profil übernehmen';
+  ok.onclick=()=>{
+    const stp=clamp(parseFloat(inp.st.value)||60,1,1440),sr=seriesFromCSV(inp.ta.value,stp,interp.value);
+    if(!sr||!sr.vals.length){info.textContent='Keine Zahlen gefunden. Eine Spalte mit Werten oder Zeit und Wert einfügen.';return;}
+    let f=1;if(unit){if(unit.value==='e')f=60/sr.step;else f=parseFloat(unit.value);}
+    const align=al.value==='auto'?(sr.hasTs?'cal':'day'):al.value;
+    c.p.prof=normProf({on:true,step:sr.step,vals:sr.vals.map(v=>v*f),w0:sr.w0,align,interp:interp.value,loop:lc.checked});dirty=true;scheduleSave();buildProps();
+  };
+  row.append(ok);
+  if(pr){
+    const tg=document.createElement('button');tg.className='btn small';tg.textContent=pr.on?'Profil ausschalten':'Profil einschalten';tg.onclick=()=>{pr.on=!pr.on;dirty=true;scheduleSave();buildProfile(c,box);};
+    const rm=document.createElement('button');rm.className='btn small danger';rm.textContent='Profil entfernen';rm.onclick=()=>{c.p.prof=null;dirty=true;scheduleSave();buildProfile(c,box);};
+    row.append(tg,rm);
+  }
+  box.append(row);
+}
+function buildProfileOld(c,box){
   box.textContent='';
   const h=document.createElement('h3');h.textContent='Lastprofil aus CSV';box.append(h);
   const pr=c.p.prof,info=document.createElement('p');info.className='note';
@@ -1958,7 +2451,7 @@ function buildWx(){
     box.append(info);
     const inp=csvInput(box,w.step,true),row=document.createElement('div');row.className='row';row.style.marginTop='8px';
     const ok=document.createElement('button');ok.className='btn small';ok.textContent='Zeitreihe übernehmen';
-    ok.onclick=()=>{const sr=csvToSeries(inp.ta.value,clamp(parseFloat(inp.st.value)||60,1,1440));if(!sr||!sr.v.length){info.textContent='Keine Zahlen gefunden.';return;}w.series=sr.v.slice(0,20000);w.step=clamp(Math.round(sr.step*100)/100,1,1440);dirty=true;scheduleSave();buildWx();};
+    ok.onclick=()=>{const sr=csvToSeries(inp.ta.value,clamp(parseFloat(inp.st.value)||60,1,1440));if(!sr||!sr.v.length){info.textContent='Keine Zahlen gefunden.';return;}w.series=sr.vals.slice(0,20000);w.step=clamp(Math.round(sr.step*100)/100,1,1440);dirty=true;scheduleSave();buildWx();};
     row.append(ok);
     if(w.series){const rm=document.createElement('button');rm.className='btn small danger';rm.textContent='Zeitreihe entfernen';rm.onclick=()=>{w.series=null;dirty=true;scheduleSave();buildWx();};row.append(rm);}
     box.append(row);
@@ -2031,35 +2524,76 @@ const KP=[
   {l:'Spitzenleistung Erzeuger',u:'kW',v:k=>k.peak,d:1},
   {l:'Vollbenutzungsstunden',u:'h',v:k=>k.fullh,d:1},
   {l:'Wärmebedarf (Modell Feste Leistung)',u:'kWh',v:k=>k.demand,d:1},
-  {l:'Unterversorgung',u:'kWh',v:k=>k.deficit,d:2}
+  {l:'Unterversorgung',u:'kWh',v:k=>k.deficit,d:2},
+  {l:'Rückgewinnung (Abwärme ins Netz)',u:'kWh',v:k=>k.rec,d:1},
+  {l:'davon Kompressoren',u:'kWh',v:k=>(k.recBy||{}).comp,d:1},
+  {l:'davon Wärmetauscher Abwasser',u:'kWh',v:k=>(k.recBy||{}).wtw,d:1},
+  {l:'davon Wärmetauscher Abluft',u:'kWh',v:k=>(k.recBy||{}).wta,d:1},
+  {l:'davon Prozess, Produktkühlung',u:'kWh',v:k=>(k.recBy||{}).proc,d:1},
+  {l:'Wärme an das Produkt',u:'kWh',v:k=>(k.sinks||{}).produkt,d:1},
+  {l:'Wärme an das Abwasser',u:'kWh',v:k=>(k.sinks||{}).abwasser,d:1},
+  {l:'Wärme an die Abluft',u:'kWh',v:k=>(k.sinks||{}).abluft,d:1},
+  {l:'Rückgewinnungsgrad Abwasser und Abluft',u:'%',v:k=>k.recRate,d:1},
+  {l:'Trinkwarmwasser, Nutzwärme',u:'kWh',v:k=>(k.sinks||{}).tww,d:1},
+  {l:'Zirkulationsverluste',u:'kWh',v:k=>(k.sinks||{}).zirk,d:1},
+  {l:'Warmwasserverbrauch',u:'m³',v:k=>k.dhwVol,d:1}
 ];
 const kpUnit=r=>typeof r.u==='function'?r.u():r.u;
 const kpLabel=r=>r.l+(kpUnit(r)?' ['+kpUnit(r)+']':'');
 function sankeySVG(k,ink){
-  const W=560,nw=14,ein=k.ein,gen=k.gen,env=Math.max(0,gen-ein),lossG=Math.max(0,ein-gen),cons=k.cons,loss=k.loss,rest=Math.max(0,gen-cons-loss);
-  if(!(ein+env>0.01)||!(gen>0.01))return '<p class="note">Noch keine Energie umgesetzt. Simulation starten, dann erscheint der Energiefluss.</p>';
-  const gap=10,H=250,usable=H-40-gap*3,scale=usable/Math.max(ein+env,gen,cons+loss+rest+lossG);
-  const mk=(name,v,x,col)=>({name,v,x,col,h:Math.max(v*scale,v>1e-6?2:0),y:0,oy:0,iy:0});
-  const A=mk('Bezug',ein,130,'#e4572e'),B=mk('Umweltwärme',env,130,'#2f9e6f'),G=mk('Wärme erzeugt',gen,270,'#d69e00'),
-    C=mk('Verbraucher',cons,410,'#1a7fd0'),L=mk('Netzverluste',loss,410,'#9b5de5'),R=mk('Speicher, Rest',rest,410,'#6b7280'),Lg=mk('Erzeugerverluste',lossG,410,'#b0413e');
-  const place=(list)=>{let y=20;for(const n of list){if(n.v<=1e-6)continue;n.y=y;n.oy=y;n.iy=y;y+=n.h+gap;}};
-  place([A,B]);place([C,L,R,Lg]);G.y=G.oy=G.iy=20+Math.max(0,((Math.max(ein+env,cons+loss+rest+lossG)*scale)-gen*scale)/2);
-  let out='<svg viewBox="0 0 '+W+' '+H+'" width="100%" style="max-width:640px;color:'+ink+'" role="img" aria-label="Energiefluss">';
-  const flow=(a,b,v,col)=>{
-    if(v<=1e-6)return;const h=Math.max(v*scale,1),x1=a.x+nw,x2=b.x,xm=(x1+x2)/2,y1=a.oy,y2=b.iy;a.oy+=h;b.iy+=h;
-    out+='<path d="M'+x1+' '+y1+'C'+xm+' '+y1+' '+xm+' '+y2+' '+x2+' '+y2+'L'+x2+' '+(y2+h)+'C'+xm+' '+(y2+h)+' '+xm+' '+(y1+h)+' '+x1+' '+(y1+h)+'Z" fill="'+col+'" fill-opacity="0.35"/>';
-  };
-  flow(A,G,Math.min(ein,gen),A.col);flow(B,G,env,B.col);flow(A,Lg,lossG,Lg.col);flow(G,C,cons,C.col);flow(G,L,loss,L.col);flow(G,R,rest,R.col);
+  const sk=k.sinks||{produkt:0,abwasser:0,abluft:0,raum:0,tww:0,zirk:0,spv:0,dhwrest:0},rb=k.recBy||{comp:0,wtw:0,wta:0,proc:0,oth:0};
+  const gen=k.gen,restSys=Math.max(0,gen-k.cons-k.loss)+sk.dhwrest;
+  const Lf=[['Bezug',k.ein,'#e4572e'],['Umweltwärme',k.env,'#2f9e6f'],['Kompressoren',rb.comp,'#d69e00'],['WT Abwasser',rb.wtw,'#1a7fd0'],['WT Abluft',rb.wta,'#00a6a6'],['Prozess',rb.proc,'#9b5de5'],['Sonst. Abwärme',rb.oth,'#6b7280']].filter(x=>x[1]>1e-6).map(x=>({name:x[0],v:x[1],col:x[2]}));
+  const Rf=[['Produkt',sk.produkt,'#1a7fd0'],['Abwasser',sk.abwasser,'#7a5c3e'],['Abluft',sk.abluft,'#8d99ae'],['Raum, sonstige',sk.raum,'#2f9e6f'],['Trinkwarmwasser',sk.tww,'#00a6a6'],['Zirkulation',sk.zirk,'#c2417b'],['Speicherverlust WW',sk.spv,'#b0413e'],['Netzverluste',k.loss,'#9b5de5'],['Speicher, Rest',restSys,'#6b7280']].filter(x=>x[1]>1e-6).map(x=>({name:x[0],v:x[1],col:x[2]}));
+  if(!(gen>0.01)||!Lf.length)return '<p class="note">Noch keine Energie umgesetzt. Simulation starten, dann erscheint der Energiefluss.</p>';
+  const lossG=k.lossG||0;if(lossG>1e-6)Rf.push({name:'Erzeugerverluste',v:lossG,col:'#b0413e',fromLeft:true});
+  const nw=14,gap=8,rows=Math.max(Lf.length,Rf.length),H=Math.max(260,rows*34+50),usable=H-40-gap*(rows-1),totL=Lf.reduce((a,n)=>a+n.v,0),totR=Rf.reduce((a,n)=>a+n.v,0);
+  const sc=usable/Math.max(totL,totR,gen),W=640,xl=175,xm=320,xr=455;
+  const place=(list,x)=>{const tot=list.reduce((a,n)=>a+Math.max(n.v*sc,2),0)+gap*(list.length-1);let y=20+(H-40-tot)/2;for(const n of list){n.x=x;n.h=Math.max(n.v*sc,2);n.y=y;n.oy=y;n.iy=y;y+=n.h+gap;}};
+  place(Lf,xl);place(Rf,xr);
+  const M={name:'Wärme im Netz',v:gen,col:'#d69e00',x:xm,h:gen*sc};M.y=20+(H-40-M.h)/2;M.oy=M.y;M.iy=M.y;
+  let out='<svg viewBox="0 0 '+W+' '+H+'" width="100%" style="max-width:700px;color:'+ink+'" role="img" aria-label="Energiefluss">';
+  const flow=(a,b,v,col)=>{if(v<=1e-6)return;const h=Math.max(v*sc,1),x1=a.x+nw,x2=b.x,xm2=(x1+x2)/2,y1=a.oy,y2=b.iy;a.oy+=h;b.iy+=h;
+    out+='<path d="M'+x1+' '+y1+'C'+xm2+' '+y1+' '+xm2+' '+y2+' '+x2+' '+y2+'L'+x2+' '+(y2+h)+'C'+xm2+' '+(y2+h)+' '+xm2+' '+(y1+h)+' '+x1+' '+(y1+h)+'Z" fill="'+col+'" fill-opacity="0.35"/>';};
+  const bez=Lf.find(n=>n.name==='Bezug'),lg=Rf.find(n=>n.fromLeft);
+  for(const n of Lf)flow(n,M,n===bez?Math.min(k.toGen!=null?k.toGen:n.v,n.v):n.v,n.col);
+  if(bez&&lg)flow(bez,lg,lg.v,lg.col);
+  for(const n of Rf)if(!n.fromLeft)flow(M,n,n.v,n.col);
+  const tot=Math.max(totL,totR);
   const node=(n,side)=>{
-    if(n.v<=1e-6)return;
     out+='<rect x="'+n.x+'" y="'+n.y+'" width="'+nw+'" height="'+n.h+'" fill="'+n.col+'"/>';
-    const ty=n.y+n.h/2,pct=gen>0?' ('+(n.v/Math.max(gen,ein)*100).toFixed(0)+' %)':'';
-    const txt=(x,anchor)=>'<text x="'+x+'" y="'+(ty-2)+'" text-anchor="'+anchor+'" font-size="11" font-weight="600" fill="'+ink+'">'+n.name+'</text><text x="'+x+'" y="'+(ty+11)+'" text-anchor="'+anchor+'" font-size="10.5" fill="'+ink+'" fill-opacity="0.75">'+n.v.toFixed(n.v<10?2:1)+' kWh'+pct+'</text>';
-    out+=side==='l'?txt(n.x-6,'end'):side==='r'?txt(n.x+nw+6,'start'):txt(n.x+nw/2,'middle');
+    const ty=n.y+n.h/2,pct=' ('+(n.v/tot*100).toFixed(0)+' %)',x=side==='l'?n.x-6:n.x+nw+6,an=side==='l'?'end':'start';
+    out+='<text x="'+x+'" y="'+(ty-2)+'" text-anchor="'+an+'" font-size="11" font-weight="600" fill="'+ink+'">'+n.name+'</text><text x="'+x+'" y="'+(ty+11)+'" text-anchor="'+an+'" font-size="10.5" fill="'+ink+'" fill-opacity="0.75">'+n.v.toFixed(n.v<10?2:1)+' kWh'+pct+'</text>';
   };
-  node(A,'l');node(B,'l');node(C,'r');node(L,'r');node(R,'r');node(Lg,'r');
-  if(G.v>1e-6){out+='<rect x="'+G.x+'" y="'+G.y+'" width="'+nw+'" height="'+G.h+'" fill="'+G.col+'"/><text x="'+(G.x+nw/2)+'" y="'+(G.y-6)+'" text-anchor="middle" font-size="11" font-weight="600" fill="'+ink+'">'+G.name+' '+G.v.toFixed(G.v<10?2:1)+' kWh</text>';}
+  Lf.forEach(n=>node(n,'l'));Rf.forEach(n=>node(n,'r'));
+  out+='<rect x="'+M.x+'" y="'+M.y+'" width="'+nw+'" height="'+M.h+'" fill="'+M.col+'"/><text x="'+(M.x+nw/2)+'" y="'+(M.y-6)+'" text-anchor="middle" font-size="11" font-weight="600" fill="'+ink+'">'+M.name+' '+gen.toFixed(gen<10?2:1)+' kWh</text>';
   return out+'</svg>';
+}
+function heatHTML(k){
+  const sk=k.sinks||{},rb=k.recBy||{},L=k.ein+k.env+k.rec,C=k.cons,pc=(v,t)=>t>1e-9?' ('+fmt(v/t*100,0)+' %)':'';
+  let h='<table class="cmp"><tr><th>Quellen der Wärme</th><th>kWh</th></tr>';
+  [['Bezug (Brennstoff, Strom)',k.ein],['Umweltwärme (Wärmepumpe)',k.env],['Rückgewinnung Kompressoren',rb.comp],['Rückgewinnung Wärmetauscher Abwasser',rb.wtw],['Rückgewinnung Wärmetauscher Abluft',rb.wta],['Rückgewinnung Prozess, Produktkühlung',rb.proc],['Rückgewinnung Sonstige',rb.oth]].forEach(r=>{if(r[1]>1e-6)h+='<tr><td>'+r[0]+'</td><td>'+fmt(r[1],1)+pc(r[1],L)+'</td></tr>';});
+  h+='<tr><td><b>Summe</b></td><td><b>'+fmt(L,1)+'</b></td></tr></table><table class="cmp" style="margin-top:8px"><tr><th>Wärmesenken der Verbraucher</th><th>kWh</th></tr>';
+  [['Produkt',sk.produkt],['Abwasser',sk.abwasser],['Abluft',sk.abluft],['Raum, sonstige',sk.raum],['Trinkwarmwasser (Nutzwärme)',sk.tww],['Zirkulation',sk.zirk],['Speicherverlust Warmwasser',sk.spv],['Warmwasserspeicher, Zunahme',sk.dhwrest]].forEach(r=>{if(r[1]>1e-6)h+='<tr><td>'+r[0]+'</td><td>'+fmt(r[1],1)+pc(r[1],C)+'</td></tr>';});
+  h+='<tr><td><b>Summe</b></td><td><b>'+fmt(C,1)+'</b></td></tr></table>';
+  h+='<p class="note">Abwärmepotenzial (Abwasser und Abluft): '+fmt(k.potential,1)+' kWh, davon zurückgewonnen über Wärmetauscher: '+fmt(k.recovered,1)+' kWh'+(Number.isFinite(k.recRate)?' ('+fmt(k.recRate,0)+' %)':'')+'. Den Verbleib der Wärme stellst du je Verbraucher ein, die Abwärmequellen mit der Herkunft.</p>';
+  return h;
+}
+function groupHTML(){
+  const a=groupKpis();if(!a.length)return '<p class="note">Keine Gruppen. Mehrere Bauteile mit ☑ wählen und eine Gruppe bilden, zum Beispiel HT, NT oder Produktionslinie.</p>';
+  return '<table class="cmp"><tr><th>Gruppe</th><th>Wärme kWh</th><th>Rückg. kWh</th><th>Bezug kWh</th><th>Abgabe kWh</th><th>Produkt</th><th>Abwasser</th><th>Abluft</th><th>Verluste</th><th>Pumpen kWh</th></tr>'+a.map(g=>'<tr><td>'+esc(g.name)+'</td><td>'+fmt(g.gen,1)+'</td><td>'+fmt(g.rec,1)+'</td><td>'+fmt(g.ein,1)+'</td><td>'+fmt(g.cons,1)+'</td><td>'+fmt(g.produkt,1)+'</td><td>'+fmt(g.abwasser,1)+'</td><td>'+fmt(g.abluft,1)+'</td><td>'+fmt(g.loss,2)+'</td><td>'+fmt(g.pel,2)+'</td></tr>').join('')+'</table>';
+}
+function dhwHTML(){
+  const a=model.comps.filter(c=>c.type==='dhw');if(!a.length)return '<p class="note">Kein Trinkwarmwasser im Modell. Das Bauteil „Trinkwarmwasser“ bildet Kaltwasser, Entnahme und Zirkulation getrennt ab.</p>';
+  return '<table class="cmp"><tr><th>Warmwasser</th><th>Wasser m³</th><th>Nutzwärme kWh</th><th>Zirkulation kWh</th><th>Speicherverlust kWh</th><th>Aus dem Netz kWh</th><th>Zirkulation %</th></tr>'+a.map(c=>{const s=c.s,tot=s.Eu+s.Ez+s.Es;return '<tr><td>'+esc(c.name)+'</td><td>'+fmt(s.Vd,1)+'</td><td>'+fmt(s.Eu/3.6e6,1)+'</td><td>'+fmt(s.Ez/3.6e6,1)+'</td><td>'+fmt(s.Es/3.6e6,1)+'</td><td>'+fmt(s.E/3.6e6,1)+'</td><td>'+(tot>0?fmt(s.Ez/tot*100,0):'–')+'</td></tr>';}).join('')+'</table>';
+}
+function dqHTML(){
+  const cnt={};STATUS.forEach(x=>cnt[x[0]]=0);model.comps.forEach(c=>{cnt[(c.meta&&c.meta.status)||'unknown']++;});
+  let h='<table class="cmp"><tr><th>Datenstatus</th><th>Bauteile</th></tr>'+STATUS.map(x=>'<tr><td>'+(STATUS_COL[x[0]]?'<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:'+STATUS_COL[x[0]]+';margin-right:6px"></span>':'')+x[1]+'</td><td>'+cnt[x[0]]+'</td></tr>').join('')+'</table>';
+  const used=model.comps.filter(c=>metaUsed(c.meta));
+  if(used.length)h+='<table class="cmp" style="margin-top:8px"><tr><th>Bauteil</th><th>Status</th><th>Quelle</th><th>Kommentar</th></tr>'+used.map(c=>'<tr><td>'+esc(c.name)+'</td><td>'+esc((STATUS.find(x=>x[0]===c.meta.status)||['',''])[1])+'</td><td style="white-space:normal;text-align:left">'+esc(c.meta.src)+'</td><td style="white-space:normal;text-align:left">'+esc(c.meta.note)+'</td></tr>').join('')+'</table>';
+  else h+='<p class="note">Noch keine Quellen oder Kommentare hinterlegt. Das geht in den Details jedes Bauteils.</p>';
+  return h;
 }
 function buildEval(){
   const box=$('#costin');box.textContent='';const g=model.glob;
@@ -2076,6 +2610,7 @@ function updateEval(){
   $('#kpi').innerHTML=roHtml([['Simulationszeit',clockStr(k.t)+' ('+fmt(k.t/86400,1)+' Tage)']].concat(KP.map(r=>[esc(kpLabel(r)),fmt(r.v(k),r.d)])));
   $('#kpiper').innerHTML=k.per.length>1?'<table class="cmp" style="margin-top:8px"><tr><th>Erzeuger</th><th>Wärme kWh</th><th>Bezug kWh</th><th>Arbeitszahl</th><th>Kosten</th><th>CO₂ kg</th></tr>'+k.per.map(p=>'<tr><td>'+esc(p.name)+'</td><td>'+fmt(p.gen,1)+'</td><td>'+fmt(p.ein,1)+'</td><td>'+fmt(p.jaz,2)+'</td><td>'+fmt(p.cost,2)+'</td><td>'+fmt(p.co2,1)+'</td></tr>').join('')+'</table>':'';
   $('#sankey').innerHTML=sankeySVG(k,'currentColor');
+  $('#heat').innerHTML=heatHTML(k);$('#grpk').innerHTML=groupHTML();$('#dhwk').innerHTML=dhwHTML();$('#dq').innerHTML=dqHTML();
 }
 let dl=null;
 try{if(window.claude&&window.claude.use)window.claude.use('downloads').then(d=>{dl=d;}).catch(()=>{});}catch(_){}
@@ -2138,7 +2673,7 @@ function reportHTML(){
   h+='<h1>Heizwasser-Simulator: Bericht</h1><p class="n">Erstellt am '+new Date().toLocaleDateString('de-CH')+'. Simulationszeit '+clockStr(k.t)+' ('+fmt(k.t/86400,1)+' Tage), Start '+WD[g.t0day]+' '+fmtT(g.t0min%1440)+'.</p>';
   h+='<h2>Kennzahlen</h2><table>'+[['Kennzahl','Wert']].map(r=>'<tr><th>'+r[0]+'</th><th>'+r[1]+'</th></tr>').join('')+KP.map(r=>'<tr><td>'+e(kpLabel(r))+'</td><td>'+fmt(r.v(k),r.d)+'</td></tr>').join('')+'</table>';
   if(k.per.length)h+='<table><tr><th>Erzeuger</th><th>Wärme kWh</th><th>Bezug kWh</th><th>Arbeitszahl</th><th>Kosten</th><th>CO₂ kg</th></tr>'+k.per.map(p=>'<tr><td>'+e(p.name)+'</td><td>'+fmt(p.gen,1)+'</td><td>'+fmt(p.ein,1)+'</td><td>'+fmt(p.jaz,2)+'</td><td>'+fmt(p.cost,2)+'</td><td>'+fmt(p.co2,1)+'</td></tr>').join('')+'</table>';
-  h+='<h2>Energiefluss</h2>'+sankeySVG(k,'#14202e');
+  h+='<h2>Energiefluss</h2>'+sankeySVG(k,'#14202e')+'<h2>Abwärme und Wärmesenken</h2>'+heatHTML(k)+'<h2>Anlagengruppen</h2>'+groupHTML()+'<h2>Warmwasser</h2>'+dhwHTML()+'<h2>Datenqualität, Quellen und Annahmen</h2>'+dqHTML();
   h+='<h2>Annahmen</h2><p>Außentemperatur: '+(w.mode==='const'?'konstant '+fmt(w.tconst,1)+' °C':w.mode==='year'?'Jahresgang, Mittel '+fmt(w.tmean,1)+' °C, Jahresamplitude '+fmt(w.tseas,1)+' K, Tagesamplitude '+fmt(w.tday,1)+' K':'Zeitreihe aus CSV')+'. Heizgrenze '+fmt(g.tgr,1)+' °C, Normaußentemperatur '+fmt(g.tnorm,1)+' °C. Strom für Pumpen: '+fmt(g.elprice,3)+' '+e(g.cur)+' je kWh, '+fmt(g.elco2,3)+' kg CO₂ je kWh. Systemdruck '+fmt(g.pstat,1)+' bar, Sicherheitszuschlag '+fmt(g.psafe,1)+' bar.</p>';
   if(sch)h+='<h2>Anlagenschema</h2>'+sch.svg;
   h+='<h2>Bauteile</h2><table><tr><th>Name</th><th>Typ</th><th class="l">Parameter</th></tr>'+model.comps.map(c=>'<tr><td>'+e(c.name)+'</td><td class="l">'+e(TYPES[c.type].label)+'</td><td class="l">'+e(paramSummary(c))+'</td></tr>').join('')+'</table>';
@@ -2236,6 +2771,7 @@ function computeHints(){
     }
     if(c.type==='source'&&c.p.on&&c.p.cap!=='demand'&&c.s.Q>=(c.s.Pth||c.p.pmax*1000)*0.999&&c.s.T[0]<(c.s.tsetE||c.p.tset)-1)h.push({l:'warn',t:esc(c.name)+': Leistungsgrenze erreicht, Soll-Vorlauf wird nicht gehalten.'});
     if(c.type==='consumer'&&c.p.mode==='P'&&c.s.Ed>0&&c.s.Edef/c.s.Ed>0.02)h.push({l:'warn',t:esc(c.name)+': Unterversorgung '+fmt(c.s.Edef/c.s.Ed*100,1)+' % des Wärmebedarfs seit Start.'});
+    if(c.type==='dhw'&&simT>3600&&c.s.Ts<55)h.push({l:'bad',t:esc(c.name)+': Warmwasserspeicher unter 55 °C, Legionellengefahr.'});
     if(c.type==='valve3'&&c.p.ctl!=='manual'&&c.s.noCons)h.push({l:'warn',t:esc(c.name)+': Hinter Ausgang A wurde kein Verbraucher gefunden. Regelung ist inaktiv.'});
   }
   return h;
@@ -2314,7 +2850,8 @@ function slowUpdate(force){
   const now=performance.now();if(!force&&now-lastSlow<250)return;lastSlow=now;updateSchedNow();
   const ro=$('#ro');
   if(ro&&sel){
-    if(sel.k==='c'&&compMap[sel.id])ro.innerHTML=roHtml(TYPES[compMap[sel.id].type].ro(compMap[sel.id]));
+    if(sel.k==='g'){const g=model.groups.find(x=>x.id===sel.id),gk=groupKpis().find(x=>g&&x.name===g.name);if(g&&gk)ro.innerHTML=roHtml([['Mitglieder',String(g.members.length)],['Erzeugte Wärme',fmt(gk.gen,1)+' kWh'],['davon Rückgewinnung',fmt(gk.rec,1)+' kWh'],['Bezogene Energie',fmt(gk.ein,1)+' kWh'],['Wärmeabgabe',fmt(gk.cons,1)+' kWh'],['an Produkt',fmt(gk.produkt,1)+' kWh'],['an Abwasser',fmt(gk.abwasser,1)+' kWh'],['an Abluft',fmt(gk.abluft,1)+' kWh'],['Verluste Rohre und Speicher',fmt(gk.loss,2)+' kWh'],['Pumpenstrom',fmt(gk.pel,2)+' kWh']]);}
+    else if(sel.k==='c'&&compMap[sel.id])ro.innerHTML=roHtml(TYPES[compMap[sel.id].type].ro(compMap[sel.id]));
     else if(sel.k==='e'){
       const e=model.edges.find(x=>x.id===sel.id);
       if(e){const T=outT(compMap[e.a.c],e.a.p);ro.innerHTML=roHtml([['Volumenstrom',fmt(m3h(e.m),2)+' m³/h'],['Massenstrom',fmt(e.m,3)+' kg/s'],['Temperatur',fmt(T)+' °C'],['Druck',fmt(e.p,3)+' bar']]);}
