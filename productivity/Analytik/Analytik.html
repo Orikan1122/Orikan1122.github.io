@@ -1423,7 +1423,7 @@
         document.getElementById('addSapEquipmentModal').style.display = 'none';
     }
 
-    function sucheSapEquipment() {
+function sucheSapEquipment() {
         const begriff = document.getElementById('sapSearchInput').value.toLowerCase().trim();
         const box = document.getElementById('sapSearchResults');
         
@@ -1437,14 +1437,13 @@
         const idxSerial = headers.findIndex(h => h.includes("serial"));
         const idxModel = headers.findIndex(h => h.includes("model"));
         const idxEqNum = headers.findIndex(h => h === "equipment");
-        
-        // Finde die Spalte für Kunde / OM_No im SAP Export
         const idxSapKunde = headers.findIndex(h => h === "kunde" || h === "om" || h.includes("om_no"));
 
-        // Hole EquipmentListe zur Prüfung von Duplikaten
+        // EquipmentListe zur Prüfung
         const eqDaten = getSheetData("EquipmentListe");
         const eqHeaders = eqDaten[0].map(h => String(h).toLowerCase().trim());
         const eqIdxTech = eqHeaders.indexOf("tech ident no");
+        const eqIdxOm = eqHeaders.findIndex(h => h === "om_no" || h === "om_nr." || h === "om_nr");
 
         box.innerHTML = '';
         let count = 0;
@@ -1454,30 +1453,46 @@
             let techId = idxTech !== -1 && row[idxTech] ? String(row[idxTech]).toLowerCase() : "";
             let serial = idxSerial !== -1 && row[idxSerial] ? String(row[idxSerial]).toLowerCase() : "";
             let model = idxModel !== -1 && row[idxModel] ? String(row[idxModel]) : "Unknown model";
-            let eqNum = idxEqNum !== -1 && row[idxEqNum] ? String(row[idxEqNum]) : "";
+            let eqNum = idxEqNum !== -1 && row[idxEqNum] ? String(row[idxEqNum]).trim() : "";
             let sapKunde = idxSapKunde !== -1 && row[idxSapKunde] ? String(row[idxSapKunde]) : "";
 
             if (techId.includes(begriff) || serial.includes(begriff)) {
                 
-                // NEU: Prüfen, ob dieses Gerät schon im System existiert
-                let isDuplicate = false;
+                // Prüfen, ob dieses Gerät bereits in der EquipmentListe existiert
+                let existingRowIndex = -1;
+                let existingOmNo = "";
+
                 for(let k = 1; k < eqDaten.length; k++) {
-                    if (String(eqDaten[k][0]).trim() === eqNum && eqNum !== "") isDuplicate = true; // Spalte A Prüfung
-                    if (eqIdxTech !== -1 && String(eqDaten[k][eqIdxTech]).trim().toLowerCase() === techId && techId !== "") isDuplicate = true;
+                    let matchEq = (eqNum !== "" && String(eqDaten[k][0]).trim() === eqNum);
+                    let matchTech = (techId !== "" && eqIdxTech !== -1 && String(eqDaten[k][eqIdxTech]).trim().toLowerCase() === techId);
+                    
+                    if (matchEq || matchTech) {
+                        existingRowIndex = k;
+                        existingOmNo = eqIdxOm !== -1 ? String(eqDaten[k][eqIdxOm]).trim() : "";
+                        break;
+                    }
                 }
+
+                let isAtCurrentCustomer = (existingRowIndex !== -1 && String(existingOmNo) === String(aktuelleOmNo).trim() && aktuelleOmNo !== "");
+                let isElsewhere = (existingRowIndex !== -1 && !isAtCurrentCustomer);
 
                 let div = document.createElement('div');
                 div.className = 'search-item';
                 div.style.flexDirection = 'column';
                 div.style.alignItems = 'flex-start';
-                div.style.background = isDuplicate ? "#fff5f5" : "#fff";
+                div.style.background = isAtCurrentCustomer ? "#fff5f5" : (isElsewhere ? "#fffbeb" : "#fff");
                 
-                let btnHtml = isDuplicate 
-                    ? `<div style="color:var(--danger); font-weight:bold; font-size:0.85rem; margin-top:8px;">⚠️ Device already exists in the system!</div>`
-                    : `<button class="btn-main" style="margin-top: 10px; padding: 6px 12px; font-size:0.85rem;" onclick="uebernehmeSapEquipment(${i}, '${sapKunde}')">📥 Import this equipment</button>`;
+                let btnHtml = "";
+                if (isAtCurrentCustomer) {
+                    btnHtml = `<div style="color:var(--danger); font-weight:bold; font-size:0.85rem; margin-top:8px;">⚠️ Device is already assigned to this customer!</div>`;
+                } else if (isElsewhere) {
+                    btnHtml = `<button class="btn-main" style="margin-top: 10px; padding: 6px 12px; font-size:0.85rem; background:#d97706;" onclick="uebernehmeSapEquipment(${i}, '${sapKunde}', ${existingRowIndex})">🔄 Update data & reassign here (currently with: ${existingOmNo || 'No customer'})</button>`;
+                } else {
+                    btnHtml = `<button class="btn-main" style="margin-top: 10px; padding: 6px 12px; font-size:0.85rem;" onclick="uebernehmeSapEquipment(${i}, '${sapKunde}', -1)">📥 Import this equipment</button>`;
+                }
 
                 div.innerHTML = `
-                    <div style="font-weight:bold; color:${isDuplicate ? 'var(--danger)' : 'var(--primary)'}; font-size:1.1rem;">🔧 ${row[idxTech] || 'No Tech ID'}</div>
+                    <div style="font-weight:bold; color:${isAtCurrentCustomer ? 'var(--danger)' : 'var(--primary)'}; font-size:1.1rem;">🔧 ${row[idxTech] || 'No Tech ID'}</div>
                     <div style="font-size:0.85rem; color:#555; margin-top:4px;">
                         <b>Model:</b> ${model} <br> 
                         <b>Serial:</b> ${row[idxSerial] || '-'} <br> 
@@ -1498,24 +1513,23 @@
         }
     }
 
-    async function uebernehmeSapEquipment(rowIndex, sapKunde) {
+    async function uebernehmeSapEquipment(rowIndex, sapKunde, existingEqIndex = -1) {
         let zielOm = aktuelleOmNo;
 
-        // NEU: Prüfung, ob Kunde ausgewählt ist, oder ob SAP-Kunde abweicht
         if (!aktuelleOmNo) {
             if (sapKunde) {
                 if(confirm(`No customer is currently selected!\n\nSAP suggests assigning the device to customer ${sapKunde}.\nDo you want to do this and open the customer directly afterwards?`)) {
                     zielOm = sapKunde;
                 } else {
-                    return; // Abbruch
+                    return;
                 }
             } else {
-                alert("Error: No customer is currently selected and SAP does not provide a suggestion either!");
+                alert("Error: No customer is currently selected!");
                 return;
             }
         } else if (sapKunde && String(sapKunde).trim() !== String(aktuelleOmNo).trim()) {
-            if(!confirm(`⚠️ WARNING: You are currently viewing customer ${aktuelleOmNo}.\nAccording to the SAP export, this device belongs to customer ${sapKunde}.\n\nStill import it for YOUR current customer (${aktuelleOmNo})?`)) {
-                return; // Abbruch
+            if(!confirm(`⚠️ WARNING: You are currently viewing customer ${aktuelleOmNo}.\nAccording to the SAP export, this device belongs to customer ${sapKunde}.\n\nStill import/reassign it for YOUR current customer (${aktuelleOmNo})?`)) {
+                return;
             }
         }
 
@@ -1528,55 +1542,78 @@
         const sIdxSerial = sapHeaders.findIndex(h => h.includes("serial"));
         const sIdxModel = sapHeaders.findIndex(h => h.includes("model"));
 
-        const sapSystemNummer = sIdxEqNum !== -1 ? String(sapRow[sIdxEqNum]) : ""; 
-        const newTechId = sIdxTech !== -1 ? String(sapRow[sIdxTech]) : "";
-        const newSerial = sIdxSerial !== -1 ? String(sapRow[sIdxSerial]) : "";
-        const newModel = sIdxModel !== -1 ? String(sapRow[sIdxModel]) : "";
+        const sapSystemNummer = sIdxEqNum !== -1 ? String(sapRow[sIdxEqNum]).trim() : ""; 
+        const newTechId = sIdxTech !== -1 ? String(sapRow[sIdxTech]).trim() : "";
+        const newSerial = sIdxSerial !== -1 ? String(sapRow[sIdxSerial]).trim() : "";
+        const newModel = sIdxModel !== -1 ? String(sapRow[sIdxModel]).trim() : "";
 
         const eqDaten = getSheetData("EquipmentListe");
         const eqHeaders = eqDaten[0].map(h => String(h).toLowerCase().trim());
-        let newRow = new Array(eqHeaders.length).fill("");
         
-        newRow[0] = sapSystemNummer; 
+        let targetRow;
+        let isUpdate = (existingEqIndex !== -1);
+
+        if (isUpdate) {
+            // Bestehende Zeile klonen (behält existierende Konfigurationen bei)
+            targetRow = [...eqDaten[existingEqIndex]];
+        } else {
+            targetRow = new Array(eqHeaders.length).fill("");
+            targetRow[0] = sapSystemNummer; 
+        }
+
         let idxTechIdent = eqHeaders.indexOf("tech ident no");
-        if(idxTechIdent !== -1) newRow[idxTechIdent] = newTechId;
+        if(idxTechIdent !== -1) targetRow[idxTechIdent] = newTechId;
 
         let idxOmNo = eqHeaders.indexOf("om_no");
-        if(idxOmNo !== -1) newRow[idxOmNo] = String(zielOm).trim(); // Hier nutzen wir zielOm
+        if(idxOmNo !== -1) targetRow[idxOmNo] = String(zielOm).trim();
 
-        let idxName = eqHeaders.indexOf("equipment name");
-        if(idxName !== -1) newRow[idxName] = newModel;
+        let idxModelCol = eqHeaders.findIndex(h => h.includes("model") && !h.includes("valve"));
+        if(idxModelCol !== -1 && newModel) targetRow[idxModelCol] = newModel;
 
         let idxEqSerial = eqHeaders.findIndex(h => h.includes("serial"));
-        if(idxEqSerial !== -1) newRow[idxEqSerial] = newSerial;
+        if(idxEqSerial !== -1 && newSerial) targetRow[idxEqSerial] = newSerial;
 
-        let idxEqModel = eqHeaders.findIndex(h => h.includes("model") && !h.includes("valve"));
-        if(idxEqModel !== -1) newRow[idxEqModel] = newModel;
-        
         let idxBesitzer = eqHeaders.indexOf("besitzer");
-        if(idxBesitzer !== -1) newRow[idxBesitzer] = currentUser;
+        if(idxBesitzer !== -1) targetRow[idxBesitzer] = currentUser;
 
         schliesseSapModal();
-        blockUI(`Saving equipment ${sapSystemNummer} to database...`);
+        blockUI(`Saving equipment ${sapSystemNummer}...`);
         
         try {
-            const res = await fetch(URL_SCHREIBEN, { 
-                method: "POST", headers: { "Content-Type": "application/json" }, 
-                body: JSON.stringify({ sheetName: "EquipmentListe", rowDataString: JSON.stringify(newRow), password: currentPassword, username: currentUser, role: currentRole }) 
+            const url = isUpdate ? URL_UPDATE : URL_SCHREIBEN;
+            const method = isUpdate ? "PATCH" : "POST";
+            const payload = isUpdate ? {
+                sheetName: "EquipmentListe",
+                targetName: targetRow[0],
+                rowDataString: JSON.stringify(targetRow),
+                password: currentPassword,
+                username: currentUser,
+                role: currentRole
+            } : {
+                sheetName: "EquipmentListe",
+                rowDataString: JSON.stringify(targetRow),
+                password: currentPassword,
+                username: currentUser,
+                role: currentRole
+            };
+
+            const res = await fetch(url, { 
+                method: method, 
+                headers: { "Content-Type": "application/json" }, 
+                body: JSON.stringify(payload) 
             });
 
-            if(!res.ok) throw new Error("Write error");
+            if(!res.ok) throw new Error("Write/Update error");
 
-            blockUI("Waiting for Excel synchronization...");
-            await new Promise(resolve => setTimeout(resolve, 2500));
+            blockUI("Waiting for synchronization...");
+            await new Promise(resolve => setTimeout(resolve, 2000));
 
             blockUI("Updating list...");
             await ladeStammdatenImHintergrund(["EquipmentListe"]);
             
             unblockUI();
-            alert(`✅ Success! The equipment has been added.`);
+            alert(`✅ Success! The equipment has been ${isUpdate ? 'updated and reassigned' : 'added'}.`);
             
-            // Wenn wir den SAP Kunden vorgeschlagen und übernommen haben, laden wir nun die Kunden UI!
             if (!aktuelleOmNo && zielOm) {
                 findeUndWaehleKunde(zielOm, -1);
             } else {
