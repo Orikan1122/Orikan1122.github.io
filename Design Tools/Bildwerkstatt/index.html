@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bildwerkstatt</title>
+<style>
+  :root {
+    --primary: #0969da; --primary-hover: #0756b3;
+    --danger: #d1242f; --danger-dark: #a40e26;
+    --secondary: #57606a; --secondary-hover: #424a53;
+    --panel: #fff; --page: #eef1f4; --border: #d0d7de;
+    --text: #24292f; --muted: #57606a;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 20px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; color: var(--text); background: var(--page); }
+  h1 { margin: 0 0 6px; text-align: center; }
+  .subtitle { margin: 0 0 18px; text-align: center; color: var(--muted); }
+  .app { width: min(1500px, 100%); margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 18px; align-items: start; }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 6px 20px rgba(31,35,40,.08); }
+  .work { padding: 12px; min-width: 0; }
+  .tools { padding: 16px; position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow-y: auto; }
+
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
+  .bar .sep { height: 26px; border-left: 1px solid var(--border); }
+  .bar b { min-width: 48px; text-align: center; }
+  .bar .btn { width: auto; padding: 8px 12px; }
+
+  #stage { position: relative; height: calc(100vh - 250px); min-height: 460px; overflow: auto; display: flex; border: 2px dashed var(--border); border-radius: 10px; background: #dfe6ee; }
+  #stage.dragover { border-color: var(--primary); box-shadow: inset 0 0 0 3px rgba(9,105,218,.15); }
+  #empty { margin: auto; max-width: 520px; padding: 30px; text-align: center; line-height: 1.55; color: var(--muted); background: rgba(255,255,255,.92); border: 1px solid var(--border); border-radius: 12px; }
+  #wrap { display: none; position: relative; flex: none; margin: 24px auto; line-height: 0; box-shadow: 0 0 0 1px rgba(0,0,0,.18), 0 6px 24px rgba(0,0,0,.18);
+    background: repeating-conic-gradient(#cfd4da 0 25%, #fff 0 50%) 0 0 / 20px 20px; }
+  #wrap canvas { display: block; width: 100%; height: 100%; }
+  #overlay { position: absolute; inset: 0; touch-action: none; cursor: crosshair; }
+
+  .legend { display: flex; align-items: center; gap: 10px; margin-top: 10px; padding: 9px 12px; border: 2px solid #ff5a5f; border-radius: 8px; background: #fff3f3; color: #7d1720; font-weight: 700; font-size: 14px; }
+  .sw { width: 28px; height: 20px; flex: none; border: 2px solid #ff1744; background: repeating-linear-gradient(-45deg, rgba(255,23,68,.75) 0 6px, rgba(255,255,255,.2) 6px 12px); }
+  #info { margin-top: 8px; font-size: 13px; color: var(--muted); }
+  #status { margin-top: 8px; padding: 9px 11px; border-radius: 7px; background: #f6f8fa; color: var(--muted); line-height: 1.4; }
+  #status.ok { background: #dafbe1; color: #116329; }
+  #status.err { background: #ffebe9; color: #a40e26; }
+  #status.busy { background: #ddf4ff; color: #0550ae; }
+
+  .group { padding-bottom: 14px; margin-bottom: 14px; border-bottom: 1px solid var(--border); }
+  .group:last-child { border: 0; margin: 0; padding: 0; }
+  .group h2 { margin: 0 0 10px; font-size: 16px; }
+  .rad { display: grid; gap: 6px; margin-top: 8px; }
+  .rad.inline { grid-auto-flow: column; justify-content: start; gap: 14px; }
+  label { cursor: pointer; }
+  .lbl { display: block; margin-top: 10px; font-weight: 700; font-size: 14px; }
+  input[type=range], input[type=file] { width: 100%; }
+  .colorline { display: grid; grid-template-columns: 45px 1fr; gap: 8px; margin-top: 8px; }
+  input[type=color] { width: 45px; height: 40px; border: 0; padding: 0; background: none; }
+  input[type=text] { width: 100%; padding: 9px; border: 1px solid var(--border); border-radius: 6px; font: inherit; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+  .stack { display: grid; gap: 8px; margin-top: 8px; }
+  .btn { width: 100%; padding: 10px 12px; border: 0; border-radius: 7px; background: var(--primary); color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
+  .btn:hover:not(:disabled) { background: var(--primary-hover); }
+  .btn.secondary { background: var(--secondary); }
+  .btn.secondary:hover:not(:disabled) { background: var(--secondary-hover); }
+  .btn.danger { background: var(--danger); }
+  .btn.danger:hover:not(:disabled) { background: var(--danger-dark); }
+  .btn.active { background: var(--primary); box-shadow: inset 0 0 0 2px #fff, 0 0 0 2px var(--primary); }
+  .btn.toggle { background: #fff; color: var(--text); border: 1px solid var(--border); }
+  .btn.toggle.active { background: var(--primary); color: #fff; box-shadow: none; }
+  .btn:disabled { opacity: .42; cursor: not-allowed; }
+  .hint { margin: 8px 0 0; color: var(--muted); font-size: 12.5px; line-height: 1.45; }
+  .kbd { padding: 1px 6px; border: 1px solid #afb8c1; border-bottom-width: 2px; border-radius: 5px; background: #f6f8fa; font-size: 12px; }
+
+  @media (max-width: 980px) {
+    body { padding: 12px; }
+    .app { grid-template-columns: 1fr; }
+    .tools { position: static; max-height: none; }
+    #stage { height: 55vh; min-height: 340px; }
+  }
+</style>
+</head>
+<body>
+<h1>Bildwerkstatt</h1>
+<p class="subtitle">Bild laden, Bereich auswählen, dann Farbe ändern, transparent machen oder zuschneiden – alles in Originalauflösung, direkt im Browser.</p>
+
+<main class="app">
+  <section class="panel work">
+    <div class="bar">
+      <button id="undo" class="btn secondary" disabled title="Strg + Z">↶ Rückgängig</button>
+      <button id="reset" class="btn secondary" disabled>Original</button>
+      <span class="sep"></span>
+      <button id="zoomOut" class="btn secondary" disabled>−</button>
+      <b id="zoomText">100%</b>
+      <button id="zoomIn" class="btn secondary" disabled>+</button>
+      <button id="fit" class="btn secondary" disabled>Einpassen</button>
+    </div>
+    <div id="stage" tabindex="0" aria-label="Bild-Arbeitsbereich">
+      <div id="empty">
+        <strong>Bild hier ablegen oder einfügen</strong><br>
+        <span class="kbd">Strg</span> + <span class="kbd">V</span> bzw. <span class="kbd">Cmd</span> + <span class="kbd">V</span>,
+        „Aus Zwischenablage“ oder Datei rechts wählen.
+      </div>
+      <div id="wrap"><canvas id="image"></canvas><canvas id="overlay"></canvas></div>
+    </div>
+    <div class="legend"><span class="sw" aria-hidden="true"></span>ROT MARKIERT = Auswahl. Farbe, Transparenz, Zuschneiden und „Auswahl kopieren“ wirken nur darauf.</div>
+    <div id="info">Noch kein Bild geladen.</div>
+    <div id="status" role="status" aria-live="polite">Bereit.</div>
+  </section>
+
+  <aside class="panel tools">
+    <div class="group">
+      <h2>1. Bild laden</h2>
+      <input id="file" type="file" accept="image/*">
+      <div class="stack"><button id="paste" class="btn" type="button">Aus Zwischenablage</button></div>
+    </div>
+
+    <div class="group">
+      <h2>2. Bereich auswählen</h2>
+      <div class="grid2" id="toolBtns">
+        <button class="btn toggle active" data-tool="wand" type="button">Zauberstab</button>
+        <button class="btn toggle" data-tool="rect" type="button">▭ Rechteck</button>
+        <button class="btn toggle" data-tool="ellipse" type="button">◯ Ellipse</button>
+      </div>
+      <span class="lbl">Auswahlmodus</span>
+      <div class="rad">
+        <label><input type="radio" name="mode" value="replace" checked> Neue Auswahl</label>
+        <label><input type="radio" name="mode" value="add"> Hinzufügen</label>
+        <label><input type="radio" name="mode" value="subtract"> Abziehen</label>
+      </div>
+      <div id="wandOpts">
+        <span class="lbl">Farberkennung</span>
+        <div class="rad">
+          <label><input type="radio" name="scope" value="connected" checked> Nur zusammenhängend</label>
+          <label><input type="radio" name="scope" value="global"> Gleiche Farbe im ganzen Bild</label>
+        </div>
+        <label class="lbl" for="tol">Toleranz: <span id="tolText">30</span></label>
+        <input id="tol" type="range" min="0" max="180" value="30">
+      </div>
+      <div class="grid2">
+        <button id="invert" class="btn secondary" disabled>Auswahl umkehren</button>
+        <button id="clearSel" class="btn secondary" disabled>Auswahl löschen</button>
+      </div>
+    </div>
+
+    <div class="group">
+      <h2>3. Auf die Auswahl anwenden</h2>
+      <span class="lbl" style="margin-top:0">Farbe ändern</span>
+      <div class="colorline"><input id="color" type="color" value="#0067b9"><input id="hex" type="text" value="#0067b9" maxlength="7"></div>
+      <label class="rad"><span><input id="preserve" type="checkbox" checked> Helligkeit und Schattierung erhalten</span></label>
+      <div class="stack"><button id="applyColor" class="btn" disabled>Farbe anwenden</button></div>
+      <span class="lbl">Transparenz</span>
+      <div class="stack"><button id="makeTransparent" class="btn danger" disabled>Auswahl transparent machen</button></div>
+      <span class="lbl">Zuschneiden</span>
+      <label class="rad"><span><input id="cropMask" type="checkbox" checked> Außerhalb der Auswahl transparent</span></label>
+      <div class="stack"><button id="crop" class="btn" disabled>Bild auf Auswahl zuschneiden</button></div>
+    </div>
+
+    <div class="group">
+      <h2>4. Ausgabe</h2>
+      <div class="stack">
+        <button id="copyAll" class="btn" disabled>Ganzes Bild kopieren (PNG)</button>
+        <button id="saveAll" class="btn" disabled>Ganzes Bild herunterladen</button>
+        <button id="copySel" class="btn secondary" disabled>Nur Auswahl kopieren (PNG)</button>
+        <button id="saveSel" class="btn secondary" disabled>Nur Auswahl herunterladen</button>
+      </div>
+      <p class="hint">„Nur Auswahl“ schneidet auf den Rahmen der Auswahl zu; Pixel außerhalb der Auswahl bleiben transparent. PNG behält Transparenz und Pixelmaße. EXIF-Metadaten übernimmt der Browser-Canvas nicht.</p>
+    </div>
+  </aside>
+</main>
+
+<script>
+'use strict';
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const stage = $('#stage'), empty = $('#empty'), wrap = $('#wrap');
+const image = $('#image'), overlay = $('#overlay');
+const ctx = image.getContext('2d', { willReadFrequently: true });
+const octx = overlay.getContext('2d');
+const maskCanvas = document.createElement('canvas');
+const mctx = maskCanvas.getContext('2d');
+const statusBox = $('#status'), infoBox = $('#info');
+
+const MAX_HISTORY = 15;
+let original = null, work = null, mask = null;
+let history = [], lastWand = null;
+let tool = 'wand', scale = 1, name = 'bild';
+let drag = null;
+
+const W = () => work.width, H = () => work.height;
+const modeVal = () => $('input[name=mode]:checked').value;
+const scopeVal = () => $('input[name=scope]:checked').value;
+
+function msg(t, c = '') { statusBox.textContent = t; statusBox.className = c; }
+function clone(d) { return new ImageData(new Uint8ClampedArray(d.data), d.width, d.height); }
+function selCount() { let n = 0; if (mask) for (let i = 0; i < mask.length; i++) n += mask[i]; return n; }
+function cleanName(n) { return (n || 'bild').replace(/\.[^.]+$/, '').replace(/[^\w-]+/g, '_') || 'bild'; }
+
+function bbox() {
+  const w = W(), h = H();
+  let x1 = w, y1 = h, x2 = -1, y2 = -1;
+  for (let y = 0; y < h; y++) {
+    const row = y * w;
+    for (let x = 0; x < w; x++) {
+      if (mask[row + x]) { if (x < x1) x1 = x; if (x > x2) x2 = x; if (y < y1) y1 = y; if (y > y2) y2 = y; }
+    }
+  }
+  return x2 < 0 ? null : { x: x1, y: y1, w: x2 - x1 + 1, h: y2 - y1 + 1 };
+}
+
+function updateUi() {
+  const loaded = !!work, sel = loaded && selCount() > 0;
+  $('#undo').disabled = !history.length;
+  $('#reset').disabled = !loaded;
+  ['zoomOut', 'zoomIn', 'fit', 'copyAll', 'saveAll'].forEach(id => $('#' + id).disabled = !loaded);
+  ['invert', 'clearSel', 'applyColor', 'makeTransparent', 'crop', 'copySel', 'saveSel'].forEach(id => $('#' + id).disabled = !sel);
+  $('#invert').disabled = !loaded;
+  $('#wandOpts').style.display = tool === 'wand' ? 'block' : 'none';
+  if (!loaded) return;
+  const n = selCount(), b = n ? bbox() : null;
+  infoBox.textContent = `Bild: ${W()} × ${H()} Pixel` + (b ? ` – Auswahl: ${n.toLocaleString('de-CH')} Pixel, Rahmen ${b.w} × ${b.h}` : ' – keine Auswahl');
+}
+
+/* ---------- Anzeige & Zoom ---------- */
+function applyZoom() {
+  if (!work) return;
+  wrap.style.width = Math.round(W() * scale) + 'px';
+  wrap.style.height = Math.round(H() * scale) + 'px';
+  $('#zoomText').textContent = Math.round(scale * 100) + '%';
+  $('#zoomOut').disabled = scale <= 0.05;
+  $('#zoomIn').disabled = scale >= 8;
+}
+function setZoom(v) { scale = Math.max(0.05, Math.min(8, v)); applyZoom(); }
+function fitView() {
+  if (!work) return;
+  scale = Math.max(0.05, Math.min(1, (stage.clientWidth - 60) / W(), (stage.clientHeight - 60) / H()));
+  applyZoom();
+}
+
+/* ---------- Maske ---------- */
+function renderMask() {
+  octx.clearRect(0, 0, overlay.width, overlay.height);
+  if (!mask || !selCount()) return;
+  const w = W(), h = H(), d = mctx.createImageData(w, h);
+  for (let i = 0; i < mask.length; i++) {
+    if (!mask[i]) continue;
+    const p = i * 4, stripe = ((i % w) + ((i / w) | 0)) % 14 < 7;
+    d.data[p] = 255; d.data[p + 1] = stripe ? 20 : 255; d.data[p + 2] = stripe ? 68 : 255; d.data[p + 3] = stripe ? 178 : 72;
+  }
+  mctx.putImageData(d, 0, 0);
+  octx.drawImage(maskCanvas, 0, 0);
+}
+function setMask(m) { mask = m; renderMask(); updateUi(); }
+function combine(base, incoming, mode) {
+  const out = mode === 'replace' ? new Uint8Array(base.length) : base.slice();
+  for (let i = 0; i < out.length; i++) if (incoming[i]) out[i] = mode === 'subtract' ? 0 : 1;
+  return out;
+}
+
+/* ---------- Bild setzen / laden ---------- */
+function showImage(data) {
+  work = data;
+  image.width = overlay.width = maskCanvas.width = data.width;
+  image.height = overlay.height = maskCanvas.height = data.height;
+  ctx.putImageData(data, 0, 0);
+  mask = new Uint8Array(data.width * data.height);
+  lastWand = null; drag = null;
+  octx.clearRect(0, 0, overlay.width, overlay.height);
+}
+function pushHistory() {
+  history.push(clone(work));
+  if (history.length > MAX_HISTORY) history.shift();
+}
+function load(blob, n = 'zwischenablage') {
+  if (!blob || !blob.type.startsWith('image/')) return msg('Kein gültiges Bild gefunden.', 'err');
+  msg('Bild wird geladen ...', 'busy');
+  const url = URL.createObjectURL(blob), im = new Image();
+  im.onload = () => {
+    try {
+      const c = document.createElement('canvas');
+      c.width = im.naturalWidth; c.height = im.naturalHeight;
+      const cx = c.getContext('2d', { willReadFrequently: true });
+      cx.drawImage(im, 0, 0);
+      original = cx.getImageData(0, 0, c.width, c.height);
+      name = cleanName(n);
+      history = [];
+      showImage(clone(original));
+      empty.style.display = 'none'; wrap.style.display = 'block';
+      fitView(); updateUi();
+      msg(`Bild geladen: ${W()} × ${H()} Pixel.`, 'ok');
+    } catch (e) {
+      msg('Bild konnte nicht verarbeitet werden – möglicherweise zu groß für den Browserspeicher.', 'err');
+    }
+    URL.revokeObjectURL(url);
+  };
+  im.onerror = () => { URL.revokeObjectURL(url); msg('Das Bildformat konnte nicht gelesen werden.', 'err'); };
+  im.src = url;
+}
+
+$('#file').onchange = e => { const f = e.target.files[0]; if (f) load(f, f.name); e.target.value = ''; };
+window.addEventListener('paste', e => {
+  if (e.target.matches && e.target.matches('input[type=text]')) return;
+  const it = [...(e.clipboardData?.items || [])].find(x => x.type.startsWith('image/'));
+  if (it) { e.preventDefault(); load(it.getAsFile()); }
+  else msg('Kein Bild in der Zwischenablage gefunden.', 'err');
+});
+$('#paste').onclick = async () => {
+  try {
+    if (!navigator.clipboard?.read) throw 0;
+    for (const item of await navigator.clipboard.read()) {
+      const t = item.types.find(x => x.startsWith('image/'));
+      if (t) return load(await item.getType(t));
+    }
+    msg('Kein Bild in der Zwischenablage gefunden.', 'err');
+  } catch (e) { msg('Der Browser blockiert das Lesen. Klicke in die Seite und nutze Strg + V.', 'err'); }
+};
+['dragenter', 'dragover'].forEach(t => stage.addEventListener(t, e => { e.preventDefault(); stage.classList.add('dragover'); }));
+['dragleave', 'drop'].forEach(t => stage.addEventListener(t, e => { e.preventDefault(); stage.classList.remove('dragover'); }));
+stage.addEventListener('drop', e => {
+  const f = [...(e.dataTransfer?.files || [])].find(x => x.type.startsWith('image/'));
+  if (f) load(f, f.name); else msg('Bitte eine Bilddatei ablegen.', 'err');
+});
+
+/* ---------- Werkzeugwahl ---------- */
+$$('#toolBtns .btn').forEach(b => b.onclick = () => {
+  tool = b.dataset.tool;
+  $$('#toolBtns .btn').forEach(x => x.classList.toggle('active', x === b));
+  lastWand = null; updateUi();
+});
+$('#tol').oninput = e => {
+  $('#tolText').textContent = e.target.value;
+  if (lastWand && tool === 'wand') {
+    clearTimeout(lastWand.timer);
+    lastWand.timer = setTimeout(() => wand(lastWand.x, lastWand.y, true), 60);
+  }
+};
+$('#color').oninput = e => $('#hex').value = e.target.value;
+$('#hex').oninput = e => { if (/^#[0-9a-f]{6}$/i.test(e.target.value)) $('#color').value = e.target.value; };
+
+/* ---------- Auswahl: Zauberstab ---------- */
+function dist(d, i, t) {
+  const r = d[i] - t[0], g = d[i + 1] - t[1], b = d[i + 2] - t[2], a = d[i + 3] - t[3];
+  return r * r + g * g + b * b + a * a * 0.25;
+}
+function selectColor(x, y, tol, global) {
+  const w = W(), h = H(), d = work.data, start = y * w + x, o = start * 4;
+  const t = [d[o], d[o + 1], d[o + 2], d[o + 3]], lim = tol * tol, out = new Uint8Array(w * h);
+  if (global) {
+    for (let p = 0, i = 0; i < d.length; i += 4, p++) if (dist(d, i, t) <= lim) out[p] = 1;
+    return out;
+  }
+  const seen = new Uint8Array(w * h), q = new Uint32Array(w * h);
+  let n = 0; q[n++] = start; seen[start] = 1;
+  while (n) {
+    const p = q[--n];
+    if (dist(d, p * 4, t) > lim) continue;
+    out[p] = 1;
+    const X = p % w, Y = (p / w) | 0;
+    let z;
+    if (X > 0 && !seen[z = p - 1]) { seen[z] = 1; q[n++] = z; }
+    if (X < w - 1 && !seen[z = p + 1]) { seen[z] = 1; q[n++] = z; }
+    if (Y > 0 && !seen[z = p - w]) { seen[z] = 1; q[n++] = z; }
+    if (Y < h - 1 && !seen[z = p + w]) { seen[z] = 1; q[n++] = z; }
+  }
+  return out;
+}
+function wand(x, y, recalc = false) {
+  msg('Auswahl wird berechnet ...', 'busy');
+  setTimeout(() => {
+    if (!work) return;
+    let base, mode;
+    if (recalc && lastWand) { base = lastWand.base; mode = lastWand.mode; }
+    else { base = mask.slice(); mode = modeVal(); lastWand = { x, y, base, mode }; }
+    const inc = selectColor(x, y, +$('#tol').value, scopeVal() === 'global');
+    setMask(combine(base, inc, mode));
+    msg('Rot markierter Bereich ist ausgewählt.', 'ok');
+  }, 10);
+}
+
+/* ---------- Auswahl: Rechteck / Ellipse ---------- */
+function shapeMask(a, b, kind) {
+  const w = W(), h = H(), out = new Uint8Array(w * h);
+  const x1 = Math.min(a.x, b.x), x2 = Math.max(a.x, b.x), y1 = Math.min(a.y, b.y), y2 = Math.max(a.y, b.y);
+  if (kind === 'rect') {
+    for (let y = y1; y <= y2; y++) out.fill(1, y * w + x1, y * w + x2 + 1);
+    return out;
+  }
+  const cx = (x1 + x2 + 1) / 2, cy = (y1 + y2 + 1) / 2, rx = (x2 - x1 + 1) / 2, ry = (y2 - y1 + 1) / 2;
+  for (let y = y1; y <= y2; y++) {
+    const dy = (y + 0.5 - cy) / ry, s = 1 - dy * dy;
+    if (s < 0) continue;
+    const half = rx * Math.sqrt(s);
+    const xa = Math.max(x1, Math.ceil(cx - half - 0.5)), xb = Math.min(x2, Math.floor(cx + half - 0.5));
+    if (xb >= xa) out.fill(1, y * w + xa, y * w + xb + 1);
+  }
+  return out;
+}
+function point(e) {
+  const r = overlay.getBoundingClientRect();
+  return {
+    x: Math.max(0, Math.min(W() - 1, Math.floor((e.clientX - r.left) * W() / r.width))),
+    y: Math.max(0, Math.min(H() - 1, Math.floor((e.clientY - r.top) * H() / r.height)))
+  };
+}
+function drawDrag(p) {
+  renderMask();
+  const x = Math.min(drag.a.x, p.x), y = Math.min(drag.a.y, p.y), w = Math.abs(p.x - drag.a.x) + 1, h = Math.abs(p.y - drag.a.y) + 1;
+  octx.save();
+  octx.fillStyle = 'rgba(255,23,68,.33)'; octx.strokeStyle = '#ff1744';
+  octx.lineWidth = Math.max(2, 3 / scale); octx.setLineDash([8 / scale, 5 / scale]);
+  octx.beginPath();
+  if (tool === 'ellipse') octx.ellipse(x + w / 2, y + h / 2, w / 2, h / 2, 0, 0, Math.PI * 2); else octx.rect(x, y, w, h);
+  octx.fill(); octx.stroke(); octx.restore();
+}
+overlay.onpointerdown = e => {
+  if (!work) return;
+  const p = point(e);
+  if (tool === 'wand') return wand(p.x, p.y);
+  overlay.setPointerCapture(e.pointerId);
+  drag = { a: p };
+};
+overlay.onpointermove = e => { if (drag) drawDrag(point(e)); };
+overlay.onpointerup = e => {
+  if (!drag) return;
+  const a = drag.a, b = point(e); drag = null;
+  if (Math.abs(a.x - b.x) < 2 || Math.abs(a.y - b.y) < 2) { renderMask(); return; }
+  lastWand = null;
+  setMask(combine(mask, shapeMask(a, b, tool), modeVal()));
+  msg('Rot markierter Bereich ist ausgewählt.', 'ok');
+};
+overlay.onpointercancel = () => { drag = null; renderMask(); };
+
+$('#clearSel').onclick = () => { lastWand = null; setMask(new Uint8Array(mask.length)); msg('Auswahl gelöscht.'); };
+$('#invert').onclick = () => {
+  const m = new Uint8Array(mask.length);
+  for (let i = 0; i < m.length; i++) m[i] = mask[i] ? 0 : 1;
+  lastWand = null; setMask(m); msg('Auswahl umgekehrt.', 'ok');
+};
+
+/* ---------- Aktionen ---------- */
+function commit(text) {
+  ctx.putImageData(work, 0, 0);
+  lastWand = null;
+  setMask(new Uint8Array(mask.length));
+  msg(text, 'ok');
+}
+function hexRgb(h) {
+  const m = /^#?([\da-f]{2})([\da-f]{2})([\da-f]{2})$/i.exec(h);
+  return m ? { r: parseInt(m[1], 16), g: parseInt(m[2], 16), b: parseInt(m[3], 16) } : null;
+}
+function toHsl(r, g, b) {
+  r /= 255; g /= 255; b /= 255;
+  const M = Math.max(r, g, b), m = Math.min(r, g, b), d = M - m, l = (M + m) / 2;
+  let h = 0, s = 0;
+  if (d) {
+    s = d / (1 - Math.abs(2 * l - 1));
+    h = M === r ? ((g - b) / d) % 6 : M === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    h /= 6; if (h < 0) h += 1;
+  }
+  return [h, s, l];
+}
+function toRgb(h, s, l) {
+  const f = n => { const k = (n + h * 12) % 12, a = s * Math.min(l, 1 - l); return l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)); };
+  return [f(0) * 255, f(8) * 255, f(4) * 255];
+}
+$('#applyColor').onclick = () => {
+  if (!selCount()) return;
+  pushHistory();
+  const c = hexRgb($('#hex').value) || hexRgb($('#color').value), keep = $('#preserve').checked, t = toHsl(c.r, c.g, c.b), d = work.data;
+  for (let i = 0; i < mask.length; i++) {
+    if (!mask[i]) continue;
+    const p = i * 4;
+    if (keep) {
+      const l = toHsl(d[p], d[p + 1], d[p + 2])[2], v = toRgb(t[0], Math.max(0.15, t[1]), l);
+      d[p] = v[0]; d[p + 1] = v[1]; d[p + 2] = v[2];
+    } else { d[p] = c.r; d[p + 1] = c.g; d[p + 2] = c.b; }
+  }
+  commit('Farbe wurde auf die Auswahl angewendet.');
+};
+$('#makeTransparent').onclick = () => {
+  if (!selCount()) return;
+  pushHistory();
+  let n = 0;
+  for (let i = 0; i < mask.length; i++) if (mask[i]) { work.data[i * 4 + 3] = 0; n++; }
+  commit(`${n.toLocaleString('de-CH')} Pixel wurden transparent gemacht.`);
+};
+function extract(applyMask) {
+  const b = bbox(), w = W(), out = new ImageData(b.w, b.h);
+  for (let y = 0; y < b.h; y++) {
+    for (let x = 0; x < b.w; x++) {
+      const s = (b.y + y) * w + b.x + x, o = (y * b.w + x) * 4, p = s * 4;
+      if (applyMask && !mask[s]) continue;
+      out.data[o] = work.data[p]; out.data[o + 1] = work.data[p + 1]; out.data[o + 2] = work.data[p + 2]; out.data[o + 3] = work.data[p + 3];
+    }
+  }
+  return out;
+}
+$('#crop').onclick = () => {
+  if (!selCount()) return;
+  pushHistory();
+  showImage(extract($('#cropMask').checked));
+  fitView(); updateUi();
+  msg(`Bild auf ${W()} × ${H()} Pixel zugeschnitten.`, 'ok');
+};
+$('#undo').onclick = () => {
+  if (!history.length) return;
+  showImage(history.pop());
+  fitView(); updateUi();
+  msg('Letzte Änderung rückgängig gemacht.', 'ok');
+};
+$('#reset').onclick = () => {
+  if (!original) return;
+  history = [];
+  showImage(clone(original));
+  fitView(); updateUi();
+  msg('Originalbild wiederhergestellt.', 'ok');
+};
+
+/* ---------- Zoom ---------- */
+$('#zoomOut').onclick = () => setZoom(scale / 1.25);
+$('#zoomIn').onclick = () => setZoom(scale * 1.25);
+$('#fit').onclick = fitView;
+stage.addEventListener('wheel', e => {
+  if (work && e.ctrlKey) { e.preventDefault(); setZoom(scale * (e.deltaY < 0 ? 1.12 : 1 / 1.12)); }
+}, { passive: false });
+window.addEventListener('resize', () => { if (work) applyZoom(); });
+
+/* ---------- Ausgabe ---------- */
+function toBlob(data) {
+  const c = document.createElement('canvas');
+  c.width = data.width; c.height = data.height;
+  c.getContext('2d').putImageData(data, 0, 0);
+  return new Promise((res, rej) => c.toBlob(b => b ? res(b) : rej(new Error('PNG')), 'image/png'));
+}
+async function copy(data, label) {
+  try {
+    if (!navigator.clipboard?.write || typeof ClipboardItem === 'undefined') throw 0;
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': await toBlob(data) })]);
+    msg(`${label} (${data.width} × ${data.height} Pixel) in die Zwischenablage kopiert.`, 'ok');
+  } catch (e) { msg('Der Browser blockiert das Kopieren (nur über HTTPS/localhost). Bitte „Herunterladen“ nutzen.', 'err'); }
+}
+async function save(data, suffix) {
+  try {
+    const u = URL.createObjectURL(await toBlob(data)), a = document.createElement('a');
+    a.href = u; a.download = `${name}_${suffix}.png`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(u), 1000);
+    msg(`PNG mit ${data.width} × ${data.height} Pixel heruntergeladen.`, 'ok');
+  } catch (e) { msg('PNG konnte nicht erstellt werden.', 'err'); }
+}
+$('#copyAll').onclick = () => copy(work, 'Bild');
+$('#saveAll').onclick = () => save(work, 'bearbeitet');
+$('#copySel').onclick = () => selCount() && copy(extract(true), 'Auswahl');
+$('#saveSel').onclick = () => selCount() && save(extract(true), 'auswahl');
+
+/* ---------- Tastatur ---------- */
+window.addEventListener('keydown', e => {
+  if (e.target.matches && e.target.matches('input[type=text]')) return;
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); $('#undo').click(); }
+  else if (e.key === 'Escape' && work && selCount()) $('#clearSel').click();
+});
+
+updateUi();
+</script>
+</body>
+</html>
