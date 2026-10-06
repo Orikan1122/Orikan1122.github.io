@@ -9,7 +9,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
 :root{--primary-bg:#f4f7f6;--secondary-bg:#fff;--border:#d1d9e6;--text:#333;--header:#2c3e50;--accent:#3498db;--danger:#e74c3c;--success:#27ae60;--warning:#f39c12}
-*{box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;margin:0;background:var(--primary-bg);color:var(--text);display:flex;flex-direction:column;height:100vh;overflow:hidden}header{background:var(--header);color:#ecf0f1;padding:10px 20px;display:flex;justify-content:space-between;align-items:center;gap:15px;flex-shrink:0}header h1{margin:0;font-size:1.35em}.project-controls,.toolbar{display:flex;gap:8px;flex-wrap:wrap}button{padding:8px 12px;border:0;background:var(--accent);color:#fff;border-radius:4px;cursor:pointer}button:hover{filter:brightness(.9)}button:disabled{opacity:.45;cursor:not-allowed}button.secondary{background:#64748b}button.danger{background:var(--danger)}button.success{background:var(--success)}button.active{outline:3px solid rgba(52,152,219,.25);background:#1d6fa5}#app-container{display:flex;flex:1;overflow:hidden}#controls-panel{width:440px;min-width:330px;max-width:650px;background:#fff;display:flex;flex-direction:column;flex-shrink:0;overflow:auto}.control-section{padding:13px 18px;border-bottom:1px solid var(--border)}.control-section h2{margin:0 0 10px;font-size:1.1em}.instructions,.status{font-size:.88em;background:#f8fafc;padding:9px;border-radius:4px;border-left:3px solid var(--accent);line-height:1.45}.status{margin-top:8px}.toolbar label{display:flex;align-items:center;gap:5px;font-size:.88em;background:#f1f5f9;padding:5px 7px;border-radius:4px}.toolbar select,.toolbar input{padding:4px}.toolbar input[type=number]{width:65px}#scale-section{display:flex;align-items:center;gap:8px;margin-top:8px}#table-wrapper{overflow:auto;max-height:320px;width:100%}table{width:max-content;min-width:100%;border-collapse:collapse;font-size:.72em;table-layout:auto}th,td{border:1px solid var(--border);padding:3px 4px;text-align:center;white-space:nowrap;line-height:1.15}th{background:var(--primary-bg);position:sticky;top:0;z-index:2}td input[type=color]{width:36px;height:25px;border:0;padding:0}td select,td input[type=number]{max-width:72px;padding:2px;font-size:.95em}td input[type=text]{width:92px;max-width:92px;padding:2px;font-size:.95em}.tag-font-size{width:48px!important}.show-tag{width:14px;height:14px}.color-swatch{opacity:0;width:100%!important;height:100%!important;cursor:pointer}.color-cell{min-width:34px;width:34px;padding:0!important;position:relative}.color-cell:after{content:"";position:absolute;inset:0;pointer-events:none;border:1px solid rgba(0,0,0,.15)}.remove-row-btn{background:var(--danger)}tr.active-row{background:#eaf5ff;outline:2px solid var(--accent)}#resizer{width:5px;cursor:col-resize;background:#ddd;flex-shrink:0}#resizer:hover{background:var(--accent)}#viewer-container{flex:1;background:#dfe3e8;position:relative;overflow:hidden}#pdf-viewer{position:absolute;transform-origin:top left;box-shadow:0 0 10px #0007;background:#fff}#pdf-canvas,#drawing-canvas{position:absolute;inset:0}#drawing-canvas{z-index:10}.draw-mode{cursor:crosshair}.select-mode{cursor:default}.edit-vertices-mode{cursor:grab}.move-tag-mode{cursor:move}.calibrate-mode{cursor:crosshair}.pan-mode{cursor:grab}#viewer-controls{position:absolute;right:20px;bottom:20px;display:flex;gap:8px;z-index:20}.modal{display:none;position:fixed;z-index:100;inset:0;background:#0007}.modal-content{background:#fff;margin:8% auto;padding:20px;width:80%;max-width:620px;border-radius:6px}.close-btn{float:right;font-size:28px;cursor:pointer}.pipe-db-entry{display:flex;justify-content:space-between;align-items:center;padding:8px;border-bottom:1px solid #eee}.pipe-db-actions button{margin-left:5px;padding:5px 8px}.edit-pipe-btn{background:var(--warning)}.delete-pipe-btn{background:var(--danger)}#pipe-db-list{max-height:260px;overflow:auto;margin-bottom:16px}#add-pipe-form input{display:block;width:100%;margin:7px 0;padding:8px}.selected-info{font-weight:600;color:#b42318}.hint{font-size:.8em;color:#667085}.hide-for-pdf{display:none!important}
+*{box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;margin:0;background:var(--primary-bg);color:var(--text);display:flex;flex-direction:column;height:100vh;overflow:hidden}header{background:var(--header);color:#ecf0f1;padding:10px 20px;display:flex;justify-content:space-between;align-items:center;gap:15px;flex-shrink:0}header h1{margin:0;font-size:1.35em}.project-controls,.toolbar{display:flex;gap:8px;flex-wrap:wrap}button{padding:8px 12px;border:0;background:var(--accent);color:#fff;border-radius:4px;cursor:pointer}button:hover{filter:brightness(.9)}button:disabled{opacity:.45;cursor:not-allowed}button.secondary{background:#64748b}button.danger{background:var(--danger)}button.success{background:var(--success)}button.active{outline:3px solid rgba(52,152,219,.25);background:#1d6fa5}#app-container{display:flex;flex:1;overflow:hidden}#controls-panel{width:530px;min-width:360px;max-width:850px;background:#fff;display:flex;flex-direction:column;flex-shrink:0;overflow:auto}.control-section{padding:13px 18px;border-bottom:1px solid var(--border)}.control-section h2{margin:0 0 10px;font-size:1.1em}.instructions,.status{font-size:.88em;background:#f8fafc;padding:9px;border-radius:4px;border-left:3px solid var(--accent);line-height:1.45}.status{margin-top:8px}.toolbar label{display:flex;align-items:center;gap:5px;font-size:.88em;background:#f1f5f9;padding:5px 7px;border-radius:4px}.toolbar select,.toolbar input{padding:4px}.toolbar input[type=number]{width:65px}#scale-section{display:flex;align-items:center;gap:8px;margin-top:8px}#table-wrapper{overflow:auto;max-height:340px}table{width:100%;border-collapse:collapse;font-size:.82em}th,td{border:1px solid var(--border);padding:6px;text-align:center;white-space:nowrap}th{background:var(--primary-bg);position:sticky;top:0;z-index:2}td input[type=color]{width:36px;height:25px;border:0;padding:0}td select,td input[type=number]{max-width:100px;padding:3px}.remove-row-btn{background:var(--danger)}tr.active-row{background:#eaf5ff;outline:2px solid var(--accent)}#resizer{width:5px;cursor:col-resize;background:#ddd;flex-shrink:0}#resizer:hover{background:var(--accent)}#viewer-container{flex:1;background:#dfe3e8;position:relative;overflow:hidden}#pdf-viewer{position:absolute;transform-origin:top left;box-shadow:0 0 10px #0007;background:#fff}#pdf-canvas,#drawing-canvas{position:absolute;inset:0}#drawing-canvas{z-index:10}.draw-mode{cursor:crosshair}.select-mode{cursor:default}.calibrate-mode{cursor:crosshair}.pan-mode{cursor:grab}#viewer-controls{position:absolute;right:20px;bottom:20px;display:flex;gap:8px;z-index:20}.modal{display:none;position:fixed;z-index:100;inset:0;background:#0007}.modal-content{background:#fff;margin:8% auto;padding:20px;width:80%;max-width:620px;border-radius:6px}.close-btn{float:right;font-size:28px;cursor:pointer}.pipe-db-entry{display:flex;justify-content:space-between;align-items:center;padding:8px;border-bottom:1px solid #eee}.pipe-db-actions button{margin-left:5px;padding:5px 8px}.edit-pipe-btn{background:var(--warning)}.delete-pipe-btn{background:var(--danger)}#pipe-db-list{max-height:260px;overflow:auto;margin-bottom:16px}#add-pipe-form input{display:block;width:100%;margin:7px 0;padding:8px}.selected-info{font-weight:600;color:#b42318}.hint{font-size:.8em;color:#667085}.hide-for-pdf{display:none!important}.photo-mode{cursor:crosshair}.photo-entry{border:1px solid var(--border);border-radius:6px;padding:8px;margin:7px 0;background:#f8fafc}.photo-entry img{width:100%;max-height:120px;object-fit:contain}.photo-entry input,.photo-entry textarea{width:100%;margin-top:5px;padding:6px}.photo-actions{display:flex;gap:6px;margin-top:6px}.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.exp-row{display:block;margin:10px 0;font-size:.9em;font-weight:600}.exp-row input,.exp-row select{display:block;width:100%;margin-top:4px;padding:8px;font-weight:400}.exp-check{display:flex;gap:8px;align-items:center;margin:8px 0;font-size:.92em}
 </style>
 </head>
 <body>
@@ -17,56 +18,60 @@
 <main id="app-container">
 <section id="controls-panel">
 <div class="control-section"><h2>1. File & Scale</h2><input type="file" id="pdf-upload" accept="application/pdf"><p id="pdf-name">No PDF loaded.</p><div id="scale-section"><button id="calibrate-btn">Set Scale</button><span id="scale-display">Scale not set.</span></div></div>
-<div class="control-section"><h2>2. Drawing tools</h2><div class="toolbar"><button id="draw-mode-btn" class="active">Draw</button><button id="select-mode-btn" class="secondary">Select line</button><button id="edit-vertices-btn" class="secondary">Edit vertices</button><button id="move-tag-btn" class="secondary">Move tag</button><button id="undo-btn" class="secondary" disabled>Undo</button><button id="delete-selected-btn" class="danger" disabled>Delete selected</button></div><div class="toolbar" style="margin-top:8px"><label>Line width <input id="line-width-input" type="number" min="1" max="20" step="1" value="3"> px</label><label>Line type <select id="line-style-select"><option value="solid">Solid</option><option value="dashed">Dashed</option><option value="dotted">Dotted</option></select></label><label><input id="chain-lines-input" type="checkbox"> Chain lines</label><button id="end-chain-btn" class="secondary" disabled>End chain</button></div><p class="instructions"><b>Usage:</b><br>Draw: left-click and drag. Hold Shift for horizontal/vertical.<br><b>Chain lines:</b> activate the option and draw the first line. Every following line starts exactly at the previous endpoint. Click <i>End chain</i> to start a new chain.<br>There is no automatic snapping to unrelated lines or endpoints.<br><b>Edit vertices:</b> endpoints and shared vertices are shown as small points. Drag a point to move it. Only connected segments in the same chain move together.<br>Select line: click close to a line, then delete it.<br>Pan: right-click and drag. Undo: Ctrl+Z. Delete: Delete key.</p><div id="selection-status" class="status">No line selected.</div></div>
-<div class="control-section"><h2>3. Pipe Definitions</h2><button id="setup-pipes-btn">Manage Pipe Types</button></div>
-<div class="control-section"><h2>4. Piping Register</h2><div id="table-wrapper"><table id="piping-register"><thead><tr><th>Color</th><th>Line name</th><th>Tag</th><th>Tag size</th><th>Show tag</th><th>Piping Type</th><th>X (m)</th><th>Y (m)</th><th>Z (m)</th><th>Total (m)</th><th>Volume (L)</th><th>Price</th><th><button id="add-row-btn">+</button></th></tr></thead><tbody id="register-body"></tbody></table></div></div>
+<div class="control-section"><h2>2. Drawing tools</h2><div class="toolbar"><button id="draw-mode-btn" class="active">Draw</button><button id="select-mode-btn" class="secondary">Select line</button><button id="photo-mode-btn" class="secondary">Add photo marker</button><button id="undo-btn" class="secondary" disabled>Undo</button><button id="delete-selected-btn" class="danger" disabled>Delete selected</button></div><div class="toolbar" style="margin-top:8px"><label>Line width <input id="line-width-input" type="number" min="1" max="20" step="1" value="3"> px</label><label title="Line style is controlled by the pipe status">Convention: Existing = solid · New = dotted</label><select id="line-style-select" hidden><option value="solid">Solid</option><option value="dotted">Dotted</option></select><label><input id="chain-lines-input" type="checkbox"> Chain lines</label><button id="end-chain-btn" class="secondary" disabled>End chain</button></div><p class="instructions"><b>Usage:</b><br>Draw: left-click and drag. Hold Shift for horizontal/vertical.<br><b>Chain lines:</b> activate the option and draw the first line. Every following line starts exactly at the previous endpoint. Click <i>End chain</i> to start a new chain.<br>Endpoints also snap automatically when they are close to an existing endpoint.<br>Select line: click close to a line, then delete it.<br>Pan: right-click and drag. Undo: Ctrl+Z. Delete: Delete key.</p><div id="selection-status" class="status">No line selected.</div></div>
+<div class="control-section"><h2>3. Pipe Definitions</h2><button id="setup-pipes-btn">Manage Pipe Types</button></div><div class="control-section"><h2>4. Photo Documentation</h2><div id="photo-list"></div></div>
+<div class="control-section"><h2>5. Piping Register</h2><div id="table-wrapper"><table id="piping-register"><thead><tr><th>Color</th><th>Piping Type</th><th>Position</th><th>Status</th><th>X (m)</th><th>Y (m)</th><th>Z (m)</th><th>Total (m)</th><th>Volume (L)</th><th>Price</th><th><button id="add-row-btn">+</button></th></tr></thead><tbody id="register-body"></tbody></table></div></div>
 </section><div id="resizer"></div>
 <section id="viewer-container"><div id="pdf-viewer"><canvas id="pdf-canvas"></canvas><canvas id="drawing-canvas"></canvas></div><div id="viewer-controls"><button id="zoom-in-btn">+</button><button id="zoom-out-btn">−</button></div></section>
 </main>
-<div id="pipe-db-modal" class="modal"><div class="modal-content"><span class="close-btn">&times;</span><h2>Piping Information Database</h2><div id="pipe-db-list"></div><div id="add-pipe-form"><h3>Add / edit pipe type</h3><input id="pipe-name-input" placeholder="e.g. DN100 Copper"><input type="number" id="pipe-diameter-input" placeholder="Internal diameter (mm)"><input type="number" id="pipe-price-input" placeholder="Price per meter"><button id="add-pipe-type-btn">Add Pipe</button></div></div></div>
+<div id="pipe-db-modal" class="modal"><div class="modal-content"><span class="close-btn">&times;</span><h2>Piping Information Database</h2><div id="pipe-db-list"></div><div id="add-pipe-form"><h3>Add / edit pipe type</h3><div class="detail-grid"><input id="pipe-name-input" placeholder="e.g. DN100"><input id="pipe-material-input" placeholder="Material"><input type="number" id="pipe-diameter-input" placeholder="Internal diameter (mm)"><input type="number" id="pipe-outer-diameter-input" placeholder="Outer diameter (mm)"><input id="pipe-medium-input" placeholder="Medium"><input id="pipe-pressure-input" placeholder="Pressure class"><input id="pipe-insulation-input" placeholder="Insulation"><input type="number" id="pipe-price-input" placeholder="Price per meter"></div><textarea id="pipe-notes-input" placeholder="Notes" style="width:100%;min-height:60px;margin-top:7px"></textarea><button id="add-pipe-type-btn">Add Pipe</button></div></div></div>
+<div id="export-modal" class="modal"><div class="modal-content"><span class="close-btn" id="export-close-btn">&times;</span><h2>Export to A3 PDF</h2>
+<label class="exp-row">Title<input id="export-title-input" type="text" value="Piping Takeoff Report"></label>
+<label class="exp-row">Plan image quality<select id="export-quality-select"><option value="standard">Standard - 200 dpi, JPEG (small file)</option><option value="high" selected>High - 300 dpi, lossless PNG (recommended)</option><option value="max">Maximum - 450 dpi, lossless PNG (large file)</option></select></label>
+<label class="exp-check"><input type="checkbox" id="export-crop-input" checked> Crop plan to the drawn area (larger and sharper)</label>
+<label class="exp-check"><input type="checkbox" id="export-number-input" checked> Show run numbers (No.) on the plan</label>
+<label class="exp-check"><input type="checkbox" id="export-photos-input" checked> Include photo pages</label>
+<p class="hint">High and Maximum can take a few seconds to create.</p>
+<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px"><button class="secondary" id="export-cancel-btn">Cancel</button><button class="success" id="export-start-btn">Create PDF</button></div></div></div>
 <script>
 'use strict';
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.worker.min.js';
 const $=id=>document.getElementById(id), pdfUpload=$('pdf-upload'),pdfName=$('pdf-name'),viewerContainer=$('viewer-container'),pdfViewer=$('pdf-viewer'),pdfCanvas=$('pdf-canvas'),drawingCanvas=$('drawing-canvas'),pdfCtx=pdfCanvas.getContext('2d'),ctx=drawingCanvas.getContext('2d'),registerBody=$('register-body');
-let pdfDoc=null,currentPageNum=1,currentMode='draw',isDrawing=false,isPanning=false,isDraggingVertex=false,vertexDragMoved=false,isDraggingTag=false,tagDragMoved=false,startPoint={x:0,y:0},lastPanPoint={x:0,y:0},activePipeRunId=null,selectedSegment=null,selectedVertex=null,selectedTagRunId=null,editingPipeTypeId=null,undoStack=[],chainPoint=null,currentChainId=null;
-let projectData={scale:null,pipeTypes:[{id:Date.now(),name:'Default Pipe',diameter:50,price:10}],pipeRuns:[],viewerState:{zoom:1,pan:{x:0,y:0}}};
+let pdfDoc=null,currentPageNum=1,currentMode='draw',isDrawing=false,isPanning=false,startPoint={x:0,y:0},lastPanPoint={x:0,y:0},activePipeRunId=null,selectedSegment=null,editingPipeTypeId=null,undoStack=[],chainPoint=null;
+let projectData={scale:null,pipeTypes:[{id:Date.now(),name:'Default Pipe',diameter:50,outerDiameter:0,material:'',medium:'',pressureClass:'',insulation:'',notes:'',price:10}],pipeRuns:[],photos:[],viewerState:{zoom:1,pan:{x:0,y:0}}};let selectedPhotoId=null;
 function uid(){return Date.now()+Math.floor(Math.random()*100000)}
-function snapshot(){undoStack.push(JSON.stringify({scale:projectData.scale,pipeTypes:projectData.pipeTypes,pipeRuns:projectData.pipeRuns}));if(undoStack.length>100)undoStack.shift();$('undo-btn').disabled=!undoStack.length}
-function undo(){if(!undoStack.length)return;const old=JSON.parse(undoStack.pop());projectData.scale=old.scale;projectData.pipeTypes=old.pipeTypes;projectData.pipeRuns=old.pipeRuns;selectedSegment=null;rebuildRegister();renderPipeDb();updateScale();redrawAllLines();$('undo-btn').disabled=!undoStack.length;updateSelectionStatus()}
+const imageCache=new Map();
+function snapshot(){projectData.photos.forEach(p=>{if(p.image)imageCache.set(p.id,p.image)});undoStack.push(JSON.stringify({scale:projectData.scale,pipeTypes:projectData.pipeTypes,pipeRuns:projectData.pipeRuns,photos:projectData.photos.map(p=>({...p,image:null}))}));if(undoStack.length>100)undoStack.shift();$('undo-btn').disabled=!undoStack.length}
+function undo(){if(!undoStack.length)return;const old=JSON.parse(undoStack.pop());projectData.scale=old.scale;projectData.pipeTypes=old.pipeTypes;projectData.pipeRuns=old.pipeRuns;projectData.photos=(old.photos||[]).map(p=>({...p,image:imageCache.get(p.id)||p.image||null}));selectedSegment=null;rebuildRegister();renderPipeDb();updateScale();redrawAllLines();$('undo-btn').disabled=!undoStack.length;updateSelectionStatus()}
 function renderPage(num){pdfDoc.getPage(num).then(page=>{const viewport=page.getViewport({scale:1.5});pdfCanvas.width=drawingCanvas.width=viewport.width;pdfCanvas.height=drawingCanvas.height=viewport.height;pdfViewer.style.width=viewport.width+'px';pdfViewer.style.height=viewport.height+'px';if(projectData.viewerState.pan.x===0&&projectData.viewerState.pan.y===0){projectData.viewerState.pan.x=(viewerContainer.clientWidth-viewport.width)/2;projectData.viewerState.pan.y=(viewerContainer.clientHeight-viewport.height)/2}updateViewerTransform();return page.render({canvasContext:pdfCtx,viewport}).promise}).then(redrawAllLines);currentPageNum=num}
 function updateViewerTransform(){const v=projectData.viewerState;pdfViewer.style.transform=`translate(${v.pan.x}px,${v.pan.y}px) scale(${v.zoom})`}
 function getPoint(e){const r=drawingCanvas.getBoundingClientRect(),z=projectData.viewerState.zoom;return{x:(e.clientX-r.left)/z,y:(e.clientY-r.top)/z}}
 function lineDash(style,width){return style==='dashed'?[width*4,width*2]:style==='dotted'?[width,width*2]:[]}
 function drawSegment(seg,run,selected=false,target=ctx,factor=1,offset={x:0,y:0}){const width=(seg.lineWidth||3)*factor;target.save();target.strokeStyle=selected?'#ffd400':run.color;target.lineWidth=selected?width+4:width;target.setLineDash(lineDash(seg.lineStyle||'solid',width));target.lineCap=(seg.lineStyle==='dotted')?'round':'butt';target.beginPath();target.moveTo(seg.start.x*factor-offset.x,seg.start.y*factor-offset.y);target.lineTo(seg.end.x*factor-offset.x,seg.end.y*factor-offset.y);target.stroke();if(selected){target.strokeStyle=run.color;target.lineWidth=width;target.beginPath();target.moveTo(seg.start.x*factor-offset.x,seg.start.y*factor-offset.y);target.lineTo(seg.end.x*factor-offset.x,seg.end.y*factor-offset.y);target.stroke()}target.restore()}
-function redrawAllLines(){ctx.clearRect(0,0,drawingCanvas.width,drawingCanvas.height);projectData.pipeRuns.forEach(run=>run.segments.forEach((seg,i)=>drawSegment(seg,run,!!selectedSegment&&selectedSegment.runId===run.id&&selectedSegment.index===i)));drawAllTags(ctx,1,{x:0,y:0});if(currentMode==='edit-vertices')drawAllVertices();if(chainPoint&&$('chain-lines-input').checked&&currentMode==='draw'){ctx.save();ctx.fillStyle='#16a34a';ctx.strokeStyle='#ffffff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(chainPoint.x,chainPoint.y,6/projectData.viewerState.zoom,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.restore()}}
-function ensureTagDefaults(run){run.lineName=run.lineName||'';run.lineTag=run.lineTag||'';run.tagFontSize=Math.max(6,Math.min(72,Number(run.tagFontSize)||14));run.showTag=run.showTag!==false;if(!run.tagPosition){const seg=run.segments&&run.segments[0];run.tagPosition=seg?{x:(seg.start.x+seg.end.x)/2,y:(seg.start.y+seg.end.y)/2}:{x:60,y:60}}}
-function drawTag(run,target=ctx,factor=1,offset={x:0,y:0}){ensureTagDefaults(run);if(!run.showTag||!run.lineTag)return;const x=run.tagPosition.x*factor-offset.x,y=run.tagPosition.y*factor-offset.y,fontSize=run.tagFontSize*factor;target.save();target.font='bold '+fontSize+'px Arial';target.textBaseline='middle';target.lineJoin='round';target.lineWidth=4*factor;target.strokeStyle='rgba(255,255,255,.95)';target.strokeText(run.lineTag,x,y);target.fillStyle=run.color;target.fillText(run.lineTag,x,y);if(currentMode==='move-tag'&&target===ctx){const w=target.measureText(run.lineTag).width;target.strokeStyle=selectedTagRunId===run.id?'#f59e0b':run.color;target.lineWidth=1.5/projectData.viewerState.zoom;target.strokeRect(x-4,y-fontSize/2-3,w+8,fontSize+6)}target.restore()}
-function drawAllTags(target=ctx,factor=1,offset={x:0,y:0}){projectData.pipeRuns.forEach(run=>drawTag(run,target,factor,offset))}
-function findTagAt(p){let best=null;projectData.pipeRuns.forEach(run=>{ensureTagDefaults(run);if(!run.showTag||!run.lineTag)return;ctx.save();ctx.font='bold '+run.tagFontSize+'px Arial';const w=ctx.measureText(run.lineTag).width;ctx.restore();const q=run.tagPosition;if(p.x>=q.x-8&&p.x<=q.x+w+8&&p.y>=q.y-run.tagFontSize&&p.y<=q.y+run.tagFontSize)best=run.id});return best}
-function pointKey(p){return p.x.toFixed(4)+','+p.y.toFixed(4)}
-function drawAllVertices(){const seen=new Set();projectData.pipeRuns.forEach(run=>run.segments.forEach(seg=>[seg.start,seg.end].forEach(pt=>{const key=run.id+'|'+seg.chainId+'|'+pointKey(pt);if(seen.has(key))return;seen.add(key);const active=selectedVertex&&selectedVertex.runId===run.id&&selectedVertex.chainId===seg.chainId&&Math.hypot(selectedVertex.x-pt.x,selectedVertex.y-pt.y)<0.5;ctx.save();ctx.fillStyle=active?'#f59e0b':'#ffffff';ctx.strokeStyle=active?'#7c2d12':run.color;ctx.lineWidth=2/projectData.viewerState.zoom;ctx.beginPath();ctx.arc(pt.x,pt.y,(active?6:4.5)/projectData.viewerState.zoom,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.restore()})))}
-function findVertexAt(p){let best=null,min=10/projectData.viewerState.zoom;projectData.pipeRuns.forEach(run=>run.segments.forEach(seg=>[seg.start,seg.end].forEach(pt=>{const d=Math.hypot(p.x-pt.x,p.y-pt.y);if(d<min){min=d;best={runId:run.id,chainId:seg.chainId,x:pt.x,y:pt.y}}})));return best}
-function moveConnectedVertex(vertex,to){const run=projectData.pipeRuns.find(r=>r.id===vertex.runId);if(!run)return;run.segments.forEach(seg=>{if(seg.chainId!==vertex.chainId)return;['start','end'].forEach(side=>{const pt=seg[side];if(Math.hypot(pt.x-vertex.x,pt.y-vertex.y)<0.5)seg[side]={x:to.x,y:to.y}})});vertex.x=to.x;vertex.y=to.y;updatePipeRunCalculations(run.id)}
-function setMode(mode){currentMode=mode;pdfViewer.className=mode+'-mode';$('draw-mode-btn').classList.toggle('active',mode==='draw');$('select-mode-btn').classList.toggle('active',mode==='select');$('edit-vertices-btn').classList.toggle('active',mode==='edit-vertices');$('move-tag-btn').classList.toggle('active',mode==='move-tag');if(mode!=='select')selectedSegment=null;if(mode!=='edit-vertices')selectedVertex=null;if(mode!=='move-tag')selectedTagRunId=null;updateSelectionStatus();redrawAllLines()}
+function redrawAllLines(){ctx.clearRect(0,0,drawingCanvas.width,drawingCanvas.height);projectData.pipeRuns.forEach(run=>run.segments.forEach((seg,i)=>drawSegment(seg,run,!!selectedSegment&&selectedSegment.runId===run.id&&selectedSegment.index===i)));projectData.photos.forEach((p,i)=>{ctx.save();ctx.fillStyle='#7c3aed';ctx.strokeStyle='#fff';ctx.lineWidth=3;ctx.beginPath();ctx.arc(p.x,p.y,22,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.fillStyle='#fff';ctx.font='bold 16px Arial';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('P'+(i+1),p.x,p.y);ctx.restore()});if(chainPoint&&$('chain-lines-input').checked){ctx.save();ctx.fillStyle='#16a34a';ctx.strokeStyle='#ffffff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(chainPoint.x,chainPoint.y,6/projectData.viewerState.zoom,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.restore()}}
+function setMode(mode){currentMode=mode;pdfViewer.className=mode+'-mode';$('draw-mode-btn').classList.toggle('active',mode==='draw');$('select-mode-btn').classList.toggle('active',mode==='select');$('photo-mode-btn').classList.toggle('active',mode==='photo');if(mode!=='select'){selectedSegment=null;updateSelectionStatus();redrawAllLines()}}
 function locked(a,b,shift){if(!shift)return b;return Math.abs(b.x-a.x)>Math.abs(b.y-a.y)?{x:b.x,y:a.y}:{x:a.x,y:b.y}}
-function endChain(){chainPoint=null;currentChainId=null;$('end-chain-btn').disabled=true;redrawAllLines()}
+function nearestEndpoint(p,excludePoint=null){let best=null,min=14/projectData.viewerState.zoom;projectData.pipeRuns.forEach(run=>run.segments.forEach(seg=>[seg.start,seg.end].forEach(pt=>{if(excludePoint&&Math.hypot(pt.x-excludePoint.x,pt.y-excludePoint.y)<0.5)return;const d=Math.hypot(p.x-pt.x,p.y-pt.y);if(d<min){min=d;best={x:pt.x,y:pt.y}}})));return best||p}
+function endChain(){chainPoint=null;$('end-chain-btn').disabled=true}
 function updateChainControls(){const enabled=$('chain-lines-input').checked;$('end-chain-btn').disabled=!enabled||!chainPoint;if(!enabled)endChain()}
 function distanceToSegment(p,a,b){const dx=b.x-a.x,dy=b.y-a.y,l2=dx*dx+dy*dy;if(!l2)return Math.hypot(p.x-a.x,p.y-a.y);let t=((p.x-a.x)*dx+(p.y-a.y)*dy)/l2;t=Math.max(0,Math.min(1,t));return Math.hypot(p.x-(a.x+t*dx),p.y-(a.y+t*dy))}
 function selectAt(p){let best=null,min=12/projectData.viewerState.zoom;projectData.pipeRuns.forEach(run=>run.segments.forEach((seg,i)=>{const d=distanceToSegment(p,seg.start,seg.end);if(d<min){min=d;best={runId:run.id,index:i}}}));selectedSegment=best;updateSelectionStatus();redrawAllLines()}
-function updateSelectionStatus(){const has=!!selectedSegment;$('delete-selected-btn').disabled=!has;$('selection-status').innerHTML=has?'<span class="selected-info">Line selected.</span> Use Delete selected or press Delete.':'No line selected.'}
+function updateSelectionStatus(){const has=!!selectedSegment;$('delete-selected-btn').disabled=!has;$('selection-status').innerHTML=has?'<span class="selected-info">Line selected.</span> Use Delete selected or press Delete.':'No line selected.'}function addPhotoMarker(p){snapshot();projectData.photos.push({id:uid(),x:p.x,y:p.y,title:'',description:'',image:null});renderPhotoList();redrawAllLines();setMode('draw')}
+function compressImage(file){return new Promise((res,rej)=>{const url=URL.createObjectURL(file),im=new Image();im.onload=()=>{const MAX=2400,sc=Math.min(1,MAX/Math.max(im.naturalWidth,im.naturalHeight)),c=document.createElement('canvas');c.width=Math.round(im.naturalWidth*sc);c.height=Math.round(im.naturalHeight*sc);const g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,c.width,c.height);g.imageSmoothingEnabled=true;g.imageSmoothingQuality='high';g.drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(url);res(c.toDataURL('image/jpeg',.9))};im.onerror=()=>{URL.revokeObjectURL(url);rej(new Error('Image could not be loaded'))};im.src=url})}
+function renderPhotoList(){const list=$('photo-list');list.innerHTML='';projectData.photos.forEach((p,i)=>{const d=document.createElement('div');d.className='photo-entry';d.innerHTML=`<b>Photo P${i+1}</b><input class="pt" placeholder="Title" value="${p.title||''}"><textarea class="pd" placeholder="Description">${p.description||''}</textarea><input class="pf" type="file" accept="image/*">${p.image?`<img src="${p.image}">`:''}<div class="photo-actions"><button class="del danger">Delete</button></div>`;d.querySelector('.pt').oninput=e=>p.title=e.target.value;d.querySelector('.pd').oninput=e=>p.description=e.target.value;d.querySelector('.pf').onchange=async e=>{if(e.target.files[0]){try{p.image=await compressImage(e.target.files[0]);imageCache.set(p.id,p.image);renderPhotoList()}catch(err){alert(err.message)}}};d.querySelector('.del').onclick=()=>{projectData.photos=projectData.photos.filter(x=>x.id!==p.id);renderPhotoList();redrawAllLines()};list.appendChild(d)});if(!projectData.photos.length)list.innerHTML='<span class="hint">No photos added.</span>'}
+
 function deleteSelected(){if(!selectedSegment)return;snapshot();const run=projectData.pipeRuns.find(r=>r.id===selectedSegment.runId);if(run){run.segments.splice(selectedSegment.index,1);updatePipeRunCalculations(run.id)}selectedSegment=null;updateSelectionStatus();redrawAllLines()}
 pdfUpload.addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;if(f.type!=='application/pdf')return alert('Please select a PDF file.');const r=new FileReader();r.onload=()=>pdfjsLib.getDocument(new Uint8Array(r.result)).promise.then(pdf=>{pdfDoc=pdf;pdfName.textContent=f.name;projectData.viewerState={zoom:1,pan:{x:0,y:0}};renderPage(1)});r.readAsArrayBuffer(f)});
 $('zoom-in-btn').onclick=()=>{if(pdfDoc){projectData.viewerState.zoom*=1.2;updateViewerTransform()}};$('zoom-out-btn').onclick=()=>{if(pdfDoc){projectData.viewerState.zoom/=1.2;updateViewerTransform()}};
-drawingCanvas.oncontextmenu=e=>e.preventDefault();drawingCanvas.onmousedown=e=>{if(!pdfDoc)return;if(e.button===2){isPanning=true;lastPanPoint={x:e.clientX,y:e.clientY};return}if(e.button===0){const p=getPoint(e);if(currentMode==='select')selectAt(p);else if(currentMode==='edit-vertices'){selectedVertex=findVertexAt(p);if(selectedVertex){snapshot();isDraggingVertex=true;vertexDragMoved=false;pdfViewer.style.cursor='grabbing';redrawAllLines()}}else if(currentMode==='move-tag'){selectedTagRunId=findTagAt(p);if(selectedTagRunId){snapshot();isDraggingTag=true;tagDragMoved=false;pdfViewer.style.cursor='grabbing';redrawAllLines()}}else{startPoint=(currentMode==='draw'&&$('chain-lines-input').checked&&chainPoint)?{...chainPoint}:{...p};isDrawing=true}}};
-document.addEventListener('mousemove',e=>{if(isPanning){projectData.viewerState.pan.x+=e.clientX-lastPanPoint.x;projectData.viewerState.pan.y+=e.clientY-lastPanPoint.y;lastPanPoint={x:e.clientX,y:e.clientY};updateViewerTransform()}else if(isDraggingVertex&&selectedVertex){const p=getPoint(e);vertexDragMoved=true;moveConnectedVertex(selectedVertex,p);redrawAllLines()}else if(isDraggingTag&&selectedTagRunId){const p=getPoint(e),run=projectData.pipeRuns.find(r=>r.id===selectedTagRunId);if(run){tagDragMoved=true;run.tagPosition={x:p.x,y:p.y};redrawAllLines()}}else if(isDrawing){const end=locked(startPoint,getPoint(e),e.shiftKey);redrawAllLines();ctx.save();ctx.strokeStyle='#e11d48';ctx.lineWidth=2;ctx.setLineDash([]);ctx.beginPath();ctx.moveTo(startPoint.x,startPoint.y);ctx.lineTo(end.x,end.y);ctx.stroke();ctx.restore()}});
-document.addEventListener('mouseup',e=>{if(e.button===2){isPanning=false;return}if(e.button===0&&isDraggingVertex){isDraggingVertex=false;pdfViewer.style.cursor='grab';if(!vertexDragMoved&&undoStack.length){undoStack.pop();$('undo-btn').disabled=!undoStack.length}redrawAllLines();return}if(e.button===0&&isDraggingTag){isDraggingTag=false;pdfViewer.style.cursor='move';if(!tagDragMoved&&undoStack.length){undoStack.pop();$('undo-btn').disabled=!undoStack.length}redrawAllLines();return}if(e.button!==0||!isDrawing)return;isDrawing=false;const end=locked(startPoint,getPoint(e),e.shiftKey);if(Math.hypot(end.x-startPoint.x,end.y-startPoint.y)<2){redrawAllLines();return}if(currentMode==='calibrate')handleCalibration(startPoint,end);else if(currentMode==='draw'){if(!activePipeRunId)alert('Please select a pipe run first.');else if(!projectData.scale)alert('Please set the scale first.');else{snapshot();const run=projectData.pipeRuns.find(r=>r.id===activePipeRunId);if(!currentChainId)currentChainId=uid();run.segments.push({start:{...startPoint},end:{...end},chainId:currentChainId,lineWidth:+$('line-width-input').value||3,lineStyle:$('line-style-select').value});updatePipeRunCalculations(run.id);if($('chain-lines-input').checked){chainPoint={...end};$('end-chain-btn').disabled=false}else endChain()}}redrawAllLines()});
+drawingCanvas.oncontextmenu=e=>e.preventDefault();drawingCanvas.onmousedown=e=>{if(!pdfDoc)return;if(e.button===2){isPanning=true;lastPanPoint={x:e.clientX,y:e.clientY};return}if(e.button===0){const p=getPoint(e);if(currentMode==='select')selectAt(p);else if(currentMode==='photo'){addPhotoMarker(p);return}else{startPoint=(currentMode==='draw'&&$('chain-lines-input').checked&&chainPoint)?{...chainPoint}:nearestEndpoint(p);isDrawing=true}}};
+document.addEventListener('mousemove',e=>{if(isPanning){projectData.viewerState.pan.x+=e.clientX-lastPanPoint.x;projectData.viewerState.pan.y+=e.clientY-lastPanPoint.y;lastPanPoint={x:e.clientX,y:e.clientY};updateViewerTransform()}else if(isDrawing){let end=locked(startPoint,getPoint(e),e.shiftKey);end=nearestEndpoint(end,startPoint);redrawAllLines();ctx.save();ctx.strokeStyle='#e11d48';ctx.lineWidth=2;ctx.setLineDash([]);ctx.beginPath();ctx.moveTo(startPoint.x,startPoint.y);ctx.lineTo(end.x,end.y);ctx.stroke();ctx.restore()}});
+document.addEventListener('mouseup',e=>{if(e.button===2){isPanning=false;return}if(e.button!==0||!isDrawing)return;isDrawing=false;let end=locked(startPoint,getPoint(e),e.shiftKey);end=nearestEndpoint(end,startPoint);if(Math.hypot(end.x-startPoint.x,end.y-startPoint.y)<2){redrawAllLines();return}if(currentMode==='calibrate')handleCalibration(startPoint,end);else if(currentMode==='draw'){if(!activePipeRunId)alert('Please select a pipe run first.');else if(!projectData.scale)alert('Please set the scale first.');else{snapshot();const run=projectData.pipeRuns.find(r=>r.id===activePipeRunId);const requiredStyle=run.installationStatus==='new'?'dotted':'solid';run.segments.push({start:{...startPoint},end:{...end},lineWidth:+$('line-width-input').value||3,lineStyle:requiredStyle});updatePipeRunCalculations(run.id);if($('chain-lines-input').checked){chainPoint={...end};$('end-chain-btn').disabled=false}}}redrawAllLines()});
 function handleCalibration(a,b){const px=Math.hypot(b.x-a.x,b.y-a.y),m=parseFloat(prompt('Enter the real-world length in meters:'));if(m>0){snapshot();projectData.scale=px/m;updateScale();updateAllPipeRunCalculations()}else alert('Invalid length.');setMode('draw')}
 function updateScale(){$('scale-display').textContent=projectData.scale?`Scale: 1m = ${projectData.scale.toFixed(2)}px`:'Scale not set.'}
-$('calibrate-btn').onclick=()=>{endChain();pdfDoc?setMode('calibrate'):alert('Please load a PDF first.')};$('draw-mode-btn').onclick=()=>setMode('draw');$('select-mode-btn').onclick=()=>{endChain();setMode('select')};$('edit-vertices-btn').onclick=()=>{endChain();setMode('edit-vertices')};$('move-tag-btn').onclick=()=>{endChain();setMode('move-tag')};$('undo-btn').onclick=()=>{isDraggingVertex=false;endChain();undo()};$('delete-selected-btn').onclick=deleteSelected;$('chain-lines-input').onchange=updateChainControls;$('end-chain-btn').onclick=endChain;
-document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();isDraggingVertex=false;endChain();undo()}else if((e.key==='Delete'||e.key==='Backspace')&&selectedSegment&&!['INPUT','SELECT','TEXTAREA'].includes(document.activeElement.tagName)){e.preventDefault();deleteSelected()}});
+$('calibrate-btn').onclick=()=>{endChain();pdfDoc?setMode('calibrate'):alert('Please load a PDF first.')};$('draw-mode-btn').onclick=()=>setMode('draw');$('select-mode-btn').onclick=()=>{endChain();setMode('select')};$('photo-mode-btn').onclick=()=>{endChain();setMode('photo')};$('undo-btn').onclick=()=>{endChain();undo()};$('delete-selected-btn').onclick=deleteSelected;$('chain-lines-input').onchange=updateChainControls;$('end-chain-btn').onclick=endChain;
+document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();undo()}else if((e.key==='Delete'||e.key==='Backspace')&&selectedSegment&&!['INPUT','SELECT','TEXTAREA'].includes(document.activeElement.tagName)){e.preventDefault();deleteSelected()}});
 $('resizer').onmousedown=e=>{e.preventDefault();const move=ev=>{if(ev.clientX>360&&ev.clientX<850)$('controls-panel').style.width=ev.clientX+'px'},up=()=>{document.removeEventListener('mousemove',move);document.removeEventListener('mouseup',up)};document.addEventListener('mousemove',move);document.addEventListener('mouseup',up)};
-function normalizeSegmentChains(segments){const assigned=new Set();segments.forEach((seg,i)=>{if(seg.chainId)return;const cid=uid(),queue=[i];while(queue.length){const idx=queue.pop();if(assigned.has(idx))continue;assigned.add(idx);segments[idx].chainId=cid;const pts=[segments[idx].start,segments[idx].end];segments.forEach((other,j)=>{if(assigned.has(j)||other.chainId)return;const connected=pts.some(a=>[other.start,other.end].some(b=>Math.hypot(a.x-b.x,a.y-b.y)<0.5));if(connected)queue.push(j)})}});return segments}
-function addPipeRunRow(data=null){const run=data||{id:uid(),color:'#ff0000',pipeTypeId:projectData.pipeTypes[0]?.id||null,lengthX:0,lengthY:0,lengthZ:0,totalLength:0,volume:0,price:0,lineName:'',lineTag:'',tagFontSize:14,showTag:true,tagPosition:null,segments:[]};if(!data)projectData.pipeRuns.push(run);ensureTagDefaults(run);run.segments=normalizeSegmentChains((run.segments||[]).map(s=>({...s,lineWidth:s.lineWidth||3,lineStyle:s.lineStyle||'solid'})));const row=document.createElement('tr');row.dataset.id=run.id;row.innerHTML=`<td class="color-cell" style="background-color:${run.color}" title="Click to change line color"><input type="color" class="color-swatch" value="${run.color}"></td><td><input type="text" class="line-name" value="${run.lineName.replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" placeholder="Warm water production hall"></td><td><input type="text" class="line-tag" value="${run.lineTag.replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" placeholder="WW-101"></td><td><input type="number" class="tag-font-size" value="${run.tagFontSize}" min="6" max="72" step="1" title="Tag font size in pixels"></td><td><input type="checkbox" class="show-tag" ${run.showTag?'checked':''}></td><td><select class="pipe-type-select"></select></td><td class="length-x">0.00</td><td class="length-y">0.00</td><td><input type="number" class="length-z" value="${run.lengthZ||0}" min="0" step="0.1"></td><td class="total-length">0.00</td><td class="volume">0.00</td><td class="price">0.00</td><td><button class="remove-row-btn">−</button></td>`;registerBody.appendChild(row);updatePipeTypeDropdown(row.querySelector('.pipe-type-select'),run.pipeTypeId);row.onclick=()=>setActivePipeRun(run.id);row.querySelector('.line-name').onchange=e=>{snapshot();run.lineName=e.target.value};row.querySelector('.line-tag').oninput=e=>{run.lineTag=e.target.value;redrawAllLines()};row.querySelector('.line-tag').onchange=e=>{snapshot();run.lineTag=e.target.value;redrawAllLines()};row.querySelector('.tag-font-size').onchange=e=>{snapshot();run.tagFontSize=Math.max(6,Math.min(72,+e.target.value||14));e.target.value=run.tagFontSize;redrawAllLines()};row.querySelector('.show-tag').onchange=e=>{snapshot();run.showTag=e.target.checked;redrawAllLines()};row.querySelector('.color-swatch').oninput=e=>{snapshot();run.color=e.target.value;e.target.closest('.color-cell').style.backgroundColor=run.color;redrawAllLines()};row.querySelector('.pipe-type-select').onchange=e=>{snapshot();run.pipeTypeId=+e.target.value;updatePipeRunCalculations(run.id)};row.querySelector('.length-z').onchange=e=>{snapshot();run.lengthZ=+e.target.value||0;updatePipeRunCalculations(run.id)};row.querySelector('.remove-row-btn').onclick=e=>{e.stopPropagation();snapshot();projectData.pipeRuns=projectData.pipeRuns.filter(r=>r.id!==run.id);if(selectedSegment?.runId===run.id)selectedSegment=null;row.remove();if(activePipeRunId===run.id)activePipeRunId=null;redrawAllLines();updateSelectionStatus()};updatePipeRunCalculations(run.id)}
+function addPipeRunRow(data=null){const run=data||{id:uid(),color:'#ff0000',pipeTypeId:projectData.pipeTypes[0]?.id||null,position:'',installationStatus:'existing',lengthX:0,lengthY:0,lengthZ:0,totalLength:0,volume:0,price:0,segments:[]};run.position=run.position||'';run.installationStatus=run.installationStatus||'existing';if(!data)projectData.pipeRuns.push(run);run.segments=(run.segments||[]).map(s=>({...s,lineWidth:s.lineWidth||3,lineStyle:s.lineStyle||'solid'}));const row=document.createElement('tr');row.dataset.id=run.id;row.innerHTML=`<td><input type="color" class="color-swatch" value="${run.color}"></td><td><select class="pipe-type-select"></select></td><td><input type="text" class="position-input" value="${String(run.position||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" placeholder="e.g. P-01"></td><td><select class="status-select"><option value="existing">Existing</option><option value="new">New</option></select></td><td class="length-x">0.00</td><td class="length-y">0.00</td><td><input type="number" class="length-z" value="${run.lengthZ||0}" min="0" step="0.1"></td><td class="total-length">0.00</td><td class="volume">0.00</td><td class="price">0.00</td><td><button class="remove-row-btn">−</button></td>`;registerBody.appendChild(row);updatePipeTypeDropdown(row.querySelector('.pipe-type-select'),run.pipeTypeId);row.onclick=()=>setActivePipeRun(run.id);row.querySelector('.color-swatch').oninput=e=>{snapshot();run.color=e.target.value;redrawAllLines()};row.querySelector('.pipe-type-select').onchange=e=>{snapshot();run.pipeTypeId=+e.target.value;updatePipeRunCalculations(run.id)};row.querySelector('.position-input').onchange=e=>{snapshot();run.position=e.target.value.trim()};const statusSelect=row.querySelector('.status-select');statusSelect.value=run.installationStatus;statusSelect.onchange=e=>{snapshot();run.installationStatus=e.target.value;run.segments.forEach(seg=>seg.lineStyle=run.installationStatus==='new'?'dotted':'solid');redrawAllLines()};row.querySelector('.length-z').onchange=e=>{snapshot();run.lengthZ=+e.target.value||0;updatePipeRunCalculations(run.id)};row.querySelector('.remove-row-btn').onclick=e=>{e.stopPropagation();snapshot();projectData.pipeRuns=projectData.pipeRuns.filter(r=>r.id!==run.id);if(selectedSegment?.runId===run.id)selectedSegment=null;row.remove();if(activePipeRunId===run.id)activePipeRunId=null;redrawAllLines();updateSelectionStatus()};updatePipeRunCalculations(run.id)}
 function rebuildRegister(){registerBody.innerHTML='';projectData.pipeRuns.forEach(addPipeRunRow);if(activePipeRunId&&!projectData.pipeRuns.some(r=>r.id===activePipeRunId))activePipeRunId=null;if(activePipeRunId)setActivePipeRun(activePipeRunId)}
 function setActivePipeRun(id){if(activePipeRunId!==id)endChain();activePipeRunId=id;document.querySelectorAll('#register-body tr').forEach(r=>r.classList.toggle('active-row',+r.dataset.id===id));setMode('draw')}
 function updatePipeRunCalculations(id){const r=projectData.pipeRuns.find(x=>x.id===id),row=document.querySelector(`tr[data-id="${id}"]`);if(!r||!row)return;let x=0,y=0,d=0;if(projectData.scale)r.segments.forEach(s=>{const dx=Math.abs(s.end.x-s.start.x),dy=Math.abs(s.end.y-s.start.y);x+=dx/projectData.scale;y+=dy/projectData.scale;d+=Math.hypot(dx,dy)/projectData.scale});r.lengthX=x;r.lengthY=y;r.totalLength=d+(+r.lengthZ||0);const pt=projectData.pipeTypes.find(p=>p.id===r.pipeTypeId);r.volume=pt?Math.PI*Math.pow(pt.diameter/2000,2)*r.totalLength*1000:0;r.price=pt?r.totalLength*pt.price:0;row.querySelector('.length-x').textContent=x.toFixed(2);row.querySelector('.length-y').textContent=y.toFixed(2);row.querySelector('.total-length').textContent=r.totalLength.toFixed(2);row.querySelector('.volume').textContent=r.volume.toFixed(2);row.querySelector('.price').textContent=r.price.toFixed(2)}
@@ -74,11 +79,305 @@ function updateAllPipeRunCalculations(){projectData.pipeRuns.forEach(r=>updatePi
 function updatePipeTypeDropdown(sel,id){sel.innerHTML='';projectData.pipeTypes.forEach(p=>sel.add(new Option(p.name,p.id)));if(id!=null)sel.value=id}
 function updateAllDropdowns(){document.querySelectorAll('.pipe-type-select').forEach(sel=>{const run=projectData.pipeRuns.find(r=>r.id===+sel.closest('tr').dataset.id);updatePipeTypeDropdown(sel,run?.pipeTypeId)})}
 $('add-row-btn').onclick=e=>{e.stopPropagation();snapshot();addPipeRunRow();setActivePipeRun(projectData.pipeRuns.at(-1).id)};
-const modal=$('pipe-db-modal');function renderPipeDb(){const list=$('pipe-db-list');list.innerHTML='';projectData.pipeTypes.forEach(p=>{const d=document.createElement('div');d.className='pipe-db-entry';d.innerHTML=`<span>${p.name} (ID: ${p.diameter} mm, Price: ${p.price}/m)</span><div class="pipe-db-actions"><button class="edit-pipe-btn">Edit</button><button class="delete-pipe-btn">Delete</button></div>`;d.querySelector('.edit-pipe-btn').onclick=()=>{editingPipeTypeId=p.id;$('pipe-name-input').value=p.name;$('pipe-diameter-input').value=p.diameter;$('pipe-price-input').value=p.price;$('add-pipe-type-btn').textContent='Update Pipe'};d.querySelector('.delete-pipe-btn').onclick=()=>{if(projectData.pipeRuns.some(r=>r.pipeTypeId===p.id))return alert('This pipe type is in use.');if(confirm('Delete this pipe type?')){snapshot();projectData.pipeTypes=projectData.pipeTypes.filter(x=>x.id!==p.id);renderPipeDb();updateAllDropdowns()}};list.appendChild(d)})}
-$('setup-pipes-btn').onclick=()=>{renderPipeDb();modal.style.display='block'};document.querySelector('.close-btn').onclick=()=>modal.style.display='none';window.onclick=e=>{if(e.target===modal)modal.style.display='none'};$('add-pipe-type-btn').onclick=()=>{const name=$('pipe-name-input').value.trim(),diameter=+$('pipe-diameter-input').value,price=+$('pipe-price-input').value;if(!name||!(diameter>0)||price<0)return alert('Please enter valid values.');snapshot();if(editingPipeTypeId){const p=projectData.pipeTypes.find(x=>x.id===editingPipeTypeId);Object.assign(p,{name,diameter,price})}else projectData.pipeTypes.push({id:uid(),name,diameter,price});editingPipeTypeId=null;$('pipe-name-input').value=$('pipe-diameter-input').value=$('pipe-price-input').value='';$('add-pipe-type-btn').textContent='Add Pipe';renderPipeDb();updateAllDropdowns();updateAllPipeRunCalculations()};
-$('export-project-btn').onclick=()=>{const blob=new Blob([JSON.stringify(projectData,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='piping-takeoff-project.json';a.click();URL.revokeObjectURL(a.href)};$('import-project-btn').onclick=()=>$('import-project-input').click();$('import-project-input').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);projectData=d;projectData.viewerState=projectData.viewerState||{zoom:1,pan:{x:0,y:0}};activePipeRunId=null;selectedSegment=null;selectedVertex=null;chainPoint=null;currentChainId=null;undoStack=[];rebuildRegister();renderPipeDb();updateScale();redrawAllLines();$('undo-btn').disabled=true}catch(err){alert('Invalid project file.')}};r.readAsText(f);e.target.value=''};
-function bbox(){let x1=Infinity,y1=Infinity,x2=-Infinity,y2=-Infinity;projectData.pipeRuns.forEach(r=>{r.segments.forEach(s=>{x1=Math.min(x1,s.start.x,s.end.x);y1=Math.min(y1,s.start.y,s.end.y);x2=Math.max(x2,s.start.x,s.end.x);y2=Math.max(y2,s.start.y,s.end.y)});ensureTagDefaults(r);if(r.showTag&&r.lineTag){x1=Math.min(x1,r.tagPosition.x);y1=Math.min(y1,r.tagPosition.y-r.tagFontSize);x2=Math.max(x2,r.tagPosition.x+r.lineTag.length*r.tagFontSize*.72);y2=Math.max(y2,r.tagPosition.y+r.tagFontSize)}});return isFinite(x1)?{x:Math.max(0,x1-50),y:Math.max(0,y1-50),width:x2-x1+100,height:y2-y1+100}:null}
-$('export-a3-pdf-btn').onclick=async()=>{if(!pdfDoc)return alert('Please load a PDF first.');const b=bbox();if(!b)return alert('No lines to export.');const title=prompt('Title:','Piping Takeoff Report');if(!title)return;const {jsPDF}=window.jspdf,doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a3'});doc.setFontSize(20);doc.text(title,210,14,{align:'center'});const page=await pdfDoc.getPage(currentPageNum),factor=2,view=page.getViewport({scale:3}),full=document.createElement('canvas');full.width=view.width;full.height=view.height;await page.render({canvasContext:full.getContext('2d'),viewport:view}).promise;const corrected={x:b.x*factor,y:b.y*factor,width:b.width*factor,height:b.height*factor},crop=document.createElement('canvas');crop.width=corrected.width;crop.height=corrected.height;const c=crop.getContext('2d');c.drawImage(full,corrected.x,corrected.y,corrected.width,corrected.height,0,0,corrected.width,corrected.height);projectData.pipeRuns.forEach(run=>run.segments.forEach(seg=>drawSegment(seg,run,false,c,factor,{x:corrected.x,y:corrected.y})));drawAllTags(c,factor,{x:corrected.x,y:corrected.y});const maxW=260,maxH=255,ratio=crop.width/crop.height;let w=maxW,h=w/ratio;if(h>maxH){h=maxH;w=h*ratio}doc.addImage(crop.toDataURL('image/png'),'PNG',150+(260-w)/2,22,w,h);let y=24;doc.setFontSize(9);doc.text('Piping register',10,y);y+=6;projectData.pipeRuns.forEach((r,i)=>{const pt=projectData.pipeTypes.find(p=>p.id===r.pipeTypeId);doc.setTextColor(r.color);doc.text(`${i+1}. ${pt?.name||'N/A'} | ${r.totalLength.toFixed(2)} m | ${r.volume.toFixed(2)} L | ${r.price.toFixed(2)}`,10,y);y+=6;if(y>285){doc.addPage();y=15}});doc.setTextColor(0);doc.save(title.replace(/[^a-z0-9_-]+/gi,'_')+'.pdf')};
-function init(){addPipeRunRow();setActivePipeRun(projectData.pipeRuns[0].id);renderPipeDb();updateSelectionStatus()}init();
+const modal=$('pipe-db-modal');function renderPipeDb(){const list=$('pipe-db-list');list.innerHTML='';projectData.pipeTypes.forEach(p=>{const d=document.createElement('div');d.className='pipe-db-entry';d.innerHTML=`<span>${p.name} (ID: ${p.diameter} mm, Price: ${p.price}/m)</span><div class="pipe-db-actions"><button class="edit-pipe-btn">Edit</button><button class="delete-pipe-btn">Delete</button></div>`;d.querySelector('.edit-pipe-btn').onclick=()=>{editingPipeTypeId=p.id;$('pipe-name-input').value=p.name;$('pipe-material-input').value=p.material||'';$('pipe-diameter-input').value=p.diameter;$('pipe-outer-diameter-input').value=p.outerDiameter||'';$('pipe-medium-input').value=p.medium||'';$('pipe-pressure-input').value=p.pressureClass||'';$('pipe-insulation-input').value=p.insulation||'';$('pipe-notes-input').value=p.notes||'';$('pipe-price-input').value=p.price;$('add-pipe-type-btn').textContent='Update Pipe'};d.querySelector('.delete-pipe-btn').onclick=()=>{if(projectData.pipeRuns.some(r=>r.pipeTypeId===p.id))return alert('This pipe type is in use.');if(confirm('Delete this pipe type?')){snapshot();projectData.pipeTypes=projectData.pipeTypes.filter(x=>x.id!==p.id);renderPipeDb();updateAllDropdowns()}};list.appendChild(d)})}
+$('setup-pipes-btn').onclick=()=>{renderPipeDb();modal.style.display='block'};document.querySelector('.close-btn').onclick=()=>modal.style.display='none';window.onclick=e=>{if(e.target===modal)modal.style.display='none'};$('add-pipe-type-btn').onclick=()=>{const name=$('pipe-name-input').value.trim(),material=$('pipe-material-input').value.trim(),diameter=+$('pipe-diameter-input').value,outerDiameter=+$('pipe-outer-diameter-input').value||0,medium=$('pipe-medium-input').value.trim(),pressureClass=$('pipe-pressure-input').value.trim(),insulation=$('pipe-insulation-input').value.trim(),notes=$('pipe-notes-input').value.trim(),price=+$('pipe-price-input').value;if(!name||!(diameter>0)||price<0)return alert('Please enter valid values.');snapshot();if(editingPipeTypeId){const p=projectData.pipeTypes.find(x=>x.id===editingPipeTypeId);Object.assign(p,{name,material,diameter,outerDiameter,medium,pressureClass,insulation,notes,price})}else projectData.pipeTypes.push({id:uid(),name,material,diameter,outerDiameter,medium,pressureClass,insulation,notes,price});editingPipeTypeId=null;$('pipe-name-input').value=$('pipe-diameter-input').value=$('pipe-price-input').value='';$('add-pipe-type-btn').textContent='Add Pipe';renderPipeDb();updateAllDropdowns();updateAllPipeRunCalculations()};
+$('export-project-btn').onclick=()=>{const blob=new Blob([JSON.stringify(projectData,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='piping-takeoff-project.json';a.click();URL.revokeObjectURL(a.href)};$('import-project-btn').onclick=()=>$('import-project-input').click();$('import-project-input').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);projectData=d;projectData.photos=projectData.photos||[];projectData.viewerState=projectData.viewerState||{zoom:1,pan:{x:0,y:0}};activePipeRunId=null;selectedSegment=null;undoStack=[];rebuildRegister();renderPipeDb();updateScale();redrawAllLines();$('undo-btn').disabled=true}catch(err){alert('Invalid project file.')}};r.readAsText(f);e.target.value=''};
+function bbox(){let x1=Infinity,y1=Infinity,x2=-Infinity,y2=-Infinity;projectData.pipeRuns.forEach(r=>r.segments.forEach(s=>{x1=Math.min(x1,s.start.x,s.end.x);y1=Math.min(y1,s.start.y,s.end.y);x2=Math.max(x2,s.start.x,s.end.x);y2=Math.max(y2,s.start.y,s.end.y)}));return isFinite(x1)?{x:Math.max(0,x1-50),y:Math.max(0,y1-50),width:x2-x1+100,height:y2-y1+100}:null}
+/* ======================================================================
+   A3 PDF EXPORT  (v5)
+   - Plan: rendered at real print resolution (200/300/450 dpi), optional crop
+     to the drawn area, lossless PNG option, run numbers + photo markers
+   - Table: A3 landscape, readable font, wrapped cells, zebra rows, totals,
+     summary by pipe type
+   - Photos: aspect ratio preserved, page orientation follows the photo
+   ====================================================================== */
+const EXPORT_QUALITY={
+  standard:{dpi:200,type:'JPEG',jpeg:0.92},
+  high:{dpi:300,type:'PNG'},
+  max:{dpi:450,type:'PNG'}
+};
+const EXPORT_MAX_PIXELS=32e6, EXPORT_MAX_SIDE=14000;
+const exportModal=$('export-modal');
+
+function contentRegion(pageW,pageH,margin){
+  let x1=Infinity,y1=Infinity,x2=-Infinity,y2=-Infinity;
+  const add=(x,y,r=0)=>{x1=Math.min(x1,x-r);y1=Math.min(y1,y-r);x2=Math.max(x2,x+r);y2=Math.max(y2,y+r)};
+  projectData.pipeRuns.forEach(r=>r.segments.forEach(s=>{add(s.start.x,s.start.y);add(s.end.x,s.end.y)}));
+  projectData.photos.forEach(p=>add(p.x,p.y,26));
+  if(!isFinite(x1))return{x:0,y:0,width:pageW,height:pageH};
+  x1=Math.max(0,x1-margin);y1=Math.max(0,y1-margin);
+  x2=Math.min(pageW,x2+margin);y2=Math.min(pageH,y2+margin);
+  return{x:x1,y:y1,width:Math.max(50,x2-x1),height:Math.max(50,y2-y1)};
+}
+
+function drawBadge(c,x,y,r,text,color,fontPx){
+  c.save();
+  c.fillStyle='#fff';c.strokeStyle=color;c.lineWidth=Math.max(1,r*0.25);
+  c.beginPath();c.arc(x,y,r,0,Math.PI*2);c.fill();c.stroke();
+  c.fillStyle='#111';c.font='bold '+fontPx+'px Arial';c.textAlign='center';c.textBaseline='middle';
+  c.fillText(text,x,y);
+  c.restore();
+}
+
+async function renderPlan(o,q,maxW,maxH){
+  const page=await pdfDoc.getPage(currentPageNum);
+  const base=page.getViewport({scale:1.5});            // same coordinate system as the drawing
+  const region=o.crop?contentRegion(base.width,base.height,60):{x:0,y:0,width:base.width,height:base.height};
+  const ratio=region.width/region.height;
+  let w=maxW,h=w/ratio;
+  if(h>maxH){h=maxH;w=h*ratio}
+  // pixels per drawing unit so that the printed size has the requested dpi
+  let factor=(w/25.4*q.dpi)/region.width;
+  const pixels=region.width*region.height*factor*factor;
+  if(pixels>EXPORT_MAX_PIXELS)factor*=Math.sqrt(EXPORT_MAX_PIXELS/pixels);
+  const side=Math.max(region.width,region.height)*factor;
+  if(side>EXPORT_MAX_SIDE)factor*=EXPORT_MAX_SIDE/side;
+  const cw=Math.max(1,Math.round(region.width*factor)),ch=Math.max(1,Math.round(region.height*factor));
+  const cv=document.createElement('canvas');cv.width=cw;cv.height=ch;
+  const c=cv.getContext('2d');
+  c.fillStyle='#fff';c.fillRect(0,0,cw,ch);
+  await page.render({
+    canvasContext:c,
+    viewport:page.getViewport({scale:1.5*factor,offsetX:-region.x*factor,offsetY:-region.y*factor})
+  }).promise;
+  const off={x:region.x*factor,y:region.y*factor};
+  projectData.pipeRuns.forEach(run=>run.segments.forEach(seg=>drawSegment(seg,run,false,c,factor,off)));
+  const pxPerMm=cw/w;                                   // annotation sizes are defined in mm on the sheet
+  if(o.numbers){
+    projectData.pipeRuns.forEach((run,i)=>{
+      if(!run.segments.length)return;
+      let best=run.segments[0],bl=-1;
+      run.segments.forEach(s=>{const l=Math.hypot(s.end.x-s.start.x,s.end.y-s.start.y);if(l>bl){bl=l;best=s}});
+      const mx=(best.start.x+best.end.x)/2*factor-off.x,my=(best.start.y+best.end.y)/2*factor-off.y;
+      drawBadge(c,mx,my,3.2*pxPerMm,String(i+1),run.color,4.2*pxPerMm);
+    });
+  }
+  projectData.photos.forEach((p,i)=>{
+    const x=p.x*factor-off.x,y=p.y*factor-off.y;
+    c.save();
+    c.fillStyle='#7c3aed';c.strokeStyle='#fff';c.lineWidth=0.6*pxPerMm;
+    c.beginPath();c.arc(x,y,4.6*pxPerMm,0,Math.PI*2);c.fill();c.stroke();
+    c.fillStyle='#fff';c.font='bold '+(4.4*pxPerMm)+'px Arial';c.textAlign='center';c.textBaseline='middle';
+    c.fillText('P'+(i+1),x,y);
+    c.restore();
+  });
+  const data=q.type==='PNG'?cv.toDataURL('image/png'):cv.toDataURL('image/jpeg',q.jpeg);
+  cv.width=cv.height=0;                                  // release canvas memory
+  return{data,w,h};
+}
+
+/* Generic table renderer. rows: [{cells:[string|{text,bold,fill,color}|{swatch}], bold, fill}] */
+function renderTable(doc,cols,rows,y,o={}){
+  const x0=o.x??10,fs=o.fontSize??8.5,padX=2,padY=1.8,bottom=o.bottom??280,topY=o.topY??16,minH=o.minRowH??8;
+  const lhf=1.2,lh=fs*0.3528*lhf;
+  const tw=cols.reduce((s,c)=>s+c.w,0);
+  doc.setLineHeightFactor(lhf);
+  const put=(lines,x,top,h,align)=>{
+    if(lines.length===1)doc.text(lines[0],x,top+h/2,{align,baseline:'middle'});
+    else doc.text(lines,x,top+padY,{align,baseline:'top'});
+  };
+  const tx=(c,x,a)=>a==='right'?x+c.w-padX:a==='center'?x+c.w/2:x+padX;
+  const drawHeader=()=>{
+    doc.setFont('helvetica','bold');doc.setFontSize(fs-0.5);
+    const ls=cols.map(c=>doc.splitTextToSize(c.t,c.w-2*padX));
+    const hh=Math.max(...ls.map(l=>l.length))*lh+2*padY+0.5;
+    doc.setFillColor(44,62,80);doc.rect(x0,y,tw,hh,'F');
+    doc.setTextColor(255);
+    let x=x0;
+    cols.forEach((c,j)=>{const a=c.align||'left';put(ls[j],tx(c,x,a),y,hh,a);x+=c.w});
+    y+=hh;
+  };
+  drawHeader();
+  rows.forEach((row,ri)=>{
+    doc.setFontSize(fs);
+    const cells=row.cells.map((cell,j)=>{
+      const obj=(cell&&typeof cell==='object')?cell:{text:cell};
+      if(!obj.swatch){
+        doc.setFont('helvetica',(obj.bold||row.bold)?'bold':'normal');
+        obj.lines=doc.splitTextToSize(String(obj.text==null?'':obj.text),cols[j].w-2*padX);
+      }
+      return obj;
+    });
+    const rh=Math.max(minH,Math.max(...cells.map(c=>c.lines?c.lines.length:1))*lh+2*padY);
+    if(y+rh>bottom){doc.addPage('a3','landscape');y=topY;drawHeader()}
+    const fill=row.fill||(ri%2?[246,248,251]:null);
+    if(fill){doc.setFillColor(fill[0],fill[1],fill[2]);doc.rect(x0,y,tw,rh,'F')}
+    let x=x0;
+    doc.setDrawColor(210);doc.setLineWidth(0.2);
+    cells.forEach((cell,j)=>{
+      const c=cols[j],a=c.align||'left';
+      if(cell.fill){doc.setFillColor(cell.fill[0],cell.fill[1],cell.fill[2]);doc.rect(x+0.7,y+0.7,c.w-1.4,rh-1.4,'F')}
+      if(cell.swatch){
+        doc.setFillColor(cell.swatch);doc.rect(x+3,y+rh/2-2.5,c.w-6,5,'F');
+        doc.setDrawColor(120);doc.setLineWidth(0.15);doc.rect(x+3,y+rh/2-2.5,c.w-6,5,'S');
+        doc.setDrawColor(210);doc.setLineWidth(0.2);
+      }else{
+        const col=cell.color||[30,30,30];
+        doc.setTextColor(col[0],col[1],col[2]);
+        doc.setFont('helvetica',(cell.bold||row.bold)?'bold':'normal');
+        doc.setFontSize(fs);
+        put(cell.lines,tx(c,x,a),y,rh,a);
+      }
+      doc.line(x,y,x,y+rh);
+      x+=c.w;
+    });
+    doc.line(x,y,x,y+rh);
+    doc.line(x0,y+rh,x0+tw,y+rh);
+    y+=rh;
+  });
+  doc.setTextColor(0);
+  return y;
+}
+
+async function exportA3Pdf(o){
+  const {jsPDF}=window.jspdf;
+  const q=EXPORT_QUALITY[o.quality]||EXPORT_QUALITY.high;
+  const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a3',compress:true});
+  const PW=420,PH=297,M=10,num=v=>(+v||0).toFixed(2);
+
+  /* ---- Page 1: plan ---- */
+  doc.setFont('helvetica','bold');doc.setFontSize(20);doc.setTextColor(30);
+  doc.text(o.title,PW/2,14,{align:'center'});
+  const plan=await renderPlan(o,q,PW-2*M,PH-22-22);
+  const px=(PW-plan.w)/2,py=22;
+  doc.addImage(plan.data,q.type,px,py,plan.w,plan.h,undefined,'MEDIUM');
+  doc.setDrawColor(170);doc.setLineWidth(0.3);doc.setLineDashPattern([],0);doc.rect(px,py,plan.w,plan.h);
+  // legend
+  const ly=284;
+  doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(0);
+  doc.setDrawColor(0);doc.setLineWidth(0.8);
+  doc.setLineDashPattern([],0);doc.line(M,ly,M+20,ly);doc.text('Existing pipe',M+23,ly,{baseline:'middle'});
+  doc.setLineDashPattern([1,2],0);doc.line(M+60,ly,M+80,ly);doc.setLineDashPattern([],0);doc.text('New pipe',M+83,ly,{baseline:'middle'});
+  let lx=M+115;
+  if(o.numbers){
+    doc.setLineWidth(0.5);doc.setFillColor(255,255,255);doc.circle(lx,ly,2.4,'FD');
+    doc.text('Run number (No. in table)',lx+4,ly,{baseline:'middle'});lx+=60;
+  }
+  if(projectData.photos.length){
+    doc.setFillColor(124,58,237);doc.circle(lx,ly,2.4,'F');
+    doc.text('Photo marker (see photo pages)',lx+4,ly,{baseline:'middle'});
+  }
+
+  /* ---- Table pages ---- */
+  doc.addPage('a3','landscape');
+  let y=16;
+  doc.setFont('helvetica','bold');doc.setFontSize(16);doc.setTextColor(30);
+  doc.text('Piping information',M,y);
+  y+=5;
+  const cols=[
+    {t:'No.',w:10,align:'center'},{t:'Color',w:14,align:'center'},{t:'Position',w:36},{t:'Status',w:22,align:'center'},
+    {t:'Pipe type',w:44},{t:'Material',w:36},{t:'Medium',w:34},{t:'ID / OD (mm)',w:24,align:'center'},
+    {t:'X (m)',w:17,align:'right'},{t:'Y (m)',w:17,align:'right'},{t:'Z (m)',w:17,align:'right'},
+    {t:'Total (m)',w:20,align:'right'},{t:'Volume (L)',w:20,align:'right'},{t:'Price',w:22,align:'right'},
+    {t:'Pressure',w:32},{t:'Insulation',w:35}
+  ];
+  const sum={x:0,y:0,z:0,t:0,v:0,p:0};
+  const rows=projectData.pipeRuns.map((r,i)=>{
+    const p=projectData.pipeTypes.find(t=>t.id===r.pipeTypeId)||{};
+    const isNew=r.installationStatus==='new';
+    sum.x+=+r.lengthX||0;sum.y+=+r.lengthY||0;sum.z+=+r.lengthZ||0;sum.t+=+r.totalLength||0;sum.v+=+r.volume||0;sum.p+=+r.price||0;
+    return{cells:[
+      String(i+1),{swatch:r.color},r.position||'-',
+      {text:isNew?'New':'Existing',bold:true,fill:isNew?[214,240,222]:[232,236,241],color:isNew?[22,101,52]:[71,85,105]},
+      p.name||'-',p.material||'-',p.medium||'-',(p.diameter||'-')+' / '+(p.outerDiameter||'-'),
+      num(r.lengthX),num(r.lengthY),num(r.lengthZ),num(r.totalLength),num(r.volume),num(r.price),
+      p.pressureClass||'-',p.insulation||'-'
+    ]};
+  });
+  rows.push({bold:true,fill:[222,229,238],cells:['','','Total','','','','','',num(sum.x),num(sum.y),num(sum.z),num(sum.t),num(sum.v),num(sum.p),'','']});
+  y=renderTable(doc,cols,rows,y,{bottom:282});
+
+  /* ---- Summary by pipe type ---- */
+  const groups=new Map();
+  projectData.pipeRuns.forEach(r=>{
+    const p=projectData.pipeTypes.find(t=>t.id===r.pipeTypeId)||{name:'(unknown)'};
+    const g=groups.get(r.pipeTypeId)||{p,ex:0,nw:0,v:0,pr:0,n:0};
+    if(r.installationStatus==='new')g.nw+=+r.totalLength||0;else g.ex+=+r.totalLength||0;
+    g.v+=+r.volume||0;g.pr+=+r.price||0;g.n++;
+    groups.set(r.pipeTypeId,g);
+  });
+  if(groups.size){
+    if(y+40>282){doc.addPage('a3','landscape');y=16}else y+=10;
+    doc.setFont('helvetica','bold');doc.setFontSize(13);doc.setTextColor(30);
+    doc.text('Summary by pipe type',M,y);y+=4;
+    const sc=[
+      {t:'Pipe type',w:50},{t:'Material',w:40},{t:'ID / OD (mm)',w:28,align:'center'},{t:'Runs',w:18,align:'center'},
+      {t:'Existing (m)',w:28,align:'right'},{t:'New (m)',w:28,align:'right'},{t:'Total (m)',w:28,align:'right'},
+      {t:'Volume (L)',w:28,align:'right'},{t:'Price',w:30,align:'right'}
+    ];
+    const st={ex:0,nw:0,v:0,pr:0,n:0};
+    const sr=[...groups.values()].map(g=>{
+      st.ex+=g.ex;st.nw+=g.nw;st.v+=g.v;st.pr+=g.pr;st.n+=g.n;
+      return{cells:[g.p.name||'-',g.p.material||'-',(g.p.diameter||'-')+' / '+(g.p.outerDiameter||'-'),String(g.n),num(g.ex),num(g.nw),num(g.ex+g.nw),num(g.v),num(g.pr)]};
+    });
+    sr.push({bold:true,fill:[222,229,238],cells:['Total','','',String(st.n),num(st.ex),num(st.nw),num(st.ex+st.nw),num(st.v),num(st.pr)]});
+    y=renderTable(doc,sc,sr,y,{bottom:282});
+  }
+
+  /* ---- Photo pages (aspect ratio preserved) ---- */
+  if(o.photos){
+    for(let i=0;i<projectData.photos.length;i++){
+      const p=projectData.photos[i];
+      let ip=null,orient='portrait';
+      if(p.image){ip=doc.getImageProperties(p.image);orient=ip.width>=ip.height?'landscape':'portrait'}
+      doc.addPage('a4',orient);
+      const W=doc.internal.pageSize.getWidth(),H=doc.internal.pageSize.getHeight(),bw=W-2*M;
+      doc.setFont('helvetica','bold');doc.setFontSize(16);doc.setTextColor(30);
+      const head=doc.splitTextToSize('Photo P'+(i+1)+(p.title?' - '+p.title:''),bw);
+      doc.text(head.slice(0,2),M,16);
+      const top=16+Math.min(head.length,2)*7+2;
+      doc.setFont('helvetica','normal');doc.setFontSize(11);
+      let dl=doc.splitTextToSize(p.description||'',bw);
+      const maxDescLines=Math.max(3,Math.floor(H*0.16/5));
+      if(dl.length>maxDescLines){dl=dl.slice(0,maxDescLines);dl[maxDescLines-1]=dl[maxDescLines-1].replace(/\s*\S*$/,'')+' ...'}
+      const descH=dl.length?dl.length*5+4:0;
+      const boxH=H-top-descH-14;
+      let used=0;
+      if(ip){
+        const s=Math.min(bw/ip.width,boxH/ip.height),w=ip.width*s,h=ip.height*s;
+        doc.addImage(p.image,ip.fileType||'JPEG',(W-w)/2,top,w,h,undefined,'NONE');
+        doc.setDrawColor(200);doc.setLineWidth(0.2);doc.rect((W-w)/2,top,w,h);
+        used=h;
+      }else{
+        doc.setTextColor(130);doc.text('(no image)',M,top+6);used=10;
+      }
+      doc.setTextColor(30);
+      if(dl.length)doc.text(dl,M,top+used+7,{baseline:'top'});
+    }
+  }
+
+  /* ---- Footer on every page ---- */
+  const n=doc.getNumberOfPages(),stamp=new Date().toISOString().slice(0,10);
+  for(let i=1;i<=n;i++){
+    doc.setPage(i);
+    const W=doc.internal.pageSize.getWidth(),H=doc.internal.pageSize.getHeight();
+    doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(120);
+    doc.text(o.title+'  |  '+stamp,M,H-5);
+    doc.text('Page '+i+' / '+n,W-M,H-5,{align:'right'});
+  }
+  doc.save(o.title.replace(/[\\/:*?"<>|]+/g,'_')+'.pdf');
+}
+
+$('export-a3-pdf-btn').onclick=()=>{
+  if(!pdfDoc)return alert('Please load a PDF first.');
+  exportModal.style.display='block';
+};
+$('export-close-btn').onclick=$('export-cancel-btn').onclick=()=>exportModal.style.display='none';
+exportModal.addEventListener('click',e=>{if(e.target===exportModal)exportModal.style.display='none'});
+$('export-start-btn').onclick=async()=>{
+  const o={
+    title:$('export-title-input').value.trim()||'Piping Takeoff Report',
+    quality:$('export-quality-select').value,
+    crop:$('export-crop-input').checked,
+    numbers:$('export-number-input').checked,
+    photos:$('export-photos-input').checked
+  };
+  const btn=$('export-start-btn');
+  btn.disabled=true;btn.textContent='Creating PDF...';
+  try{await exportA3Pdf(o);exportModal.style.display='none'}
+  catch(err){console.error(err);alert('PDF export failed: '+((err&&err.message)||err))}
+  finally{btn.disabled=false;btn.textContent='Create PDF'}
+};
+function init(){addPipeRunRow();setActivePipeRun(projectData.pipeRuns[0].id);renderPipeDb();renderPhotoList();updateSelectionStatus()}init();
 </script>
 </body></html>
