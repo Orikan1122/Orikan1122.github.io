@@ -568,7 +568,7 @@ function valveKv(kvs,pos,chr){
   if(chr==='eq')k=Math.pow(50,x-1)*Math.min(1,x/0.05);else k=x;
   return kvs*Math.max(k,0.001);
 }
-const valveOpen=c=>c.s.ext&&c.s.ext.pos!=null?c.s.ext.pos:(c.type==='valve2'&&c.p.ctl==='dts'?c.s.pos:c.p.pos/100);
+const valveOpen=c=>c.s.ext&&c.s.ext.pos!=null?c.s.ext.pos:(c.type==='valve2'&&(c.p.ctl==='dts'||c.p.ctl==='tret')?c.s.pos:c.p.pos/100);
 const valvePos=c=>c.s.ext&&c.s.ext.pos!=null?c.s.ext.pos:(c.p.ctl==='manual'?c.p.pos/100:c.s.pos);
 function loadValves(){
   for(const c of model.comps){
@@ -1207,17 +1207,19 @@ valve3:{label:'3-Wege-Ventil',icon:'🔀',desc:'Verbraucher oder Bypass, konstan
 valve2:{label:'Regelventil',icon:'🎚️',desc:'Drosselt den Volumenstrom (Kvs, Stellung)',dim:[150,70],hk:'thru',
   ports:[{d:'in',s:'L',n:'Eingang'},{d:'out',s:'R',n:'Ausgang'}],
   params:[
-    {k:'ctl',l:'Stellung',t:'select',opts:[['manual','Manuell (oder über Regler)'],['dts','Geregelt auf Soll-Spreizung des Verbrauchers']],def:'manual',rebuild:1},
-    {k:'pos',l:'Öffnung',u:'%',min:0,max:100,step:1,def:100,show:p=>p.ctl!=='dts'},
+    {k:'ctl',l:'Stellung',t:'select',opts:[['manual','Manuell (oder über Regler)'],['dts','Geregelt auf Soll-Spreizung des Verbrauchers'],['tret','Geregelt auf Rücklauftemperatur am Wärmeübertrager']],def:'manual',rebuild:1},
+    {k:'pos',l:'Öffnung',u:'%',min:0,max:100,step:1,def:100,show:p=>p.ctl!=='dts'&&p.ctl!=='tret'},
     {k:'dts',l:'Soll-Spreizung Verbraucher',u:'K',min:3,max:80,step:1,def:30,show:p=>p.ctl==='dts'},
-    {k:'pminv',l:'Mindestöffnung',u:'%',min:0,max:100,step:1,def:4,show:p=>p.ctl==='dts'},
+    {k:'tret',l:'Soll-Rücklauftemperatur (Primärseite)',u:'°C',min:10,max:120,step:1,def:45,show:p=>p.ctl==='tret'},
+    {k:'tdir',l:'Bedeutung des Sollwerts',t:'select',opts:[['min','Rücklauf nicht unter den Sollwert (öffnet, wenn der Sekundär-Eintritt wärmer ist)'],['max','Rücklauf nicht über den Sollwert (schliesst, wenn nicht erreichbar)']],def:'min',show:p=>p.ctl==='tret'},
+    {k:'pminv',l:'Mindestöffnung',u:'%',min:0,max:100,step:1,def:4,show:p=>p.ctl==='dts'||p.ctl==='tret'},
     {k:'kvs',l:'Kvs-Wert',u:'m³/h',min:0.5,max:1000,step:0.5,def:10},
     {k:'chr',l:'Kennlinie',t:'select',opts:[['lin','linear'],['eq','gleichprozentig']],def:'lin'}],
   hres:(c,E,f,p,r)=>thru(E,f,p,r,x=>rq(kvK(valveKv(c.p.kvs,valveOpen(c),c.p.chr)),x)),
   outT:(c,p)=>c.s.T[0],
   step:passStep(0.002),lim:passLim(0.002),
   lines:c=>['Öffnung '+fmt(valveOpen(c)*100,0)+' %',fmt(m3h(inMix(c).m),2)+' m³/h   Δp '+fmt(dpOf(c),2)+' bar'],
-  ro(c){return[['Öffnung',fmt(valveOpen(c)*100,0)+' %'],['Betriebsart',c.p.ctl==='dts'?'Soll-Spreizung '+c.p.dts+' K, Verbraucher: '+(c.s.noCons?'keiner gefunden':(c.s.cons||'–')):'manuell oder Regler'],['Volumenstrom',fmt(m3h(inMix(c).m),2)+' m³/h'],['Druckverlust',fmt(dpOf(c),3)+' bar'],['Druck Eingang',fmt(pOf(c,0),2)+' bar'],['Druck Ausgang',fmt(pOf(c,1),2)+' bar'],['Autorität (Näherung)',fmt(valveAuth(c),2)],['Kvs-Vorschlag (Autorität 0,5)',fmt(kvsHint(c),1)+' m³/h'],['Temperatur',fmt(c.s.T[0])+' °C']];},
+  ro(c){return[['Öffnung',fmt(valveOpen(c)*100,0)+' %'],['Betriebsart',c.p.ctl==='dts'?'Soll-Spreizung '+c.p.dts+' K, Verbraucher: '+(c.s.noCons?'keiner gefunden':(c.s.cons||'–')):c.p.ctl==='tret'?'Rücklauf '+(c.p.tdir==='max'?'höchstens ':'mindestens ')+c.p.tret+' °C, Wärmeübertrager: '+(c.s.noCons?'keiner gefunden':(c.s.cons||'–')):'manuell oder Regler'],['Volumenstrom',fmt(m3h(inMix(c).m),2)+' m³/h'],['Druckverlust',fmt(dpOf(c),3)+' bar'],['Druck Eingang',fmt(pOf(c,0),2)+' bar'],['Druck Ausgang',fmt(pOf(c,1),2)+' bar'],['Autorität (Näherung)',fmt(valveAuth(c),2)],['Kvs-Vorschlag (Autorität 0,5)',fmt(kvsHint(c),1)+' m³/h'],['Temperatur',fmt(c.s.T[0])+' °C']];},
   stored:c=>RHO*CPJ*0.002*c.s.T[0]},
 
 prv:{label:'Druckminderer',icon:'⏬',desc:'Hält den Druck dahinter auf einen Sollwert',dim:[150,70],hk:'thru',
@@ -1482,15 +1484,53 @@ function refreshFlows(){
 }
 /* Regelventil auf Soll-Spreizung: Der Sollvolumenstrom ist Bedarf/(cp·Spreizung). Die Stellung wird vor der Hydraulik
    aus dem letzten Fluss nachgeführt und nach der Hydraulik einmal korrigiert. Damit gilt es für jeden Zeitschritt. */
+/* Wärmeübertrager hinter dem Ventil finden (Primär-Eingang). */
+function findHx(c){
+  let e=model.edges[c.pe[1]];
+  for(let k=0;k<8&&e;k++){
+    const n=compMap[e.b.c];
+    if(n.type==='hx')return e.b.p===0?n:null;
+    if(['pipe','pump','valve2','prv','hold','check'].includes(n.type))e=model.edges[n.pe[1]];else return null;
+  }
+  return null;
+}
+/* Primär-Austrittstemperatur eines Gegenstrom-Wärmeübertragers im eingeschwungenen Zustand (ε-NTU). */
+function hxPrimOut(ua,mp,ms,Tp,Ts){
+  const Cp=mp*CPJ,Cs=ms*CPJ,Cmin=Math.min(Cp,Cs),Cmax=Math.max(Cp,Cs);
+  if(Cmin<1e-6)return Ts;
+  const NTU=ua*1000/Cmin,cr=Cmin/Cmax,e=Math.abs(1-cr)<1e-6?NTU/(1+NTU):(1-Math.exp(-NTU*(1-cr)))/(1-cr*Math.exp(-NTU*(1-cr)));
+  return Tp-e*Cmin*(Tp-Ts)/Cp;
+}
+/* Sollmassenstrom für eine Primär-Rücklauftemperatur (Bisektion, Austrittstemperatur steigt mit dem Massenstrom). */
+function hxFlowForReturn(hx,Tset){
+  const Tp=inT(hx,0),Ts=inT(hx,2),ms=hx.inp[2]?hx.inp[2].m:0;
+  if(ms<1e-4||Tp-Ts<0.5)return 0;
+  if(Tset<=Ts+0.05)return hx.__open?Infinity:0;
+  if(Tset>=Tp-0.05)return Infinity;
+  let lo=1e-5,hi=60;
+  if(hxPrimOut(hx.p.ua,hi,ms,Tp,Ts)<Tset)return Infinity;
+  for(let i=0;i<40;i++){const m=0.5*(lo+hi);if(hxPrimOut(hx.p.ua,m,ms,Tp,Ts)<Tset)lo=m;else hi=m;}
+  return 0.5*(lo+hi);
+}
+/* Regelventile mit Sollwert-Betriebsart: 'dts' = Soll-Spreizung des Verbrauchers, 'tret' = Rücklauftemperatur am Wärmeübertrager.
+   Die Stellung wird vor der Hydraulik aus dem letzten Fluss nachgeführt und nach der Hydraulik einmal korrigiert. Gilt für jeden Zeitschritt. */
 function dtsValves(post){
   let again=false;
   for(const c of model.comps){
-    if(c.type!=='valve2'||c.p.ctl!=='dts')continue;
-    const ca=findConsumer(c);c.s.noCons=!ca;c.s.cons=ca?ca.name:'';
-    const pmin=c.p.pminv/100;
-    if(!ca){if(!post)c.s.pos=1;continue;}
-    const e=model.edges[c.pe[0]],m=e?e.m:0,mt=demandW(ca)/(CPJ*c.p.dts);
+    if(c.type!=='valve2'||(c.p.ctl!=='dts'&&c.p.ctl!=='tret'))continue;
+    const pmin=c.p.pminv/100;let mt,ok;
+    if(c.p.ctl==='dts'){
+      const ca=findConsumer(c);c.s.noCons=!ca;c.s.cons=ca?ca.name:'';ok=!!ca;
+      mt=ok?demandW(ca)/(CPJ*c.p.dts):0;
+    }else{
+      const hx=findHx(c);c.s.noCons=!hx;c.s.cons=hx?hx.name:'';ok=!!hx;
+      if(ok)hx.__open=c.p.tdir!=='max';
+      mt=ok?hxFlowForReturn(hx,c.p.tret):0;
+    }
+    if(!ok){if(!post)c.s.pos=1;continue;}
+    const e=model.edges[c.pe[0]],m=e?e.m:0;
     if(mt<1e-4){if(!post)c.s.pos=pmin;continue;}
+    if(!Number.isFinite(mt)){if(!post)c.s.pos=1;continue;}
     if(!post){c.s.pos=m>1e-3?clamp(c.s.pos*Math.pow(mt/m,0.9),pmin,1):1;}
     else if(m>1e-4&&Math.abs(m-mt)>0.1*mt){const np=clamp(c.s.pos*mt/m,pmin,1);if(Math.abs(np-c.s.pos)>1e-4){c.s.pos=np;again=true;}}
   }
