@@ -291,7 +291,7 @@ function bbox(e){
   if(e.type==='dim')P(dimGeom(e).tp);
   if(e.type==='rdim')P(e.p);
   if(e.type==='adim')P(adimGeom(e).tp);
-  if(e.type==='load'||e.type==='qload')for(const t of statSym(e).txt)P(t.p);
+  if(e.type==='load'||e.type==='qload')for(const t of statSym(e).txt){const w=.6*t.h*t.t.length,x0=t.al==='right'?t.p[0]-w:t.al==='center'?t.p[0]-w/2:t.p[0];P([x0,t.p[1]-.3*t.h]);P([x0+w,t.p[1]+t.h])}
   if(e.type==='leader'){const g=leaderGeom(e),w=Math.max(1,...String(e.text).split('\n').map(l=>l.length))*g.th*.6,n=String(e.text).split('\n').length;P(g.p);P([g.p[0]+g.right*w,g.p[1]+g.th]);P([g.p[0],g.p[1]-(n-1)*1.25*g.th-.3*g.th])}
   return xs.length?[Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)]:null;
 }
@@ -404,20 +404,26 @@ const LT={solid:[],dashed:[10,6],center:[24,5,4,5],dotted:[2,5],hidden:[7,5]};
 const LTN={solid:'Durchgezogen',dashed:'Gestrichelt',center:'Mittellinie',dotted:'Gepunktet',hidden:'Verdeckt'};
 const SNAPN={polar:'Polar',end:'Endpunkt',mid:'Mittelpunkt',cen:'Zentrum',int:'Schnittpunkt',quad:'Quadrant',per:'Lot',nea:'Nächster Punkt',grid:'Raster'};
 
-const newDoc=n=>({name:n||'Zeichnung 1',cur:'0',nid:1,grid:10,th:5,dec:2,layers:[{name:'0',color:'auto',vis:true,lock:false,lt:'solid',lw:.25}],ents:[],bg:null,stat:{unit:'m',truss:false,init:false}});
+const newDoc=n=>({name:n||'Zeichnung 1',cur:'0',nid:1,grid:10,th:5,dec:2,layers:[{name:'0',color:'auto',vis:true,lock:false,lt:'solid',lw:.25}],ents:[],bg:null,stat:{unit:'m',truss:false,init:false,safety:true,gG:1.35,gQ:1.5,gM0:1,gMt:1.3,kmod:.8,selfw:false,defl:300}});
 let doc=newDoc(),undoS=[],redoS=[],sel=new Set(),tool=null,lastCmd=null,clip=null;
 let view={s:3,ox:60,oy:400};
 const prefs={osnap:true,gsnap:false,ortho:false,polar:true,polarA:15,lw:true,grid:true,theme:'dark',multi:false,snaps:{end:1,mid:1,cen:1,int:1,quad:1,per:0,nea:0}};
 const SNAP_ALL={end:1,mid:1,cen:1,int:1,quad:1,per:1,nea:0};
 let shiftDown=false;
-let lastWin=null,statRes=null,statShow=true;
+let bbCache=new WeakMap();
+const bboxC=e=>{let b=bbCache.get(e);if(b===undefined){b=bbox(e)||null;bbCache.set(e,b)}return b};
+const BIGDOC=100000;
+let lastWin=null,statRes=null,statShow=true,typedPt=null,lastDirAng=0;
+const effCur=()=>{const i=document.getElementById('cin');return typedPt&&i&&document.activeElement===i&&i.value.trim()?typedPt:cur};
 let cs=[0,0],raw=[0,0],cur=[0,0],snapC=null,hover=null,boxR=null,gripDrag=null,coarse=false,raf=0,saveT=0;
 const layerOf=e=>doc.layers.find(l=>l.name===e.layer)||doc.layers[0];
 const vis=e=>layerOf(e).vis,lockd=e=>layerOf(e).lock;
 const byId=id=>doc.ents.find(e=>e.id===id);
-const snapDoc=()=>JSON.stringify([doc.layers,doc.cur,doc.nid,doc.ents,doc.grid,doc.th,doc.dec,doc.bg?[doc.bg.p,doc.bg.s,doc.bg.rot,doc.bg.op,doc.bg.vis]:null,doc.stat]);
-function pushUndo(){undoS.push(snapDoc());if(undoS.length>120)undoS.shift();redoS.length=0;dirty()}
-function restore(s){const[l,c,n,e,g,t,d,bm,st]=JSON.parse(s);if(st)doc.stat=st;if(bm&&doc.bg)Object.assign(doc.bg,{p:bm[0],s:bm[1],rot:bm[2],op:bm[3],vis:bm[4]});doc.layers=l;doc.cur=c;doc.nid=n;doc.ents=e;doc.grid=g;doc.th=t;doc.dec=d;sel=new Set([...sel].filter(id=>doc.ents.some(x=>x.id===id)))}
+const snapRest=ents=>JSON.stringify([doc.layers,doc.cur,doc.nid,ents,doc.grid,doc.th,doc.dec,doc.bg?[doc.bg.p,doc.bg.s,doc.bg.rot,doc.bg.op,doc.bg.vis]:null,doc.stat]);
+/* Große Zeichnungen: nur die Objektliste flach kopieren (schnell, wenig Speicher), höchstens 5 Schritte */
+const snapDoc=()=>doc.ents.length>BIGDOC?{big:1,ents:doc.ents.slice(),rest:snapRest(null)}:snapRest(doc.ents);
+function pushUndo(){undoS.push(snapDoc());const mx=doc.ents.length>BIGDOC?5:120;while(undoS.length>mx)undoS.shift();redoS.length=0;dirty()}
+function restore(s){const[l,c,n,e0,g,t,d,bm,st]=JSON.parse(typeof s==='string'?s:s.rest),e=typeof s==='string'?e0:s.ents.slice();if(st)doc.stat=st;if(bm&&doc.bg)Object.assign(doc.bg,{p:bm[0],s:bm[1],rot:bm[2],op:bm[3],vis:bm[4]});doc.layers=l;doc.cur=c;doc.nid=n;doc.ents=e;doc.grid=g;doc.th=t;doc.dec=d;sel=new Set([...sel].filter(id=>doc.ents.some(x=>x.id===id)))}
 function undo(){if(!undoS.length){toast('Nichts zum Rückgängigmachen');return}redoS.push(snapDoc());restore(undoS.pop());afterDoc()}
 function redo(){if(!redoS.length){toast('Nichts zum Wiederholen');return}undoS.push(snapDoc());restore(redoS.pop());afterDoc()}
 function afterDoc(){selChanged();renderSide();redraw();dirty();updUndoBtns()}
@@ -426,7 +432,9 @@ function addEnt(e){pushUndo();return rawAdd(e)}
 function replaceEnt(id,n){const i=doc.ents.findIndex(e=>e.id===id);if(i>=0){n.id=id;doc.ents[i]=n}}
 function delEnts(ids){pushUndo();const s=new Set(ids);doc.ents=doc.ents.filter(e=>!s.has(e.id));ids.forEach(i=>sel.delete(i))}
 const cp=(e,patch)=>Object.assign(clone(e),patch);
-function dirty(){if(statRes){statRes=null;if(sideOpen()&&sideTab==='stat')renderSide()}clearTimeout(saveT);saveT=setTimeout(autosave,700);updUndoBtns()}
+let statT=0;
+function statCheckSig(){if(statRes&&statSig()!==statRes.sig){statRes=null;if(sideOpen()&&sideTab==='stat')renderSide();redraw()}}
+function dirty(){bbCache=new WeakMap();if(statRes){clearTimeout(statT);statT=setTimeout(statCheckSig,0)}clearTimeout(saveT);saveT=setTimeout(autosave,700);updUndoBtns()}
 function updUndoBtns(){$('#bUndo').disabled=!undoS.length;$('#bRedo').disabled=!redoS.length}
 
 /* ================= Ansicht ================= */
@@ -436,7 +444,7 @@ const s2w=(x,y,V=view)=>[(x-V.ox)/V.s,(V.oy-y)/V.s];
 function resize(){dpr=Math.min(window.devicePixelRatio||1,3);const W=stage.clientWidth,H=stage.clientHeight;cv.width=Math.max(1,Math.round(W*dpr));cv.height=Math.max(1,Math.round(H*dpr));redraw()}
 function redraw(){if(!raf)raf=requestAnimationFrame(render)}
 function zoomAt(sx,sy,f){const wp=s2w(sx,sy),s=clamp(view.s*f,1e-4,1e6);view.s=s;view.ox=sx-wp[0]*s;view.oy=sy+wp[1]*s;redraw()}
-function docBBox(only){let b=null;for(const e of(only||doc.ents)){if(!vis(e)||e.type==='xline')continue;const q=bbox(e);if(!q)continue;b=b?[Math.min(b[0],q[0]),Math.min(b[1],q[1]),Math.max(b[2],q[2]),Math.max(b[3],q[3])]:q}return b}
+function docBBox(only){let b=null;for(const e of(only||doc.ents)){if(!vis(e)||e.type==='xline')continue;const q=bboxC(e);if(!q)continue;b=b?[Math.min(b[0],q[0]),Math.min(b[1],q[1]),Math.max(b[2],q[2]),Math.max(b[3],q[3])]:q}return b}
 function zoomBox(b,pad=.08){const W=stage.clientWidth,H=stage.clientHeight;let w=b[2]-b[0],hh=b[3]-b[1];if(w<1e-6)w=1;if(hh<1e-6)hh=1;const s=Math.min(W*(1-2*pad)/w,H*(1-2*pad)/hh);view.s=clamp(s,1e-4,1e6);view.ox=W/2-(b[0]+b[2])/2*view.s;view.oy=H/2+(b[1]+b[3])/2*view.s;redraw()}
 function zoomExt(){const b=docBBox();if(!b){view={s:3,ox:stage.clientWidth*.12,oy:stage.clientHeight*.82};redraw();return}zoomBox(b)}
 
@@ -486,8 +494,12 @@ function strokeEnt(c,V,e,col,lw,dash){
 const screenLw=m=>prefs.lw?0.9+m*2:1.4;
 const lwOf=e=>{const v=e.lw!=null?e.lw:layerOf(e).lw;return v>=0?v:.25};
 function drawDoc(c,V,tn,wf=screenLw,plot=false){
+  const big=!plot&&doc.ents.length>5000;let vx0=0,vx1=0,vy0=0,vy1=0;
+  if(big){const W=stage.clientWidth,H=stage.clientHeight,m=40/V.s;vx0=(0-V.ox)/V.s-m;vx1=(W-V.ox)/V.s+m;vy0=(V.oy-H)/V.s-m;vy1=V.oy/V.s+m}
   for(const pass of[0,1])for(const e of doc.ents){
-    if(!vis(e)||(e.type==='hatch')!==(pass===0))continue;
+    if((e.type==='hatch')!==(pass===0))continue;
+    if(big){const bb=bboxC(e);if(bb){if(bb[2]<vx0||bb[0]>vx1||bb[3]<vy0||bb[1]>vy1)continue;const t=e.type;if((t==='line'||t==='pline'||t==='circle'||t==='arc')&&(bb[2]-bb[0])*V.s<.5&&(bb[3]-bb[1])*V.s<.5)continue}}
+    if(!vis(e))continue;
     if(plot&&e.type==='xline')continue;
     const L=layerOf(e);strokeEnt(c,V,e,colRes(e.color||L.color,tn),wf(lwOf(e)),LT[L.lt]||[]);
   }
@@ -522,7 +534,8 @@ function render(){
   if(!tool&&sel.size&&sel.size<=60){for(const id of sel){const e=byId(id);if(!e)continue;for(const g of gripsOf(e)){const q=w2s(g.p);ctx.fillStyle=T.sel;ctx.strokeStyle=T.bg;ctx.lineWidth=1;ctx.fillRect(q[0]-4.5,q[1]-4.5,9,9);ctx.strokeRect(q[0]-4.5,q[1]-4.5,9,9)}}}
   if(gripDrag){const n=gripDrag.ne;if(n){strokeEnt(ctx,view,n,T.hot,1.6,[])}}
   // Vorschau
-  if(tool&&tool.preview){ctx.save();tool.preview(makeP(ctx,T),cur);ctx.restore()}
+  const ec=effCur();
+  if(tool&&tool.preview){ctx.save();tool.preview(makeP(ctx,T),ec);ctx.restore()}
   // Fenster
   if(boxR){const[x0,y0,x1,y1]=boxR,cr=x1<x0;ctx.save();ctx.fillStyle=cr?'rgba(80,220,140,.12)':'rgba(90,150,255,.14)';ctx.strokeStyle=cr?'#43e08a':T.sel;ctx.setLineDash(cr?[6,4]:[]);ctx.lineWidth=1;ctx.fillRect(x0,y0,x1-x0,y1-y0);ctx.strokeRect(x0+.5,y0+.5,x1-x0,y1-y0);ctx.restore()}
   // Fang-Markierung + Fadenkreuz
@@ -534,7 +547,7 @@ function render(){
   if(!coarse&&(ex==='point'||ex==='both'||!tool)&&!boxR){const q=w2s(cur);ctx.save();ctx.strokeStyle=T.fg;ctx.globalAlpha=.6;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(q[0]-14,q[1]+.5);ctx.lineTo(q[0]+14,q[1]+.5);ctx.moveTo(q[0]+.5,q[1]-14);ctx.lineTo(q[0]+.5,q[1]+14);ctx.stroke();ctx.restore()}
   if(coarse&&tool&&(ex==='point'||ex==='both')){const q=w2s(cur);ctx.save();ctx.strokeStyle=T.hot;ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(q[0],q[1],10,0,TAU);ctx.moveTo(q[0]-16,q[1]);ctx.lineTo(q[0]+16,q[1]);ctx.moveTo(q[0],q[1]-16);ctx.lineTo(q[0],q[1]+16);ctx.stroke();ctx.restore()}
   // Dynamische Eingabe
-  if(tool&&tool.last&&(ex==='point'||ex==='both')){const l=tool.last();if(l){const q=w2s(cur),d=dist(l,cur);if(d>1e-9){const a=ang(sub(cur,l))/D2R,txt=`${f3(d)}  ∠${f3(nA(a*D2R)/D2R)}°`;ctx.save();ctx.font=`12px ${FONT}`;const tw=ctx.measureText(txt).width;ctx.fillStyle='rgba(15,18,24,.82)';const bx=Math.min(q[0]+16,W-tw-16),by=Math.min(q[1]+18,H-26);ctx.fillRect(bx-5,by-13,tw+10,19);ctx.fillStyle='#f4f6fa';ctx.fillText(txt,bx,by+1);ctx.restore()}}}
+  if(tool&&tool.last&&(ex==='point'||ex==='both')){const l=tool.last();if(l){const q=w2s(ec),d=dist(l,ec);if(d>1e-9){const a=ang(sub(ec,l))/D2R,txt=`${f3(d)}  ∠${f3(nA(a*D2R)/D2R)}°`;ctx.save();ctx.font=`12px ${FONT}`;const tw=ctx.measureText(txt).width;ctx.fillStyle='rgba(15,18,24,.82)';const bx=Math.min(q[0]+16,W-tw-16),by=Math.min(q[1]+18,H-26);ctx.fillRect(bx-5,by-13,tw+10,19);ctx.fillStyle='#f4f6fa';ctx.fillText(txt,bx,by+1);ctx.restore()}}}
   // UCS-Symbol
   ctx.save();ctx.lineWidth=1.5;ctx.globalAlpha=.8;ctx.strokeStyle='#ff6b6b';ctx.beginPath();ctx.moveTo(22,H-26);ctx.lineTo(48,H-26);ctx.stroke();ctx.strokeStyle='#4cd98b';ctx.beginPath();ctx.moveTo(22,H-26);ctx.lineTo(22,H-52);ctx.stroke();ctx.restore();
 }
@@ -600,7 +613,7 @@ function snapPts(e){const r=[];switch(e.type){
 }return r}
 function findSnap(wp,last,force){
   const tolW=(force?36:(coarse?24:14))/view.s,S=force?SNAP_ALL:prefs.snaps,near=[];
-  for(const e of doc.ents){if(!vis(e)||e.type==='hatch')continue;const b=bbox(e);if(!b)continue;if(wp[0]<b[0]-tolW||wp[0]>b[2]+tolW||wp[1]<b[1]-tolW||wp[1]>b[3]+tolW)continue;near.push(e)}
+  for(const e of doc.ents){if(!vis(e)||e.type==='hatch')continue;const b=bboxC(e);if(!b)continue;if(wp[0]<b[0]-tolW||wp[0]>b[2]+tolW||wp[1]<b[1]-tolW||wp[1]>b[3]+tolW)continue;near.push(e)}
   if(!near.length)return null;
   const C=[],push=(p,type)=>{const d=dist(p,wp);if(d<=tolW)C.push({p,type,d})};
   for(const e of near){
@@ -630,8 +643,8 @@ function snapPoint(rw,last){
   return{p,sn};
 }
 function pickAt(wp,px){
-  const tol=px/view.s;let best=null,bd=Infinity;
-  for(let i=doc.ents.length-1;i>=0;i--){const e=doc.ents[i];if(!vis(e)||lockd(e))continue;let d=distEnt(e,wp);if(e.type==='hatch')d+=tol*.5;if(d<=tol&&d<bd-1e-12){bd=d;best=e}}
+  const tol=px/view.s,big=doc.ents.length>5000;let best=null,bd=Infinity;
+  for(let i=doc.ents.length-1;i>=0;i--){const e=doc.ents[i];if(!vis(e)||lockd(e))continue;if(big){const b=bboxC(e);if(b&&(wp[0]<b[0]-tol*2||wp[0]>b[2]+tol*2||wp[1]<b[1]-tol*2||wp[1]>b[3]+tol*2))continue}let d=distEnt(e,wp);if(e.type==='hatch')d+=tol*.5;if(d<=tol&&d<bd-1e-12){bd=d;best=e}}
   return best;
 }
 const pickPx=()=>coarse?18:9;
@@ -649,7 +662,7 @@ function selectAll(){sel=new Set(doc.ents.filter(e=>vis(e)&&!lockd(e)).map(e=>e.
 function boxSelect(x0,y0,x1,y1,add){
   const crossing=x1<x0,a=s2w(Math.min(x0,x1),Math.max(y0,y1)),b=s2w(Math.max(x0,x1),Math.min(y0,y1)),R=[a[0],a[1],b[0],b[1]];lastWin={R:R.slice(),crossing};
   if(!add&&!(tool&&tool.expect()==='select'))sel=new Set();
-  for(const e of doc.ents){if(!vis(e)||lockd(e))continue;const bb=bbox(e);if(!bb)continue;
+  for(const e of doc.ents){if(!vis(e)||lockd(e))continue;const bb=bboxC(e);if(!bb)continue;
     if(bb[2]<R[0]||bb[0]>R[2]||bb[3]<R[1]||bb[1]>R[3])continue;
     const inside=bb[0]>=R[0]&&bb[2]<=R[2]&&bb[1]>=R[1]&&bb[3]<=R[3];
     if(inside||(crossing&&touches(e,R)))sel.add(e.id)}
@@ -659,7 +672,7 @@ function boxSelect(x0,y0,x1,y1,add){
 /* ================= Werkzeuge ================= */
 let toastT=0,offDist=10,filR=5,chaD=5,polyN=6;
 function toast(t,ms=2400){const e=$('#toast');e.textContent=t;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),ms)}
-function updPrompt(){const p=$('#prompt');p.textContent='';if(tool){p.append(h('b',null,tool.name+': '),tool.prompt())}else p.textContent='Bereit – Werkzeug wählen oder Befehl eingeben (z. B. L = Linie)';updDock()}
+function updPrompt(){const p=$('#prompt');p.textContent='';if(tool){p.append(h('b',null,tool.name+': '),tool.prompt());try{if(tool.expect()==='point'&&tool.last&&tool.last())p.append(h('span',{style:'opacity:.6'},'  ·  Länge tippen: 500 oder 500<45'))}catch(e){}}else p.textContent='Bereit – Werkzeug wählen oder Befehl eingeben (z. B. L = Linie)';updDock()}
 const mkLike=(e,patch)=>Object.assign({layer:e.layer},e.color?{color:e.color}:{},e.lw!=null?{lw:e.lw}:{},patch);
 function startTool(name){
   cancelTool();const f=TOOLS[name];if(!f)return;const t=f();if(!t)return;tool=t;tool.id=name;lastCmd=name;
@@ -867,7 +880,7 @@ function clipCopy(){if(!sel.size){toast('Erst Objekte wählen');return}const ent
 
 /* ================= Eingabe ================= */
 const ALIAS={l:'line',linie:'line',line:'line',pl:'pline',polylinie:'pline',pline:'pline',rec:'rect',rechteck:'rect',rect:'rect',c:'circle',kreis:'circle',circle:'circle',c2:'circle2',c3:'circle3',a:'arc3',bogen:'arc3',arc:'arc3',el:'ellipse',ellipse:'ellipse',pol:'polygon',polygon:'polygon',po:'point',punkt:'point',point:'point',t:'text',text:'text',
-  dim:'dim',dimh:'dimh',dimv:'dimv',dr:'rdim',h:'hatch',schraffur:'hatch',di:'dist',abstand:'dist',area:'area',fläche:'area',e:'erase',löschen:'erase',erase:'erase',m:'move',verschieben:'move',move:'move',co:'copy',cp:'copy',kopieren:'copy',copy:'copy',ro:'rotate',drehen:'rotate',rotate:'rotate',sc:'scale',skalieren:'scale',scale:'scale',mi:'mirror',spiegeln:'mirror',mirror:'mirror',o:'offset',versetzen:'offset',offset:'offset',tr:'trim',stutzen:'trim',trim:'trim',ex:'extend',dehnen:'extend',extend:'extend',f:'fillet',abrunden:'fillet',fillet:'fillet',cha:'chamfer',fase:'chamfer',chamfer:'chamfer',x:'explode',auflösen:'explode',explode:'explode',j:'join',verbinden:'join',join:'join',ar:'array',reihe:'array',arp:'arrayp',pan:'pan',zw:'zwin',z:'zall',ze:'zall',zi:'zin',zo:'zout',u:'undo',undo:'undo',redo:'redo',alle:'selall',sel:'select',paste:'paste',einfügen:'paste',ctrlc:'clipcopy',spl:'spline',spline:'spline',xl:'xline',konstruktionslinie:'xline',le:'leader',hinweis:'leader',hinweislinie:'leader',ad:'adim',winkel:'adim',br:'break',brechen:'break',break:'break',str:'stretch',strecken:'stretch',stretch:'stretch',vi:'vadd',vl:'vdel',sym:'symbol',symbol:'symbol',bild:'bgload',cal:'calib',pdf:'pdf',rahmen:'frame',zr:'frame',rf:'framefill',schriftfeld:'framefill',statik:'statik',stab:'stab',lager:'lager',kraft:'kraft',qlast:'qlast',calc:'statcalc',berechnen:'statcalc'};
+  dim:'dim',dimh:'dimh',dimv:'dimv',dr:'rdim',h:'hatch',schraffur:'hatch',di:'dist',abstand:'dist',area:'area',fläche:'area',e:'erase',löschen:'erase',erase:'erase',m:'move',verschieben:'move',move:'move',co:'copy',cp:'copy',kopieren:'copy',copy:'copy',ro:'rotate',drehen:'rotate',rotate:'rotate',sc:'scale',skalieren:'scale',scale:'scale',mi:'mirror',spiegeln:'mirror',mirror:'mirror',o:'offset',versetzen:'offset',offset:'offset',tr:'trim',stutzen:'trim',trim:'trim',ex:'extend',dehnen:'extend',extend:'extend',f:'fillet',abrunden:'fillet',fillet:'fillet',cha:'chamfer',fase:'chamfer',chamfer:'chamfer',x:'explode',auflösen:'explode',explode:'explode',j:'join',verbinden:'join',join:'join',ar:'array',reihe:'array',arp:'arrayp',pan:'pan',zw:'zwin',z:'zall',ze:'zall',zi:'zin',zo:'zout',u:'undo',undo:'undo',redo:'redo',alle:'selall',sel:'select',paste:'paste',einfügen:'paste',ctrlc:'clipcopy',spl:'spline',spline:'spline',xl:'xline',konstruktionslinie:'xline',le:'leader',hinweis:'leader',hinweislinie:'leader',ad:'adim',winkel:'adim',br:'break',brechen:'break',break:'break',str:'stretch',strecken:'stretch',stretch:'stretch',vi:'vadd',vl:'vdel',sym:'symbol',symbol:'symbol',bild:'bgload',cal:'calib',pdf:'pdf',rahmen:'frame',zr:'frame',rf:'framefill',schriftfeld:'framefill',statik:'statik',stab:'stab',lager:'lager',kraft:'kraft',qlast:'qlast',calc:'statcalc',berechnen:'statcalc',rechenweg:'statcalctext',btext:'statcalctext'};
 function act(name){
   if(TOOLS[name]){startTool(name);return}
   switch(name){
@@ -884,16 +897,32 @@ function act(name){
     case'frame':frameDialog();break;
     case'statik':sideTab='stat';openSide(true);break;
     case'statcalc':statRun();break;
+    case'statcalctext':statCalcDialog();break;
     case'framefill':fillFrameDialog();break;
   }
 }
 const isNum=s=>/^[-+]?(\d+[.,]?\d*|[.,]\d+)$/.test(s);
 const toNum=s=>parseFloat(String(s).replace(',','.'));
 function parsePoint(s,last){
-  s=s.trim().replace(/\s+/g,'');let rel=false;if(s[0]==='@'){rel=true;s=s.slice(1)}const base=rel?(last||[0,0]):[0,0];
+  s=s.trim().replace(/\s+/g,'');let rel=false;if(s[0]==='@'){rel=true;s=s.slice(1)}else if(s[0]==='#')s=s.slice(1);else if(s.includes('<')&&last)rel=true;const base=rel?(last||[0,0]):[0,0];
   const n=x=>/^[-+]?(\d+\.?\d*|\.\d+)$/.test(x)?parseFloat(x):NaN;
   if(s.includes('<')){const[d,a]=s.split('<'),dd=n(d),aa=n(a);if(isNaN(dd)||isNaN(aa))return null;return pol(base,dd,aa*D2R)}
   const parts=s.split(/[,;]/);if(parts.length!==2)return null;const x=n(parts[0]),y=n(parts[1]);if(isNaN(x)||isNaN(y))return null;return[base[0]+x,base[1]+y];
+}
+/* Direkte Längeneingabe: Zahl (optional mit mm/cm/m) = Abstand vom letzten Punkt in Cursorrichtung */
+function lenFromStr(s){
+  const m=/^([-+]?(?:\d+[.,]?\d*|[.,]\d+))\s*(mm|cm|m)?$/i.exec(s.trim());if(!m)return null;
+  let v=parseFloat(m[1].replace(',','.'));if(!Number.isFinite(v))return null;
+  if(m[2]){const mm={mm:1,cm:10,m:1000}[m[2].toLowerCase()],u=doc.stat&&doc.stat.init?{mm:1,cm:10,m:1000}[doc.stat.unit]||1:1;v=v*mm/u}
+  return v;
+}
+function dirFor(l){const d=sub(cur,l);if(Math.hypot(d[0],d[1])*view.s>6)return nrm(d);return[Math.cos(lastDirAng),Math.sin(lastDirAng)]}
+function noteDir(l,p){if(l&&p){const d=sub(p,l);if(Math.hypot(d[0],d[1])>1e-12)lastDirAng=ang(d)}}
+function typedPreview(str){
+  str=str.trim();if(!tool||!str||tool.expect()!=='point')return null;
+  const l=tool.last?tool.last():null;
+  if(/[,;<@#]/.test(str))return parsePoint(str,l);
+  const v=lenFromStr(str);return v!=null&&l?add(l,mul(dirFor(l),v)):null;
 }
 function submitInput(str){
   str=str.trim();
@@ -910,12 +939,12 @@ function submitInput(str){
   if(ex==='num'){if(isNum(str)&&t.num)t.num(toNum(str));else toast('Bitte eine Zahl eingeben');updPrompt();redraw();return}
   if(ex==='point'||ex==='both'){
     const l=t.last?t.last():null;
-    if(/[,;<@]/.test(str)){const p=parsePoint(str,l);if(p){t.click(p);cur=p;updPrompt();redraw();return}toast('Ungültige Koordinate – Beispiele: 10,20  @5,3  @10<45');return}
-    if(isNum(str)){
-      const v=toNum(str);
-      if(ex==='both'&&t.num){t.num(v)}
-      else if(l){const d=nrm(sub(cur,l));t.click(add(l,mul(d,v)))}
-      else toast('Erst einen Startpunkt setzen, dann Abstand tippen');
+    if(/[,;<@#]/.test(str)){const p=parsePoint(str,l);if(p){noteDir(l,p);t.click(p);cur=p;updPrompt();redraw();return}toast('Ungültige Koordinate – Beispiele: 10,20  @5,3  500<45 (Länge < Winkel)');return}
+    const lv=lenFromStr(str);
+    if(lv!=null){
+      if(ex==='both'&&t.num){t.num(lv)}
+      else if(l){const p=add(l,mul(dirFor(l),lv));noteDir(l,p);t.click(p);cur=p}
+      else toast('Erst einen Startpunkt setzen, dann die Länge tippen');
       updPrompt();redraw();return;
     }
   }
@@ -926,7 +955,7 @@ function handleClick(sx,sy,shift){
   if(!tool){const e=pickAt(raw,pickPx());if(e){if(add_){sel.has(e.id)?sel.delete(e.id):sel.add(e.id)}else sel=new Set([e.id])}else if(!add_)sel.clear();selChanged();return}
   if(ex==='select'){const e=pickAt(raw,pickPx());if(e){if(shift)sel.delete(e.id);else sel.add(e.id);selChanged()}return}
   if(ex==='pick'){const e=pickAt(raw,pickPx());if(e)tool.pick(e,raw.slice());else toast('Kein Objekt getroffen',1200);updPrompt();redraw();return}
-  if(ex==='point'||ex==='both'){tool.click(cur.slice());if(tool){updPrompt();updateCursor(sx,sy)}}
+  if(ex==='point'||ex==='both'){const l0=tool.last?tool.last():null;tool.click(cur.slice());noteDir(l0,cur);if(tool){updPrompt();updateCursor(sx,sy)}}
 }
 /* Zeiger-Ereignisse */
 const ptrs=new Map();let gest=null,pinch=null;
@@ -1128,15 +1157,16 @@ function fieldsOf(e){
       if(e.mem){
         f.push({label:'Profil',kind:'select',opts:[...Object.keys(STAT_SECS).map(k=>[k,k]),['Eigen','Eigene Werte']],get:e=>e.mem.p,set:(n,v)=>{n.mem.p=v;if(v==='Eigen'){n.mem.A=n.mem.A||28.5;n.mem.I=n.mem.I||1943;n.mem.W=n.mem.W||194}}},
           {label:'Werkstoff',kind:'select',opts:[...Object.keys(STAT_MATS).map(k=>[k,k]),['Eigen','Eigene Werte']],get:e=>e.mem.m,set:(n,v)=>{n.mem.m=v;if(v==='Eigen'){n.mem.E=n.mem.E||210000;n.mem.f=n.mem.f||235}}},
-          {label:'Gelenk am Anfang',kind:'bool',get:e=>!!e.mem.ha,set:(n,v)=>{n.mem.ha=v}},{label:'Gelenk am Ende',kind:'bool',get:e=>!!e.mem.hb,set:(n,v)=>{n.mem.hb=v}});
+          {label:'Gelenk am Anfang',kind:'bool',get:e=>!!e.mem.ha,set:(n,v)=>{n.mem.ha=v}},{label:'Gelenk am Ende',kind:'bool',get:e=>!!e.mem.hb,set:(n,v)=>{n.mem.hb=v}},
+          {label:'Knicklängenbeiwert k',get:e=>e.mem.k||1,set:(n,v)=>{n.mem.k=v},gt:0});
         if(e.mem.p==='Eigen')for(const[k,l]of[['A','A cm²'],['I','I cm⁴'],['W','W cm³']])f.push({label:l,get:e=>e.mem[k]||0,set:(n,v)=>{n.mem[k]=v},gt:0});
-        if(e.mem.m==='Eigen')for(const[k,l]of[['E','E MPa'],['f','f MPa']])f.push({label:l,get:e=>e.mem[k]||0,set:(n,v)=>{n.mem[k]=v},gt:0});
+        if(e.mem.m==='Eigen')for(const[k,l]of[['E','E MPa'],['f','f MPa'],['rho','ρ kN/m³']])f.push({label:l,get:e=>e.mem[k]||0,set:(n,v)=>{n.mem[k]=v},gt:0});
       }
       return f;
     }
     case'support':return[...pf('Punkt',['p']),selF('Art','kind',[['pin','Gelenklager'],['roller','Loslager'],['fixed','Einspannung']]),nf('Drehung °','rot',{deg:1})];
-    case'load':return[...pf('Punkt',['p']),nf('Fx kN','fx'),nf('Fy kN','fy'),nf('Moment kNm','m')];
-    case'qload':return[...pf('Anfang',['a']),...pf('Ende',['b']),nf('q kN/m','q')];
+    case'load':return[...pf('Punkt',['p']),nf('Fx kN','fx'),nf('Fy kN','fy'),nf('Moment kNm','m'),{label:'Art',kind:'select',opts:[['G','Ständig (G)'],['Q','Veränderlich (Q)']],get:e=>e.cat==='G'?'G':'Q',set:(n,v)=>{n.cat=v}}];
+    case'qload':return[...pf('Anfang',['a']),...pf('Ende',['b']),nf('q kN/m','q'),{label:'Art',kind:'select',opts:[['G','Ständig (G)'],['Q','Veränderlich (Q)']],get:e=>e.cat==='G'?'G':'Q',set:(n,v)=>{n.cat=v}}];
     case'pline':{const f=[{label:'Geschlossen',kind:'bool',get:e=>!!e.closed,set:(n,v)=>{n.closed=v}}];if(e.pts.length<=30)e.pts.forEach((_,i)=>f.push(...pf('P'+(i+1),['pts',i])));return f}
     case'circle':return[...pf('Mitte',['c']),nf('Radius','r',{gt:0}),{label:'Durchmesser',get:e=>e.r*2,set:(n,v)=>{n.r=v/2},gt:0}];
     case'arc':return[...pf('Mitte',['c']),nf('Radius','r',{gt:0}),nf('Startwinkel °','a0',{deg:1}),nf('Endwinkel °','a1',{deg:1})];
@@ -1171,6 +1201,10 @@ function infoText(e){
     case'xline':L.push(`Winkel ${f3(nA(e.ang)/D2R)}°`,'Hilfslinie – wird nicht gedruckt/exportiert');break;
     case'dim':{const g=dimGeom(e);L.push(`Maß ${g.txt}`);break}
     case'rdim':L.push(`Radius ${f3(e.r)}`);break;
+  }
+  if(e.type==='line'&&e.mem&&statRes&&statRes.memIds){
+    const k=statRes.memIds.indexOf(e.id),m=k>=0&&statRes.chk.members.find(x=>x.parent===k);
+    if(m)L.push(`Statik: Ausnutzung ${Math.round(m.gov*100)} % (${m.govName}), Verformung ${Math.round(m.uDef*100)} %`,`N ${statF(m.Nc>m.Nt?-m.Nc:m.Nt)} kN, V ${statF(m.V)} kN, M ${statF(m.M)} kNm (max.)`);
   }
   return L.join('\n');
 }
@@ -1328,10 +1362,11 @@ function parseDoc(txt){
     if(c.frame!=null){const f=c.frame;if(!(c.type==='pline'&&f&&typeof f==='object'&&isN(f.N,f.unit,f.m,f.mL,f.w,f.h)&&f.N>0&&f.unit>0&&f.w>0&&f.h>0&&(f.orient==='landscape'||f.orient==='portrait')))delete c.frame;else c.frame={size:String(f.size||'').slice(0,10),orient:f.orient,N:f.N,unit:f.unit,m:f.m,mL:f.mL,w:f.w,h:f.h}}
     if(c.mem!=null){
       if(c.type!=='line'||typeof c.mem!=='object'||!c.mem)delete c.mem;
-      else{const m=c.mem,nm={p:(m.p==='Eigen'||STAT_SECS[m.p])?m.p:'IPE 200',m:(m.m==='Eigen'||STAT_MATS[m.m])?m.m:'S235'};if(m.ha)nm.ha=true;if(m.hb)nm.hb=true;for(const k of['A','I','W','E','f'])if(Number.isFinite(m[k])&&m[k]>0)nm[k]=m[k];c.mem=nm}
+      else{const m=c.mem,nm={p:(m.p==='Eigen'||STAT_SECS[m.p])?m.p:'IPE 200',m:(m.m==='Eigen'||STAT_MATS[m.m])?m.m:'S235'};if(m.ha)nm.ha=true;if(m.hb)nm.hb=true;for(const k of['A','I','W','E','f','k'])if(Number.isFinite(m[k])&&m[k]>0)nm[k]=m[k];if(Number.isFinite(m.rho)&&m.rho>=0)nm.rho=m.rho;c.mem=nm}
     }
     if(c.type==='support'){if(!['pin','roller','fixed'].includes(c.kind))c.kind='pin';if(!Number.isFinite(c.rot))c.rot=0}
     if(c.type==='load'){for(const k of['fx','fy','m'])if(!Number.isFinite(c[k]))c[k]=0}
+    if(c.type==='load'||c.type==='qload'){if(c.cat!=='G'&&c.cat!=='Q')c.cat='Q'}
     if(c.fld!=null&&!(c.type==='text'&&typeof c.fld==='string'))delete c.fld;else if(c.fld)c.fld=c.fld.slice(0,12);
     n.ents.push(c);
   }
@@ -1344,7 +1379,8 @@ function parseDoc(txt){
   const B=d.bg;
   if(B&&typeof B.data==='string'&&/^data:image\/jpeg;base64,/.test(B.data)&&isPt(B.p)&&isN(B.s,B.w,B.h)&&B.s>0&&B.w>0&&B.h>0)
     n.bg={name:String(B.name||'Bild').slice(0,60),data:B.data,w:Math.round(B.w),h:Math.round(B.h),p:B.p.slice(),s:B.s,rot:Number.isFinite(B.rot)?B.rot:0,op:Number.isFinite(B.op)?clamp(B.op,.05,1):.6,vis:B.vis!==false};
-  {const S=d.stat,has=n.ents.some(e=>e.type==='support'||e.type==='load'||e.type==='qload'||e.mem);n.stat={unit:S&&['m','cm','mm'].includes(S.unit)?S.unit:'m',truss:!!(S&&S.truss),init:(S&&typeof S==='object'&&S.init!==false)||has}}
+  {const S=d.stat&&typeof d.stat==='object'?d.stat:null,has=n.ents.some(e=>e.type==='support'||e.type==='load'||e.type==='qload'||e.mem),pos=(v,def,min)=>Number.isFinite(v)&&v>=min&&v<=1e4?v:def;
+   n.stat={unit:S&&['m','cm','mm'].includes(S.unit)?S.unit:'m',truss:!!(S&&S.truss),init:(S&&S.init!==false)||has,safety:!S||S.safety!==false,gG:pos(S&&S.gG,1.35,1),gQ:pos(S&&S.gQ,1.5,1),gM0:pos(S&&S.gM0,1,.5),gMt:pos(S&&S.gMt,1.3,.5),kmod:pos(S&&S.kmod,.8,.1),selfw:!!(S&&S.selfw),defl:pos(S&&S.defl,300,10)}}
   return{doc:n,drop};
 }
 function loadFromText(txt,opts={}){
@@ -1361,7 +1397,9 @@ function newDrawing(){
   view={s:3,ox:stage.clientWidth*.12,oy:stage.clientHeight*.82};afterDoc();updPrompt();toast('Neue Zeichnung – ↶ holt die vorige zurück');
 }
 let autoWarned=false;
+let bigWarn=false;
 function autosave(){
+  if(doc.ents.length>60000){store.del('helix:auto');if(!bigWarn){bigWarn=true;toast('Große Zeichnung: Auto-Speicher ist aus. Bitte als Datei speichern (Datei ▸ Speichern).',7000)}return}
   if(store.set('helix:auto',docToJSON(false)))return;
   if(doc.bg){
     const keep=doc.bg;doc.bg=null;const j=docToJSON(false);doc.bg=keep;
@@ -1369,7 +1407,7 @@ function autosave(){
   }
 }
 const safeName=s=>(String(s||'Zeichnung').replace(/[\\/:*?"<>|\u0000-\u001f]+/g,'_').trim().slice(0,60))||'Zeichnung';
-const MIME={md:'text/markdown',json:'application/json',txt:'text/plain',svg:'image/svg+xml',png:'image/png'};
+const MIME={html:'text/html',md:'text/markdown',json:'application/json',txt:'text/plain',svg:'image/svg+xml',png:'image/png'};
 async function deliver(filename,data,label,fallbackName,note){
   let d=null;
   try{if(window.claude&&claude.use)d=await claude.use('downloads')}catch(e){d=null}
@@ -1423,9 +1461,10 @@ function openText(txt,name){
 function readFile(file){
   if(!file)return;
   if(!/\.(dxf|json)$/i.test(file.name||'')&&(/^image\/(jpeg|png|webp|gif|bmp)$/.test(file.type)||/\.(jpe?g|png|webp|gif|bmp)$/i.test(file.name||''))){loadBgFile(file);return}
-  if(file.size>60*1024*1024){toast('Datei ist zu groß (max. 60 MB)');return}
-  const fr=new FileReader();
-  fr.onload=()=>{try{const r=openText(decodeBuf(fr.result),file.name);if(r)toast(`„${file.name}“ geladen: ${r.count} Objekte${r.drop?` (${r.drop} ungültige übersprungen)`:''} – ↶ macht es rückgängig`,4200)}catch(e){toast(e.message,4500)}};
+  if(file.size>200*1024*1024){toast('Datei ist zu groß (max. 200 MB)');return}
+  const fr=new FileReader(),mb=file.size/1048576;
+  if(mb>3)toast(`Datei wird gelesen (${Math.round(mb)} MB) … bitte warten`+(mb>120?' – sehr große Datei, auf dem Handy kann der Speicher knapp werden':''),90000);
+  fr.onload=()=>{try{const r=openText(decodeBuf(fr.result),file.name);if(r)toast(`„${file.name}“ geladen: ${r.count} Objekte${r.drop?` (${r.drop} ungültige übersprungen)`:''} – ↶ macht es rückgängig`+(doc.ents.length>BIGDOC?'\nGroße Zeichnung: Auto-Speicher aus, Rückgängig nur 5 Schritte – bitte als Datei speichern':''),doc.ents.length>BIGDOC?9000:4200)}catch(e){toast(e.message,4500)}};
   fr.onerror=()=>toast('Datei konnte nicht gelesen werden');
   fr.readAsArrayBuffer(file);
 }
@@ -1519,8 +1558,8 @@ function entSVG(e,col,sw,dash){
   }
   return'';
 }
-function exportSVG(){
-  const b=exportBox();if(!b)return;
+function svgString(){
+  const b=exportBox();if(!b)return null;
   const w0=b[2]-b[0]||1,h0=b[3]-b[1]||1,pad=Math.max(w0,h0)*.05+1e-6,x0=b[0]-pad,y0=-(b[3]+pad),W=w0+2*pad,H=h0+2*pad,sw=Math.max(W,H)/700;
   const parts=[];svgBase=sw;
   if(doc.bg&&doc.bg.vis){const g=doc.bg,co=Math.cos(g.rot),si=Math.sin(g.rot);parts.push(`<image href="${g.data}" width="${g.w}" height="${g.h}" opacity="${nn(g.op)}" transform="matrix(${nn(g.s*co)} ${nn(-g.s*si)} ${nn(g.s*si)} ${nn(g.s*co)} ${nn(g.p[0]-g.s*si*g.h)} ${nn(-g.p[1]-g.s*co*g.h)})"/>`)}
@@ -1530,8 +1569,9 @@ function exportSVG(){
   }
   if(statRes&&statShow)parts.push(statSVG(sw));
   const px=1000,svg=`<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" viewBox="${nn(x0)} ${nn(y0)} ${nn(W)} ${nn(H)}" width="${px}" height="${Math.max(1,Math.round(px*H/W))}">\n<title>${esc_(doc.name)}</title>\n<rect x="${nn(x0)}" y="${nn(y0)}" width="${nn(W)}" height="${nn(H)}" fill="#ffffff"/>\n${parts.join('\n')}\n</svg>\n`;
-  deliver(safeName(doc.name)+'.svg',svg,'SVG');
+  return svg;
 }
+function exportSVG(){const svg=svgString();if(svg)deliver(safeName(doc.name)+'.svg',svg,'SVG')}
 function exportPNG(){
   const b=exportBox();if(!b)return;
   const w0=b[2]-b[0]||1,h0=b[3]-b[1]||1,pad=Math.max(w0,h0)*.05,s=Math.min(2400/(w0+2*pad),2400/(h0+2*pad)),W=Math.max(2,Math.round((w0+2*pad)*s)),H=Math.max(2,Math.round((h0+2*pad)*s));
@@ -1545,6 +1585,8 @@ function exportPNG(){
   c.toBlob(bl=>{if(!bl){toast('PNG konnte nicht erzeugt werden');return}deliver(safeName(doc.name)+'.png',bl,'PNG')},'image/png');
 }
 const ACI={auto:7,red:1,yellow:2,green:3,cyan:4,blue:5,magenta:6,orange:30,gray:8};
+const DXFSUB={σ:'sigma',τ:'tau',γ:'gamma',χ:'chi',λ:'lambda',Φ:'Phi',α:'alpha',δ:'delta',π:'pi',Σ:'Sum',Δ:'Delta',φ:'phi',ε:'eps',μ:'mu','≤':'<=','≥':'>=','√':'sqrt','→':'->','≈':'~=','≠':'<>','·':'*','–':'-','—':'-','²':'^2','³':'^3'};
+const dxfSafe=t=>String(t).replace(/[^\x00-\x7e]/g,c=>DXFSUB[c]!==undefined?DXFSUB[c]:/[\u00c0-\u00ff]/.test(c)?c:'?');
 function exportDXF(){
   if(!docBBox()){toast('Die Zeichnung ist leer');return}
   const o=[],g=(c,v)=>{o.push(String(c),String(v))},N=v=>(+(+v).toFixed(6)).toString();
@@ -1560,7 +1602,7 @@ function exportDXF(){
   const head=(t,e)=>{g(0,t);g(8,lname.get(e.layer)||'0');if(e.color&&ACI[e.color])g(62,ACI[e.color])};
   const LINE=(e,p,q)=>{head('LINE',e);g(10,N(p[0]));g(20,N(p[1]));g(30,0);g(11,N(q[0]));g(21,N(q[1]));g(31,0)};
   const POLY=(e,pts,closed)=>{head('POLYLINE',e);g(66,1);g(10,0);g(20,0);g(30,0);g(70,closed?1:0);for(const p of pts){g(0,'VERTEX');g(8,lname.get(e.layer)||'0');g(10,N(p[0]));g(20,N(p[1]));g(30,0)}g(0,'SEQEND');g(8,lname.get(e.layer)||'0')};
-  const TXT=(e,txt,p,hh,rot)=>{const ls=String(txt).split('\n'),d=[Math.sin(rot),-Math.cos(rot)];ls.forEach((l,i)=>{if(!l)return;const q=add(p,mul(d,i*1.25*hh));head('TEXT',e);g(10,N(q[0]));g(20,N(q[1]));g(30,0);g(40,N(hh));g(1,l.replace(/\u00b0/g,'%%d').replace(/\u00d8/g,'%%c').replace(/\u00b1/g,'%%p'));g(50,N(nA(rot)/D2R))})};
+  const TXT=(e,txt,p,hh,rot)=>{const ls=String(txt).split('\n'),d=[Math.sin(rot),-Math.cos(rot)];ls.forEach((l,i)=>{if(!l)return;const q=add(p,mul(d,i*1.25*hh));head('TEXT',e);g(10,N(q[0]));g(20,N(q[1]));g(30,0);g(40,N(hh));g(1,dxfSafe(l.replace(/\u00b0/g,'%%d').replace(/\u00d8/g,'%%c').replace(/\u00b1/g,'%%p')));g(50,N(nA(rot)/D2R))})};
   const ARR=(e,tip,dir,size)=>{const nv=[-dir[1],dir[0]],b=sub(tip,mul(dir,size));LINE(e,tip,add(b,mul(nv,size*.28)));LINE(e,tip,sub(b,mul(nv,size*.28)));LINE(e,add(b,mul(nv,size*.28)),sub(b,mul(nv,size*.28)))};
   for(const e of doc.ents){
     switch(e.type){
@@ -1692,6 +1734,9 @@ function helpDialog(){
 <tr><td>10,20</td><td>absolut: X = 10, Y = 20</td></tr>
 <tr><td>@5,3</td><td>relativ zum letzten Punkt</td></tr>
 <tr><td>@10&lt;45</td><td>relativ, Länge 10 im Winkel 45° (0° = nach rechts, gegen den Uhrzeigersinn)</td></tr>
+<tr><td>500</td><td><b>Länge tippen</b>: Nach dem ersten Punkt eine Zahl eingeben und Enter, dann entsteht die Strecke in dieser Länge. Die Richtung ist die des Cursors (mit Polar-Einrasten). Ist kein Cursor da (z. B. auf dem Handy), gilt die Richtung der letzten Strecke, sonst waagerecht nach rechts. Beim Tippen zeigt eine Vorschau, was entsteht. Es funktioniert auch bei Kreisradius, Verschieben, Kopieren usw.</td></tr>
+<tr><td>500&lt;90</td><td>Länge mit Winkel, relativ zum letzten Punkt (<code>#500&lt;90</code> = vom Nullpunkt aus)</td></tr>
+<tr><td>500mm</td><td>Einheit darf angehängt werden (mm, cm, m). Bezogen auf die Zeichnungseinheit; ohne Statik-Einrichtung wird mm angenommen.</td></tr>
 <tr><td>12.5</td><td>nur eine Zahl: Abstand vom letzten Punkt in Richtung Mauszeiger (bei Kreis: Radius)</td></tr>
 </table>
 <p>Dezimal-Komma oder -Punkt sind beide erlaubt. Ein Befehlskürzel (siehe oben) im Feld startet das Werkzeug; leeres Enter wiederholt den letzten Befehl.</p>
@@ -1727,8 +1772,14 @@ function helpDialog(){
 <li><b>Einzellast</b> (<code>KRAFT</code>): Knoten anklicken, Fx, Fy in kN (Fy negativ = nach unten) und Moment in kNm. <b>Streckenlast</b> (<code>QLAST</code>): Stab anklicken, q in kN/m (negativ = nach unten, lotrecht).</li>
 <li>Lasten und Auflager dürfen auch mitten auf einem Stab liegen: Helix teilt den Stab dort automatisch. Stäbe, die sich nur kreuzen, sind <b>nicht</b> verbunden; Verbindungen entstehen an Stabenden und Knoten.</li>
 <li>Gelenke: Für Fachwerke den Schalter „Fachwerk“ setzen; einzelne Gelenke pro Stab unter Eigenschaften („Gelenk am Anfang/Ende“).</li>
+<li><b>Art der Einwirkung:</b> Jede Last ist <b>G</b> (ständig, z. B. Eigenlast) oder <b>Q</b> (veränderlich, z. B. Nutzlast, Schnee, Wind). Optional rechnet Helix das <b>Eigengewicht</b> der Stäbe mit.</li>
+<li><b>Sicherheit:</b> Mit „Teilsicherheitsbeiwerte anwenden“ (Reiter Statik ▸ Sicherheit) wird die Tragfähigkeit mit γG·G + γQ·Q berechnet (Standard 1,35 und 1,5), die Durchbiegung mit 1,0·G + 1,0·Q. Alle Beiwerte, die Durchbiegungsgrenze L/300 und kmod für Holz sind einstellbar. Ohne Haken gelten die eingegebenen Werte unverändert.</li>
+<li><b>Nachweise je Stab:</b> Spannung (Biegung mit Normalkraft), Schub, Biegeknicken in der Ebene und Durchbiegung. Oben im Reiter steht „Nachweise erfüllt“ oder „NICHT erfüllt“ mit der Ausnutzung in Prozent, ebenso im Bild. Der Knicknachweis nimmt die Stablänge als Knicklänge; mit dem Knicklängenbeiwert k (Eigenschaften) lässt sich das anpassen.</li>
+<li><b>Berechnung als Text:</b> Der Knopf „Berechnung als Text einfügen“ schreibt den Rechenweg (Einwirkungen mit Teilsicherheitsbeiwerten, Auflagerkräfte, Spannung, Schub, Knicken, Durchbiegung mit eingesetzten Zahlen und Ergebnis) als normale Textobjekte in die Zeichnung (Ebene „Berechnung“). Umfang: kurz, maßgebender Stab oder alle Stäbe. Mit Enter landet der Text rechts neben der Zeichnung. Formelzeichen (σ, τ, χ) sind im PDF möglich; im DXF werden sie ausgeschrieben. „Text kopieren“ legt dieselbe Berechnung in die Zwischenablage.</li>
+<li><b>Berechnungsbericht:</b> Der Knopf „Berechnungsbericht (HTML)“ erzeugt ein druckbares Dokument mit System, Einwirkungen, Auflagerkräften, Nachweisen und den Diagrammen; im Browser über Drucken als PDF speichern.</li>
+<li>Der Reiter zeigt auch den <b>Grad der statischen Unbestimmtheit</b> (bestimmt, n-fach unbestimmt oder verschieblich).</li>
 <li><b>Berechnen</b> zeigt Verformung, N-, V-, M-Linien oder die Ausnutzung, dazu die Auflagerkräfte. Nach jeder Änderung neu berechnen. Die Ergebnisse werden mit PDF, SVG und PNG exportiert (PDF: Haken „Statik-Ergebnis drucken“).</li>
-<li><b>Grenzen:</b> 2D, lineare Theorie (kleine Verformungen), Biegestab mit Normalkraft, keine Schubverformung, keine Knick-, Kipp- oder Beulnachweise, keine Sicherheitsbeiwerte, keine geneigten Lager, keine Temperaturlasten. Profilwerte sind Richtwerte. Das Ergebnis dient der Orientierung und ersetzt keinen Nachweis.</li>
+<li><b>Grenzen:</b> 2D, lineare Theorie (kleine Verformungen), Biegestab mit Normalkraft, keine Schubverformung. Nachweise vereinfacht: kein Biegedrillknicken, kein Knicken aus der Ebene, kein Beulen, keine Anschlüsse, keine Kombinationsbeiwerte ψ, keine geneigten Lager, keine Temperaturlasten. Profilwerte sind Richtwerte. Das Ergebnis dient der Orientierung und ersetzt keinen Nachweis.</li>
 </ul>
 <h3>13 · Zeichnungsrahmen &amp; Schriftfeld</h3>
 <ul>
@@ -1810,6 +1861,27 @@ function dxfRecords(P){
   }
   return secs;
 }
+/* Einlesen ohne Zwischenlisten (spart bei großen Dateien viel Arbeitsspeicher) */
+function dxfStream(txt){
+  if(txt.indexOf('\n')<0)return dxfRecords(dxfPairs(txt));
+  const secs={},n=txt.length;let sec=null,rec=null,pos=0;
+  const next=()=>{if(pos>=n)return null;let e=txt.indexOf('\n',pos);if(e<0)e=n;let s=txt.slice(pos,e);pos=e+1;if(s.charCodeAt(s.length-1)===13)s=s.slice(0,-1);return s};
+  for(;;){
+    const a=next();if(a===null)break;const b=next();if(b===null)break;
+    const c=parseInt(a,10);if(!Number.isFinite(c))continue;
+    const v=b.trim();
+    if(c===0){
+      if(v==='SECTION'){sec={name:'',recs:[]};rec=null;continue}
+      if(v==='ENDSEC'){if(sec&&sec.name)secs[sec.name]=sec.recs;sec=null;rec=null;continue}
+      if(!sec)continue;
+      rec={t:v,g:[]};sec.recs.push(rec);continue;
+    }
+    if(!sec)continue;
+    if(rec===null){if(c===2&&!sec.name)sec.name=v;continue}
+    rec.g.push([c,v]);
+  }
+  return secs;
+}
 function dxfBlocks(recs){
   const m=new Map();let cur=null;
   for(const r of recs){
@@ -1883,7 +1955,7 @@ function dxfColorKey(r,ctx){
 }
 function dxfConv(recs,M,ctx,env,depth){
   for(let i=0;i<recs.length;i++){
-    if(env.n>400000){env.skip('(Limit 400000 Objekte erreicht)');return}
+    if(env.n>4000000){env.skip('(Limit 4 Mio. Objekte erreicht)');return}
     const r=recs[i];
     if(dxG(r,67)==='1')continue;
     let L=(dxG(r,8)||'0').trim().slice(0,40)||'0';
@@ -1984,7 +2056,7 @@ function dxfConv(recs,M,ctx,env,depth){
   }
 }
 function dxfParse(txt){
-  const secs=dxfRecords(dxfPairs(txt));
+  const secs=dxfStream(txt);
   if(!secs.ENTITIES&&!secs.BLOCKS)throw new Error('Keine Zeichnungsdaten in der DXF-Datei gefunden.');
   const tab=dxfLayers(secs.TABLES),env={out:[],layers:new Set(),blocks:dxfBlocks(secs.BLOCKS||[]),sk:{},n:0,skip(t){this.sk[t]=(this.sk[t]||0)+1}};
   dxfConv(secs.ENTITIES||[],null,{layer:null,color:undefined},env,0);
@@ -2389,7 +2461,9 @@ const HW=[278,278,355,556,556,889,667,191,333,333,389,584,278,333,278,278,556,55
   667,667,722,722,667,611,778,722,278,500,667,556,833,722,778,667,778,722,667,611,722,667,944,667,667,611,278,278,278,469,556,333,
   556,556,500,556,556,278,556,556,222,222,500,222,833,556,556,556,556,333,500,278,556,500,722,500,500,500,334,260,334,584];
 const HWX={'Ø':778,'°':400,'±':584,'…':1000,'–':556,'—':1000};
-const textW=s=>{let w=0;for(const ch of String(s)){const c=ch.charCodeAt(0);w+=c>=32&&c<=126?HW[c-32]:(HWX[ch]||556)}return w};
+/* Griechische Buchstaben und Mathe-Zeichen über die PDF-Standardschrift „Symbol“ */
+const SYMMAP={α:'a',β:'b',χ:'c',δ:'d',ε:'e',φ:'f',γ:'g',η:'h',ι:'i',κ:'k',λ:'l',ν:'n',π:'p',θ:'q',ρ:'r',σ:'s',τ:'t',υ:'u',ω:'w',ξ:'x',ψ:'y',ζ:'z',Δ:'D',Φ:'F',Γ:'G',Λ:'L',Π:'P',Θ:'Q',Σ:'S',Ω:'W',Ψ:'Y','≤':'\xA3','≥':'\xB3','√':'\xD6','→':'\xAE','≈':'\xBB','≠':'\xB9','∞':'\xA5'};
+const textW=s=>{let w=0;for(const ch of String(s)){const c=ch.charCodeAt(0);w+=SYMMAP[ch]?600:c>=32&&c<=126?HW[c-32]:(HWX[ch]||556)}return w};
 const WINMAP={'€':128,'‚':130,'ƒ':131,'„':132,'…':133,'†':134,'‡':135,'ˆ':136,'‰':137,'Š':138,'‹':139,'Œ':140,'Ž':142,'‘':145,'’':146,'“':147,'”':148,'•':149,'–':150,'—':151,'˜':152,'™':153,'š':154,'›':155,'œ':156,'ž':158,'Ÿ':159,'−':45};
 function toWin(s){let o='';for(const ch of String(s)){const c=ch.codePointAt(0);if(c<32)o+=' ';else if(c<128||(c>=160&&c<256))o+=String.fromCharCode(c);else if(WINMAP[ch]!==undefined)o+=String.fromCharCode(WINMAP[ch]);else o+='?'}return o}
 const pdfEsc=s=>toWin(s).replace(/[\\()]/g,m=>'\\'+m);
@@ -2410,7 +2484,10 @@ function pdfContent(o,L){
       if(!ln.trim())return;
       const w=textW(ln)*fs/1000,dx=align==='center'?-w/2:(align==='right'||align==='end')?-w:0;
       const bx=p[0]+si*i*1.25*hh,by=p[1]-co*i*1.25*hh,x=ox+bx*k+dx*co,y=oy+by*k+dx*si;
-      P(`BT /F1 ${n(fs)} Tf ${n(co,5)} ${n(si,5)} ${n(-si,5)} ${n(co,5)} ${n(x)} ${n(y)} Tm (${pdfEsc(ln)}) Tj ET`);
+      const runs=[];let cur='',sy=false;
+      for(const ch of ln){const m=SYMMAP[ch];if(m){if(!sy&&cur){runs.push([0,cur]);cur=''}sy=true;cur+=m}else{if(sy&&cur){runs.push([1,cur]);cur=''}sy=false;cur+=ch}}
+      if(cur)runs.push([sy?1:0,cur]);
+      P(`BT ${n(co,5)} ${n(si,5)} ${n(-si,5)} ${n(co,5)} ${n(x)} ${n(y)} Tm `+runs.map(r=>`/F${r[0]?2:1} ${n(fs)} Tf (${r[0]?r[1].replace(/[\\()]/g,m=>'\\'+m):pdfEsc(r[1])}) Tj`).join(' ')+' ET');
     });
   };
   const mmTxt=(txt,x,y,size,gray)=>P(`BT ${gray} /F1 ${n(size)} Tf 1 0 0 1 ${n(x)} ${n(y)} Tm (${pdfEsc(txt)}) Tj ET`);
@@ -2483,7 +2560,7 @@ async function pdfAssemble(o,L,content,useImg){
   const sobj=(id,dict,data)=>{offs[id]=pos;wr(`${id} 0 obj\n<< ${dict} /Length ${data.length} >>\nstream\n`);wr(data);wr('\nendstream\nendobj\n')};
   obj(1,'<< /Type /Catalog /Pages 2 0 R >>');
   obj(2,'<< /Type /Pages /Kids [3 0 R] /Count 1 >>');
-  obj(3,`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W.toFixed(2)} ${H.toFixed(2)}] /Resources << /Font << /F1 4 0 R >> /ExtGState << /G35 6 0 R /GI 7 0 R >>${useImg?' /XObject << /Im1 8 0 R >>':''} >> /Contents 5 0 R >>`);
+  obj(3,`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W.toFixed(2)} ${H.toFixed(2)}] /Resources << /Font << /F1 4 0 R /F2 ${infoId+1} 0 R >> /ExtGState << /G35 6 0 R /GI 7 0 R >>${useImg?' /XObject << /Im1 8 0 R >>':''} >> /Contents 5 0 R >>`);
   obj(4,'<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>');
   sobj(5,flate?'/Filter /FlateDecode':'',cb);
   obj(6,'<< /Type /ExtGState /ca 0.35 /CA 0.35 >>');
@@ -2491,10 +2568,11 @@ async function pdfAssemble(o,L,content,useImg){
   if(useImg)sobj(8,`/Type /XObject /Subtype /Image /Width ${doc.bg.w} /Height ${doc.bg.h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode`,ib);
   const title=String(o.title||doc.name),hex='FEFF'+Array.from({length:title.length},(_,i)=>title.charCodeAt(i).toString(16).padStart(4,'0')).join('').toUpperCase(),d=new Date(),p2=v=>String(v).padStart(2,'0');
   obj(infoId,`<< /Title <${hex}> /Producer (Helix Web-CAD) /CreationDate (D:${d.getFullYear()}${p2(d.getMonth()+1)}${p2(d.getDate())}${p2(d.getHours())}${p2(d.getMinutes())}${p2(d.getSeconds())}) >>`);
+  obj(infoId+1,'<< /Type /Font /Subtype /Type1 /BaseFont /Symbol >>');
   const xr=pos;
-  wr(`xref\n0 ${infoId+1}\n0000000000 65535 f \n`);
-  for(let i=1;i<=infoId;i++)wr(`${String(offs[i]).padStart(10,'0')} 00000 n \n`);
-  wr(`trailer\n<< /Size ${infoId+1} /Root 1 0 R /Info ${infoId} 0 R >>\nstartxref\n${xr}\n%%EOF\n`);
+  wr(`xref\n0 ${infoId+2}\n0000000000 65535 f \n`);
+  for(let i=1;i<=infoId+1;i++)wr(`${String(offs[i]).padStart(10,'0')} 00000 n \n`);
+  wr(`trailer\n<< /Size ${infoId+2} /Root 1 0 R /Info ${infoId} 0 R >>\nstartxref\n${xr}\n%%EOF\n`);
   return new Blob(chunks,{type:'application/pdf'});
 }
 async function pdfExport(o){
@@ -2687,7 +2765,17 @@ const STAT_SECS={
 };
 for(const[b,hh]of[[6,12],[8,12],[8,16],[10,10],[10,16],[10,20],[12,12],[12,24],[14,28],[16,32]])
   STAT_SECS[`Holz ${b}/${hh}`]=[b*hh,b*hh**3/12,b*hh*hh/6];
-const STAT_MATS={'S235':{E:210000,f:235},'S355':{E:210000,f:355},'C24':{E:11000,f:24},'GL24h':{E:11500,f:24}};
+const STAT_MATS={'S235':{E:210000,f:235,rho:78.5},'S355':{E:210000,f:355,rho:78.5},'C24':{E:11000,f:24,rho:4.2},'GL24h':{E:11500,f:24,rho:3.7}};
+/* Holz: charakteristische Werte in MPa */
+const STAT_TIMBER={'C24':{fm:24,ft:14,fc:21,fv:4,E05:7400,bc:.2},'GL24h':{fm:24,ft:19.2,fc:24,fv:3.5,E05:9600,bc:.1}};
+/* Profilabmessungen [h, b, tw, tf] in mm (Richtwerte) */
+const STAT_SECX={
+  'IPE 80':[80,46,3.8,5.2],'IPE 100':[100,55,4.1,5.7],'IPE 120':[120,64,4.4,6.3],'IPE 140':[140,73,4.7,6.9],'IPE 160':[160,82,5,7.4],'IPE 180':[180,91,5.3,8],
+  'IPE 200':[200,100,5.6,8.5],'IPE 220':[220,110,5.9,9.2],'IPE 240':[240,120,6.2,9.8],'IPE 270':[270,135,6.6,10.2],'IPE 300':[300,150,7.1,10.7],
+  'IPE 330':[330,160,7.5,11.5],'IPE 360':[360,170,8,12.7],'IPE 400':[400,180,8.6,13.5],
+  'HEA 100':[96,100,5,8],'HEA 120':[114,120,5,8],'HEA 140':[133,140,5.5,8.5],'HEA 160':[152,160,6,9],'HEA 180':[171,180,6,9.5],
+  'HEA 200':[190,200,6.5,10],'HEA 220':[210,220,7,11],'HEA 240':[230,240,7.5,12],'HEA 260':[250,260,7.5,12.5],'HEA 280':[270,280,8,13],'HEA 300':[290,300,8.5,14]
+};
 /* Zeichnungseinheit -> Meter */
 const STAT_UNITS={m:1,cm:.01,mm:.001};
 function statSec(mem){
@@ -2695,15 +2783,15 @@ function statSec(mem){
   const t=STAT_SECS[mem&&mem.p]||STAT_SECS['IPE 200'];return{A:t[0]*1e-4,I:t[1]*1e-8,W:t[2]*1e-6};
 }
 function statMat(mem){
-  if(mem&&mem.m==='Eigen')return{E:+mem.E*1000,f:+mem.f};
-  const t=STAT_MATS[mem&&mem.m]||STAT_MATS.S235;return{E:t.E*1000,f:t.f};
+  if(mem&&mem.m==='Eigen')return{E:+mem.E*1000,f:+mem.f,rho:Number.isFinite(+mem.rho)?+mem.rho:0};
+  const t=STAT_MATS[mem&&mem.m]||STAT_MATS.S235;return{E:t.E*1000,f:t.f,rho:t.rho};
 }
 /* Geometrie-Hilfen */
 const sDist=(a,b)=>Math.hypot(a[0]-b[0],a[1]-b[1]);
 function sSegParam(p,a,b){const dx=b[0]-a[0],dy=b[1]-a[1],L2=dx*dx+dy*dy;if(L2<1e-300)return{t:0,d:sDist(p,a)};let t=((p[0]-a[0])*dx+(p[1]-a[1])*dy)/L2;const tc=Math.max(0,Math.min(1,t));return{t,d:sDist(p,[a[0]+dx*tc,a[1]+dy*tc])}}
 /* Modell aufbauen: members [{a,b,mem}], supports [{p,kind,rot}], loads [{p,fx,fy,m}], qloads [{a,b,q}] */
 function statBuild(inp){
-  const warn=[],u=inp.u||1,truss=!!inp.truss,P=[];
+  const warn=[],u=inp.u||1,truss=!!inp.truss,P=[],fG=inp.fG==null?1:inp.fG,fQ=inp.fQ==null?1:inp.fQ,fq=c=>c==='G'?fG:fQ;
   for(const m of inp.members){P.push(m.a,m.b)}for(const s of inp.supports)P.push(s.p);for(const l of inp.loads)P.push(l.p);
   if(!inp.members.length)return{error:'Es gibt noch keine Stäbe. Zeichne Stäbe mit dem Stab-Werkzeug.'};
   let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;for(const p of P){x0=Math.min(x0,p[0]);y0=Math.min(y0,p[1]);x1=Math.max(x1,p[0]);y1=Math.max(y1,p[1])}
@@ -2722,7 +2810,7 @@ function statBuild(inp){
       const mem=m.mem||{},n1=nodeAt(pa),n2=nodeAt(pb);if(n1===n2)continue;
       const dx=(nodes[n2][0]-nodes[n1][0])*u,dy=(nodes[n2][1]-nodes[n1][1])*u,L=Math.hypot(dx,dy),sec=statSec(mem),mat=statMat(mem);
       if(!(sec.A>0&&sec.I>0&&sec.W>0&&mat.E>0))return{error:'Ungültiger Querschnitt oder Werkstoff an einem Stab (A, I, W, E müssen > 0 sein).'};
-      elems.push({n1,n2,L,c:dx/L,s:dy/L,A:sec.A,I:sec.I,W:sec.W,E:mat.E,fy:mat.f,mem,ha:truss||!!mem.ha,hb:truss||!!mem.hb,q:0,parent:inp.members.indexOf(m),pa:nodes[n1],pb:nodes[n2]});
+      elems.push({n1,n2,L,c:dx/L,s:dy/L,A:sec.A,I:sec.I,W:sec.W,E:mat.E,fy:mat.f,mem,ha:truss||!!mem.ha,hb:truss||!!mem.hb,q:inp.selfWeight?-fG*sec.A*mat.rho:0,parent:inp.members.indexOf(m),pa:nodes[n1],pb:nodes[n2]});
     }
   }
   /* Auflager und Lasten auf Knoten abbilden */
@@ -2740,18 +2828,24 @@ function statBuild(inp){
   for(const l of inp.loads){
     let i=-1;for(let k=0;k<nn;k++)if(sDist(nodes[k],l.p)<=tol){i=k;break}
     if(i<0){warn.push('Eine Last liegt auf keinem Stab und wird ignoriert.');continue}
-    F[i][0]+=l.fx||0;F[i][1]+=l.fy||0;F[i][2]+=l.m||0;totFx+=l.fx||0;totFy+=l.fy||0;
+    const k=fq(l.cat);F[i][0]+=(l.fx||0)*k;F[i][1]+=(l.fy||0)*k;F[i][2]+=(l.m||0)*k;
   }
   const ql=inp.qloads||[];
   for(const q of ql){
     let hit=0;
     for(const e of elems){
       const ra=sSegParam(e.pa,q.a,q.b),rb=sSegParam(e.pb,q.a,q.b);
-      if(ra.d<=tol*3&&rb.d<=tol*3&&ra.t>=-1e-6&&ra.t<=1+1e-6&&rb.t>=-1e-6&&rb.t<=1+1e-6){e.q+=q.q;hit++}
+      if(ra.d<=tol*3&&rb.d<=tol*3&&ra.t>=-1e-6&&ra.t<=1+1e-6&&rb.t>=-1e-6&&rb.t<=1+1e-6){e.q+=q.q*fq(q.cat);hit++}
     }
     if(!hit)warn.push('Eine Streckenlast liegt auf keinem Stab und wird ignoriert.');
   }
-  return{nodes,elems,fix,F,supNodes,warn,u,tol,diag};
+  /* Grad der statischen Unbestimmtheit n = 3m + r - 3j - c */
+  let rr=0;for(const f of fix)rr+=f[0]+f[1]+f[2];
+  const tot=new Array(nn).fill(0),rel=new Array(nn).fill(0);
+  for(const e of elems){tot[e.n1]++;tot[e.n2]++;if(e.ha)rel[e.n1]++;if(e.hb)rel[e.n2]++}
+  let cc=0;for(let i=0;i<nn;i++)if(tot[i]>0)cc+=(rel[i]===tot[i]&&!fix[i][2])?Math.max(0,rel[i]-1):rel[i];
+  const deg=3*elems.length+rr-3*nn-cc;
+  return{nodes,elems,fix,F,supNodes,warn,u,tol,diag,deg,members:inp.members,nodeDeg:tot};
 }
 /* Lokale Elementmatrix (6x6) */
 function sKloc(E,A,I,L){
@@ -2854,12 +2948,96 @@ function statSolve(M){
     e.Nmax=Math.max(...e.N.map(Math.abs));e.Vmax=Math.max(...e.V.map(Math.abs));e.Mmax=Math.max(...e.M.map(Math.abs));
     maxU=Math.max(maxU,e.util);
   }
-  return{nodes,elems,reactions,warn,u:M.u,U,summary:{maxN,maxV,maxM,maxUtil:maxU,maxDef,maxDefP,eqX:sx+ax,eqY:sy+ay,sumRy:sy,sumRx:sx,loadX:ax,loadY:ay},NS};
+  return{nodes,elems,reactions,warn,u:M.u,U,deg:M.deg,nodeDeg:M.nodeDeg,sup:fix.map(f=>!!(f[0]||f[1]||f[2])),members:M.members,summary:{maxN,maxV,maxM,maxUtil:maxU,maxDef,maxDefP,eqX:sx+ax,eqY:sy+ay,sumRy:sy,sumRx:sx,loadX:ax,loadY:ay},NS};
+}
+
+/* ===== Nachweise (vereinfacht, Eurocode-Ansatz mit einstellbaren Teilsicherheitsbeiwerten) ===== */
+function statCheck(R,S,P){
+  const pm=new Map(),out=[],warn=[],gM0=P.gM0||1,gMt=P.gMt||1,kmod=P.kmod||1,defl=P.defl||300;
+  R.elems.forEach((e,i)=>{if(!pm.has(e.parent))pm.set(e.parent,{els:[],sls:[]});const g=pm.get(e.parent);g.els.push(e);g.sls.push(S.elems[i])});
+  for(const[parent,g]of pm){
+    const els=g.els,e0=els[0],mem=e0.mem||{},tim=STAT_TIMBER[mem.m],Lp=els.reduce((a,e)=>a+e.L,0),k=mem.k>0?mem.k:1,Lcr=k*Lp;
+    const A=e0.A,I=e0.I,W=e0.W,E=e0.E;
+    let Nc=0,Nt=0,Mm=0,Vm=0,uSig=0,Ng=0,Mg=0,AvCm=null,bk=null;
+    const fyd=e0.fy/gM0,ftd=tim?kmod*tim.ft/gMt:0,fcd=tim?kmod*tim.fc/gMt:0,fmd=tim?kmod*tim.fm/gMt:0,fvd=tim?kmod*tim.fv/gMt:0;
+    for(const e of els)for(let i=0;i<e.N.length;i++){
+      const N=e.N[i],M=Math.abs(e.M[i]);Nc=Math.max(Nc,-N);Nt=Math.max(Nt,N);Mm=Math.max(Mm,M);Vm=Math.max(Vm,Math.abs(e.V[i]));
+      const sN=Math.abs(N)/A/1000,sM=M/W/1000;
+      let u;if(tim)u=N>=0?sN/ftd+sM/fmd:(sN/fcd)**2+sM/fmd;else u=(sN+sM)/fyd;
+      if(u>=uSig){Ng=N;Mg=e.M[i]}uSig=Math.max(uSig,u);
+    }
+    /* Schub */
+    let uV=null,Vrd=null;
+    if(tim){const tau=1.5*Vm/(.67*A)/1000;uV=tau/fvd;Vrd=fvd*.67*A*1000/1.5}
+    else{const x=STAT_SECX[mem.p];if(x){const[h,b,tw,tf]=x,Av=Math.max(A*1e6-2*b*tf+tw*tf,(h-2*tf)*tw);AvCm=Av/100;Vrd=Av*1e-6*fyd*1000/Math.sqrt(3);uV=Vm/Vrd}}
+    /* Knicken in der Ebene (Biegeknicken um die starke Achse) */
+    let uB=null,chi=null,lam=null;
+    if(Nc>1e-9){
+      if(tim){
+        const i0=Math.sqrt(I/A),lr=(Lcr/i0/Math.PI)*Math.sqrt(tim.fc/tim.E05);lam=lr;
+        let ky=null;if(lr>.3){ky=.5*(1+tim.bc*(lr-.3)+lr*lr);chi=1/(ky+Math.sqrt(ky*ky-lr*lr))}else chi=1;bk={i0,lr,ky};
+        uB=(Nc/A/1000)/(chi*fcd)+(Mm/W/1000)/fmd;
+      }else{
+        const Ncr=Math.PI**2*E*I/(Lcr*Lcr),lb=Math.sqrt(A*e0.fy*1000/Ncr),x=STAT_SECX[mem.p],al=x&&x[0]/x[1]>1.2?.21:.34;lam=lb;
+        const ph=.5*(1+al*(lb-.2)+lb*lb);chi=lb<=.2?1:Math.min(1,1/(ph+Math.sqrt(ph*ph-lb*lb)));bk={Ncr,al,ph};
+        uB=Nc/(chi*A*fyd*1000)+Mm/(W*fyd*1000);
+      }
+    }
+    if(!tim&&uV!=null&&uV>.5)warn.push(`Stab ${parent+1}: V > 0,5·Vpl,Rd – die Interaktion Biegung/Querkraft ist nicht berücksichtigt.`);
+    /* Verformung (Gebrauchstauglichkeit) */
+    const df=statDeflection(g,S,R,Lp,defl);
+    const gov=Math.max(uSig,uV||0,uB||0),parts=[['Spannung',uSig],['Schub',uV||0],['Knicken',uB||0]].sort((a,b)=>b[1]-a[1]);
+    const det=tim?{kind:'timber',mat:mem.m,tim,kmod,gMt,fmd,fcd,ftd,fvd,A:A*1e4,W:W*1e6,I:I*1e8,sc:Math.abs(Ng)/A/1000,sm:Math.abs(Mg)/W/1000,tau:1.5*Vm/(.67*A)/1000,bk,k}
+      :{kind:'steel',mem,fy:e0.fy,gM0,fyd,A:A*1e4,W:W*1e6,I:I*1e8,E:E/1000,sN:Math.abs(Ng)/A/1000,sM:Math.abs(Mg)/W/1000,Av:AvCm,bk,k,Nb:chi==null?null:chi*A*fyd*1000,Mel:W*fyd*1000};
+    out.push({parent,type:tim?'Holz':'Stahl',L:Lp,Lcr,Nc,Nt,M:Mm,V:Vm,Ng,Mg,uSig,uV,uB,uDef:df.u,delta:df.delta,dlim:df.lim,cant:df.cant,gov,govName:parts[0][0],chi,lam,Vrd,det});
+    for(const e of els)e.util=gov;
+  }
+  out.sort((a,b)=>a.parent-b.parent);
+  let maxU=0,maxD=0,gm=null,gd=null;for(const o of out){if(o.gov>maxU){maxU=o.gov;gm=o}if(o.uDef>maxD){maxD=o.uDef;gd=o}}
+  const ok=maxU<=1+1e-9&&maxD<=1+1e-9;
+  return{members:out,warn,maxU,maxD,gov:gm,govD:gd,ok};
+}
+function statDeflection(g,S,R,Lp,defl){
+  /* Querverformung je Stab gegen Sehne zwischen Ankerpunkten (Enden und Zwischenlager); Kragarme gegen die Ausgangslage */
+  const els=g.els,sls=g.sls,pts=[];let off=0;const anchors=[{s:0,node:els[0].n1}];
+  for(let a=0;a<els.length;a++){
+    const e=sls[a];
+    for(let i=0;i<e.sx.length;i++)pts.push({s:off+e.sx[i],v:-e.s*e.dx[i]+e.c*e.dy[i]});
+    off+=e.L;anchors.push({s:off,node:els[a].n2});
+  }
+  const keep=[anchors[0]];for(let i=1;i<anchors.length-1;i++)if(R.sup[anchors[i].node])keep.push(anchors[i]);keep.push(anchors[anchors.length-1]);
+  const vAt=s=>{let b=pts[0],bd=Infinity;for(const p of pts){const d=Math.abs(p.s-s);if(d<bd){bd=d;b=p}}return b.v};
+  const freeEnd=n=>R.nodeDeg[n]===1&&!R.sup[n];
+  let u=0,delta=0,lim=Lp/defl,cant=false;
+  for(let i=0;i<keep.length-1;i++){
+    const a=keep[i],b=keep[i+1],Ls=b.s-a.s;if(Ls<1e-9)continue;
+    const va=vAt(a.s),vb=vAt(b.s),fa=i===0&&freeEnd(a.node),fb=i===keep.length-2&&freeEnd(b.node),cv=fa||fb;
+    let d=0;
+    for(const p of pts){if(p.s<a.s-1e-9||p.s>b.s+1e-9)continue;const ref=cv?(fa?vb:va):va+(vb-va)*(p.s-a.s)/Ls;d=Math.max(d,Math.abs(p.v-ref))}
+    const l=cv?2*Ls/defl:Ls/defl,r=d/l;
+    if(r>=u){u=r;delta=d;lim=l;cant=cv}
+  }
+  return{u,delta,lim,cant};
+}
+
+/* Gesamtablauf: Bemessungslasten (ULS) und Gebrauchslasten (SLS) rechnen und nachweisen */
+function statAnalyze(inp,P){
+  const sf=P.safety!==false,gG=sf?(P.gG>0?P.gG:1.35):1,gQ=sf?(P.gQ>0?P.gQ:1.5):1;
+  const base=Object.assign({},inp,{selfWeight:!!P.selfWeight}),uls=statSolve(statBuild(Object.assign({},base,{fG:gG,fQ:gQ})));
+  if(uls.error)return uls;
+  const sls=sf?statSolve(statBuild(Object.assign({},base,{fG:1,fQ:1}))):uls;
+  if(sls.error)return sls;
+  const par={gM0:sf?(P.gM0>0?P.gM0:1):1,gMt:sf?(P.gMt>0?P.gMt:1.3):1,kmod:sf?(P.kmod>0?P.kmod:.8):1,defl:P.defl>0?P.defl:300};
+  uls.sls=sls;uls.chk=statCheck(uls,sls,par);uls.P=Object.assign({safety:sf,gG,gQ,selfWeight:!!P.selfWeight},par);
+  return uls;
 }
 /*STAT_CORE_END*/
 
 /* ================= Statik: Objekte, Werkzeuge, Ergebnisse ================= */
-let statDef={p:'IPE 200',m:'S235'},statView={mode:'M',defScale:null,labels:true},statMsg=null,statLager={kind:'pin',rot:0},statLast={fx:0,fy:-10,m:0,q:-10};
+let statDef={p:'IPE 200',m:'S235'},statView={mode:'M',defScale:null,labels:true},statMsg=null,statLager={kind:'pin',rot:0},statLast={fx:0,fy:-10,m:0,q:-10,cat:'Q'};
+const STAT_DEF={unit:'m',truss:false,init:false,safety:true,gG:1.35,gQ:1.5,gM0:1,gMt:1.3,kmod:.8,selfw:false,defl:300};
+function statParams(){const S=Object.assign({},STAT_DEF,doc.stat);return{safety:S.safety!==false,gG:S.gG,gQ:S.gQ,gM0:S.gM0,gMt:S.gMt,kmod:S.kmod,selfWeight:!!S.selfw,defl:S.defl}}
+const STAT_CATS=[['G','Ständig G (Eigenlast, Ausbau)'],['Q','Veränderlich Q (Nutzlast, Schnee, Wind)']];
 const statF=v=>{const a=Math.abs(v),d=a>=100?0:a>=10?1:2,s=(+v.toFixed(d)).toString();return s==='-0'?'0':s};
 const statNice=v=>{if(!(v>0))return 1;const e=Math.pow(10,Math.floor(Math.log10(v))),m=v/e;return(m>=5?5:m>=2?2:1)*e};
 /* Moment als Kreisbogenpfeil */
@@ -2883,15 +3061,15 @@ function statSym(e){
     for(const[fv,d]of[[e.fx||0,[1,0]],[e.fy||0,[0,1]]]){
       if(Math.abs(fv)<1e-12)continue;const dd=mul(d,Math.sign(fv)),tail=sub(e.p,mul(dd,len));arrow(tail,e.p,sz);
       const horiz=d[0]!==0;
-      g.txt.push({t:statF(Math.abs(fv))+' kN',p:horiz?[tail[0]-dd[0]*.4*S,tail[1]-.3*S]:[tail[0]+.35*S,dd[1]<0?tail[1]+.3*S:tail[1]-1.0*S],h,al:horiz?(dd[0]>0?'right':'left'):'left'});
+      g.txt.push({t:statF(Math.abs(fv))+' kN ('+(e.cat==='G'?'G':'Q')+')',p:horiz?[tail[0]-dd[0]*.4*S,tail[1]-.3*S]:[tail[0]+.35*S,dd[1]<0?tail[1]+.3*S:tail[1]-1.0*S],h,al:horiz?(dd[0]>0?'right':'left'):'left'});
     }
-    if(Math.abs(e.m||0)>1e-12){const mg=statMomentGeom(e.p,e.m,S);for(let i=0;i<mg.pts.length-1;i++)seg(mg.pts[i],mg.pts[i+1]);g.tris.push(mg.tri);g.txt.push({t:statF(Math.abs(e.m))+' kNm',p:mg.tp,h,al:'left'})}
+    if(Math.abs(e.m||0)>1e-12){const mg=statMomentGeom(e.p,e.m,S);for(let i=0;i<mg.pts.length-1;i++)seg(mg.pts[i],mg.pts[i+1]);g.tris.push(mg.tri);g.txt.push({t:statF(Math.abs(e.m))+' kNm ('+(e.cat==='G'?'G':'Q')+')',p:mg.tp,h,al:'left'})}
   }else if(e.type==='qload'){
     const L=dist(e.a,e.b),n=Math.max(2,Math.min(40,Math.round(L/(2.2*S)))),dir=[0,e.q<0?-1:1],len=2.4*S;
     let t0=null,tN=null;
     for(let i=0;i<=n;i++){const pt=[e.a[0]+(e.b[0]-e.a[0])*i/n,e.a[1]+(e.b[1]-e.a[1])*i/n],tail=sub(pt,mul(dir,len));arrow(tail,pt,.7*S);if(i===0)t0=tail;if(i===n)tN=tail}
     seg(t0,tN);const mid=[(t0[0]+tN[0])/2,(t0[1]+tN[1])/2];
-    g.txt.push({t:statF(Math.abs(e.q))+' kN/m',p:[mid[0],mid[1]+(e.q<0?.4*S:-1.2*S)],h:.8*S,al:'center'});
+    g.txt.push({t:statF(Math.abs(e.q))+' kN/m ('+(e.cat==='G'?'G':'Q')+')',p:[mid[0],mid[1]+(e.q<0?.4*S:-1.2*S)],h:.8*S,al:'center'});
   }
   return g;
 }
@@ -2908,20 +3086,21 @@ function statCollect(){
   const members=[],supports=[],loads=[],qloads=[];
   for(const e of doc.ents){
     if(!vis(e))continue;
-    if(e.type==='line'&&e.mem)members.push({a:e.a,b:e.b,mem:e.mem});
+    if(e.type==='line'&&e.mem)members.push({a:e.a,b:e.b,mem:e.mem,id:e.id});
     else if(e.type==='support')supports.push({p:e.p,kind:e.kind||'pin',rot:e.rot||0});
-    else if(e.type==='load')loads.push({p:e.p,fx:e.fx||0,fy:e.fy||0,m:e.m||0});
-    else if(e.type==='qload')qloads.push({a:e.a,b:e.b,q:e.q});
+    else if(e.type==='load')loads.push({p:e.p,fx:e.fx||0,fy:e.fy||0,m:e.m||0,cat:e.cat==='G'?'G':'Q'});
+    else if(e.type==='qload')qloads.push({a:e.a,b:e.b,q:e.q,cat:e.cat==='G'?'G':'Q'});
   }
   return{u:STAT_UNITS[doc.stat.unit]||1,truss:!!doc.stat.truss,members,supports,loads,qloads};
 }
+function statSig(){return JSON.stringify([statCollect(),statParams(),doc.stat.unit,doc.stat.truss])}
 function statRun(){
   if(!doc.stat.init){statSetup(statRun);return}
-  const r=statSolve(statBuild(statCollect()));
+  const inp=statCollect(),r=statAnalyze(inp,statParams());
   if(r.error){statRes=null;statMsg={err:r.error};sideTab='stat';openSide(true);redraw();toast(r.error,5500);return}
-  statRes=r;statShow=true;statMsg={warn:r.warn};statView.defScale=null;
-  sideTab='stat';openSide(true);redraw();
-  toast(r.warn.length?r.warn[0]:'Berechnung fertig',2600);
+  r.memIds=inp.members.map(m=>m.id);r.sig=JSON.stringify([inp,statParams(),doc.stat.unit,doc.stat.truss]);statRes=r;statShow=true;statMsg={warn:[...r.warn,...r.chk.warn]};statView.defScale=null;
+  sideTab='stat';openSide(true);$('#sbody').scrollTop=0;redraw();
+  toast(r.chk.ok?'Berechnung fertig – Nachweise erfüllt':'Berechnung fertig – Nachweis NICHT erfüllt',3200);
 }
 function statInfoDia(){
   if(!doc.ents.length)return doc.stat.unit==='m'?.15:doc.stat.unit==='cm'?15:150;
@@ -2934,7 +3113,7 @@ function statSetup(cb){
     {k:'th',label:'Symbolgröße (Texthöhe)',type:'num',gt:0,value:th0,hint:'Auflager, Pfeile und Beschriftungen richten sich nach der Texthöhe. Ein guter Wert ist etwa 1/70 der Tragwerksgröße.'},
     {k:'truss',label:'Fachwerk (alle Knoten gelenkig)',type:'checkbox',value:doc.stat.truss}
   ],r=>{
-    if(!r)return;pushUndo();doc.stat={unit:r.unit,truss:r.truss,init:true};doc.th=r.th;statRes=null;renderSide();redraw();dirty();if(cb)cb();
+    if(!r)return;pushUndo();doc.stat=Object.assign({},STAT_DEF,doc.stat,{unit:r.unit,truss:r.truss,init:true});doc.th=r.th;statRes=null;renderSide();redraw();dirty();if(cb)cb();
   },'Weiter');
 }
 const statNeed=id=>{if(doc.stat.init)return true;statSetup(()=>startTool(id));return false};
@@ -2968,9 +3147,9 @@ TOOLS.kraft=()=>{
   return{name:'EINZELLAST',expect:()=>busy?'none':'point',prompt:()=>busy?'Werte im Dialog eingeben':'Knoten für die Last wählen (Enter = Ende)',
     click(p){
       busy=true;updPrompt();
-      dialog('Einzellast',[{k:'fx',label:'Fx (kN, + nach rechts)',type:'num',value:statLast.fx},{k:'fy',label:'Fy (kN, − nach unten)',type:'num',value:statLast.fy},{k:'m',label:'Moment (kNm, + gegen Uhrzeigersinn)',type:'num',value:statLast.m}],r=>{
+      dialog('Einzellast',[{k:'fx',label:'Fx (kN, + nach rechts)',type:'num',value:statLast.fx},{k:'fy',label:'Fy (kN, − nach unten)',type:'num',value:statLast.fy},{k:'m',label:'Moment (kNm, + gegen Uhrzeigersinn)',type:'num',value:statLast.m},{k:'cat',label:'Art der Einwirkung',type:'select',opts:STAT_CATS,value:statLast.cat}],r=>{
         busy=false;
-        if(r){if(!r.fx&&!r.fy&&!r.m)toast('Alle Werte sind 0 – keine Last erzeugt');else{statLast.fx=r.fx;statLast.fy=r.fy;statLast.m=r.m;statLayer('Statik','orange',.35);addEnt({type:'load',p,fx:r.fx,fy:r.fy,m:r.m,layer:'Statik'})}}
+        if(r){if(!r.fx&&!r.fy&&!r.m)toast('Alle Werte sind 0 – keine Last erzeugt');else{statLast.fx=r.fx;statLast.fy=r.fy;statLast.m=r.m;statLast.cat=r.cat;statLayer('Statik','orange',.35);addEnt({type:'load',p,fx:r.fx,fy:r.fy,m:r.m,cat:r.cat,layer:'Statik'})}}
         updPrompt();redraw();
       });
     },
@@ -2983,8 +3162,8 @@ TOOLS.qlast=()=>{
     pick(e){
       if(e.type!=='line'){toast('Die Streckenlast braucht eine Linie (Stab)');return}
       const a=e.a,b=e.b;busy=true;updPrompt();
-      dialog('Streckenlast',[{k:'q',label:'q (kN/m, − nach unten)',type:'num',value:statLast.q,hint:'Wirkt lotrecht, bezogen auf die Stablänge.'}],r=>{
-        busy=false;if(r){if(!r.q)toast('q = 0 – keine Last erzeugt');else{statLast.q=r.q;statLayer('Statik','orange',.35);addEnt({type:'qload',a,b,q:r.q,layer:'Statik'})}}
+      dialog('Streckenlast',[{k:'q',label:'q (kN/m, − nach unten)',type:'num',value:statLast.q,hint:'Wirkt lotrecht, bezogen auf die Stablänge.'},{k:'cat',label:'Art der Einwirkung',type:'select',opts:STAT_CATS,value:statLast.cat}],r=>{
+        busy=false;if(r){if(!r.q)toast('q = 0 – keine Last erzeugt');else{statLast.q=r.q;statLast.cat=r.cat;statLayer('Statik','orange',.35);addEnt({type:'qload',a,b,q:r.q,cat:r.cat,layer:'Statik'})}}
         updPrompt();redraw();
       });
     },
@@ -2999,32 +3178,35 @@ const statColor=u=>{
 const STAT_MODES=[['def','Verformung'],['N','Normalkraft N'],['V','Querkraft V'],['M','Moment M'],['U','Ausnutzung']];
 function statOverlay(){
   const R=statRes;if(!R)return[];
-  const th=doc.th,u=R.u,key=[statView.mode,statView.defScale,th,statView.labels].join('|');
+  const th=doc.th,u=R.u,key=[statView.mode,statView.defScale,th,statView.labels,doc.stat.safety].join('|');
   if(R._ovk===key)return R._ov;
   const out=[],poly=(pts,o)=>out.push(Object.assign({k:'poly',pts},o)),txt=(t,p,al,col,h)=>out.push({k:'text',t,p,al:al||'left',col:col||'FG',h:h||th*.8});
   let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;for(const n of R.nodes){x0=Math.min(x0,n[0]);y0=Math.min(y0,n[1]);x1=Math.max(x1,n[0]);y1=Math.max(y1,n[1])}
-  const D=Math.max(Math.hypot(x1-x0,y1-y0),1e-9),mode=statView.mode,S=R.summary;
+  const D=Math.max(Math.hypot(x1-x0,y1-y0),1e-9),mode=statView.mode,S=R.summary,Rd=R.sls||R,Sd=Rd.summary,dv=R.P&&R.P.safety?' · Bemessungswerte':'';
   const arrowP=(tail,head,sz,col)=>{poly([tail,head],{stroke:col,lw:.35});const d=nrm(sub(head,tail)),n=[-d[1],d[0]],b=sub(head,mul(d,sz));poly([head,add(b,mul(n,sz*.32)),sub(b,mul(n,sz*.32))],{close:true,fill:col,fa:1,stroke:col,lw:.1})};
   const lerpP=(e,x)=>{const t=x/e.L;return[e.pa[0]+(e.pb[0]-e.pa[0])*t,e.pa[1]+(e.pb[1]-e.pa[1])*t]};
   const BLUE='#2563eb',RED='#dc2626',GRN='#16a34a',ORG='#ea580c';
   let title='';
   if(mode==='def'){
-    const k=statView.defScale>0?statView.defScale:Math.max(1,statNice(.06*D/Math.max(S.maxDef/u,1e-12)));
-    for(const e of R.elems)poly(e.sx.map((x,i)=>{const b=lerpP(e,x);return[b[0]+e.dx[i]/u*k,b[1]+e.dy[i]/u*k]}),{stroke:ORG,lw:.7});
-    if(S.maxDefP){let best=null,bd=0;for(const e of R.elems)e.sx.forEach((x,i)=>{const d=Math.hypot(e.dx[i],e.dy[i]);if(d>bd){bd=d;const b=lerpP(e,x);best=[b[0]+e.dx[i]/u*k,b[1]+e.dy[i]/u*k]}});
-      if(best){poly([[best[0]-th*.5,best[1]],[best[0]+th*.5,best[1]]],{stroke:ORG,lw:.35});poly([[best[0],best[1]-th*.5],[best[0],best[1]+th*.5]],{stroke:ORG,lw:.35});txt(`${statF(S.maxDef*1000)} mm`,[best[0]+th*.7,best[1]+th*.5],'left',ORG)}}
-    title=`Verformung (${statF(k)}-fach überhöht), max. ${statF(S.maxDef*1000)} mm`;
+    const k=statView.defScale>0?statView.defScale:Math.max(1,statNice(.06*D/Math.max(Sd.maxDef/u,1e-12)));
+    for(const e of Rd.elems)poly(e.sx.map((x,i)=>{const b=lerpP(e,x);return[b[0]+e.dx[i]/u*k,b[1]+e.dy[i]/u*k]}),{stroke:ORG,lw:.7});
+    if(Sd.maxDefP){let best=null,bd=0;for(const e of Rd.elems)e.sx.forEach((x,i)=>{const d=Math.hypot(e.dx[i],e.dy[i]);if(d>bd){bd=d;const b=lerpP(e,x);best=[b[0]+e.dx[i]/u*k,b[1]+e.dy[i]/u*k]}});
+      if(best){poly([[best[0]-th*.5,best[1]],[best[0]+th*.5,best[1]]],{stroke:ORG,lw:.35});poly([[best[0],best[1]-th*.5],[best[0],best[1]+th*.5]],{stroke:ORG,lw:.35});txt(`${statF(Sd.maxDef*1000)} mm`,[best[0]+th*.7,best[1]+th*.5],'left',ORG)}}
+    title=`Verformung (${statF(k)}-fach überhöht), max. ${statF(Sd.maxDef*1000)} mm${R.P&&R.P.safety?' · Gebrauchslasten':''}`;
   }else if(mode==='U'){
-    for(const e of R.elems){poly([e.pa,e.pb],{stroke:statColor(e.util),lw:1.6});
-      if(statView.labels){const m=lerpP(e,e.L/2),n=[-e.s,e.c];txt(Math.round(e.util*100)+' %',[m[0]+n[0]*th*.9,m[1]+n[1]*th*.9],'center',statColor(e.util))}}
-    title=`Ausnutzung σ/f (ohne Sicherheitsbeiwerte), max. ${Math.round(S.maxUtil*100)} %`;
+    for(const e of R.elems)poly([e.pa,e.pb],{stroke:statColor(e.util),lw:1.6});
+    if(statView.labels)for(const m of R.chk.members){
+      const mm=R.members[m.parent],a=mm.a,bb=mm.b,mid=[(a[0]+bb[0])/2,(a[1]+bb[1])/2],d0=nrm(sub(bb,a)),n=[-d0[1],d0[0]];
+      txt(Math.round(m.gov*100)+' % '+({Spannung:'σ',Schub:'τ',Knicken:'K'}[m.govName]||''),[mid[0]+n[0]*th*.9,mid[1]+n[1]*th*.9],'center',statColor(m.gov));
+    }
+    title=`Ausnutzung der Tragfähigkeit, max. ${Math.round(R.chk.maxU*100)} % (σ Spannung, τ Schub, K Knicken)${R.P&&R.P.safety?'':' · ohne Sicherheitsbeiwerte'}`;
   }else if(mode==='N'&&R.elems.every(e=>e.Mmax<1e-6)){
     for(const e of R.elems){
       const N0=e.N[Math.floor(e.N.length/2)],col=N0>=0?BLUE:RED,m=lerpP(e,e.L/2),n=[-e.s,e.c];
       poly([e.pa,e.pb],{stroke:col,lw:.6+2.4*Math.abs(N0)/Math.max(S.maxN,1e-9)});
       if(statView.labels&&Math.abs(N0)>1e-6)txt(statF(N0),[m[0]+n[0]*th*.9,m[1]+n[1]*th*.9],'center',col);
     }
-    title=`Stabkräfte N in kN (blau Zug, rot Druck), max. ${statF(S.maxN)}`;
+    title=`Stabkräfte N in kN (blau Zug, rot Druck), max. ${statF(S.maxN)}${dv}`;
   }else{
     const key2=mode,maxA=mode==='N'?S.maxN:mode==='V'?S.maxV:S.maxM,kd=maxA>1e-9?.12*D/maxA:0,sg=mode==='M'?-1:1,seen=new Set();
     for(const e of R.elems){
@@ -3042,7 +3224,7 @@ function statOverlay(){
         }
       }
     }
-    title=mode==='N'?`Normalkraft N in kN (blau Zug, rot Druck), max. ${statF(S.maxN)}`:mode==='V'?`Querkraft V in kN, max. ${statF(S.maxV)}`:`Biegemoment M in kNm (auf der Zugseite), max. ${statF(S.maxM)}`;
+    title=(mode==='N'?`Normalkraft N in kN (blau Zug, rot Druck), max. ${statF(S.maxN)}`:mode==='V'?`Querkraft V in kN, max. ${statF(S.maxV)}`:`Biegemoment M in kNm (auf der Zugseite), max. ${statF(S.maxM)}`)+dv;
   }
   /* Auflagerreaktionen */
   for(const r of R.reactions){
@@ -3053,6 +3235,7 @@ function statOverlay(){
     if(Math.abs(r.rm)>1e-6){const mg=statMomentGeom(r.p,r.rm,th);poly(mg.pts,{stroke:GRN,lw:.35});poly(mg.tri,{close:true,fill:GRN,fa:1,stroke:GRN,lw:.1});txt(statF(Math.abs(r.rm))+' kNm',mg.tp,'left',GRN)}
   }
   txt(title,[x0,y0-th*6],'left','FG',th*.9);
+  if(R.chk)txt(R.chk.ok?`Nachweise erfüllt (max. Ausnutzung ${Math.round(R.chk.maxU*100)} %, Verformung ${Math.round(R.chk.maxD*100)} %)`:'Nachweis NICHT erfüllt',[x0,y0-th*8.2],'left',R.chk.ok?GRN:RED,th*.9);
   R._ovk=key;R._ov=out;return out;
 }
 function statOverlayBBox(){
@@ -3090,32 +3273,172 @@ function statSample(kind){
   const bar=(a,b,p,m)=>E.push({type:'line',a,b,layer:'Tragwerk',mem:{p:p||'IPE 200',m:m||'S235'}});
   let name,st;
   if(kind==='truss'){
-    name='Fachwerkträger 8 m';st={unit:'m',truss:true,init:true};
+    name='Fachwerkträger 8 m';st=Object.assign({},STAT_DEF,{unit:'m',truss:true,init:true,selfw:true});
     const B=[0,2,4,6,8].map(x=>[x,0]),T=[1,3,5,7].map(x=>[x,2]);
     for(let i=0;i<4;i++)bar(B[i],B[i+1],'HEA 100');for(let i=0;i<3;i++)bar(T[i],T[i+1],'HEA 100');
     for(let i=0;i<4;i++){bar(B[i],T[i],'HEA 100');bar(T[i],B[i+1],'HEA 100')}
     E.push({type:'support',p:[0,0],kind:'pin',rot:0,layer:'Statik'},{type:'support',p:[8,0],kind:'roller',rot:0,layer:'Statik'});
-    for(const p of T)E.push({type:'load',p,fx:0,fy:-10,m:0,layer:'Statik'});
+    for(const p of T)E.push({type:'load',p,fx:0,fy:-10,m:0,cat:'Q',layer:'Statik'});
   }else{
-    name='Träger mit Kragarm';st={unit:'m',truss:false,init:true};
+    name='Träger mit Kragarm';st=Object.assign({},STAT_DEF,{unit:'m',truss:false,init:true,selfw:true});
     bar([0,0],[8,0],'IPE 300');
     E.push({type:'support',p:[0,0],kind:'pin',rot:0,layer:'Statik'},{type:'support',p:[6,0],kind:'roller',rot:0,layer:'Statik'},
-      {type:'qload',a:[0,0],b:[8,0],q:-10,layer:'Statik'},{type:'load',p:[8,0],fx:0,fy:-20,m:0,layer:'Statik'});
+      {type:'qload',a:[0,0],b:[8,0],q:-10,cat:'Q',layer:'Statik'},{type:'load',p:[8,0],fx:0,fy:-20,m:0,cat:'Q',layer:'Statik'});
   }
   loadFromText(JSON.stringify({format:'helix-web-cad',version:1,doc:{name,cur:'Tragwerk',grid:.5,th:.2,dec:2,layers:L,ents:E,stat:st}}));
   zoomExt();statRun();
 }
+
+/* ================= Berechnung als Text (Rechenweg) ================= */
+const STAT_ASCII={sigma:'sigma',tau:'tau',gamma:'gamma',chi:'chi',lam:'lambda',alpha:'alpha',phi:'Phi',pi:'pi',sum:'Summe',le:'<=',gt:'>',sqrt:'Wurzel',arr:'->',delta:'delta'};
+const STAT_SYM={sigma:'σ',tau:'τ',gamma:'γ',chi:'χ',lam:'λ',alpha:'α',phi:'Φ',pi:'π',sum:'Σ',le:'≤',gt:'>',sqrt:'√',arr:'→',delta:'δ'};
+function statCalcBlocks(opt){
+  const R=statRes;if(!R)return[];
+  const Y=opt.sym?STAT_SYM:STAT_ASCII,C=R.chk,P=R.P,inp=statCollect(),n=(v,d=2)=>(+(+v).toFixed(d)).toString(),pc=u=>Math.round(u*100)+' %',okT=u=>u<=1+1e-9?'erfüllt':'NICHT erfüllt',blocks=[];
+  const B=(lines,f)=>blocks.push({lines,f:f||1});
+  const gG=P.safety?P.gG:1,gQ=P.safety?P.gQ:1,hasTim=C.members.some(m=>m.type==='Holz');
+  const profs=[...new Set(R.members.map(m=>m.mem.p+'|'+m.mem.m))];
+  B([`STATISCHE BERECHNUNG – ${doc.name}`],1.5);
+  const deg=R.deg===0?'statisch bestimmt (n = 0)':R.deg>0?`${R.deg}-fach statisch unbestimmt`:'kinematisch verschieblich';
+  const g1=['Grundlagen',
+    `System: ${R.members.length} Stab/Stäbe, ${deg}`,
+    `Verfahren: ebenes Stabwerk, lineare Theorie (Steifigkeitsmatrix); kN, kNm, m`,
+    P.safety?`Tragfähigkeit: ${Y.gamma}G·G + ${Y.gamma}Q·Q = ${n(P.gG)}·G + ${n(P.gQ)}·Q`:'Ohne Teilsicherheitsbeiwerte: Lasten wie eingegeben',
+    P.safety?`Gebrauch: 1.0·G + 1.0·Q;  Durchbiegungsgrenze L/${P.defl} (Kragarm 2·L/${P.defl})`:`Durchbiegungsgrenze L/${P.defl} (Kragarm 2·L/${P.defl})`,
+    `Eigengewicht der Stäbe: ${P.selfWeight?'ja (als G)':'nein'}`];
+  if(P.safety)g1.push(`Widerstand: ${Y.gamma}M Stahl = ${n(P.gM0)}`+(hasTim?`, ${Y.gamma}M Holz = ${n(P.gMt)}, kmod = ${n(P.kmod)}`:''));
+  B(g1);
+  /* Einwirkungen */
+  const e1=['Einwirkungen (charakteristisch → Bemessung)'],pv=v=>v<0?`(${n(v)})`:n(v),ft=(v,f)=>f===1?`${n(v)}`:`${n(f)}·${pv(v)} = ${n(f*v)}`;
+  for(const l of inp.loads){
+    const f=l.cat==='G'?gG:gQ,pos=`(${n(l.p[0],3)} | ${n(l.p[1],3)})`;
+    if(l.fx)e1.push(`Einzellast ${pos}: Fx = ${ft(l.fx,f)} kN (${l.cat})`);
+    if(l.fy)e1.push(`Einzellast ${pos}: Fy = ${ft(l.fy,f)} kN (${l.cat})`);
+    if(l.m)e1.push(`Moment ${pos}: M = ${ft(l.m,f)} kNm (${l.cat})`);
+  }
+  for(const q of inp.qloads){const f=q.cat==='G'?gG:gQ;e1.push(`Streckenlast (${n(q.a[0],3)} | ${n(q.a[1],3)}) ${Y.arr} (${n(q.b[0],3)} | ${n(q.b[1],3)}): q = ${ft(q.q,f)} kN/m (${q.cat})`)}
+  if(P.selfWeight)for(const k of profs){
+    const[p,m]=k.split('|'),mem=R.members.find(x=>x.mem.p===p&&x.mem.m===m).mem,sc=statSec(mem),mt=statMat(mem),gk=sc.A*mt.rho;
+    e1.push(`Eigengewicht ${p}: gk = A·ρ = ${n(sc.A*1e4,1)} cm²·${n(mt.rho,1)} kN/m³ = ${n(gk,3)} kN/m ${Y.arr} gd = ${n(gG*gk,3)} kN/m`);
+  }
+  if(e1.length===1)e1.push('keine Lasten definiert');
+  if(e1.length>16){const extra=e1.length-15;e1.length=15;e1.push(`… ${extra} weitere`)}
+  B(e1);
+  /* Auflagerkräfte */
+  const a1=[P.safety?'Auflagerkräfte (Bemessungswerte)':'Auflagerkräfte'];
+  for(const r of R.reactions)a1.push(`(${n(r.p[0],3)} | ${n(r.p[1],3)}):  Rx = ${n(r.rx)} kN,  Ry = ${n(r.ry)} kN`+(Math.abs(r.rm)>1e-6?`,  M = ${n(r.rm)} kNm`:''));
+  a1.push(`Kontrolle: ${Y.sum}Fx = ${n(R.summary.eqX,3)} kN,  ${Y.sum}Fy = ${n(R.summary.eqY,3)} kN`);
+  B(a1);
+  /* Nachweise */
+  const memLines=m=>{
+    const d=m.det,mm=R.members[m.parent].mem,L=[`Stab ${m.parent+1}: ${mm.p}, ${mm.m}, L = ${n(m.L)} m`];
+    L.push(`Schnittgrößen (Bemessung): max |V| = ${n(m.V,2)} kN, max |M| = ${n(m.M,2)} kNm`,`maßgebender Schnitt: N = ${n(m.Ng,2)} kN, M = ${n(m.Mg,2)} kNm`);
+    if(d.kind==='steel'){
+      L.push(`Querschnitt: A = ${n(d.A,1)} cm², W = ${n(d.W,0)} cm³, I = ${n(d.I,0)} cm^4`,
+        `Spannung: ${Y.sigma} = |N|/A + |M|/W = ${n(d.sN,1)} + ${n(d.sM,1)} = ${n(d.sN+d.sM,1)} N/mm²`,
+        `fyd = fy/${Y.gamma}M0 = ${n(d.fy,0)}/${n(d.gM0)} = ${n(d.fyd,1)} N/mm²  ${Y.arr}  ${Y.sigma}/fyd = ${n(m.uSig)}  (${pc(m.uSig)})  ${okT(m.uSig)}`);
+      if(m.uV!=null)L.push(`Schub: Av = ${n(d.Av,1)} cm² (vereinfacht), Vpl,Rd = Av·fyd/${Y.sqrt}3 = ${n(m.Vrd,1)} kN`,`V/Vpl,Rd = ${n(m.V,1)}/${n(m.Vrd,1)} = ${n(m.uV)}  (${pc(m.uV)})  ${okT(m.uV)}`);
+      if(m.uB!=null&&d.bk)L.push(`Knicken in der Ebene: Lcr = k·L = ${n(d.k)}·${n(m.L)} = ${n(m.Lcr)} m`,
+        `Ncr = ${Y.pi}²·E·I/Lcr² = ${n(d.bk.Ncr,0)} kN`,
+        `${Y.lam} = ${Y.sqrt}(A·fy/Ncr) = ${n(m.lam,3)};  ${Y.alpha} = ${n(d.bk.al)};  ${Y.phi} = ${n(d.bk.ph,3)};  ${Y.chi} = ${n(m.chi,3)}`,
+        `Nb,Rd = ${Y.chi}·A·fyd = ${n(d.Nb,0)} kN`,
+        `N/Nb,Rd + M/Mel,Rd = ${n(m.Nc,1)}/${n(d.Nb,0)} + ${n(m.M,1)}/${n(d.Mel,1)} = ${n(m.uB)}  (${pc(m.uB)})  ${okT(m.uB)}`);
+    }else{
+      const t=d.tim;
+      L.push(`Holz ${d.mat}: kmod = ${n(d.kmod)}, ${Y.gamma}M = ${n(d.gMt)}`,
+        `fm,d = kmod·fm,k/${Y.gamma}M = ${n(d.kmod)}·${t.fm}/${n(d.gMt)} = ${n(d.fmd,1)} N/mm²;  fc,d = ${n(d.fcd,1)};  ft,d = ${n(d.ftd,1)};  fv,d = ${n(d.fvd,2)}`,
+        `Querschnitt: A = ${n(d.A,1)} cm², W = ${n(d.W,0)} cm³`,
+        `${Y.sigma}m = M/W = ${n(d.sm,1)} N/mm²;  ${Y.sigma}N = N/A = ${n(d.sc,1)} N/mm²`,
+        m.Ng>=0?`Biegung + Zug: ${Y.sigma}t/ft,d + ${Y.sigma}m/fm,d = ${n(d.sc,1)}/${n(d.ftd,1)} + ${n(d.sm,1)}/${n(d.fmd,1)} = ${n(m.uSig)}  (${pc(m.uSig)})  ${okT(m.uSig)}`
+               :`Biegung + Druck: (${Y.sigma}c/fc,d)² + ${Y.sigma}m/fm,d = (${n(d.sc,1)}/${n(d.fcd,1)})² + ${n(d.sm,1)}/${n(d.fmd,1)} = ${n(m.uSig)}  (${pc(m.uSig)})  ${okT(m.uSig)}`,
+        `Schub: ${Y.tau} = 1.5·V/(kcr·A) = ${n(d.tau,2)} N/mm²  ${Y.arr}  ${Y.tau}/fv,d = ${n(m.uV)}  (${pc(m.uV)})  ${okT(m.uV)}`);
+      if(m.uB!=null&&d.bk)L.push(`Knicken: ${Y.lam}rel,c = ${n(d.bk.lr,3)};  kc = ${n(m.chi,3)};  ${Y.sigma}c/(kc·fc,d) + ${Y.sigma}m/fm,d = ${n(m.uB)}  (${pc(m.uB)})  ${okT(m.uB)}`);
+    }
+    L.push(`Durchbiegung (Gebrauch): ${Y.delta} = ${n(m.delta*1000,1)} mm ${m.uDef<=1?Y.le:'>'} ${m.cant?`2·L/${P.defl} (Kragarm)`:`L/${P.defl}`} = ${n(m.dlim*1000,1)} mm  ${Y.arr}  ${pc(m.uDef)}  ${okT(m.uDef)}`);
+    L.push(`Ergebnis Stab ${m.parent+1}: ${okT(Math.max(m.gov,m.uDef))} (maßgebend ${m.govName} ${pc(m.gov)}, Verformung ${pc(m.uDef)})`);
+    return L;
+  };
+  const t1=['Nachweise je Stab (Anteil der Beanspruchbarkeit)'];
+  for(const m of C.members)t1.push(`Stab ${m.parent+1} (${R.members[m.parent].mem.p}):  ${Y.sigma} ${pc(m.uSig)},  ${Y.tau} ${m.uV==null?'–':pc(m.uV)},  Knicken ${m.uB==null?'–':pc(m.uB)},  Verformung ${pc(m.uDef)}  ${Y.arr}  ${okT(Math.max(m.gov,m.uDef))}`);
+  if(t1.length>26){const extra=t1.length-25;t1.length=25;t1.push(`… ${extra} weitere`)}
+  B(t1);
+  if(opt.scope!=='short'){
+    const list=opt.scope==='all'?C.members:[C.members.slice().sort((a,b)=>Math.max(b.gov,b.uDef)-Math.max(a.gov,a.uDef))[0]];
+    for(const m of list)B(memLines(m));
+  }
+  const bad=C.members.filter(m=>m.gov>1+1e-9||m.uDef>1+1e-9);
+  B([C.ok?`Gesamtergebnis: Nachweise erfüllt (max. Ausnutzung ${pc(C.maxU)}, Stab ${C.gov.parent+1} ${C.gov.govName}; Verformung ${pc(C.maxD)})`:`Gesamtergebnis: Nachweis NICHT erfüllt – ${bad.slice(0,6).map(m=>`Stab ${m.parent+1} (${m.gov>1+1e-9?m.govName+' '+pc(m.gov):'Verformung '+pc(m.uDef)})`).join('; ')}`,
+    'Vereinfachte Berechnung (lineare Theorie, elastisch); ersetzt keinen vollständigen Nachweis.'],1);
+  return blocks;
+}
+function statCalcPlain(opt){return statCalcBlocks(opt).map(b=>b.lines.join('\n')).join('\n\n')}
+function statCalcEnts(blocks,h){
+  const ents=[];let y=0;
+  for(const b of blocks){
+    const hh=+(h*b.f).toFixed(6),n=b.lines.length;
+    ents.push({type:'text',p:[0,y-hh],text:b.lines.join('\n'),h:hh,rot:0,layer:'Berechnung'});
+    y-=hh+(n-1)*1.25*hh+.3*hh+1.4*h;
+  }
+  return ents;
+}
+let statCalcPend=null,statCalcH=null;
+function statCalcDialog(){
+  if(!statRes){toast('Erst berechnen (Reiter Statik ▸ Berechnen)');return}
+  dialog('Berechnung als Text einfügen',[
+    {k:'scope',label:'Umfang',type:'select',value:'main',opts:[['short','Kurz: Ergebnisse und Nachweise in Prozent'],['main','Ausführlich: maßgebender Stab mit Rechenweg'],['all','Ausführlich: alle Stäbe mit Rechenweg']]},
+    {k:'h',label:'Texthöhe',type:'num',gt:0,value:statCalcH||doc.th,hint:'In Zeichnungseinheiten. Die Texte erscheinen als normale Textobjekte auf der Ebene „Berechnung“ und lassen sich danach verschieben und bearbeiten.'},
+    {k:'sym',label:'Formelzeichen (σ, τ, χ, ≤ …)',type:'checkbox',value:true,hint:'Aus: Buchstaben ausgeschrieben (sigma, tau …), sicher für DXF und ältere Programme.'}
+  ],r=>{
+    if(!r)return;statCalcH=r.h;
+    statCalcPend={ents:statCalcEnts(statCalcBlocks({scope:r.scope,sym:r.sym}),r.h)};
+    startTool('calctext');
+  },'Weiter: platzieren');
+}
+TOOLS.calctext=()=>{
+  if(!statCalcPend){toast('Erst den Umfang im Dialog wählen');return null}
+  const ents=statCalcPend.ents,place=p=>{
+    pushUndo();statLayer('Berechnung','auto',.25);
+    const placed=ents.map(e=>xf(e,M_t(p)));placed.forEach(rawAdd);
+    done();afterDoc();const bb=docBBox(placed);if(bb)zoomBox(bb,.06);
+    toast('Berechnung eingefügt – Texte lassen sich verschieben und bearbeiten',4200);
+  };
+  return{name:'BERECHNUNG ALS TEXT',expect:()=>'point',prompt:()=>'Obere linke Ecke des Textes wählen  (Enter = rechts neben der Zeichnung)',
+    click(p){place(p)},enter(){const bb=docBBox();place(bb?[bb[2]+4*doc.th,bb[3]]:[0,0])},preview(P,c){P.ghost(ents,M_t(c))}};
+};
+function statCalcCopy(){
+  if(!statRes){toast('Erst berechnen');return}
+  const t=statCalcPlain({scope:'main',sym:true});
+  const fb=()=>deliver('Berechnung '+safeName(doc.name)+'.txt',t,'Berechnung');
+  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t).then(()=>toast('Berechnung in die Zwischenablage kopiert',2500),fb);else fb();
+}
+
 /* ---- Seitenleiste ---- */
 function statTab(b){
-  const S=doc.stat;
-  b.append(h('div',{class:'hint'},'Tragwerk aus Stäben zeichnen, Auflager und Lasten setzen, dann berechnen. Einheiten: kN, kNm, mm. Das ist ein vereinfachtes Stabwerksmodell (lineare Statik, 2D) zur Orientierung, kein Ersatz für einen Nachweis.'));
+  const S=doc.stat,pct=u=>Math.round(u*100)+' %';
+  const numF=(label,key,min,hint)=>{const i=h('input',{type:'text',inputmode:'decimal',value:String(S[key]==null?STAT_DEF[key]:S[key]),onchange:()=>{const v=toNum(i.value);if(isNum(i.value.trim())&&v>=min){pushUndo();S[key]=v;S.init=true;renderSide()}else i.value=String(S[key]==null?STAT_DEF[key]:S[key])}});return h('label',{class:'frow',title:hint||''},h('span',null,label),i)};
+  const chkF=(label,key,def)=>{const c=h('input',{type:'checkbox',checked:S[key]==null?def:!!S[key],onchange:()=>{pushUndo();S[key]=c.checked;S.init=true;renderSide();redraw()}});return h('label',{class:'frow'},h('span',null,label),c)};
+  if(statRes){
+    const C0=statRes.chk,pc=u=>Math.round(u*100)+' %',bad0=C0.members.filter(m=>m.gov>1+1e-9),badD0=C0.members.filter(m=>m.uDef>1+1e-9);
+    b.append(h('div',{class:'info',style:`border-left:4px solid ${C0.ok?'#16a34a':'#dc2626'};font-weight:600`},C0.ok?`✔ Nachweise erfüllt\nmax. Ausnutzung ${pc(C0.maxU)} (Stab ${C0.gov.parent+1}, ${C0.gov.govName}), Verformung ${pc(C0.maxD)} des Grenzwerts`:'✖ Nachweis NICHT erfüllt\n'+[...bad0.map(m=>`Stab ${m.parent+1}: ${m.govName} ${pc(m.gov)}`),...badD0.map(m=>`Stab ${m.parent+1}: Verformung ${pc(m.uDef)}`)].slice(0,8).join('\n')));
+    b.append(h('div',{class:'row2'},h('button',{class:'sbtn pri',onclick:statCalcDialog},'Berechnung als Text einfügen'),h('button',{class:'sbtn',onclick:statCalcCopy},'Text kopieren')));
+    b.append(h('div',{class:'row2'},h('button',{class:'sbtn',onclick:statReport},'Berechnungsbericht (HTML)')));
+  }
+  b.append(h('div',{class:'hint'},'Tragwerk aus Stäben zeichnen, Auflager und Lasten setzen, dann berechnen. Einheiten: kN, kNm, mm. Vereinfachtes ebenes Stabwerksmodell (lineare Statik) mit Nachweisen nach Eurocode-Ansatz zur Orientierung, kein Ersatz für einen vollständigen Nachweis.'));
   b.append(h('h4',null,'EINRICHTUNG'));
-  const un=h('select',{onchange:()=>{pushUndo();S.unit=un.value;S.init=true;statRes=null;renderSide();redraw()}},...[['m','Meter (m)'],['cm','Zentimeter (cm)'],['mm','Millimeter (mm)']].map(([v,t])=>h('option',{value:v,selected:v===S.unit},t)));
+  const un=h('select',{onchange:()=>{pushUndo();S.unit=un.value;S.init=true;renderSide();redraw()}},...[['m','Meter (m)'],['cm','Zentimeter (cm)'],['mm','Millimeter (mm)']].map(([v,t])=>h('option',{value:v,selected:v===S.unit},t)));
   b.append(h('label',{class:'frow'},h('span',null,'Zeichnungseinheit'),un));
-  const tr=h('input',{type:'checkbox',checked:S.truss,onchange:()=>{pushUndo();S.truss=tr.checked;S.init=true;statRes=null;renderSide();redraw()}});
-  b.append(h('label',{class:'frow'},h('span',null,'Fachwerk (alle Knoten gelenkig)'),tr));
+  b.append(chkF('Fachwerk (alle Knoten gelenkig)','truss',false));
+  b.append(chkF('Eigengewicht der Stäbe','selfw',false));
   const ts=h('input',{type:'text',inputmode:'decimal',value:String(+doc.th.toFixed(4)),onchange:()=>{const v=toNum(ts.value);if(isNum(ts.value.trim())&&v>0){const keep=statRes;pushUndo();doc.th=v;statRes=keep;if(keep)keep._ovk=null;renderSide();redraw()}else ts.value=String(+doc.th.toFixed(4))}});
   b.append(h('label',{class:'frow'},h('span',null,'Symbolgröße / Texthöhe'),ts));
+  b.append(h('h4',null,'SICHERHEIT'));
+  b.append(chkF('Teilsicherheitsbeiwerte anwenden','safety',true));
+  if(S.safety!==false){
+    b.append(numF('γG (ständige Lasten)','gG',1,'Teilsicherheitsbeiwert für ständige Einwirkungen'),numF('γQ (veränderliche Lasten)','gQ',1,'Teilsicherheitsbeiwert für veränderliche Einwirkungen'),
+      numF('γM Stahl','gM0',.5,'Teilsicherheitsbeiwert Widerstand Stahl'),numF('γM Holz','gMt',.5,'Teilsicherheitsbeiwert Widerstand Holz'),numF('kmod Holz','kmod',.1,'Modifikationsbeiwert Holz'));
+  }
+  b.append(numF('Durchbiegungsgrenze L /','defl',10,'Grenzwert für die Durchbiegung als Bruchteil der Länge (Kragarme: doppelte Länge)'));
+  b.append(h('div',{class:'hint'},'Die Beiwerte sind frei einstellbar. Welche Werte für dein Land und dein Bauwerk gelten (Eurocode, SIA, DIN), musst du selbst festlegen.'));
   b.append(h('h4',null,'NEUE STÄBE'));
   const ps=h('select',{onchange:()=>{statDef.p=ps.value}},...Object.keys(STAT_SECS).map(k=>h('option',{value:k,selected:k===statDef.p},k)));
   const ms=h('select',{onchange:()=>{statDef.m=ms.value}},...Object.keys(STAT_MATS).map(k=>h('option',{value:k,selected:k===statDef.m},k)));
@@ -3132,28 +3455,88 @@ function statTab(b){
   if(statMsg&&statMsg.warn&&statMsg.warn.length)b.append(h('div',{class:'hint'},[...new Set(statMsg.warn)].join('\n')));
   const R=statRes;
   if(!R){b.append(h('div',{class:'hint'},'Noch kein Ergebnis. Nach jeder Änderung an der Zeichnung neu berechnen.'));return}
+  const C=R.chk,P=R.P,Sm=R.summary;
+  b.append(h('h4',null,'GRUNDLAGEN'));
+  const degTxt=R.deg===0?'statisch bestimmt (n = 0)':R.deg>0?`${R.deg}-fach statisch unbestimmt`:'kinematisch verschieblich (n < 0)';
+  b.append(h('div',{class:'hint'},[P.safety?`Tragfähigkeit: ${P.gG}·G + ${P.gQ}·Q, Gebrauch: 1,0·G + 1,0·Q`:'Ohne Teilsicherheitsbeiwerte (Lasten wie eingegeben)',`Eigengewicht: ${P.selfWeight?'ja':'nein'}`,`System: ${degTxt}`].join('\n')));
   b.append(h('h4',null,'ERGEBNIS'));
   b.append(h('div',{class:'row2'},...STAT_MODES.map(([v,t])=>h('button',{class:'sbtn'+(statShow&&statView.mode===v?' pri':''),onclick:()=>{statView.mode=v;statShow=true;renderSide();redraw()}},t)),h('button',{class:'sbtn'+(!statShow?' pri':''),onclick:()=>{statShow=!statShow;renderSide();redraw()}},statShow?'Ausblenden':'Einblenden')));
   if(statView.mode==='def'){
-    const kk=statView.defScale>0?statView.defScale:Math.max(1,statNice(.06*Math.hypot(...[0,1].map(i=>Math.max(...R.nodes.map(n=>n[i]))-Math.min(...R.nodes.map(n=>n[i]))))/Math.max(R.summary.maxDef/R.u,1e-12))),ki=h('input',{type:'text',inputmode:'decimal',value:String(kk),onchange:()=>{const v=toNum(ki.value);if(isNum(ki.value.trim())&&v>0){statView.defScale=v;redraw()}else ki.value=String(kk)}});
+    const Rd=R.sls||R,xs=R.nodes.map(n=>n[0]),ys=R.nodes.map(n=>n[1]),Dg=Math.hypot(Math.max(...xs)-Math.min(...xs),Math.max(...ys)-Math.min(...ys));
+    const kk=statView.defScale>0?statView.defScale:Math.max(1,statNice(.06*Dg/Math.max(Rd.summary.maxDef/R.u,1e-12))),ki=h('input',{type:'text',inputmode:'decimal',value:String(kk),onchange:()=>{const v=toNum(ki.value);if(isNum(ki.value.trim())&&v>0){statView.defScale=v;redraw()}else ki.value=String(kk)}});
     b.append(h('label',{class:'frow'},h('span',null,'Überhöhung ×'),ki));
   }
   const lb=h('input',{type:'checkbox',checked:statView.labels,onchange:()=>{statView.labels=lb.checked;redraw()}});
   b.append(h('label',{class:'frow'},h('span',null,'Werte beschriften'),lb));
-  const s=R.summary,lines=[`max. Verschiebung ${statF(s.maxDef*1000)} mm`,`max. |N| ${statF(s.maxN)} kN`,`max. |V| ${statF(s.maxV)} kN`,`max. |M| ${statF(s.maxM)} kNm`,`max. Ausnutzung ${Math.round(s.maxUtil*100)} %${s.maxUtil>1?'  ⚠ überschritten':''}`,`Gleichgewicht: ΣFx ${statF(s.eqX)}, ΣFy ${statF(s.eqY)} kN`];
-  b.append(h('div',{class:'info'},lines.join('\n')));
+  const sd=(R.sls||R).summary;
+  b.append(h('div',{class:'info'},[`Schnittgrößen ${P.safety?'(Bemessungswerte)':''}`,`max. |N| ${statF(Sm.maxN)} kN`,`max. |V| ${statF(Sm.maxV)} kN`,`max. |M| ${statF(Sm.maxM)} kNm`,`max. Verschiebung ${statF(sd.maxDef*1000)} mm ${P.safety?'(Gebrauchslasten)':''}`,`Gleichgewicht: ΣFx ${statF(Sm.eqX)}, ΣFy ${statF(Sm.eqY)} kN`].join('\n')));
   if(R.reactions.length){
-    b.append(h('h4',null,'AUFLAGERKRÄFTE'));
+    b.append(h('h4',null,P.safety?'AUFLAGERKRÄFTE (BEMESSUNG)':'AUFLAGERKRÄFTE'));
     b.append(h('div',{class:'info'},R.reactions.map(r=>`(${+r.p[0].toFixed(3)} | ${+r.p[1].toFixed(3)})  Rx ${statF(r.rx)}  Ry ${statF(r.ry)}${Math.abs(r.rm)>1e-6?'  M '+statF(r.rm):''}`).join('\n')));
   }
-  b.append(h('h4',null,'STÄBE'));
-  const rows=[];R.elems.forEach((e,i)=>rows.push(`${i+1}  L ${statF(e.L)} m  N ${statF(e.Nmax)}  V ${statF(e.Vmax)}  M ${statF(e.Mmax)}  ${Math.round(e.util*100)} %`));
-  b.append(h('div',{class:'info'},rows.slice(0,60).join('\n')+(rows.length>60?`\n… ${rows.length-60} weitere`:'')));
-  b.append(h('div',{class:'hint'},'Ausnutzung: σ = |N|/A + |M|/W bezogen auf die Streckgrenze bzw. Festigkeit des Werkstoffs, ohne Teilsicherheitsbeiwerte, Stabilitäts- oder Schubnachweise. Profilwerte sind Richtwerte.'));
+  b.append(h('h4',null,'NACHWEISE JE STAB'));
+  b.append(h('div',{class:'hint'},'σ Spannung (Biegung + Normalkraft), τ Schub, K Knicken in der Ebene, f Verformung. Anteil der Beanspruchbarkeit.'));
+  const rows=h('div',{class:'info'});
+  for(const m of C.members){
+    const bad1=m.gov>1+1e-9||m.uDef>1+1e-9,tag=v=>v==null?'–':pct(v);
+    rows.append(h('div',{style:bad1?'color:#dc2626':''},`${bad1?'✖':'✔'} Stab ${m.parent+1} (${R.members[m.parent].mem.p||'?'}, L ${statF(m.L)} m)\n    σ ${tag(m.uSig)}  τ ${tag(m.uV)}  K ${tag(m.uB)}  f ${tag(m.uDef)}`));
+  }
+  b.append(rows);
+  b.append(h('div',{class:'hint'},'Vereinfachte Nachweise: elastische Querschnittstragfähigkeit, Schub am Steg, Biegeknicken um die starke Achse in der Ebene (Knicklänge = Stablänge × Beiwert k), Holz mit kmod und kc. Nicht enthalten: Biegedrillknicken, Beulen, Anschlüsse, Lagerpressung, Ermüdung, Brand. Profilwerte sind Richtwerte.'));
+}
+/* ---- Berechnungsbericht (HTML) ---- */
+function statReport(){
+  const R=statRes;if(!R){toast('Erst berechnen');return}
+  const esc=t=>String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const keepM=statView.mode,keepS=statShow,imgs={};
+  statShow=true;for(const m of['def','N','V','M','U']){statView.mode=m;imgs[m]=svgString()}
+  statShow=false;imgs.model=svgString();statView.mode=keepM;statShow=keepS;
+  const C=R.chk,P=R.P,inp=statCollect(),pct=u=>Math.round(u*100)+' %',F=statF,d=new Date().toLocaleDateString('de-DE');
+  const catT=c=>c==='G'?'G (ständig)':'Q (veränderlich)';
+  const tbl=(head,rows)=>`<table><thead><tr>${head.map(x=>`<th>${x}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(x=>`<td>${x}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+  const degTxt=R.deg===0?'statisch bestimmt (n = 0)':R.deg>0?`${R.deg}-fach statisch unbestimmt`:'kinematisch verschieblich';
+  const memRows=R.members.map((m,i)=>[i+1,`(${+m.a[0].toFixed(3)} | ${+m.a[1].toFixed(3)}) → (${+m.b[0].toFixed(3)} | ${+m.b[1].toFixed(3)})`,esc(m.mem.p||''),esc(m.mem.m||''),(m.mem.ha?'Anfang ':'')+(m.mem.hb?'Ende':'')||'–',F(C.members.find(x=>x.parent===i).L)]);
+  const supRows=inp.supports.map(s=>[`(${+s.p[0].toFixed(3)} | ${+s.p[1].toFixed(3)})`,{pin:'Gelenklager',roller:'Loslager',fixed:'Einspannung'}[s.kind]||s.kind]);
+  const loadRows=[...inp.loads.map(l=>['Einzellast',`(${+l.p[0].toFixed(3)} | ${+l.p[1].toFixed(3)})`,`Fx ${F(l.fx)} kN, Fy ${F(l.fy)} kN${l.m?', M '+F(l.m)+' kNm':''}`,catT(l.cat)]),...inp.qloads.map(q=>['Streckenlast',`(${+q.a[0].toFixed(3)} | ${+q.a[1].toFixed(3)}) → (${+q.b[0].toFixed(3)} | ${+q.b[1].toFixed(3)})`,`q ${F(q.q)} kN/m`,catT(q.cat)])];
+  if(P.selfWeight)loadRows.push(['Eigengewicht','alle Stäbe','aus Profil und Werkstoff','G (ständig)']);
+  const resRows=C.members.map(m=>[m.parent+1,F(m.Nc>m.Nt?-m.Nc:m.Nt),F(m.V),F(m.M),pct(m.uSig),m.uV==null?'–':pct(m.uV),m.uB==null?'–':pct(m.uB),`${F(m.delta*1000)} / ${F(m.dlim*1000)} mm (${pct(m.uDef)})`,(m.gov>1+1e-9||m.uDef>1+1e-9)?'<b style="color:#b91c1c">nicht erfüllt</b>':'erfüllt']);
+  const reacRows=R.reactions.map(r=>[`(${+r.p[0].toFixed(3)} | ${+r.p[1].toFixed(3)})`,F(r.rx),F(r.ry),Math.abs(r.rm)>1e-6?F(r.rm):'–']);
+  const fig=(t,k)=>imgs[k]?`<figure><figcaption>${t}</figcaption>${imgs[k]}</figure>`:'';
+  const html=`<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><title>Statik-Bericht ${esc(doc.name)}</title><style>
+body{font-family:Arial,Helvetica,sans-serif;max-width:860px;margin:24px auto;padding:0 16px;color:#111;line-height:1.45;font-size:14px}
+h1{font-size:22px;margin:0 0 4px}h2{font-size:16px;margin:26px 0 8px;border-bottom:1px solid #999;padding-bottom:3px}
+table{border-collapse:collapse;width:100%;margin:6px 0 12px;font-size:12.5px}th,td{border:1px solid #aaa;padding:3px 6px;text-align:left}th{background:#eee}
+.ok{border-left:6px solid #16a34a;background:#f0fdf4;padding:8px 12px;font-weight:bold}.bad{border-left:6px solid #dc2626;background:#fef2f2;padding:8px 12px;font-weight:bold}
+figure{margin:12px 0;page-break-inside:avoid}figcaption{font-weight:bold;margin-bottom:4px}svg{width:100%;height:auto;background:#fff;border:1px solid #ccc}
+.small{color:#444;font-size:12px}@media print{body{margin:0}}</style></head><body>
+<h1>Statische Berechnung – ${esc(doc.name)}</h1><div class="small">Erstellt mit Helix Web-CAD am ${d} · ebenes Stabwerk, lineare Theorie · Einheiten kN, kNm, m, mm</div>
+<h2>1 Gesamtergebnis</h2>
+<div class="${C.ok?'ok':'bad'}">${C.ok?`Die Nachweise sind erfüllt. Maximale Ausnutzung der Tragfähigkeit ${pct(C.maxU)} (Stab ${C.gov.parent+1}, ${C.gov.govName}); Verformung bis ${pct(C.maxD)} des Grenzwerts.`:`Die Nachweise sind NICHT erfüllt: ${[...C.members.filter(m=>m.gov>1+1e-9).map(m=>`Stab ${m.parent+1} ${m.govName} ${pct(m.gov)}`),...C.members.filter(m=>m.uDef>1+1e-9).map(m=>`Stab ${m.parent+1} Verformung ${pct(m.uDef)}`)].join('; ')}.`}</div>
+<p>System: ${degTxt}. Gleichgewichtsprobe: ΣFx = ${F(R.summary.eqX)} kN, ΣFy = ${F(R.summary.eqY)} kN.</p>
+<h2>2 System und Annahmen</h2>${fig('Systemskizze','model')}
+${tbl(['Stab','Lage (x | y)','Profil','Werkstoff','Gelenke','Länge [m]'],memRows)}
+${tbl(['Lage','Auflager'],supRows)}
+<h2>3 Einwirkungen und Kombinationen</h2>${tbl(['Art','Lage','Größe','Einwirkung'],loadRows)}
+<p>${P.safety?`Tragfähigkeit (ULS): ${P.gG}·G + ${P.gQ}·Q. Gebrauchstauglichkeit (SLS): 1,0·G + 1,0·Q. Mehrere veränderliche Einwirkungen werden ohne Kombinationsbeiwerte ψ addiert (auf der sicheren Seite).`:'Es wurden keine Teilsicherheitsbeiwerte angesetzt; die Lasten wirken wie eingegeben.'}</p>
+<p>Widerstände: ${P.safety?`γM Stahl = ${P.gM0}, γM Holz = ${P.gMt}, kmod = ${P.kmod}`:'charakteristische Werte (γM = 1, kmod = 1)'}. Durchbiegungsgrenze L/${P.defl} (Kragarme 2·L/${P.defl}).</p>
+<h2>4 Ergebnisse</h2>
+<h3 style="font-size:14px;margin:8px 0 2px">Auflagerkräfte ${P.safety?'(Bemessungswerte)':''}</h3>${tbl(['Lage','Rx [kN]','Ry [kN]','M [kNm]'],reacRows)}
+<h3 style="font-size:14px;margin:8px 0 2px">Nachweise je Stab</h3>
+${tbl(['Stab','N max [kN]','V max [kN]','M max [kNm]','σ','τ','K','Verformung δ / Grenze','Ergebnis'],resRows)}
+<p class="small">σ: Biegung mit Normalkraft (elastisch), τ: Schub, K: Biegeknicken in der Ebene, Prozentwerte = Anteil der Beanspruchbarkeit. N positiv = Zug.</p>
+${fig('Verformung (Gebrauchslasten, überhöht dargestellt)','def')}${fig('Normalkraft N','N')}${fig('Querkraft V','V')}${fig('Biegemoment M','M')}${fig('Ausnutzung der Tragfähigkeit','U')}
+<h2>5 Hinweise und Grenzen</h2><ul class="small">
+<li>Vereinfachte Berechnung mit dem Verfahren der Steifigkeitsmatrix (Biegestab mit Normalkraft), lineare Theorie, kleine Verformungen. Keine Theorie II. Ordnung, keine Schubverformung.</li>
+<li>Nachweise: elastische Querschnittstragfähigkeit, Schub am Steg (Steg-Schubfläche vereinfacht), Biegeknicken um die starke Achse in der Systemebene mit Knicklänge = Stablänge × k. Holz vereinfacht mit kmod, kc und Interaktion Biegung/Normalkraft.</li>
+<li>Nicht berücksichtigt: Biegedrillknicken, Knicken aus der Ebene, Beulen (Querschnittsklasse 4), Anschlüsse und Lager, Lagerpressung, Ermüdung, Brand, Schwingungen, Temperatur, Lagersetzungen, Imperfektionen.</li>
+<li>Profil- und Werkstoffwerte sind Richtwerte und vor Verwendung zu prüfen. Die Teilsicherheitsbeiwerte sind einstellbar; die für das Bauwerk maßgebenden Normwerte sind vom Anwender festzulegen.</li>
+<li>Dieser Bericht ersetzt keinen Standsicherheitsnachweis. Die Prüfung und Verantwortung liegt bei einer fachkundigen Person.</li></ul>
+</body></html>`;
+  deliver('Statik-Bericht '+safeName(doc.name)+'.html',html,'Bericht');
 }
 
 /* Eingebettete KI-Anleitung (Markdown) */
-const AI_GUIDE="# Helix Web-CAD – Anleitung zum JSON-Format (für KI-Assistenten)\n\nDiese Datei beschreibt vollständig, wie eine Zeichnung für **Helix Web-CAD** (2D-CAD im Browser) als `.json`-Datei aufgebaut ist.\nEin KI-Assistent, der diese Datei erhält, kann daraus eine komplette Zeichnung erzeugen, die der Nutzer direkt in Helix öffnet (Datei ▸ „Öffnen …“, oder per Drag & Drop, oder Datei ▸ „JSON einfügen“).\n\n---\n\n## 0. Auftrag an die KI (bitte zuerst lesen)\n\n1. Erzeuge **genau ein JSON-Objekt** nach dieser Anleitung. Gib es als einen einzigen Codeblock (```` ```json ````) oder als reine Datei aus. Vor und nach dem Block höchstens ein kurzer Satz.\n2. **Keine Kommentare** im JSON, **keine Kommas nach dem letzten Element**, nur doppelte Anführungszeichen, Dezimalpunkt (nicht Komma), Zahlen als Zahlen (nicht als Text).\n3. **Winkel immer im Bogenmaß (Radiant)**, nie in Grad (siehe Abschnitt 1).\n4. **Die y-Achse zeigt nach oben** (wie in der Mathematik, nicht wie in Bildschirm-Pixeln oder SVG).\n5. Berechne alle Koordinaten selbst und lege sie vollständig ab. Es gibt **keine Verweise, Variablen, Ausdrücke oder Schleifen** im Format. Jedes Objekt (z. B. jede der vier Bohrungen) wird einzeln aufgeführt.\n6. Halte dich an die erlaubten Werte (Ebenenfarben, Linienarten, Typen). Unbekannte Werte werden von Helix stillschweigend ersetzt oder das Objekt wird übersprungen.\n7. Fehlen dir Maße oder Angaben (Einheit, Maßstab, Papierformat, Beschriftung), **frage nach** oder triff eine klar benannte Annahme und nenne sie kurz.\n8. Prüfe das Ergebnis vor der Ausgabe mit der Checkliste in Abschnitt 9.\n\n---\n\n## 1. Grundlagen\n\n| Thema | Regel |\n|---|---|\n| Koordinatensystem | kartesisch, Ursprung (0, 0), **x nach rechts, y nach oben** |\n| Punkte | immer als Liste mit zwei Zahlen: `[x, y]` |\n| Einheiten | **einheitenlos**. 1 Einheit ist, was du festlegst (empfohlen: 1 Einheit = 1 mm). Mit Zeichnungsrahmen (`frames`) wird die Einheit dort angegeben. |\n| Winkel | **Bogenmaß (rad)**, 0 = Richtung +x, positiv = **gegen den Uhrzeigersinn**. Umrechnung: rad = Grad × π / 180 (90° = 1.570796, 180° = 3.141593, 270° = 4.712389, 45° = 0.785398) |\n| Zahlen | endliche Zahlen (kein `NaN`, kein `Infinity`), Dezimalpunkt, höchstens ca. 4 Nachkommastellen nötig |\n| Text | UTF-8. Umlaute, `Ø`, `°`, `±`, `×`, `²`, `³`, `µ`, `–` sind unproblematisch. Zeichen außerhalb von Windows-1252 (z. B. Emojis, griechische Buchstaben) erscheinen im PDF als `?` und sollten vermieden werden. |\n| Zeichenreihenfolge | Reihenfolge in `ents`; Schraffuren werden immer **hinter** die übrigen Objekte gezeichnet |\n| Größenordnung | tausende Objekte sind unproblematisch; Dateigröße max. 60 MB |\n\n---\n\n## 2. Aufbau der Datei\n\n```json\n{\n \"format\": \"helix-web-cad\",\n \"version\": 1,\n \"doc\": {\n  \"name\": \"Zeichnungsname\",\n  \"cur\": \"Kontur\",\n  \"grid\": 5,\n  \"th\": 3.5,\n  \"dec\": 2,\n  \"layers\": [ ... ],\n  \"ents\": [ ... ],\n  \"frames\": [ ... ]\n }\n}\n```\n\n| Feld | Pflicht | Bedeutung |\n|---|---|---|\n| `format` | empfohlen | immer `\"helix-web-cad\"` |\n| `version` | empfohlen | immer `1` |\n| `doc.name` | nein | Name der Zeichnung, max. 60 Zeichen (Standard: „Zeichnung 1“). Wird auch als Dateiname beim Speichern genutzt. |\n| `doc.cur` | nein | Name der Ebene, auf der der Nutzer neue Objekte zeichnet. Muss in `layers` existieren, sonst `\"0\"`. |\n| `doc.grid` | nein | Rastergröße (Zahl > 0, Standard 10) |\n| `doc.th` | nein | Standard-Texthöhe für **Bemaßungen und Hinweislinien** (Zahl > 0, Standard 5). Siehe Abschnitt 8. |\n| `doc.dec` | nein | Nachkommastellen in Maßtexten, ganze Zahl 0–6 (Standard 2; überflüssige Nullen werden entfernt) |\n| `doc.layers` | nein | Liste der Ebenen (Abschnitt 3). Ebene `\"0\"` existiert immer. |\n| `doc.ents` | **ja** | Liste der Zeichnungsobjekte (Abschnitt 4–5). Darf leer sein, muss aber ein Array sein. |\n| `doc.stat` | nein | Statik-Einstellungen: `{\"unit\":\"m\",\"truss\":false}` (Abschnitt 5.15). Nur nötig, wenn die Datei ein Tragwerk enthält. |\n| `doc.frames` | nein | Eingabe für Zeichnungsrahmen mit Schriftfeld (Abschnitt 6). Wird beim Laden in normale Objekte umgewandelt. |\n\nNicht erzeugen (von Helix selbst verwaltet oder für die KI ungeeignet): `doc.nid`, `doc.bg` (Hintergrundbild), `saved`, Objekt-`id`s. Wenn sie doch vorkommen, werden `id`/`nid` neu vergeben und ein ungültiges `bg` wird ignoriert.\n\n---\n\n## 3. Ebenen (`layers`)\n\n```json\n{\"name\":\"Kontur\",\"color\":\"auto\",\"vis\":true,\"lock\":false,\"lt\":\"solid\",\"lw\":0.5}\n```\n\n| Feld | Werte | Standard / Verhalten bei ungültigem Wert |\n|---|---|---|\n| `name` | Text, 1–40 Zeichen, eindeutig | Pflicht. Doppelte Namen und leere Namen werden übersprungen. |\n| `color` | `auto`, `red`, `yellow`, `green`, `cyan`, `blue`, `magenta`, `orange`, `gray` | sonst `auto` (`auto` = hell auf dunklem, schwarz auf hellem Hintergrund und im PDF schwarz) |\n| `vis` | `true` / `false` | sichtbar; Standard `true` |\n| `lock` | `true` / `false` | gesperrt (nicht bearbeitbar); Standard `false` |\n| `lt` | `solid`, `dashed`, `center`, `dotted`, `hidden` | sonst `solid` (durchgezogen, gestrichelt, Strich-Punkt-Mittellinie, gepunktet, verdeckt) |\n| `lw` | Strichstärke in **mm**, Zahl 0 bis 5 | sonst `0.25`. Übliche Werte: 0.05, 0.09, 0.13, 0.18, 0.25, 0.35, 0.5, 0.7, 1, 1.4, 2 |\n\nRegeln:\n\n- Die Ebene `\"0\"` gibt es immer. Du kannst sie in `layers` aufführen, um ihre Eigenschaften zu ändern.\n- Objekte verweisen über `layer` mit dem **exakten Namen** (Groß-/Kleinschreibung) auf eine Ebene. Unbekannter Name → Objekt landet auf `\"0\"`.\n- Sinnvolle Aufteilung: z. B. `Kontur`, `Mittellinien`, `Masse`, `Text`, `Schraffur`, `Hilfslinien`.\n\n---\n\n## 4. Gemeinsame Felder aller Objekte\n\nJedes Element von `ents` ist ein Objekt mit:\n\n| Feld | Pflicht | Bedeutung |\n|---|---|---|\n| `type` | **ja** | Objekttyp (Abschnitt 5) |\n| `layer` | empfohlen | Ebenenname; fehlt er oder ist unbekannt → `\"0\"` |\n| `color` | nein | überschreibt die Ebenenfarbe (gleiche Werte wie bei Ebenen). Hex-Farben (`#ff0000`) sind **nicht** erlaubt und werden entfernt. |\n| `lw` | nein | überschreibt die Ebenen-Strichstärke (mm, 0–5) |\n| `id` | nein | wird ignoriert und neu vergeben |\n\nEin Objekt mit fehlenden oder ungültigen Pflichtfeldern wird beim Laden **übersprungen** (Helix meldet „n ungültige übersprungen“).\n\n---\n\n## 5. Objekttypen\n\nAlle Beispiele sind gültig und können direkt in `ents` übernommen werden.\n\n### 5.1 `line` – Linie\nPflicht: `a`, `b` (Punkte).\n```json\n{\"type\":\"line\",\"layer\":\"Kontur\",\"a\":[0,0],\"b\":[100,50]}\n```\n\n### 5.2 `pline` – Polylinie (auch Rechteck und Polygon)\nPflicht: `pts` (mindestens 2 Punkte). Optional: `closed` (`true` = letzter Punkt wird mit dem ersten verbunden).\n**Rechteck, Polygon, Dreieck usw. gibt es nicht als eigenen Typ**: nimm eine geschlossene `pline`. Bögen innerhalb einer Polylinie sind nicht möglich (nimm `arc`-Objekte).\n```json\n{\"type\":\"pline\",\"layer\":\"Kontur\",\"pts\":[[0,0],[120,0],[120,70],[0,70]],\"closed\":true}\n```\n\n### 5.3 `circle` – Kreis\nPflicht: `c` (Mittelpunkt), `r` (Radius > 0).\n```json\n{\"type\":\"circle\",\"layer\":\"Kontur\",\"c\":[60,35],\"r\":15}\n```\n\n### 5.4 `arc` – Kreisbogen\nPflicht: `c`, `r` (> 0), `a0` (Startwinkel), `a1` (Endwinkel), beide in **Radiant**. Der Bogen läuft von `a0` **gegen den Uhrzeigersinn** nach `a1` (Spannweite = (a1 − a0) modulo 2π). Ein Viertelkreis oben rechts: a0 = 0, a1 = 1.570796. Für einen Vollkreis nimm `circle`.\n```json\n{\"type\":\"arc\",\"layer\":\"Kontur\",\"c\":[0,0],\"r\":20,\"a0\":0,\"a1\":1.570796}\n```\n\n### 5.5 `ellipse` – Ellipse\nPflicht: `c`, `rx`, `ry` (beide > 0), `rot` (Drehwinkel der rx-Achse, Radiant; 0 = rx liegt waagerecht).\n```json\n{\"type\":\"ellipse\",\"layer\":\"Kontur\",\"c\":[0,0],\"rx\":30,\"ry\":15,\"rot\":0}\n```\n\n### 5.6 `point` – Punkt\nPflicht: `p`. Wird als kleines Kreuz dargestellt.\n```json\n{\"type\":\"point\",\"layer\":\"Hilfslinien\",\"p\":[10,10]}\n```\n\n### 5.7 `text` – Text\nPflicht: `p`, `text` (Zeichenkette), `h` (Texthöhe > 0). Optional: `rot` (Radiant, Standard 0).\n\n- `p` ist der **Startpunkt der Grundlinie** der ersten Zeile (linksbündig). Eine Ausrichtung (zentriert, rechtsbündig) gibt es nicht; verschiebe `p` entsprechend.\n- Zeilenumbruch mit `\\n` im Text. Weitere Zeilen stehen **unterhalb**, Zeilenabstand = 1.25 × `h`.\n- Breite des Texts ≈ 0.6 × `h` × Anzahl der Zeichen (Faustformel zur Platzplanung; ob ein Text in ein Feld passt, vorher damit prüfen).\n```json\n{\"type\":\"text\",\"layer\":\"Text\",\"p\":[60,176],\"text\":\"Lagerplatte Pos. 1\\nWerkstoff S235JR\",\"h\":3.5,\"rot\":0}\n```\n\n### 5.8 `dim` – Maßlinie (Längenmaß)\nPflicht: `a`, `b` (die zwei **gemessenen** Punkte), `p` (ein Punkt, durch den die **Maßlinie** verläuft). Optional: `mode`: `\"al\"` (ausgerichtet, parallel zu a–b; Standard), `\"h\"` (waagerecht gemessen), `\"v\"` (senkrecht gemessen); `th` (Texthöhe, Standard `doc.th`).\n\n- Der Maßtext wird **automatisch** aus der gemessenen Länge in Zeichnungseinheiten gebildet (`doc.dec` Nachkommastellen, ohne Einheit). Er lässt sich nicht von Hand setzen.\n- `mode:\"h\"`: Maßlinie liegt auf der Höhe `p[1]`; `mode:\"v\"`: Maßlinie liegt bei `p[0]`; `\"al\"`: Maßlinie parallel zu a–b durch `p`.\n- Maßhilfslinien und Pfeile entstehen automatisch. Pfeilgröße = 0.9 × `th`.\n```json\n{\"type\":\"dim\",\"layer\":\"Masse\",\"mode\":\"h\",\"a\":[0,0],\"b\":[120,0],\"p\":[60,-14],\"th\":3.5}\n```\n\n### 5.9 `rdim` – Radius-/Durchmessermaß\nPflicht: `c` (Kreismittelpunkt), `r` (Radius), `p` (Endpunkt der Maßlinie, dort steht der Text). Optional: `kind`: `\"R\"` (Text „R15“, Standard) oder `\"D\"` (Text „Ø30“); `th`.\nDie Maßlinie läuft vom Kreisrand in Richtung `p` (vom Mittelpunkt aus gesehen). Wähle `p` außerhalb (oder innerhalb) des Kreises auf der gewünschten Seite.\n```json\n{\"type\":\"rdim\",\"layer\":\"Masse\",\"c\":[60,35],\"r\":15,\"p\":[82,53],\"kind\":\"D\",\"th\":3.5}\n```\n\n### 5.10 `adim` – Winkelmaß\nPflicht: `c` (Scheitelpunkt), `a` (ein Punkt auf dem ersten Schenkel), `b` (ein Punkt auf dem zweiten Schenkel), `p` (Punkt auf dem Maßbogen). Optional: `th`.\n`dist(c, p)` ist der Radius des Maßbogens; die **Seite** des Winkels (spitz oder überstumpf) ergibt sich daraus, in welchem der beiden Winkelfelder die Richtung c→p liegt. Der Text („90°“) entsteht automatisch.\n```json\n{\"type\":\"adim\",\"layer\":\"Masse\",\"c\":[0,0],\"a\":[40,0],\"b\":[0,40],\"p\":[22,22],\"th\":3.5}\n```\n\n### 5.11 `leader` – Hinweislinie mit Text\nPflicht: `pts` (mindestens 2 Punkte), `text`, `h` (> 0).\n`pts[0]` ist die **Pfeilspitze** (zeigt auf das Objekt), die weiteren Punkte sind Knickpunkte, der **letzte** Punkt ist das Ende der Linie. Dort schließt eine waagerechte Anschlusslinie (0.7 × `h` lang) an, danach folgt der Text; er steht rechts, wenn das letzte Segment nach rechts läuft (`x` des letzten Punkts ≥ `x` des vorletzten), sonst links. Mehrzeilig mit `\\n`.\n```json\n{\"type\":\"leader\",\"layer\":\"Text\",\"pts\":[[171,151],[178,168],[186,168]],\"text\":\"4× Bohrung Ø8\",\"h\":3.5}\n```\n\n### 5.12 `spline` – Spline (glatte Kurve durch Stützpunkte)\nPflicht: `pts` (mindestens 2 Stützpunkte; die Kurve verläuft **durch** alle). Optional: `closed` (`true` = geschlossene Kurve, braucht mindestens 3 Punkte).\n```json\n{\"type\":\"spline\",\"layer\":\"Kontur\",\"pts\":[[0,0],[20,15],[45,5],[70,25]],\"closed\":false}\n```\n\n### 5.13 `hatch` – Schraffur / Füllung\nPflicht: `pts` (mindestens 3 Punkte; das Polygon wird **automatisch geschlossen**). Optional: `pattern`: `\"lines\"` (Linien, Standard), `\"cross\"` (Kreuzschraffur), `\"solid\"` (Vollfläche, halbtransparent); `spacing` (Linienabstand in Zeichnungseinheiten, > 0, Standard 5); `angle` (Winkel der Linien, **Radiant**, Standard 0; 45° = 0.785398).\n\n- Die Schraffur zeichnet **keinen Rand**. Zeichne die Kontur zusätzlich als geschlossene `pline`.\n- Schraffuren mit Löchern/Inseln gibt es nicht: die Fläche ist ein einfaches Polygon.\n```json\n{\"type\":\"hatch\",\"layer\":\"Schraffur\",\"pts\":[[0,0],[20,0],[20,70],[0,70]],\"pattern\":\"lines\",\"spacing\":3,\"angle\":0.785398}\n```\n\n### 5.14 `xline` – Konstruktionslinie (unendliche Hilfslinie)\nPflicht: `p` (ein Punkt auf der Linie), `ang` (Richtung, Radiant; 0 = waagerecht, 1.570796 = senkrecht).\nWird **nicht gedruckt und nicht exportiert** (weder PDF noch SVG, PNG, DXF). Nur auf Wunsch des Nutzers verwenden.\n```json\n{\"type\":\"xline\",\"layer\":\"Hilfslinien\",\"p\":[0,0],\"ang\":0}\n```\n\n### 5.15 Statik: Stäbe, Auflager, Lasten (Tragwerksberechnung)\n\nHelix kann ebene Tragwerke (Stabwerke, Balken, Rahmen, Fachwerke) berechnen und Kräfte und Verformung anzeigen. Die Datei beschreibt dafür nur das **Modell**; die **Ergebnisse berechnet Helix selbst** (Reiter „Statik“ ▸ „Berechnen“) und speichert sie nicht in der Datei. Die KI soll keine Ergebnisse eintragen.\n\n**Einheiten und Vorzeichen**\n\n| Größe | Einheit | Vorzeichen |\n|---|---|---|\n| Koordinaten | Zeichnungseinheit gemäß `doc.stat.unit` (`\"m\"`, `\"cm\"`, `\"mm\"`) | x rechts, y oben |\n| Einzelkräfte `fx`, `fy` | kN | `fx` positiv nach rechts, `fy` positiv nach oben (**Last nach unten = negativer `fy`**) |\n| Moment `m` | kNm | positiv gegen den Uhrzeigersinn |\n| Streckenlast `q` | kN/m | wirkt **lotrecht** (globale y-Richtung), negativ = nach unten; bezogen auf die Stablänge |\n\n`doc.stat`: `unit` sagt, was eine Zeichnungseinheit ist (Standard `\"m\"`); `truss:true` macht **alle** Stabenden gelenkig (Fachwerk). Fehlt `doc.stat`, rechnet Helix mit Metern und ohne Fachwerkschalter.\nDie Symbolgröße (Auflager, Pfeile, Beschriftung) richtet sich nach `doc.th`: setze `doc.th` auf etwa 1/70 der Tragwerksgröße (Träger 8 m lang → `th` 0.15 bis 0.25).\n\n**Stab** = `line` mit zusätzlichem Feld `mem`:\n```json\n{\"type\":\"line\",\"layer\":\"Tragwerk\",\"a\":[0,0],\"b\":[8,0],\"mem\":{\"p\":\"IPE 300\",\"m\":\"S235\"}}\n```\n| Feld in `mem` | Bedeutung |\n|---|---|\n| `p` | Profil: `IPE 80` bis `IPE 400` (80, 100, 120, 140, 160, 180, 200, 220, 240, 270, 300, 330, 360, 400), `HEA 100` bis `HEA 300` (100, 120, 140, 160, 180, 200, 220, 240, 260, 280, 300), Holzquerschnitte `Holz 6/12`, `Holz 8/12`, `Holz 8/16`, `Holz 10/10`, `Holz 10/16`, `Holz 10/20`, `Holz 12/12`, `Holz 12/24`, `Holz 14/28`, `Holz 16/32` (Breite/Höhe in cm), oder `Eigen` mit eigenen Werten. Unbekannt → `IPE 200`. |\n| `m` | Werkstoff: `S235`, `S355` (Stahl), `C24`, `GL24h` (Holz) oder `Eigen`. Unbekannt → `S235`. |\n| `ha`, `hb` | `true` = Gelenk am Anfang (`a`) bzw. Ende (`b`) des Stabs (kein Moment wird übertragen). Standard `false` (biegesteif). |\n| `A`, `I`, `W` | nur bei `p:\"Eigen\"`: Fläche in cm², Flächenträgheitsmoment in cm⁴, Widerstandsmoment in cm³ (alle > 0) |\n| `E`, `f` | nur bei `m:\"Eigen\"`: Elastizitätsmodul und Streckgrenze/Festigkeit in MPa (> 0) |\n\nLinien **ohne** `mem` sind reine Zeichnung und gehören nicht zum Tragwerk. Stäbe sind nur **gerade** Linien (`line`); gekrümmte Teile bitte in Geraden zerlegen. Profilwerte sind Richtwerte. Die „Ausnutzung“ ist σ = |N|/A + |M|/W bezogen auf `f`, ohne Teilsicherheitsbeiwerte.\n\n**Auflager** `support`: Pflicht `p`. Optional `kind` (`\"pin\"` Gelenklager = in x und y fest, `\"roller\"` Loslager = nur in einer Richtung fest, `\"fixed\"` Einspannung = x, y und Drehung fest; Standard `\"pin\"`) und `rot` (Drehung des Symbols in Radiant, Standard 0).\nDas Symbol zeigt bei `rot` 0 nach **unten** (Auflager unter dem Knoten). Beim Loslager legt `rot` zugleich die Wirkrichtung fest: `rot` 0 oder 3.141593 hält die **y**-Richtung (Lager unter/über dem Knoten, verschieblich in x), `rot` 1.570796 oder 4.712389 hält die **x**-Richtung (Lager seitlich). Bei Gelenklager und Einspannung bestimmt `rot` nur die Zeichnung (Einspannung links vom Knoten: `rot` 4.712389; rechts: 1.570796).\n```json\n{\"type\":\"support\",\"layer\":\"Statik\",\"p\":[0,0],\"kind\":\"pin\",\"rot\":0}\n```\n\n**Einzellast** `load`: Pflicht `p`; optional `fx`, `fy` (kN) und `m` (kNm), fehlende Werte sind 0.\n```json\n{\"type\":\"load\",\"layer\":\"Statik\",\"p\":[8,0],\"fx\":0,\"fy\":-20,\"m\":0}\n```\n\n**Streckenlast** `qload`: Pflicht `a`, `b` (Anfang und Ende des belasteten Bereichs) und `q` (kN/m). Sie wirkt auf alle Stäbe, die **vollständig** zwischen `a` und `b` auf einer Geraden liegen; für einen einzelnen Stab nimm dessen Endpunkte.\n```json\n{\"type\":\"qload\",\"layer\":\"Statik\",\"a\":[0,0],\"b\":[8,0],\"q\":-10}\n```\n\n**Regeln für ein berechenbares Modell**\n\n1. **Knoten** entstehen an Stabenden. Stäbe sind an einem Punkt verbunden, wenn dort ein Stabende (oder ein Auflager/eine Last) liegt, auch mitten auf einem anderen Stab: Helix teilt den Stab dort automatisch. Stäbe, die sich nur **kreuzen**, sind nicht verbunden.\n2. Jedes Auflager und jede Einzellast muss **genau auf einem Stab** liegen (Ende oder Mittelpunkt, Koordinaten exakt gleich). Sonst wird es ignoriert (Warnung).\n3. Das Tragwerk muss **ausreichend gelagert und stabil** sein, sonst meldet Helix „labil“. Ein einzelner Träger braucht mindestens ein Gelenklager und ein Loslager (oder eine Einspannung). Ein Fachwerk (`truss:true`) braucht dazu ein statisch bestimmtes oder unbestimmtes, nicht verschiebliches Stabnetz (Dreiecke).\n4. Lege Stäbe auf die Ebene `Tragwerk` (z. B. Farbe `cyan`, `lw` 0.7), Auflager und Lasten auf `Statik` (z. B. Farbe `orange`, `lw` 0.35).\n5. Lineare Theorie, ebenes System: keine Knicknachweise, keine Schubverformung, keine Temperaturlasten, keine geneigten Loslager.\n6. Eine Kontrolle für die KI: Summe der Auflagerkräfte = Summe der Lasten; Träger auf zwei Stützen mit Streckenlast q: Auflager qL/2, Feldmoment qL²/8.\n\n### Nicht unterstützt\nBlöcke/Einfügungen, Schraffuren mit Löchern, Bögen in Polylinien, gekrümmte Tragwerksstäbe, geneigte Loslager, Bemaßungsstile, Pfeilarten, Schriftarten und Textausrichtungen, Layouts/Ansichtsfenster, Hex-/RGB-Farben, Volltext-Formatierung. Bilder gibt es nur als Hintergrundbild, das die KI **nicht** erzeugen soll.\n\n---\n\n## 6. Zeichnungsrahmen mit Schriftfeld (`frames`)\n\nStatt Rahmen und Schriftfeld selbst aus Linien und Texten zu bauen, beschreibst du sie in `doc.frames`. Helix erzeugt daraus beim Laden den fertigen Rahmen (auf der Ebene `Rahmen`, wird bei Bedarf angelegt) – inklusive Blattkante, Rahmenlinie und Schriftfeld, das der Nutzer später im Programm ausfüllen kann. Nach dem Laden sind es normale Objekte; gespeichert wird kein `frames`-Feld mehr.\n\n```json\n\"frames\": [\n {\"size\":\"A3\",\"orient\":\"landscape\",\"scale\":50,\"unit\":\"mm\",\"binding\":true,\"origin\":[0,0],\n  \"fields\":{\"titel\":\"Neutralisationsanlage\",\"nr\":\"DL-0815\",\"projekt\":\"Werk Dietlikon\",\"firma\":\"Muster AG\",\"gez\":\"A. Muster\",\"gepr\":\"\",\"datum\":\"03.10.2026\",\"blatt\":\"1/1\",\"rev\":\"A\"}}\n]\n```\n\n| Feld | Werte | Standard |\n|---|---|---|\n| `size` | `A0`, `A1`, `A2`, `A3`, `A4`, `A5`, `Letter` | `A3` |\n| `orient` | `landscape` (quer), `portrait` (hoch) | `landscape` |\n| `scale` | Maßstabszahl N für 1 : N (Zahl > 0). Beispiel 50 = 1:50, 1 = 1:1, 0.5 = 2:1 | 50 |\n| `unit` | Bedeutung **einer Zeichnungseinheit**: `\"mm\"`, `\"cm\"` oder `\"m\"` | `\"mm\"` |\n| `binding` | `true` = Heftrand links 20 mm, `false` = überall 10 mm | `true` |\n| `origin` | `[x, y]` der **unteren linken Blattecke** in Zeichnungseinheiten | `[0, 0]` |\n| `fields` | Schriftfeld-Texte (alle optional, nur Text): `titel`, `nr` (Zeichnungs-Nr.), `projekt`, `firma`, `gez` (Gezeichnet), `gepr` (Geprüft), `datum`, `mass` (Maßstabstext; leer = automatisch „1:N“), `blatt`, `rev` (Revision) | leer |\n\nMehrere Einträge in `frames` ergeben mehrere Blätter. Wähle verschiedene `origin`-Werte, sodass sie sich nicht überlappen (Abstand größer als die Blattbreite).\n\n### Geometrie des Blatts (damit der Inhalt hineinpasst)\n\nPapiermaße in mm (Breite × Höhe bei **Querformat**; bei Hochformat vertauschen): A0 1189×841, A1 841×594, A2 594×420, A3 420×297, A4 297×210, A5 210×148, Letter 279.4×215.9.\n\n- **Umrechnungsfaktor** `wu` = Zeichnungseinheiten pro Papier-Millimeter = `scale ÷ f`, mit f = 1 (mm), 10 (cm), 1000 (m).\n  Beispiele: mm und 1:50 → wu = 50. m und 1:50 → wu = 0.05. mm und 1:1 → wu = 1.\n- Blattgröße in Zeichnungseinheiten: Blattbreite_mm × wu und Blatthöhe_mm × wu (ab `origin`).\n- Seitenrand `m` = min(10, Blattbreite_mm / 20) mm; linker Rand `mL` = max(20, m) mm bei `binding:true`, sonst `m`.\n- **Innerer Rahmen** (Zeichenfläche): x von `origin.x + mL·wu` bis `origin.x + (Blattbreite − m)·wu`, y von `origin.y + m·wu` bis `origin.y + (Blatthöhe − m)·wu`.\n- **Schriftfeld**: unten rechts im inneren Rahmen, **180 mm breit × 36 mm hoch** (bei sehr schmalem Blatt schmaler). Die Zeichnung darf diesen Bereich nicht überdecken: x ≥ `origin.x + (Blattbreite − m − 180)·wu` **und** y ≤ `origin.y + (m + 36)·wu` ist reserviert.\n- Platziere den Zeichnungsinhalt innerhalb des inneren Rahmens, oberhalb des Schriftfelds, mit etwas Abstand (ca. 10 mm Papier).\n\nBeispiel A4 quer, 1:1, mm, origin [0,0]: Blatt 297×210; innerer Rahmen x 20…287, y 10…200; Schriftfeld x 107…287, y 10…46; freie Fläche für die Zeichnung z. B. x 30…277, y 56…190.\n\n### Auswahl des Maßstabs\nRechne die Zeichnungsgröße (Breite, Höhe in Zeichnungseinheiten) in Papier-mm um (`Größe ÷ wu`) und wähle den **größten** gebräuchlichen Maßstab (1:1, 1:2, 1:5, 1:10, 1:20, 1:25, 1:50, 1:100, 1:200, 1:500, 1:1000), bei dem alles in die freie Fläche passt. Nenne dem Nutzer Papierformat und Maßstab.\n\n### PDF-Ausgabe\nIm Programm: Datei ▸ „Export PDF“ ▸ **Bereich: Zeichnungsrahmen**. Dann gelten Blattgröße und Maßstab des Rahmens exakt, es wird kein zweites Schriftfeld gedruckt.\n\n---\n\n## 7. Schriftgrößen, Strichstärken und Ebenen sinnvoll wählen\n\n**Texthöhen sind Zeichnungseinheiten, keine Papiermillimeter.** Die gewünschte Höhe auf Papier muss mit `wu` (Abschnitt 6) in Zeichnungseinheiten umgerechnet werden:\n\n`h = Papierhöhe_mm × wu`\n\nÜbliche Papierhöhen: Beschriftung 3.5 mm (Titel 5 mm), Maßzahlen 2.5–3.5 mm. Beispiel mm und 1:50: 3.5 mm Papier → `h` = 175. Setze `doc.th` und alle `th`/`h`-Werte der Bemaßung entsprechend (Pfeile sind 0.9 × `th`, Maßhilfslinien-Abstand 0.3 × `th`).\nBei Tragwerken (Abschnitt 5.15) bestimmt `doc.th` auch die Größe der Auflagersymbole und Lastpfeile.\nOhne Zeichnungsrahmen: wähle `th` ca. 1/50 bis 1/70 der größeren Zeichnungsausdehnung (Zeichnung 120 breit → `th` ≈ 2–3).\n\nEmpfohlene Strichstärken (mm): Konturen/sichtbare Kanten 0.5, Schnittlinien/Hauptlinien 0.7, Maße, Mittellinien, Hilfslinien 0.18, Schraffuren 0.13, Text 0.25. Mittellinien: `lt:\"center\"`, verdeckte Kanten: `lt:\"hidden\"`.\n\n---\n\n## 8. Hinweise zur Qualität\n\n- Maße bei Maßlinien sind **gemessen**, nicht eingegeben: `a`/`b` müssen exakt auf den Kanten liegen, sonst stimmt die Zahl nicht.\n- Schließe Konturen exakt (gleiche Koordinaten an Berührpunkten), lege keine Objekte doppelt übereinander.\n- Rechne symmetrische Anordnungen (Lochkreise, Raster) mit den Formeln x = cx + r·cos θ, y = cy + r·sin θ **selbst aus** und trage die Zahlen ein.\n- Beschriftungen nicht über Linien legen: Text oberhalb/neben dem Objekt platzieren, Breite mit der Faustformel (0.6 × `h` × Zeichenzahl) prüfen.\n- Verwende pro Zweck eine eigene Ebene, damit der Nutzer Teile ein-/ausblenden kann.\n\n---\n\n## 9. Checkliste vor der Ausgabe\n\n- [ ] Gültiges JSON (Klammern, Kommas, keine Kommentare, keine Kommas am Ende)\n- [ ] `doc.ents` ist ein Array; jedes Objekt hat `type` und alle Pflichtfelder seines Typs\n- [ ] Alle Winkel (`a0`, `a1`, `rot`, `ang`, `angle`) in Radiant\n- [ ] `y` nach oben gedacht; Kreise/Radien > 0\n- [ ] Jede verwendete `layer`-Angabe existiert in `layers` (Schreibweise identisch)\n- [ ] Farben nur aus der Liste, Linienarten nur aus der Liste, keine Hex-Farben\n- [ ] Texthöhen passend zum Maßstab (Abschnitt 7); nichts liegt im Schriftfeld-Bereich\n- [ ] Bei Tragwerken: `doc.stat` gesetzt, Stäbe mit `mem`, jedes Auflager/jede Last liegt exakt auf einem Stab, ausreichend gelagert, Lasten nach unten haben negatives `fy`/`q`\n- [ ] Bei `frames`: Größe, Maßstab, Einheit, `origin` gesetzt; Inhalt liegt im inneren Rahmen\n- [ ] Alle Objekte einzeln ausgeschrieben (keine Platzhalter wie `...` im Endergebnis)\n\n---\n\n## 10. Vollständiges, geprüftes Beispiel\n\nLagerplatte 120 × 70 mm mit Bohrungen, Mittellinien, Maßen, Hinweislinie, Schnittdarstellung mit Schraffur, auf A4 quer im Maßstab 1:1 mit Schriftfeld (lädt ohne übersprungene Objekte):\n\n```json\n{\n \"format\": \"helix-web-cad\",\n \"version\": 1,\n \"doc\": {\n  \"name\": \"Lagerplatte\",\n  \"cur\": \"Kontur\",\n  \"grid\": 5,\n  \"th\": 3.5,\n  \"dec\": 2,\n  \"layers\": [\n   {\"name\":\"0\",\"color\":\"auto\",\"vis\":true,\"lock\":false,\"lt\":\"solid\",\"lw\":0.25},\n   {\"name\":\"Kontur\",\"color\":\"auto\",\"vis\":true,\"lock\":false,\"lt\":\"solid\",\"lw\":0.5},\n   {\"name\":\"Mittellinien\",\"color\":\"red\",\"vis\":true,\"lock\":false,\"lt\":\"center\",\"lw\":0.18},\n   {\"name\":\"Masse\",\"color\":\"green\",\"vis\":true,\"lock\":false,\"lt\":\"solid\",\"lw\":0.18},\n   {\"name\":\"Text\",\"color\":\"auto\",\"vis\":true,\"lock\":false,\"lt\":\"solid\",\"lw\":0.25},\n   {\"name\":\"Schraffur\",\"color\":\"gray\",\"vis\":true,\"lock\":false,\"lt\":\"solid\",\"lw\":0.13}\n  ],\n  \"ents\": [\n   {\"type\":\"pline\",\"layer\":\"Kontur\",\"pts\":[[60,90],[180,90],[180,160],[60,160]],\"closed\":true},\n   {\"type\":\"circle\",\"layer\":\"Kontur\",\"c\":[120,125],\"r\":15},\n   {\"type\":\"circle\",\"layer\":\"Kontur\",\"c\":[72,102],\"r\":4},\n   {\"type\":\"circle\",\"layer\":\"Kontur\",\"c\":[168,102],\"r\":4},\n   {\"type\":\"circle\",\"layer\":\"Kontur\",\"c\":[72,148],\"r\":4},\n   {\"type\":\"circle\",\"layer\":\"Kontur\",\"c\":[168,148],\"r\":4},\n   {\"type\":\"line\",\"layer\":\"Mittellinien\",\"a\":[120,80],\"b\":[120,170]},\n   {\"type\":\"line\",\"layer\":\"Mittellinien\",\"a\":[50,125],\"b\":[190,125]},\n   {\"type\":\"dim\",\"layer\":\"Masse\",\"mode\":\"h\",\"a\":[60,90],\"b\":[180,90],\"p\":[120,76],\"th\":3.5},\n   {\"type\":\"dim\",\"layer\":\"Masse\",\"mode\":\"v\",\"a\":[180,90],\"b\":[180,160],\"p\":[194,125],\"th\":3.5},\n   {\"type\":\"rdim\",\"layer\":\"Masse\",\"c\":[120,125],\"r\":15,\"p\":[142,143],\"kind\":\"D\",\"th\":3.5},\n   {\"type\":\"leader\",\"layer\":\"Text\",\"pts\":[[171,151],[178,168],[186,168]],\"text\":\"4× Bohrung Ø8\",\"h\":3.5},\n   {\"type\":\"text\",\"layer\":\"Text\",\"p\":[60,176],\"text\":\"Lagerplatte Pos. 1\\nWerkstoff S235JR\",\"h\":3.5,\"rot\":0},\n   {\"type\":\"pline\",\"layer\":\"Kontur\",\"pts\":[[232,90],[252,90],[252,160],[232,160]],\"closed\":true},\n   {\"type\":\"hatch\",\"layer\":\"Schraffur\",\"pts\":[[232,90],[252,90],[252,160],[232,160]],\"pattern\":\"lines\",\"spacing\":3,\"angle\":0.785398},\n   {\"type\":\"text\",\"layer\":\"Text\",\"p\":[226,166],\"text\":\"Schnitt A–A\",\"h\":3.5,\"rot\":0}\n  ],\n  \"frames\": [\n   {\"size\":\"A4\",\"orient\":\"landscape\",\"scale\":1,\"unit\":\"mm\",\"binding\":true,\"origin\":[0,0],\"fields\":{\"titel\":\"Lagerplatte\",\"nr\":\"LP-001\",\"projekt\":\"Beispielprojekt\",\"firma\":\"Muster AG\",\"gez\":\"A. Muster\",\"gepr\":\"\",\"datum\":\"03.10.2026\",\"blatt\":\"1/1\",\"rev\":\"A\"}}\n  ]\n }\n}\n```\n\n### Beispiel B: Träger mit Kragarm (Statik)\n\nTräger IPE 300 (S235), Länge 8 m, Gelenklager bei x = 0, Loslager bei x = 6, Streckenlast 10 kN/m auf der ganzen Länge, Einzellast 20 kN am Ende des Kragarms.\n**Erwartetes Ergebnis** (Helix, Reiter Statik ▸ Berechnen): Auflager links 20 kN, rechts 80 kN, größtes Moment 60 kNm über dem rechten Auflager, größte Verschiebung ca. 7,6 mm (Kragarmende).\n\n```json\n{\"format\":\"helix-web-cad\",\"version\":1,\"doc\":{\"name\":\"Traeger mit Kragarm\",\"cur\":\"Tragwerk\",\"grid\":0.5,\"th\":0.2,\"dec\":2,\n\"stat\":{\"unit\":\"m\",\"truss\":false},\n\"layers\":[\n {\"name\":\"Tragwerk\",\"color\":\"cyan\",\"vis\":true,\"lock\":false,\"lt\":\"solid\",\"lw\":0.7},\n {\"name\":\"Statik\",\"color\":\"orange\",\"vis\":true,\"lock\":false,\"lt\":\"solid\",\"lw\":0.35}\n],\n\"ents\":[\n {\"type\":\"line\",\"layer\":\"Tragwerk\",\"a\":[0,0],\"b\":[8,0],\"mem\":{\"p\":\"IPE 300\",\"m\":\"S235\"}},\n {\"type\":\"support\",\"layer\":\"Statik\",\"p\":[0,0],\"kind\":\"pin\",\"rot\":0},\n {\"type\":\"support\",\"layer\":\"Statik\",\"p\":[6,0],\"kind\":\"roller\",\"rot\":0},\n {\"type\":\"qload\",\"layer\":\"Statik\",\"a\":[0,0],\"b\":[8,0],\"q\":-10},\n {\"type\":\"load\",\"layer\":\"Statik\",\"p\":[8,0],\"fx\":0,\"fy\":-20,\"m\":0}\n]}}\n```\n\n### Beispiel C: Fachwerkträger (Statik)\n\nWarren-Fachwerk, Spannweite 8 m, Höhe 2 m, 4 Knotenlasten à 10 kN am Obergurt, alle Knoten gelenkig (`\"truss\":true`).\n**Erwartetes Ergebnis:** beide Auflager 20 kN; größte Stabkraft −22,4 kN (Druck, Endpfosten); Untergurt bis +20 kN (Zug), Obergurt bis −20 kN (Druck).\n\n```json\n{\"format\":\"helix-web-cad\",\"version\":1,\"doc\":{\"name\":\"Fachwerktraeger 8 m\",\"cur\":\"Tragwerk\",\"grid\":0.5,\"th\":0.2,\"dec\":2,\n\"stat\":{\"unit\":\"m\",\"truss\":true},\n\"layers\":[\n {\"name\":\"Tragwerk\",\"color\":\"cyan\",\"vis\":true,\"lock\":false,\"lt\":\"solid\",\"lw\":0.7},\n {\"name\":\"Statik\",\"color\":\"orange\",\"vis\":true,\"lock\":false,\"lt\":\"solid\",\"lw\":0.35}\n],\n\"ents\":[\n {\"type\":\"line\",\"layer\":\"Tragwerk\",\"a\":[0,0],\"b\":[2,0],\"mem\":{\"p\":\"HEA 100\",\"m\":\"S235\"}},\n {\"type\":\"line\",\"layer\":\"Tragwerk\",\"a\":[2,0],\"b\":[4,0],\"mem\":{\"p\":\"HEA 100\",\"m\":\"S235\"}},\n {\"type\":\"line\",\"layer\":\"Tragwerk\",\"a\":[4,0],\"b\":[6,0],\"mem\":{\"p\":\"HEA 100\",\"m\":\"S235\"}},\n {\"type\":\"line\",\"layer\":\"Tragwerk\",\"a\":[6,0],\"b\":[8,0],\"mem\":{\"p\":\"HEA 100\",\"m\":\"S235\"}},\n {\"type\":\"line\",\"layer\":\"Tragwerk\",\"a\":[1,2],\"b\":[3,2],\"mem\":{\"p\":\"HEA 100\",\"m\":\"S235\"}},\n {\"type\":\"line\",\"layer\":\"Tragwerk\",\"a\":[3,2],\"b\":[5,2],\"mem\":{\"p\":\"HEA 100\",\"m\":\"S235\"}},\n {\"type\":\"line\",\"layer\":\"Tragwerk\",\"a\":[5,2],\"b\":[7,2],\"mem\":{\"p\":\"HEA 100\",\"m\":\"S235\"}},\n {\"type\":\"line\",\"layer\":\"Tragwerk\",\"a\":[0,0],\"b\":[1,2],\"mem\":{\"p\":\"HEA 100\",\"m\":\"S235\"}},\n {\"type\":\"line\",\"layer\":\"Tragwerk\",\"a\":[1,2],\"b\":[2,0],\"mem\":{\"p\":\"HEA 100\",\"m\":\"S235\"}},\n {\"type\":\"line\",\"layer\":\"Tragwerk\",\"a\":[2,0],\"b\":[3,2],\"mem\":{\"p\":\"HEA 100\",\"m\":\"S235\"}},\n {\"type\":\"line\",\"layer\":\"Tragwerk\",\"a\":[3,2],\"b\":[4,0],\"mem\":{\"p\":\"HEA 100\",\"m\":\"S235\"}},\n {\"type\":\"line\",\"layer\":\"Tragwerk\",\"a\":[4,0],\"b\":[5,2],\"mem\":{\"p\":\"HEA 100\",\"m\":\"S235\"}},\n {\"type\":\"line\",\"layer\":\"Tragwerk\",\"a\":[5,2],\"b\":[6,0],\"mem\":{\"p\":\"HEA 100\",\"m\":\"S235\"}},\n {\"type\":\"line\",\"layer\":\"Tragwerk\",\"a\":[6,0],\"b\":[7,2],\"mem\":{\"p\":\"HEA 100\",\"m\":\"S235\"}},\n {\"type\":\"line\",\"layer\":\"Tragwerk\",\"a\":[7,2],\"b\":[8,0],\"mem\":{\"p\":\"HEA 100\",\"m\":\"S235\"}},\n {\"type\":\"support\",\"layer\":\"Statik\",\"p\":[0,0],\"kind\":\"pin\",\"rot\":0},\n {\"type\":\"support\",\"layer\":\"Statik\",\"p\":[8,0],\"kind\":\"roller\",\"rot\":0},\n {\"type\":\"load\",\"layer\":\"Statik\",\"p\":[1,2],\"fx\":0,\"fy\":-10,\"m\":0},\n {\"type\":\"load\",\"layer\":\"Statik\",\"p\":[3,2],\"fx\":0,\"fy\":-10,\"m\":0},\n {\"type\":\"load\",\"layer\":\"Statik\",\"p\":[5,2],\"fx\":0,\"fy\":-10,\"m\":0},\n {\"type\":\"load\",\"layer\":\"Statik\",\"p\":[7,2],\"fx\":0,\"fy\":-10,\"m\":0}\n]}}\n```\n\n---\n\n## 11. Beispiel-Prompt für den Nutzer\n\n> Hier ist die Anleitung für das JSON-Format von Helix Web-CAD (Datei im Anhang). Erstelle damit eine vollständige Zeichnung als JSON: **[Beschreibung, z. B. „Fließschema einer Neutralisationsanlage mit Behälter, Pumpe und Rohrleitungen“]**. Papierformat A3 quer, Maßstab nach Bedarf, Zeichnungseinheit mm. Schriftfeld: Titel „…“, Projekt „…“, Firma „…“, Gezeichnet „…“. Gib nur das JSON aus.\n\nDie Antwort als Datei mit der Endung `.json` speichern und in Helix öffnen (Datei ▸ „Öffnen …“) – oder den Text direkt über Datei ▸ „JSON einfügen“ laden. Hinweise zu Codeblöcken (```` ```json ````) oder einleitenden Sätzen im eingefügten Text sind unproblematisch: Helix sucht das JSON-Objekt darin selbst.\n\n---\n\n## 12. Was Helix beim Laden macht (Fehlerverhalten)\n\n| Fall | Verhalten |\n|---|---|\n| Ungültiges JSON | Fehlermeldung mit Hinweis zur Stelle; nichts wird geladen |\n| `doc.ents` fehlt oder kein Array | Fehlermeldung „Datei enthält keine Zeichnung“ |\n| Objekt mit unbekanntem `type` oder fehlenden/ungültigen Pflichtfeldern | wird übersprungen; Meldung „n ungültige übersprungen“ |\n| Unbekannte `layer` | Objekt kommt auf Ebene `\"0\"` |\n| Ungültige `color` / `lw` am Objekt | Eigenschaft wird entfernt (Ebenenwerte gelten) |\n| Ungültige Ebenen-Werte | `color` → `auto`, `lt` → `solid`, `lw` → 0.25 |\n| `doc.cur` unbekannt | `\"0\"` |\n| Ungültiger Eintrag in `frames` (z. B. Blatt zu klein) | wird übersprungen |\n| Zusätzliche, unbekannte Felder | werden meist mitgeführt, haben aber keine Wirkung |\n\n---\n\n## 13. Kurzreferenz der Pflichtfelder\n\n| `type` | Pflichtfelder | wichtige optionale Felder |\n|---|---|---|\n| `line` | `a`, `b` | |\n| `pline` | `pts` (≥ 2) | `closed` |\n| `circle` | `c`, `r` | |\n| `arc` | `c`, `r`, `a0`, `a1` | |\n| `ellipse` | `c`, `rx`, `ry`, `rot` | |\n| `point` | `p` | |\n| `text` | `p`, `text`, `h` | `rot` |\n| `dim` | `a`, `b`, `p` | `mode` (`al`/`h`/`v`), `th` |\n| `rdim` | `c`, `r`, `p` | `kind` (`R`/`D`), `th` |\n| `adim` | `c`, `a`, `b`, `p` | `th` |\n| `leader` | `pts` (≥ 2), `text`, `h` | |\n| `spline` | `pts` (≥ 2) | `closed` |\n| `hatch` | `pts` (≥ 3) | `pattern` (`lines`/`cross`/`solid`), `spacing`, `angle` |\n| `xline` | `p`, `ang` | |\n| `line` mit `mem` | `a`, `b`, `mem` | `mem.p`, `mem.m`, `mem.ha`, `mem.hb` (Stab für die Statik) |\n| `support` | `p` | `kind` (`pin`/`roller`/`fixed`), `rot` |\n| `load` | `p` | `fx`, `fy` (kN), `m` (kNm) |\n| `qload` | `a`, `b`, `q` | |\n\nAlle Typen zusätzlich: `layer`, `color`, `lw`.\n\n*Stand: Helix Web-CAD, Dateiformat `helix-web-cad` Version 1.*\n";
+const AI_GUIDE="# Helix Web-CAD – Anleitung zum JSON-Format (für KI-Assistenten)\n\nDiese Datei beschreibt vollständig, wie eine Zeichnung für **Helix Web-CAD** (2D-CAD im Browser) als `.json`-Datei aufgebaut ist.\nEin KI-Assistent, der diese Datei erhält, kann daraus eine komplette Zeichnung erzeugen, die der Nutzer direkt in Helix öffnet (Datei ▸ „Öffnen …“, oder per Drag & Drop, oder Datei ▸ „JSON einfügen“).\n\n---\n\n## 0. Auftrag an die KI (bitte zuerst lesen)\n\n1. Erzeuge **genau ein JSON-Objekt** nach dieser Anleitung. Gib es als einen einzigen Codeblock (```` ```json ````) oder als reine Datei aus. Vor und nach dem Block höchstens ein kurzer Satz.\n2. **Keine Kommentare** im JSON, **keine Kommas nach dem letzten Element**, nur doppelte Anführungszeichen, Dezimalpunkt (nicht Komma), Zahlen als Zahlen (nicht als Text).\n3. **Winkel immer im Bogenmaß (Radiant)**, nie in Grad (siehe Abschnitt 1).\n4. **Die y-Achse zeigt nach oben** (wie in der Mathematik, nicht wie in Bildschirm-Pixeln oder SVG).\n5. Berechne alle Koordinaten selbst und lege sie vollständig ab. Es gibt **keine Verweise, Variablen, Ausdrücke oder Schleifen** im Format. Jedes Objekt (z. B. jede der vier Bohrungen) wird einzeln aufgeführt.\n6. Halte dich an die erlaubten Werte (Ebenenfarben, Linienarten, Typen). Unbekannte Werte werden von Helix stillschweigend ersetzt oder das Objekt wird übersprungen.\n7. Fehlen dir Maße oder Angaben (Einheit, Maßstab, Papierformat, Beschriftung), **frage nach** oder triff eine klar benannte Annahme und nenne sie kurz.\n8. Prüfe das Ergebnis vor der Ausgabe mit der Checkliste in Abschnitt 9.\n\n---\n\n## 1. Grundlagen\n\n| Thema | Regel |\n|---|---|\n| Koordinatensystem | kartesisch, Ursprung (0, 0), **x nach rechts, y nach oben** |\n| Punkte | immer als Liste mit zwei Zahlen: `[x, y]` |\n| Einheiten | **einheitenlos**. 1 Einheit ist, was du festlegst (empfohlen: 1 Einheit = 1 mm). Mit Zeichnungsrahmen (`frames`) wird die Einheit dort angegeben. |\n| Winkel | **Bogenmaß (rad)**, 0 = Richtung +x, positiv = **gegen den Uhrzeigersinn**. Umrechnung: rad = Grad × π / 180 (90° = 1.570796, 180° = 3.141593, 270° = 4.712389, 45° = 0.785398) |\n| Zahlen | endliche Zahlen (kein `NaN`, kein `Infinity`), Dezimalpunkt, höchstens ca. 4 Nachkommastellen nötig |\n| Text | UTF-8. Umlaute, `Ø`, `°`, `±`, `×`, `²`, `³`, `µ`, `–` sind unproblematisch. Zeichen außerhalb von Windows-1252 (z. B. Emojis, griechische Buchstaben) erscheinen im PDF als `?` und sollten vermieden werden. |\n| Zeichenreihenfolge | Reihenfolge in `ents`; Schraffuren werden immer **hinter** die übrigen Objekte gezeichnet |\n| Größenordnung | tausende Objekte sind unproblematisch; Dateigröße max. 200 MB (ab ca. 100 000 Objekten sind Auto-Speicher und Rückgängig eingeschränkt) |\n\n---\n\n## 2. Aufbau der Datei\n\n```json\n{\n \"format\": \"helix-web-cad\",\n \"version\": 1,\n \"doc\": {\n  \"name\": \"Zeichnungsname\",\n  \"cur\": \"Kontur\",\n  \"grid\": 5,\n  \"th\": 3.5,\n  \"dec\": 2,\n  \"layers\": [ ... ],\n  \"ents\": [ ... ],\n  \"frames\": [ ... ]\n }\n}\n```\n\n| Feld | Pflicht | Bedeutung |\n|---|---|---|\n| `format` | empfohlen | immer `\"helix-web-cad\"` |\n| `version` | empfohlen | immer `1` |\n| `doc.name` | nein | Name der Zeichnung, max. 60 Zeichen (Standard: „Zeichnung 1“). Wird auch als Dateiname beim Speichern genutzt. |\n| `doc.cur` | nein | Name der Ebene, auf der der Nutzer neue Objekte zeichnet. Muss in `layers` existieren, sonst `\"0\"`. |\n| `doc.grid` | nein | Rastergröße (Zahl > 0, Standard 10) |\n| `doc.th` | nein | Standard-Texthöhe für **Bemaßungen und Hinweislinien** (Zahl > 0, Standard 5). Siehe Abschnitt 8. |\n| `doc.dec` | nein | Nachkommastellen in Maßtexten, ganze Zahl 0–6 (Standard 2; überflüssige Nullen werden entfernt) |\n| `doc.layers` | nein | Liste der Ebenen (Abschnitt 3). Ebene `\"0\"` existiert immer. |\n| `doc.ents` | **ja** | Liste der Zeichnungsobjekte (Abschnitt 4–5). Darf leer sein, muss aber ein Array sein. |\n| `doc.stat` | nein | Statik-Einstellungen: Einheit, Fachwerk, Sicherheitskonzept (Abschnitt 5.15). Nur nötig, wenn die Datei ein Tragwerk enthält. |\n| `doc.frames` | nein | Eingabe für Zeichnungsrahmen mit Schriftfeld (Abschnitt 6). Wird beim Laden in normale Objekte umgewandelt. |\n\nNicht erzeugen (von Helix selbst verwaltet oder für die KI ungeeignet): `doc.nid`, `doc.bg` (Hintergrundbild), `saved`, Objekt-`id`s. Wenn sie doch vorkommen, werden `id`/`nid` neu vergeben und ein ungültiges `bg` wird ignoriert.\n\n---\n\n## 3. Ebenen (`layers`)\n\n```json\n{\"name\":\"Kontur\",\"color\":\"auto\",\"vis\":true,\"lock\":false,\"lt\":\"solid\",\"lw\":0.5}\n```\n\n| Feld | Werte | Standard / Verhalten bei ungültigem Wert |\n|---|---|---|\n| `name` | Text, 1–40 Zeichen, eindeutig | Pflicht. Doppelte Namen und leere Namen werden übersprungen. |\n| `color` | `auto`, `red`, `yellow`, `green`, `cyan`, `blue`, `magenta`, `orange`, `gray` | sonst `auto` (`auto` = hell auf dunklem, schwarz auf hellem Hintergrund und im PDF schwarz) |\n| `vis` | `true` / `false` | sichtbar; Standard `true` |\n| `lock` | `true` / `false` | gesperrt (nicht bearbeitbar); Standard `false` |\n| `lt` | `solid`, `dashed`, `center`, `dotted`, `hidden` | sonst `solid` (durchgezogen, gestrichelt, Strich-Punkt-Mittellinie, gepunktet, verdeckt) |\n| `lw` | Strichstärke in **mm**, Zahl 0 bis 5 | sonst `0.25`. Übliche Werte: 0.05, 0.09, 0.13, 0.18, 0.25, 0.35, 0.5, 0.7, 1, 1.4, 2 |\n\nRegeln:\n\n- Die Ebene `\"0\"` gibt es immer. Du kannst sie in `layers` aufführen, um ihre Eigenschaften zu ändern.\n- Objekte verweisen über `layer` mit dem **exakten Namen** (Groß-/Kleinschreibung) auf eine Ebene. Unbekannter Name → Objekt landet auf `\"0\"`.\n- Sinnvolle Aufteilung: z. B. `Kontur`, `Mittellinien`, `Masse`, `Text`, `Schraffur`, `Hilfslinien`.\n\n---\n\n## 4. Gemeinsame Felder aller Objekte\n\nJedes Element von `ents` ist ein Objekt mit:\n\n| Feld | Pflicht | Bedeutung |\n|---|---|---|\n| `type` | **ja** | Objekttyp (Abschnitt 5) |\n| `layer` | empfohlen | Ebenenname; fehlt er oder ist unbekannt → `\"0\"` |\n| `color` | nein | überschreibt die Ebenenfarbe (gleiche Werte wie bei Ebenen). Hex-Farben (`#ff0000`) sind **nicht** erlaubt und werden entfernt. |\n| `lw` | nein | überschreibt die Ebenen-Strichstärke (mm, 0–5) |\n| `id` | nein | wird ignoriert und neu vergeben |\n\nEin Objekt mit fehlenden oder ungültigen Pflichtfeldern wird beim Laden **übersprungen** (Helix meldet „n ungültige übersprungen“).\n\n---\n\n## 5. Objekttypen\n\nAlle Beispiele sind gültig und können direkt in `ents` übernommen werden.\n\n### 5.1 `line` – Linie\nPflicht: `a`, `b` (Punkte).\n```json\n{\"type\":\"line\",\"layer\":\"Kontur\",\"a\":[0,0],\"b\":[100,50]}\n```\n\n### 5.2 `pline` – Polylinie (auch Rechteck und Polygon)\nPflicht: `pts` (mindestens 2 Punkte). Optional: `closed` (`true` = letzter Punkt wird mit dem ersten verbunden).\n**Rechteck, Polygon, Dreieck usw. gibt es nicht als eigenen Typ**: nimm eine geschlossene `pline`. Bögen innerhalb einer Polylinie sind nicht möglich (nimm `arc`-Objekte).\n```json\n{\"type\":\"pline\",\"layer\":\"Kontur\",\"pts\":[[0,0],[120,0],[120,70],[0,70]],\"closed\":true}\n```\n\n### 5.3 `circle` – Kreis\nPflicht: `c` (Mittelpunkt), `r` (Radius > 0).\n```json\n{\"type\":\"circle\",\"layer\":\"Kontur\",\"c\":[60,35],\"r\":15}\n```\n\n### 5.4 `arc` – Kreisbogen\nPflicht: `c`, `r` (> 0), `a0` (Startwinkel), `a1` (Endwinkel), beide in **Radiant**. Der Bogen läuft von `a0` **gegen den Uhrzeigersinn** nach `a1` (Spannweite = (a1 − a0) modulo 2π). Ein Viertelkreis oben rechts: a0 = 0, a1 = 1.570796. Für einen Vollkreis nimm `circle`.\n```json\n{\"type\":\"arc\",\"layer\":\"Kontur\",\"c\":[0,0],\"r\":20,\"a0\":0,\"a1\":1.570796}\n```\n\n### 5.5 `ellipse` – Ellipse\nPflicht: `c`, `rx`, `ry` (beide > 0), `rot` (Drehwinkel der rx-Achse, Radiant; 0 = rx liegt waagerecht).\n```json\n{\"type\":\"ellipse\",\"layer\":\"Kontur\",\"c\":[0,0],\"rx\":30,\"ry\":15,\"rot\":0}\n```\n\n### 5.6 `point` – Punkt\nPflicht: `p`. Wird als kleines Kreuz dargestellt.\n```json\n{\"type\":\"point\",\"layer\":\"Hilfslinien\",\"p\":[10,10]}\n```\n\n### 5.7 `text` – Text\nPflicht: `p`, `text` (Zeichenkette), `h` (Texthöhe > 0). Optional: `rot` (Radiant, Standard 0).\n\n- `p` ist der **Startpunkt der Grundlinie** der ersten Zeile (linksbündig). Eine Ausrichtung (zentriert, rechtsbündig) gibt es nicht; verschiebe `p` entsprechend.\n- Zeilenumbruch mit `\\n` im Text. Weitere Zeilen stehen **unterhalb**, Zeilenabstand = 1.25 × `h`.\n- Breite des Texts ≈ 0.6 × `h` × Anzahl der Zeichen (Faustformel zur Platzplanung; ob ein Text in ein Feld passt, vorher damit prüfen).\n```json\n{\"type\":\"text\",\"layer\":\"Text\",\"p\":[60,176],\"text\":\"Lagerplatte Pos. 1\\nWerkstoff S235JR\",\"h\":3.5,\"rot\":0}\n```\n\n### 5.8 `dim` – Maßlinie (Längenmaß)\nPflicht: `a`, `b` (die zwei **gemessenen** Punkte), `p` (ein Punkt, durch den die **Maßlinie** verläuft). Optional: `mode`: `\"al\"` (ausgerichtet, parallel zu a–b; Standard), `\"h\"` (waagerecht gemessen), `\"v\"` (senkrecht gemessen); `th` (Texthöhe, Standard `doc.th`).\n\n- Der Maßtext wird **automatisch** aus der gemessenen Länge in Zeichnungseinheiten gebildet (`doc.dec` Nachkommastellen, ohne Einheit). Er lässt sich nicht von Hand setzen.\n- `mode:\"h\"`: Maßlinie liegt auf der Höhe `p[1]`; `mode:\"v\"`: Maßlinie liegt bei `p[0]`; `\"al\"`: Maßlinie parallel zu a–b durch `p`.\n- Maßhilfslinien und Pfeile entstehen automatisch. Pfeilgröße = 0.9 × `th`.\n```json\n{\"type\":\"dim\",\"layer\":\"Masse\",\"mode\":\"h\",\"a\":[0,0],\"b\":[120,0],\"p\":[60,-14],\"th\":3.5}\n```\n\n### 5.9 `rdim` – Radius-/Durchmessermaß\nPflicht: `c` (Kreismittelpunkt), `r` (Radius), `p` (Endpunkt der Maßlinie, dort steht der Text). Optional: `kind`: `\"R\"` (Text „R15“, Standard) oder `\"D\"` (Text „Ø30“); `th`.\nDie Maßlinie läuft vom Kreisrand in Richtung `p` (vom Mittelpunkt aus gesehen). Wähle `p` außerhalb (oder innerhalb) des Kreises auf der gewünschten Seite.\n```json\n{\"type\":\"rdim\",\"layer\":\"Masse\",\"c\":[60,35],\"r\":15,\"p\":[82,53],\"kind\":\"D\",\"th\":3.5}\n```\n\n### 5.10 `adim` – Winkelmaß\nPflicht: `c` (Scheitelpunkt), `a` (ein Punkt auf dem ersten Schenkel), `b` (ein Punkt auf dem zweiten Schenkel), `p` (Punkt auf dem Maßbogen). Optional: `th`.\n`dist(c, p)` ist der Radius des Maßbogens; die **Seite** des Winkels (spitz oder überstumpf) ergibt sich daraus, in welchem der beiden Winkelfelder die Richtung c→p liegt. Der Text („90°“) entsteht automatisch.\n```json\n{\"type\":\"adim\",\"layer\":\"Masse\",\"c\":[0,0],\"a\":[40,0],\"b\":[0,40],\"p\":[22,22],\"th\":3.5}\n```\n\n### 5.11 `leader` – Hinweislinie mit Text\nPflicht: `pts` (mindestens 2 Punkte), `text`, `h` (> 0).\n`pts[0]` ist die **Pfeilspitze** (zeigt auf das Objekt), die weiteren Punkte sind Knickpunkte, der **letzte** Punkt ist das Ende der Linie. Dort schließt eine waagerechte Anschlusslinie (0.7 × `h` lang) an, danach folgt der Text; er steht rechts, wenn das letzte Segment nach rechts läuft (`x` des letzten Punkts ≥ `x` des vorletzten), sonst links. Mehrzeilig mit `\\n`.\n```json\n{\"type\":\"leader\",\"layer\":\"Text\",\"pts\":[[171,151],[178,168],[186,168]],\"text\":\"4× Bohrung Ø8\",\"h\":3.5}\n```\n\n### 5.12 `spline` – Spline (glatte Kurve durch Stützpunkte)\nPflicht: `pts` (mindestens 2 Stützpunkte; die Kurve verläuft **durch** alle). Optional: `closed` (`true` = geschlossene Kurve, braucht mindestens 3 Punkte).\n```json\n{\"type\":\"spline\",\"layer\":\"Kontur\",\"pts\":[[0,0],[20,15],[45,5],[70,25]],\"closed\":false}\n```\n\n### 5.13 `hatch` – Schraffur / Füllung\nPflicht: `pts` (mindestens 3 Punkte; das Polygon wird **automatisch geschlossen**). Optional: `pattern`: `\"lines\"` (Linien, Standard), `\"cross\"` (Kreuzschraffur), `\"solid\"` (Vollfläche, halbtransparent); `spacing` (Linienabstand in Zeichnungseinheiten, > 0, Standard 5); `angle` (Winkel der Linien, **Radiant**, Standard 0; 45° = 0.785398).\n\n- Die Schraffur zeichnet **keinen Rand**. Zeichne die Kontur zusätzlich als geschlossene `pline`.\n- Schraffuren mit Löchern/Inseln gibt es nicht: die Fläche ist ein einfaches Polygon.\n```json\n{\"type\":\"hatch\",\"layer\":\"Schraffur\",\"pts\":[[0,0],[20,0],[20,70],[0,70]],\"pattern\":\"lines\",\"spacing\":3,\"angle\":0.785398}\n```\n\n### 5.14 `xline` – Konstruktionslinie (unendliche Hilfslinie)\nPflicht: `p` (ein Punkt auf der Linie), `ang` (Richtung, Radiant; 0 = waagerecht, 1.570796 = senkrecht).\nWird **nicht gedruckt und nicht exportiert** (weder PDF noch SVG, PNG, DXF). Nur auf Wunsch des Nutzers verwenden.\n```json\n{\"type\":\"xline\",\"layer\":\"Hilfslinien\",\"p\":[0,0],\"ang\":0}\n```\n\n### 5.15 Statik: Stäbe, Auflager, Lasten (Tragwerksberechnung)\n\nHelix kann ebene Tragwerke (Stabwerke, Balken, Rahmen, Fachwerke) berechnen und Kräfte und Verformung anzeigen. Die Datei beschreibt dafür nur das **Modell**; die **Ergebnisse berechnet Helix selbst** (Reiter „Statik“ ▸ „Berechnen“) und speichert sie nicht in der Datei. Die KI soll keine Ergebnisse eintragen.\n\n**Einheiten und Vorzeichen**\n\n| Größe | Einheit | Vorzeichen |\n|---|---|---|\n| Koordinaten | Zeichnungseinheit gemäß `doc.stat.unit` (`\"m\"`, `\"cm\"`, `\"mm\"`) | x rechts, y oben |\n| Einzelkräfte `fx`, `fy` | kN | `fx` positiv nach rechts, `fy` positiv nach oben (**Last nach unten = negativer `fy`**) |\n| Moment `m` | kNm | positiv gegen den Uhrzeigersinn |\n| Streckenlast `q` | kN/m | wirkt **lotrecht** (globale y-Richtung), negativ = nach unten; bezogen auf die Stablänge |\n\n`doc.stat` (alle Felder optional):\n\n| Feld | Bedeutung | Standard |\n|---|---|---|\n| `unit` | was eine Zeichnungseinheit ist: `\"m\"`, `\"cm\"`, `\"mm\"` | `\"m\"` |\n| `truss` | `true` = **alle** Stabenden gelenkig (Fachwerk) | `false` |\n| `safety` | `true` = Teilsicherheitsbeiwerte anwenden; `false` = Lasten und Festigkeiten genau wie angegeben (charakteristische Werte, alle γ = 1) | **`true`** |\n| `gG`, `gQ` | Teilsicherheitsbeiwerte für ständige (G) und veränderliche (Q) Einwirkungen (≥ 1) | 1.35 und 1.5 |\n| `gM0` | Teilsicherheitsbeiwert Widerstand Stahl (≥ 0.5) | 1.0 |\n| `gMt`, `kmod` | Teilsicherheitsbeiwert Widerstand Holz und Modifikationsbeiwert kmod | 1.3 und 0.8 |\n| `selfw` | `true` = Eigengewicht der Stäbe aus Profil und Werkstoff als ständige Last (G) ansetzen | `false` |\n| `defl` | Durchbiegungsgrenze L/`defl` (Kragarme 2·L/`defl`) | 300 |\n\n**Wichtig:** Ohne `\"safety\":false` rechnet Helix mit Teilsicherheitsbeiwerten. Soll die KI exakt die angegebenen Kräfte rechnen lassen (z. B. Bemessungslasten sind schon eingegeben), muss sie `\"safety\":false` setzen.\nDie Symbolgröße (Auflager, Pfeile, Beschriftung) richtet sich nach `doc.th`: setze `doc.th` auf etwa 1/70 der Tragwerksgröße (Träger 8 m lang → `th` 0.15 bis 0.25).\n\n**Stab** = `line` mit zusätzlichem Feld `mem`:\n```json\n{\"type\":\"line\",\"layer\":\"Tragwerk\",\"a\":[0,0],\"b\":[8,0],\"mem\":{\"p\":\"IPE 300\",\"m\":\"S235\"}}\n```\n| Feld in `mem` | Bedeutung |\n|---|---|\n| `p` | Profil: `IPE 80` bis `IPE 400` (80, 100, 120, 140, 160, 180, 200, 220, 240, 270, 300, 330, 360, 400), `HEA 100` bis `HEA 300` (100, 120, 140, 160, 180, 200, 220, 240, 260, 280, 300), Holzquerschnitte `Holz 6/12`, `Holz 8/12`, `Holz 8/16`, `Holz 10/10`, `Holz 10/16`, `Holz 10/20`, `Holz 12/12`, `Holz 12/24`, `Holz 14/28`, `Holz 16/32` (Breite/Höhe in cm), oder `Eigen` mit eigenen Werten. Unbekannt → `IPE 200`. |\n| `m` | Werkstoff: `S235`, `S355` (Stahl), `C24`, `GL24h` (Holz) oder `Eigen`. Unbekannt → `S235`. |\n| `ha`, `hb` | `true` = Gelenk am Anfang (`a`) bzw. Ende (`b`) des Stabs (kein Moment wird übertragen). Standard `false` (biegesteif). |\n| `k` | Knicklängenbeiwert für den Knicknachweis (> 0, Standard 1.0 = beidseitig gelenkig gehalten) |\n| `rho` | nur bei `m:\"Eigen\"`: Wichte in kN/m³ für das Eigengewicht (Standard 0) |\n| `A`, `I`, `W` | nur bei `p:\"Eigen\"`: Fläche in cm², Flächenträgheitsmoment in cm⁴, Widerstandsmoment in cm³ (alle > 0) |\n| `E`, `f` | nur bei `m:\"Eigen\"`: Elastizitätsmodul und Streckgrenze/Festigkeit in MPa (> 0) |\n\nLinien **ohne** `mem` sind reine Zeichnung und gehören nicht zum Tragwerk. Stäbe sind nur **gerade** Linien (`line`); gekrümmte Teile bitte in Geraden zerlegen. Profilwerte sind Richtwerte. Die „Ausnutzung“ ist σ = |N|/A + |M|/W bezogen auf `f`, ohne Teilsicherheitsbeiwerte.\n\n**Auflager** `support`: Pflicht `p`. Optional `kind` (`\"pin\"` Gelenklager = in x und y fest, `\"roller\"` Loslager = nur in einer Richtung fest, `\"fixed\"` Einspannung = x, y und Drehung fest; Standard `\"pin\"`) und `rot` (Drehung des Symbols in Radiant, Standard 0).\nDas Symbol zeigt bei `rot` 0 nach **unten** (Auflager unter dem Knoten). Beim Loslager legt `rot` zugleich die Wirkrichtung fest: `rot` 0 oder 3.141593 hält die **y**-Richtung (Lager unter/über dem Knoten, verschieblich in x), `rot` 1.570796 oder 4.712389 hält die **x**-Richtung (Lager seitlich). Bei Gelenklager und Einspannung bestimmt `rot` nur die Zeichnung (Einspannung links vom Knoten: `rot` 4.712389; rechts: 1.570796).\n```json\n{\"type\":\"support\",\"layer\":\"Statik\",\"p\":[0,0],\"kind\":\"pin\",\"rot\":0}\n```\n\n**Einzellast** `load`: Pflicht `p`; optional `fx`, `fy` (kN), `m` (kNm), fehlende Werte sind 0, und `cat` (Art der Einwirkung, siehe unten).\n```json\n{\"type\":\"load\",\"layer\":\"Statik\",\"p\":[8,0],\"fx\":0,\"fy\":-20,\"m\":0,\"cat\":\"Q\"}\n```\n\n**Streckenlast** `qload`: Pflicht `a`, `b` (Anfang und Ende des belasteten Bereichs) und `q` (kN/m); optional `cat`. Sie wirkt auf alle Stäbe, die **vollständig** zwischen `a` und `b` auf einer Geraden liegen; für einen einzelnen Stab nimm dessen Endpunkte.\n```json\n{\"type\":\"qload\",\"layer\":\"Statik\",\"a\":[0,0],\"b\":[8,0],\"q\":-10,\"cat\":\"G\"}\n```\n\n**Art der Einwirkung `cat`** (bei `load` und `qload`): `\"G\"` = ständig (Eigenlast, Ausbau, Installationen), `\"Q\"` = veränderlich (Nutzlast, Schnee, Wind). Fehlt `cat`, gilt `\"Q\"`. Mit `safety:true` rechnet Helix die **Tragfähigkeit** mit γG·G + γQ·Q und die **Gebrauchstauglichkeit** (Durchbiegung) mit 1,0·G + 1,0·Q. Mehrere veränderliche Einwirkungen werden ohne Kombinationsbeiwerte addiert (auf der sicheren Seite).\n\n**Nachweise (automatisch, in Helix)** – die KI trägt sie nicht ein, soll aber das Modell so wählen, dass sie sinnvoll sind: Je Stab prüft Helix\n1. Spannung (Biegung mit Normalkraft, elastisch) gegen fy/γM0 bzw. bei Holz mit kmod·fk/γM,\n2. Schub am Steg (Stahlprofile) bzw. Schubspannung (Holz),\n3. Biegeknicken in der Ebene bei Druck (Knicklänge = Stablänge × `mem.k`; Knicklinie a für IPE, b für HEA, Holz mit kc),\n4. Durchbiegung gegen Grenzwert L/`defl` (zwischen Auflagern bzw. Stabenden, Kragarme gegen die Ausgangslage mit 2·L/`defl`).\nDas Gesamtergebnis lautet „Nachweise erfüllt“ oder „nicht erfüllt“ (Ausnutzung je Nachweis in %). Zusätzlich zeigt Helix den Grad der statischen Unbestimmtheit und kann einen Berechnungsbericht (HTML) erzeugen. Die Nachweise sind vereinfacht (kein Biegedrillknicken, kein Knicken aus der Ebene, kein Beulen, keine Anschlüsse).\n\n**Regeln für ein berechenbares Modell**\n\n1. **Knoten** entstehen an Stabenden. Stäbe sind an einem Punkt verbunden, wenn dort ein Stabende (oder ein Auflager/eine Last) liegt, auch mitten auf einem anderen Stab: Helix teilt den Stab dort automatisch. Stäbe, die sich nur **kreuzen**, sind nicht verbunden.\n2. Jedes Auflager und jede Einzellast muss **genau auf einem Stab** liegen (Ende oder Mittelpunkt, Koordinaten exakt gleich). Sonst wird es ignoriert (Warnung).\n3. Das Tragwerk muss **ausreichend gelagert und stabil** sein, sonst meldet Helix „labil“. Ein einzelner Träger braucht mindestens ein Gelenklager und ein Loslager (oder eine Einspannung). Ein Fachwerk (`truss:true`) braucht dazu ein statisch bestimmtes oder unbestimmtes, nicht verschiebliches Stabnetz (Dreiecke).\n4. Lege Stäbe auf die Ebene `Tragwerk` (z. B. Farbe `cyan`, `lw` 0.7), Auflager und Lasten auf `Statik` (z. B. Farbe `orange`, `lw` 0.35).\n5. Lineare Theorie, ebenes System: keine Knicknachweise, keine Schubverformung, keine Temperaturlasten, keine geneigten Loslager.\n6. Setze Lasten nach der Wirkung auf `cat`: Eigenlasten `\"G\"`, Nutzlasten `\"Q\"`.\n7. Eine Kontrolle für die KI: Summe der Auflagerkräfte = Summe der Lasten; Träger auf zwei Stützen mit Streckenlast q: Auflager qL/2, Feldmoment qL²/8.\n\n### Nicht unterstützt\nBlöcke/Einfügungen, Schraffuren mit Löchern, Bögen in Polylinien, gekrümmte Tragwerksstäbe, geneigte Loslager, Bemaßungsstile, Pfeilarten, Schriftarten und Textausrichtungen, Layouts/Ansichtsfenster, Hex-/RGB-Farben, Volltext-Formatierung. Bilder gibt es nur als Hintergrundbild, das die KI **nicht** erzeugen soll.\n\n---\n\n## 6. Zeichnungsrahmen mit Schriftfeld (`frames`)\n\nStatt Rahmen und Schriftfeld selbst aus Linien und Texten zu bauen, beschreibst du sie in `doc.frames`. Helix erzeugt daraus beim Laden den fertigen Rahmen (auf der Ebene `Rahmen`, wird bei Bedarf angelegt) – inklusive Blattkante, Rahmenlinie und Schriftfeld, das der Nutzer später im Programm ausfüllen kann. Nach dem Laden sind es normale Objekte; gespeichert wird kein `frames`-Feld mehr.\n\n```json\n\"frames\": [\n {\"size\":\"A3\",\"orient\":\"landscape\",\"scale\":50,\"unit\":\"mm\",\"binding\":true,\"origin\":[0,0],\n  \"fields\":{\"titel\":\"Neutralisationsanlage\",\"nr\":\"DL-0815\",\"projekt\":\"Werk Dietlikon\",\"firma\":\"Muster AG\",\"gez\":\"A. Muster\",\"gepr\":\"\",\"datum\":\"03.10.2026\",\"blatt\":\"1/1\",\"rev\":\"A\"}}\n]\n```\n\n| Feld | Werte | Standard |\n|---|---|---|\n| `size` | `A0`, `A1`, `A2`, `A3`, `A4`, `A5`, `Letter` | `A3` |\n| `orient` | `landscape` (quer), `portrait` (hoch) | `landscape` |\n| `scale` | Maßstabszahl N für 1 : N (Zahl > 0). Beispiel 50 = 1:50, 1 = 1:1, 0.5 = 2:1 | 50 |\n| `unit` | Bedeutung **einer Zeichnungseinheit**: `\"mm\"`, `\"cm\"` oder `\"m\"` | `\"mm\"` |\n| `binding` | `true` = Heftrand links 20 mm, `false` = überall 10 mm | `true` |\n| `origin` | `[x, y]` der **unteren linken Blattecke** in Zeichnungseinheiten | `[0, 0]` |\n| `fields` | Schriftfeld-Texte (alle optional, nur Text): `titel`, `nr` (Zeichnungs-Nr.), `projekt`, `firma`, `gez` (Gezeichnet), `gepr` (Geprüft), `datum`, `mass` (Maßstabstext; leer = automatisch „1:N“), `blatt`, `rev` (Revision) | leer |\n\nMehrere Einträge in `frames` ergeben mehrere Blätter. Wähle verschiedene `origin`-Werte, sodass sie sich nicht überlappen (Abstand größer als die Blattbreite).\n\n### Geometrie des Blatts (damit der Inhalt hineinpasst)\n\nPapiermaße in mm (Breite × Höhe bei **Querformat**; bei Hochformat vertauschen): A0 1189×841, A1 841×594, A2 594×420, A3 420×297, A4 297×210, A5 210×148, Letter 279.4×215.9.\n\n- **Umrechnungsfaktor** `wu` = Zeichnungseinheiten pro Papier-Millimeter = `scale ÷ f`, mit f = 1 (mm), 10 (cm), 1000 (m).\n  Beispiele: mm und 1:50 → wu = 50. m und 1:50 → wu = 0.05. mm und 1:1 → wu = 1.\n- Blattgröße in Zeichnungseinheiten: Blattbreite_mm × wu und Blatthöhe_mm × wu (ab `origin`).\n- Seitenrand `m` = min(10, Blattbreite_mm / 20) mm; linker Rand `mL` = max(20, m) mm bei `binding:true`, sonst `m`.\n- **Innerer Rahmen** (Zeichenfläche): x von `origin.x + mL·wu` bis `origin.x + (Blattbreite − m)·wu`, y von `origin.y + m·wu` bis `origin.y + (Blatthöhe − m)·wu`.\n- **Schriftfeld**: unten rechts im inneren Rahmen, **180 mm breit × 36 mm hoch** (bei sehr schmalem Blatt schmaler). Die Zeichnung darf diesen Bereich nicht überdecken: x ≥ `origin.x + (Blattbreite − m − 180)·wu` **und** y ≤ `origin.y + (m + 36)·wu` ist reserviert.\n- Platziere den Zeichnungsinhalt innerhalb des inneren Rahmens, oberhalb des Schriftfelds, mit etwas Abstand (ca. 10 mm Papier).\n\nBeispiel A4 quer, 1:1, mm, origin [0,0]: Blatt 297×210; innerer Rahmen x 20…287, y 10…200; Schriftfeld x 107…287, y 10…46; freie Fläche für die Zeichnung z. B. x 30…277, y 56…190.\n\n### Auswahl des Maßstabs\nRechne die Zeichnungsgröße (Breite, Höhe in Zeichnungseinheiten) in Papier-mm um (`Größe ÷ wu`) und wähle den **größten** gebräuchlichen Maßstab (1:1, 1:2, 1:5, 1:10, 1:20, 1:25, 1:50, 1:100, 1:200, 1:500, 1:1000), bei dem alles in die freie Fläche passt. Nenne dem Nutzer Papierformat und Maßstab.\n\n### PDF-Ausgabe\nIm Programm: Datei ▸ „Export PDF“ ▸ **Bereich: Zeichnungsrahmen**. Dann gelten Blattgröße und Maßstab des Rahmens exakt, es wird kein zweites Schriftfeld gedruckt.\n\n---\n\n## 7. Schriftgrößen, Strichstärken und Ebenen sinnvoll wählen\n\n**Texthöhen sind Zeichnungseinheiten, keine Papiermillimeter.** Die gewünschte Höhe auf Papier muss mit `wu` (Abschnitt 6) in Zeichnungseinheiten umgerechnet werden:\n\n`h = Papierhöhe_mm × wu`\n\nÜbliche Papierhöhen: Beschriftung 3.5 mm (Titel 5 mm), Maßzahlen 2.5–3.5 mm. Beispiel mm und 1:50: 3.5 mm Papier → `h` = 175. Setze `doc.th` und alle `th`/`h`-Werte der Bemaßung entsprechend (Pfeile sind 0.9 × `th`, Maßhilfslinien-Abstand 0.3 × `th`).\nBei Tragwerken (Abschnitt 5.15) bestimmt `doc.th` auch die Größe der Auflagersymbole und Lastpfeile.\nOhne Zeichnungsrahmen: wähle `th` ca. 1/50 bis 1/70 der größeren Zeichnungsausdehnung (Zeichnung 120 breit → `th` ≈ 2–3).\n\nEmpfohlene Strichstärken (mm): Konturen/sichtbare Kanten 0.5, Schnittlinien/Hauptlinien 0.7, Maße, Mittellinien, Hilfslinien 0.18, Schraffuren 0.13, Text 0.25. Mittellinien: `lt:\"center\"`, verdeckte Kanten: `lt:\"hidden\"`.\n\n---\n\n## 8. Hinweise zur Qualität\n\n- Maße bei Maßlinien sind **gemessen**, nicht eingegeben: `a`/`b` müssen exakt auf den Kanten liegen, sonst stimmt die Zahl nicht.\n- Schließe Konturen exakt (gleiche Koordinaten an Berührpunkten), lege keine Objekte doppelt übereinander.\n- Rechne symmetrische Anordnungen (Lochkreise, Raster) mit den Formeln x = cx + r·cos θ, y = cy + r·sin θ **selbst aus** und trage die Zahlen ein.\n- Beschriftungen nicht über Linien legen: Text oberhalb/neben dem Objekt platzieren, Breite mit der Faustformel (0.6 × `h` × Zeichenzahl) prüfen.\n- Verwende pro Zweck eine eigene Ebene, damit der Nutzer Teile ein-/ausblenden kann.\n\n---\n\n## 9. Checkliste vor der Ausgabe\n\n- [ ] Gültiges JSON (Klammern, Kommas, keine Kommentare, keine Kommas am Ende)\n- [ ] `doc.ents` ist ein Array; jedes Objekt hat `type` und alle Pflichtfelder seines Typs\n- [ ] Alle Winkel (`a0`, `a1`, `rot`, `ang`, `angle`) in Radiant\n- [ ] `y` nach oben gedacht; Kreise/Radien > 0\n- [ ] Jede verwendete `layer`-Angabe existiert in `layers` (Schreibweise identisch)\n- [ ] Farben nur aus der Liste, Linienarten nur aus der Liste, keine Hex-Farben\n- [ ] Texthöhen passend zum Maßstab (Abschnitt 7); nichts liegt im Schriftfeld-Bereich\n- [ ] Bei Tragwerken: `doc.stat` gesetzt (bei exakt vorgegebenen Kräften `\"safety\":false`), `cat` an Lasten, Stäbe mit `mem`, jedes Auflager/jede Last liegt exakt auf einem Stab, ausreichend gelagert, Lasten nach unten haben negatives `fy`/`q`\n- [ ] Bei `frames`: Größe, Maßstab, Einheit, `origin` gesetzt; Inhalt liegt im inneren Rahmen\n- [ ] Alle Objekte einzeln ausgeschrieben (keine Platzhalter wie `...` im Endergebnis)\n\n---\n\n## 10. Vollständiges, geprüftes Beispiel\n\nLagerplatte 120 × 70 mm mit Bohrungen, Mittellinien, Maßen, Hinweislinie, Schnittdarstellung mit Schraffur, auf A4 quer im Maßstab 1:1 mit Schriftfeld (lädt ohne übersprungene Objekte):\n\n```json\n{\n \"format\": \"helix-web-cad\",\n \"version\": 1,\n \"doc\": {\n  \"name\": \"Lagerplatte\",\n  \"cur\": \"Kontur\",\n  \"grid\": 5,\n  \"th\": 3.5,\n  \"dec\": 2,\n  \"layers\": [\n   {\"name\":\"0\",\"color\":\"auto\",\"vis\":true,\"lock\":false,\"lt\":\"solid\",\"lw\":0.25},\n   {\"name\":\"Kontur\",\"color\":\"auto\",\"vis\":true,\"lock\":false,\"lt\":\"solid\",\"lw\":0.5},\n   {\"name\":\"Mittellinien\",\"color\":\"red\",\"vis\":true,\"lock\":false,\"lt\":\"center\",\"lw\":0.18},\n   {\"name\":\"Masse\",\"color\":\"green\",\"vis\":true,\"lock\":false,\"lt\":\"solid\",\"lw\":0.18},\n   {\"name\":\"Text\",\"color\":\"auto\",\"vis\":true,\"lock\":false,\"lt\":\"solid\",\"lw\":0.25},\n   {\"name\":\"Schraffur\",\"color\":\"gray\",\"vis\":true,\"lock\":false,\"lt\":\"solid\",\"lw\":0.13}\n  ],\n  \"ents\": [\n   {\"type\":\"pline\",\"layer\":\"Kontur\",\"pts\":[[60,90],[180,90],[180,160],[60,160]],\"closed\":true},\n   {\"type\":\"circle\",\"layer\":\"Kontur\",\"c\":[120,125],\"r\":15},\n   {\"type\":\"circle\",\"layer\":\"Kontur\",\"c\":[72,102],\"r\":4},\n   {\"type\":\"circle\",\"layer\":\"Kontur\",\"c\":[168,102],\"r\":4},\n   {\"type\":\"circle\",\"layer\":\"Kontur\",\"c\":[72,148],\"r\":4},\n   {\"type\":\"circle\",\"layer\":\"Kontur\",\"c\":[168,148],\"r\":4},\n   {\"type\":\"line\",\"layer\":\"Mittellinien\",\"a\":[120,80],\"b\":[120,170]},\n   {\"type\":\"line\",\"layer\":\"Mittellinien\",\"a\":[50,125],\"b\":[190,125]},\n   {\"type\":\"dim\",\"layer\":\"Masse\",\"mode\":\"h\",\"a\":[60,90],\"b\":[180,90],\"p\":[120,76],\"th\":3.5},\n   {\"type\":\"dim\",\"layer\":\"Masse\",\"mode\":\"v\",\"a\":[180,90],\"b\":[180,160],\"p\":[194,125],\"th\":3.5},\n   {\"type\":\"rdim\",\"layer\":\"Masse\",\"c\":[120,125],\"r\":15,\"p\":[142,143],\"kind\":\"D\",\"th\":3.5},\n   {\"type\":\"leader\",\"layer\":\"Text\",\"pts\":[[171,151],[178,168],[186,168]],\"text\":\"4× Bohrung Ø8\",\"h\":3.5},\n   {\"type\":\"text\",\"layer\":\"Text\",\"p\":[60,176],\"text\":\"Lagerplatte Pos. 1\\nWerkstoff S235JR\",\"h\":3.5,\"rot\":0},\n   {\"type\":\"pline\",\"layer\":\"Kontur\",\"pts\":[[232,90],[252,90],[252,160],[232,160]],\"closed\":true},\n   {\"type\":\"hatch\",\"layer\":\"Schraffur\",\"pts\":[[232,90],[252,90],[252,160],[232,160]],\"pattern\":\"lines\",\"spacing\":3,\"angle\":0.785398},\n   {\"type\":\"text\",\"layer\":\"Text\",\"p\":[226,166],\"text\":\"Schnitt A–A\",\"h\":3.5,\"rot\":0}\n  ],\n  \"frames\": [\n   {\"size\":\"A4\",\"orient\":\"landscape\",\"scale\":1,\"unit\":\"mm\",\"binding\":true,\"origin\":[0,0],\"fields\":{\"titel\":\"Lagerplatte\",\"nr\":\"LP-001\",\"projekt\":\"Beispielprojekt\",\"firma\":\"Muster AG\",\"gez\":\"A. Muster\",\"gepr\":\"\",\"datum\":\"03.10.2026\",\"blatt\":\"1/1\",\"rev\":\"A\"}}\n  ]\n }\n}\n```\n\n### Beispiel B: Träger mit Kragarm (Statik)\n\nTräger IPE 300 (S235), Länge 8 m, Gelenklager bei x = 0, Loslager bei x = 6, Streckenlast 10 kN/m auf der ganzen Länge, Einzellast 20 kN am Ende des Kragarms.\n**Erwartetes Ergebnis** (Helix, Reiter Statik ▸ Berechnen; ohne Teilsicherheitsbeiwerte, weil `\"safety\":false`): Auflager links 20 kN, rechts 80 kN, größtes Moment 60 kNm über dem rechten Auflager, größte Verschiebung ca. 7,6 mm (Kragarmende).\n\n```json\n{\"format\":\"helix-web-cad\",\"version\":1,\"doc\":{\"name\":\"Traeger mit Kragarm\",\"cur\":\"Tragwerk\",\"grid\":0.5,\"th\":0.2,\"dec\":2,\n\"stat\":{\"unit\":\"m\",\"truss\":false,\"safety\":false},\n\"layers\":[\n {\"name\":\"Tragwerk\",\"color\":\"cyan\",\"vis\":true,\"lock\":false,\"lt\":\"solid\",\"lw\":0.7},\n {\"name\":\"Statik\",\"color\":\"orange\",\"vis\":true,\"lock\":false,\"lt\":\"solid\",\"lw\":0.35}\n],\n\"ents\":[\n {\"type\":\"line\",\"layer\":\"Tragwerk\",\"a\":[0,0],\"b\":[8,0],\"mem\":{\"p\":\"IPE 300\",\"m\":\"S235\"}},\n {\"type\":\"support\",\"layer\":\"Statik\",\"p\":[0,0],\"kind\":\"pin\",\"rot\":0},\n {\"type\":\"support\",\"layer\":\"Statik\",\"p\":[6,0],\"kind\":\"roller\",\"rot\":0},\n {\"type\":\"qload\",\"layer\":\"Statik\",\"a\":[0,0],\"b\":[8,0],\"q\":-10},\n {\"type\":\"load\",\"layer\":\"Statik\",\"p\":[8,0],\"fx\":0,\"fy\":-20,\"m\":0}\n]}}\n```\n\n### Beispiel C: Fachwerkträger (Statik)\n\nWarren-Fachwerk, Spannweite 8 m, Höhe 2 m, 4 Knotenlasten à 10 kN am Obergurt, alle Knoten gelenkig (`\"truss\":true`).\n**Erwartetes Ergebnis:** beide Auflager 20 kN; größte Stabkraft −22,4 kN (Druck, Endpfosten); Untergurt bis +20 kN (Zug), Obergurt bis −20 kN (Druck).\n\n```json\n{\"format\":\"helix-web-cad\",\"version\":1,\"doc\":{\"name\":\"Fachwerktraeger 8 m\",\"cur\":\"Tragwerk\",\"grid\":0.5,\"th\":0.2,\"dec\":2,\n\"stat\":{\"unit\":\"m\",\"truss\":true,\"safety\":false},\n\"layers\":[\n {\"name\":\"Tragwerk\",\"color\":\"cyan\",\"vis\":true,\"lock\":false,\"lt\":\"solid\",\"lw\":0.7},\n {\"name\":\"Statik\",\"color\":\"orange\",\"vis\":true,\"lock\":false,\"lt\":\"solid\",\"lw\":0.35}\n],\n\"ents\":[\n {\"type\":\"line\",\"layer\":\"Tragwerk\",\"a\":[0,0],\"b\":[2,0],\"mem\":{\"p\":\"HEA 100\",\"m\":\"S235\"}},\n {\"type\":\"line\",\"layer\":\"Tragwerk\",\"a\":[2,0],\"b\":[4,0],\"mem\":{\"p\":\"HEA 100\",\"m\":\"S235\"}},\n {\"type\":\"line\",\"layer\":\"Tragwerk\",\"a\":[4,0],\"b\":[6,0],\"mem\":{\"p\":\"HEA 100\",\"m\":\"S235\"}},\n {\"type\":\"line\",\"layer\":\"Tragwerk\",\"a\":[6,0],\"b\":[8,0],\"mem\":{\"p\":\"HEA 100\",\"m\":\"S235\"}},\n {\"type\":\"line\",\"layer\":\"Tragwerk\",\"a\":[1,2],\"b\":[3,2],\"mem\":{\"p\":\"HEA 100\",\"m\":\"S235\"}},\n {\"type\":\"line\",\"layer\":\"Tragwerk\",\"a\":[3,2],\"b\":[5,2],\"mem\":{\"p\":\"HEA 100\",\"m\":\"S235\"}},\n {\"type\":\"line\",\"layer\":\"Tragwerk\",\"a\":[5,2],\"b\":[7,2],\"mem\":{\"p\":\"HEA 100\",\"m\":\"S235\"}},\n {\"type\":\"line\",\"layer\":\"Tragwerk\",\"a\":[0,0],\"b\":[1,2],\"mem\":{\"p\":\"HEA 100\",\"m\":\"S235\"}},\n {\"type\":\"line\",\"layer\":\"Tragwerk\",\"a\":[1,2],\"b\":[2,0],\"mem\":{\"p\":\"HEA 100\",\"m\":\"S235\"}},\n {\"type\":\"line\",\"layer\":\"Tragwerk\",\"a\":[2,0],\"b\":[3,2],\"mem\":{\"p\":\"HEA 100\",\"m\":\"S235\"}},\n {\"type\":\"line\",\"layer\":\"Tragwerk\",\"a\":[3,2],\"b\":[4,0],\"mem\":{\"p\":\"HEA 100\",\"m\":\"S235\"}},\n {\"type\":\"line\",\"layer\":\"Tragwerk\",\"a\":[4,0],\"b\":[5,2],\"mem\":{\"p\":\"HEA 100\",\"m\":\"S235\"}},\n {\"type\":\"line\",\"layer\":\"Tragwerk\",\"a\":[5,2],\"b\":[6,0],\"mem\":{\"p\":\"HEA 100\",\"m\":\"S235\"}},\n {\"type\":\"line\",\"layer\":\"Tragwerk\",\"a\":[6,0],\"b\":[7,2],\"mem\":{\"p\":\"HEA 100\",\"m\":\"S235\"}},\n {\"type\":\"line\",\"layer\":\"Tragwerk\",\"a\":[7,2],\"b\":[8,0],\"mem\":{\"p\":\"HEA 100\",\"m\":\"S235\"}},\n {\"type\":\"support\",\"layer\":\"Statik\",\"p\":[0,0],\"kind\":\"pin\",\"rot\":0},\n {\"type\":\"support\",\"layer\":\"Statik\",\"p\":[8,0],\"kind\":\"roller\",\"rot\":0},\n {\"type\":\"load\",\"layer\":\"Statik\",\"p\":[1,2],\"fx\":0,\"fy\":-10,\"m\":0},\n {\"type\":\"load\",\"layer\":\"Statik\",\"p\":[3,2],\"fx\":0,\"fy\":-10,\"m\":0},\n {\"type\":\"load\",\"layer\":\"Statik\",\"p\":[5,2],\"fx\":0,\"fy\":-10,\"m\":0},\n {\"type\":\"load\",\"layer\":\"Statik\",\"p\":[7,2],\"fx\":0,\"fy\":-10,\"m\":0}\n]}}\n```\n\n### Beispiel D: Nachweis mit Teilsicherheitsbeiwerten (nicht erfüllt)\n\nTräger IPE 200 (S235) auf zwei Stützen, Spannweite 6 m, ständige Streckenlast 10 kN/m, mit Teilsicherheitsbeiwerten (`\"safety\":true`).\n**Erwartetes Ergebnis:** Bemessungslast 1,35 · 10 = 13,5 kN/m, Auflager 40,5 kN, Bemessungsmoment 60,75 kNm. Spannungsnachweis ca. **133 %** (nicht erfüllt), Schub ca. 25 %, Durchbiegung (Gebrauchslast 10 kN/m) 41,4 mm bei Grenzwert L/300 = 20 mm, also ca. 207 %. Gesamtergebnis: „Nachweis NICHT erfüllt“. Ein Profil IPE 270 würde die Spannung und die Durchbiegung einhalten.\n\n```json\n{\"format\":\"helix-web-cad\",\"version\":1,\"doc\":{\"name\":\"Traeger Nachweis nicht erfuellt\",\"cur\":\"Tragwerk\",\"grid\":0.5,\"th\":0.2,\"dec\":2,\n\"stat\":{\"unit\":\"m\",\"truss\":false,\"safety\":true,\"gG\":1.35,\"gQ\":1.5,\"gM0\":1,\"selfw\":false,\"defl\":300},\n\"layers\":[\n {\"name\":\"Tragwerk\",\"color\":\"cyan\",\"vis\":true,\"lock\":false,\"lt\":\"solid\",\"lw\":0.7},\n {\"name\":\"Statik\",\"color\":\"orange\",\"vis\":true,\"lock\":false,\"lt\":\"solid\",\"lw\":0.35}\n],\n\"ents\":[\n {\"type\":\"line\",\"layer\":\"Tragwerk\",\"a\":[0,0],\"b\":[6,0],\"mem\":{\"p\":\"IPE 200\",\"m\":\"S235\"}},\n {\"type\":\"support\",\"layer\":\"Statik\",\"p\":[0,0],\"kind\":\"pin\",\"rot\":0},\n {\"type\":\"support\",\"layer\":\"Statik\",\"p\":[6,0],\"kind\":\"roller\",\"rot\":0},\n {\"type\":\"qload\",\"layer\":\"Statik\",\"a\":[0,0],\"b\":[6,0],\"q\":-10,\"cat\":\"G\"}\n]}}\n```\n\n---\n\n## 11. Beispiel-Prompt für den Nutzer\n\n> Hier ist die Anleitung für das JSON-Format von Helix Web-CAD (Datei im Anhang). Erstelle damit eine vollständige Zeichnung als JSON: **[Beschreibung, z. B. „Fließschema einer Neutralisationsanlage mit Behälter, Pumpe und Rohrleitungen“]**. Papierformat A3 quer, Maßstab nach Bedarf, Zeichnungseinheit mm. Schriftfeld: Titel „…“, Projekt „…“, Firma „…“, Gezeichnet „…“. Gib nur das JSON aus.\n\nDie Antwort als Datei mit der Endung `.json` speichern und in Helix öffnen (Datei ▸ „Öffnen …“) – oder den Text direkt über Datei ▸ „JSON einfügen“ laden. Hinweise zu Codeblöcken (```` ```json ````) oder einleitenden Sätzen im eingefügten Text sind unproblematisch: Helix sucht das JSON-Objekt darin selbst.\n\n---\n\n## 12. Was Helix beim Laden macht (Fehlerverhalten)\n\n| Fall | Verhalten |\n|---|---|\n| Ungültiges JSON | Fehlermeldung mit Hinweis zur Stelle; nichts wird geladen |\n| `doc.ents` fehlt oder kein Array | Fehlermeldung „Datei enthält keine Zeichnung“ |\n| Objekt mit unbekanntem `type` oder fehlenden/ungültigen Pflichtfeldern | wird übersprungen; Meldung „n ungültige übersprungen“ |\n| Unbekannte `layer` | Objekt kommt auf Ebene `\"0\"` |\n| Ungültige `color` / `lw` am Objekt | Eigenschaft wird entfernt (Ebenenwerte gelten) |\n| Ungültige Ebenen-Werte | `color` → `auto`, `lt` → `solid`, `lw` → 0.25 |\n| `doc.cur` unbekannt | `\"0\"` |\n| Ungültiger Eintrag in `frames` (z. B. Blatt zu klein) | wird übersprungen |\n| Zusätzliche, unbekannte Felder | werden meist mitgeführt, haben aber keine Wirkung |\n\n---\n\n## 13. Kurzreferenz der Pflichtfelder\n\n| `type` | Pflichtfelder | wichtige optionale Felder |\n|---|---|---|\n| `line` | `a`, `b` | |\n| `pline` | `pts` (≥ 2) | `closed` |\n| `circle` | `c`, `r` | |\n| `arc` | `c`, `r`, `a0`, `a1` | |\n| `ellipse` | `c`, `rx`, `ry`, `rot` | |\n| `point` | `p` | |\n| `text` | `p`, `text`, `h` | `rot` |\n| `dim` | `a`, `b`, `p` | `mode` (`al`/`h`/`v`), `th` |\n| `rdim` | `c`, `r`, `p` | `kind` (`R`/`D`), `th` |\n| `adim` | `c`, `a`, `b`, `p` | `th` |\n| `leader` | `pts` (≥ 2), `text`, `h` | |\n| `spline` | `pts` (≥ 2) | `closed` |\n| `hatch` | `pts` (≥ 3) | `pattern` (`lines`/`cross`/`solid`), `spacing`, `angle` |\n| `xline` | `p`, `ang` | |\n| `line` mit `mem` | `a`, `b`, `mem` | `mem.p`, `mem.m`, `mem.ha`, `mem.hb`, `mem.k` (Stab für die Statik) |\n| `support` | `p` | `kind` (`pin`/`roller`/`fixed`), `rot` |\n| `load` | `p` | `fx`, `fy` (kN), `m` (kNm), `cat` (`G`/`Q`) |\n| `qload` | `a`, `b`, `q` | `cat` (`G`/`Q`) |\n\nAlle Typen zusätzlich: `layer`, `color`, `lw`.\n\n*Stand: Helix Web-CAD, Dateiformat `helix-web-cad` Version 1.*\n";
 function exportAIGuide(){return deliver('Helix-JSON-Anleitung.md',AI_GUIDE,'KI-Anleitung')}
 
 /* ================= Symbolleiste ================= */
@@ -3339,7 +3722,9 @@ const cin=$('#cin');
 window.addEventListener('keydown',e=>{if(e.key==='Shift'&&!shiftDown){shiftDown=true;updateCursor(cs[0],cs[1])}},true);
 window.addEventListener('keyup',e=>{if(e.key==='Shift'&&shiftDown){shiftDown=false;updateCursor(cs[0],cs[1])}},true);
 window.addEventListener('blur',()=>{if(shiftDown){shiftDown=false;updateCursor(cs[0],cs[1])}});
-function sendInput(){const v=cin.value;cin.value='';submitInput(v)}
+function sendInput(){const v=cin.value;cin.value='';typedPt=null;submitInput(v)}
+cin.addEventListener('input',()=>{typedPt=typedPreview(cin.value);redraw()});
+cin.addEventListener('blur',()=>{typedPt=null;redraw()});
 cin.addEventListener('keydown',e=>{
   if(e.key==='Enter'){e.preventDefault();sendInput()}
   else if(e.key==='Escape'){e.preventDefault();cin.value='';esc()}
