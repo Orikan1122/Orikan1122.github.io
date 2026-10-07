@@ -1996,9 +1996,9 @@ function sucheSapEquipment() {
         if (!row) return;
 
         if (!auditData.dispensers || auditData.dispensers.length === 0) {
-            let dispStr = row[4] || ""; 
-            let typeStr = row[5] || ""; 
-            let prodStr = row[6] || ""; 
+            let dispStr = String(row[4] ?? ""); 
+            let typeStr = String(row[5] ?? ""); 
+            let prodStr = String(row[6] ?? ""); 
 
             if (dispStr) {
                 let geladeneDispensers = [];
@@ -2043,7 +2043,7 @@ function sucheSapEquipment() {
         }
 
         // --- NEUER FIX: "Leer" Haken wiederherstellen, auch wenn Dispenser aus Konfiguration geladen wurden ---
-        let savedProdStr = row[6] || "";
+        let savedProdStr = String(row[6] ?? "");
         if (savedProdStr && auditData.dispensers && auditData.dispensers.length > 0) {
             let prodParts = savedProdStr.split(';');
             prodParts.forEach(pStr => {
@@ -2084,32 +2084,50 @@ function sucheSapEquipment() {
         setRadioValue("zuckerfrei", row[42]);     
         setRadioValue("kundenangaben", row[43]);
 
-        let nokList = String(row[47] || "").split('/'); 
-        let okList = String(row[48] || "").split('/');  
+        // Tokens tolerant einlesen (Trim, Gross/Klein, Legacy-Volltexte statt Kürzel)
+        const normTok = x => String(x ?? "").normalize("NFKC").replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
+        const legacyZustandAlias = {
+            "erster abgelaufen, erster raus:": "A70",
+            "produktlagerzustand: sonne, wetter": "A90",
+            "bibs werden nicht auf dem boden gelagert:": "A80",
+            "speichertemperatur <= 30 °c": "B10",
+            "zustand des lagerraums:": "A100"
+        };
+        const tokenSet = v => new Set(String(v ?? "").split('/').map(normTok).filter(Boolean));
+        let nokList = tokenSet(row[47]);
+        let okList = tokenSet(row[48]);
         
         const auswahlDaten = getSheetData("Auswahllisten");
-        let iNav = auswahlDaten[0].map(x=>String(x).toLowerCase().trim()).indexOf("navigation");
-        let iBez = auswahlDaten[0].map(x=>String(x).toLowerCase().trim()).indexOf("bezeichnung");
-        let iAbk = auswahlDaten[0].map(x=>String(x).toLowerCase().trim()).indexOf("abkürzung") || auswahlDaten[0].map(x=>String(x).toLowerCase().trim()).indexOf("abkuerzung");
+        let aHeadL = auswahlDaten[0].map(x=>String(x).toLowerCase().trim());
+        let iNav = aHeadL.indexOf("navigation");
+        let iBez = aHeadL.indexOf("bezeichnung");
+        let iAbk = aHeadL.findIndex(x => x === "abkürzung" || x === "abkuerzung");
 
-        let combinedComment = row[49] || ""; 
+        let combinedComment = String(row[49] ?? "").trim(); 
         let commentMap = {};
+        let legacyComment = [];
         if (combinedComment) {
             let parts = combinedComment.split(/\s*\|\s*/);
             parts.forEach(p => {
                 let m = p.match(/^\[(.*?)\]::(.*)$/);
                 if(m) commentMap[m[1].trim()] = m[2].trim();
+                else if (p.trim()) legacyComment.push(p.trim());
             });
         }
 
         document.querySelectorAll('#auditChecklistContainer .checklist-item').forEach((item, index) => {
             let label = item.querySelector('span').innerText.trim();
             let abk = label;
-            let aRow = auswahlDaten.find(r => String(r[iNav]).toLowerCase() === "zustandstyp" && String(r[iBez]).trim() === label);
+            let aRow = auswahlDaten.find(r => String(r[iNav]).toLowerCase().trim() === "zustandstyp" && String(r[iBez]).trim() === label);
             if(aRow && iAbk !== -1 && aRow[iAbk]) abk = aRow[iAbk];
 
-            if(okList.includes(abk)) setRadioValue(`chk_${index}`, "OK");
-            else if(nokList.includes(abk)) setRadioValue(`chk_${index}`, "NOK");
+            // Alle akzeptierten Schreibweisen dieses Punkts: Kürzel, aktuelles Label, Legacy-Volltext
+            const keys = new Set([normTok(abk), normTok(label)]);
+            Object.keys(legacyZustandAlias).forEach(k => { if (normTok(legacyZustandAlias[k]) === normTok(abk)) keys.add(k); });
+            const hit = set => [...keys].some(k => set.has(k));
+
+            if(hit(okList)) setRadioValue(`chk_${index}`, "OK");
+            else if(hit(nokList)) setRadioValue(`chk_${index}`, "NOK");
 
             if (commentMap[label]) {
                 let textarea = document.getElementById(`nok_reason_${index}`);
@@ -2117,12 +2135,12 @@ function sucheSapEquipment() {
             }
         });
 
+        // Allgemeiner Kommentar + Alt-Kommentare ohne [Label]::-Format (sonst gehen sie beim erneuten Speichern verloren)
         const legacyGeneralLabel = "All" + "gemein";
-        if (commentMap["General"] || commentMap[legacyGeneralLabel]) {
-            document.getElementById('global_nok_reason').value = commentMap["General"] || commentMap[legacyGeneralLabel];
-        } else {
-            document.getElementById('global_nok_reason').value = "";
-        }
+        let generalParts = [];
+        if (commentMap["General"] || commentMap[legacyGeneralLabel]) generalParts.push(commentMap["General"] || commentMap[legacyGeneralLabel]);
+        generalParts = generalParts.concat(legacyComment);
+        document.getElementById('global_nok_reason').value = generalParts.join(' - ');
 
         parseIndexStringAndFill(row[9], 'geschmackReason'); 
         parseIndexStringAndFill(row[11], 'package');
@@ -2154,7 +2172,7 @@ function sucheSapEquipment() {
             });
         };
 
-        let carbTasteData = row[22] || "";
+        let carbTasteData = String(row[22] ?? "");
         if(!carbTasteData.includes("[")) { 
             let parts = carbTasteData.split("::");
             setRadioValue("iw_carb_taste", parts[0]);
@@ -2179,7 +2197,7 @@ function sucheSapEquipment() {
     // HILFSFUNKTION: Reverse-Parser für komprimierte Tab 2 Daten (z.B. "[SS:1=4.5]")
     function parseIndexStringAndFill(dataStr, inputKey) {
         if (!dataStr) return;
-        const parts = dataStr.split(';');
+        const parts = String(dataStr).split(';');
         parts.forEach(p => {
             // Sucht nach Muster: [Abkürzung:VentilNummer=Wert] -> z.B. [SS:1=4.5]
             const match = p.match(/\[(.*?):(\d+)=(.*?)\]/);
@@ -3569,7 +3587,7 @@ function sucheSapEquipment() {
     // NEU: Liest die Excel-Strings wieder zurück in das UI
     function parseSpezialIndexStringAndFill(dataStr, statusKey, reasonKey) {
         if (!dataStr) return;
-        const parts = dataStr.split(';');
+        const parts = String(dataStr).split(';');
         parts.forEach(p => {
             const match = p.match(/\[(.*?):(\d+)=(.*?)\]/);
             if (match) {
@@ -3610,7 +3628,7 @@ function sucheSapEquipment() {
             const status = item.querySelector('input[type="radio"]:checked')?.value;
             
             let abk = text;
-            let row = auswahlDaten.find(r => String(r[iNav]).toLowerCase() === "zustandstyp" && r[iBez] === text);
+            let row = auswahlDaten.find(r => String(r[iNav]).toLowerCase().trim() === "zustandstyp" && String(r[iBez]).trim() === String(text).trim());
             if(row && iAbk !== -1 && row[iAbk]) abk = row[iAbk];
 
             if(status === "OK") okList.push(abk);
