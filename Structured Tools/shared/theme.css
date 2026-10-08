@@ -1,0 +1,385 @@
+/* ==========================================================================
+   Structured Tools – gemeinsames UI-Grundgerüst
+   Einbindung (nach den tool-eigenen Styles):
+     <link rel="stylesheet" href="../shared/theme.css">
+     <script src="../shared/theme.js"></script>
+     <body class="st st-<tool>">
+   Farben/Abstände kommen ausschliesslich aus den Tokens unten.
+   Dark Mode: automatisch (prefers-color-scheme) oder per Umschalter
+   (html[data-theme="light|dark"], gespeichert in localStorage).
+   ========================================================================== */
+
+:root {
+    --st-bg: #f4f6fa;
+    --st-surface: #ffffff;
+    --st-surface-2: #eef1f6;
+    --st-surface-3: #e3e8f0;
+    --st-text: #1f2733;
+    --st-muted: #5f6b7c;
+    --st-border: #d5dbe5;
+    --st-accent: #2f5fd0;
+    --st-accent-hover: #234bb0;
+    --st-accent-soft: #e3ebff;
+    --st-on-accent: #ffffff;
+    --st-neutral: #5f6b7c;
+    --st-neutral-hover: #4a5565;
+    --st-danger: #c93a3a;
+    --st-danger-hover: #a62d2d;
+    --st-success: #2c8a57;
+    --st-success-hover: #226d45;
+    --st-info: #1b8aa3;
+    --st-info-hover: #146b80;
+    --st-overlay: rgba(15, 22, 35, 0.55);
+    --st-shadow: 0 1px 2px rgba(15, 22, 35, .06), 0 4px 14px rgba(15, 22, 35, .07);
+    --st-radius: 8px;
+    --st-radius-sm: 5px;
+    --st-focus: 0 0 0 3px rgba(47, 95, 208, .35);
+    --st-font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color-scheme: light;
+}
+
+/* Dark Mode: System-Vorgabe, solange nicht explizit "light" gewählt wurde */
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+        --st-bg: #11151c;
+        --st-surface: #1a2029;
+        --st-surface-2: #222a36;
+        --st-surface-3: #2c3646;
+        --st-text: #e4e9f1;
+        --st-muted: #9aa6b8;
+        --st-border: #364154;
+        --st-accent: #6b93ff;
+        --st-accent-hover: #8aa9ff;
+        --st-accent-soft: #24304f;
+        --st-on-accent: #0d1220;
+        --st-neutral: #46526a;
+        --st-neutral-hover: #566480;
+        --st-danger: #e06666;
+        --st-danger-hover: #ec8585;
+        --st-success: #4fb27c;
+        --st-success-hover: #6cc794;
+        --st-info: #4cb5cc;
+        --st-info-hover: #6cc7db;
+        --st-overlay: rgba(0, 0, 0, 0.65);
+        --st-shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 4px 14px rgba(0, 0, 0, .35);
+        --st-focus: 0 0 0 3px rgba(107, 147, 255, .45);
+        color-scheme: dark;
+    }
+}
+:root[data-theme="dark"] {
+    --st-bg: #11151c;
+    --st-surface: #1a2029;
+    --st-surface-2: #222a36;
+    --st-surface-3: #2c3646;
+    --st-text: #e4e9f1;
+    --st-muted: #9aa6b8;
+    --st-border: #364154;
+    --st-accent: #6b93ff;
+    --st-accent-hover: #8aa9ff;
+    --st-accent-soft: #24304f;
+    --st-on-accent: #0d1220;
+    --st-neutral: #46526a;
+    --st-neutral-hover: #566480;
+    --st-danger: #e06666;
+    --st-danger-hover: #ec8585;
+    --st-success: #4fb27c;
+    --st-success-hover: #6cc794;
+    --st-info: #4cb5cc;
+    --st-info-hover: #6cc7db;
+    --st-overlay: rgba(0, 0, 0, 0.65);
+    --st-shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 4px 14px rgba(0, 0, 0, .35);
+    --st-focus: 0 0 0 3px rgba(107, 147, 255, .45);
+    color-scheme: dark;
+}
+
+/* ---------- Basis ---------- */
+body.st {
+    font-family: var(--st-font);
+    background: var(--st-bg);
+    color: var(--st-text);
+    line-height: 1.5;
+}
+body.st h1, body.st h2, body.st h3, body.st h4 { color: var(--st-text); }
+body.st a:not(.st-dock-btn) { color: var(--st-accent); }
+body.st small { color: var(--st-muted); }
+body.st hr { border: 0; border-top: 1px solid var(--st-border); }
+body.st ::selection { background: var(--st-accent-soft); }
+
+/* ---------- Formularelemente ---------- */
+body.st label { color: var(--st-muted); font-weight: 600; }
+body.st input[type="text"],
+body.st input[type="number"],
+body.st input[type="password"],
+body.st input[type="search"],
+body.st input[type="date"],
+body.st select,
+body.st textarea {
+    background: var(--st-surface);
+    color: var(--st-text);
+    border: 1px solid var(--st-border);
+    border-radius: var(--st-radius-sm);
+    font-family: inherit;
+}
+body.st input::placeholder, body.st textarea::placeholder { color: var(--st-muted); opacity: .8; }
+body.st input:focus, body.st select:focus, body.st textarea:focus {
+    outline: none;
+    border-color: var(--st-accent);
+    box-shadow: var(--st-focus);
+}
+body.st input[type="file"] { color: var(--st-muted); }
+body.st input[type="file"]::file-selector-button {
+    background: var(--st-surface-2);
+    color: var(--st-text);
+    border: 1px solid var(--st-border);
+    border-radius: var(--st-radius-sm);
+    padding: 5px 10px;
+    margin-right: 8px;
+    cursor: pointer;
+    font-family: inherit;
+}
+body.st input[type="file"]::file-selector-button:hover { background: var(--st-surface-3); }
+body.st progress { accent-color: var(--st-accent); }
+
+/* ---------- Buttons (ein Stil für alle Tools) ---------- */
+body.st button:not(.action-button):not(.delete-note-btn):not(.close-button):not(.modal-close-button):not(.st-dock-btn),
+body.st .import-button-label {
+    background: var(--st-accent);
+    color: var(--st-on-accent);
+    border: 1px solid transparent;
+    border-radius: var(--st-radius-sm);
+    padding: 8px 14px;
+    font: inherit;
+    font-size: .92em;
+    font-weight: 600;
+    line-height: 1.3;
+    cursor: pointer;
+    transition: background-color .15s ease, box-shadow .15s ease, transform .05s ease;
+}
+body.st button:not(.action-button):not(.delete-note-btn):not(.close-button):not(.modal-close-button):not(.st-dock-btn):hover,
+body.st .import-button-label:hover { background: var(--st-accent-hover); }
+body.st button:not(.action-button):not(.delete-note-btn):not(.close-button):not(.modal-close-button):not(.st-dock-btn):active { transform: translateY(1px); }
+body.st button:disabled { opacity: .5; cursor: not-allowed; }
+
+body.st button.secondary:not(.action-button),
+body.st .data-management button:not(.action-button),
+body.st .data-management .import-button-label,
+body.st .api-key-group button,
+body.st #modalCancelButton {
+    background: var(--st-surface-2);
+    color: var(--st-text);
+    border: 1px solid var(--st-border);
+}
+body.st button.secondary:not(.action-button):hover,
+body.st .data-management button:not(.action-button):hover,
+body.st .data-management .import-button-label:hover,
+body.st .api-key-group button:hover,
+body.st #modalCancelButton:hover { background: var(--st-surface-3); }
+
+body.st button.danger:not(.action-button),
+body.st .remove-step-btn { background: var(--st-danger); color: #fff; }
+body.st button.danger:not(.action-button):hover,
+body.st .remove-step-btn:hover { background: var(--st-danger-hover); }
+
+body.st button.info:not(.action-button),
+body.st #analyze-btn { background: var(--st-info); color: #fff; }
+body.st button.info:not(.action-button):hover,
+body.st #analyze-btn:hover:not(:disabled) { background: var(--st-info-hover); }
+
+body.st .modal-content button:not(.close-button):not(.modal-close-button):not(.st-dock-btn):not(#modalCancelButton),
+body.st #modalSaveButton,
+body.st #addSymbolButton { background: var(--st-success); color: #fff; }
+body.st .modal-content button:not(.close-button):not(.modal-close-button):not(.st-dock-btn):not(#modalCancelButton):hover,
+body.st #modalSaveButton:hover,
+body.st #addSymbolButton:hover { background: var(--st-success-hover); }
+
+/* Icon-Buttons (Bearbeiten/Löschen in Listen) */
+body.st .action-button { color: var(--st-muted); border-radius: var(--st-radius-sm); }
+body.st .action-button:hover { color: var(--st-text); background: var(--st-surface-2); }
+
+/* Fokus für Tastaturnutzer */
+body.st :is(button, a, input, select, textarea, summary, [tabindex]):focus-visible {
+    outline: 2px solid var(--st-accent);
+    outline-offset: 2px;
+}
+
+/* ---------- Tabellen ---------- */
+body.st table { color: var(--st-text); }
+body.st th { background: var(--st-surface-2); color: var(--st-text); }
+body.st th, body.st td { border-color: var(--st-border); }
+
+/* ---------- Schwebende Navigation (von theme.js eingefügt) ---------- */
+.st-dock {
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    z-index: 2147483000;
+    display: flex;
+    gap: 6px;
+    padding: 5px;
+    background: var(--st-surface);
+    border: 1px solid var(--st-border);
+    border-radius: 999px;
+    box-shadow: var(--st-shadow);
+    font-family: var(--st-font);
+}
+.st-dock .st-dock-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 32px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--st-text);
+    font: 600 13px/1 var(--st-font);
+    text-decoration: none;
+    cursor: pointer;
+}
+.st-dock .st-dock-btn:hover { background: var(--st-surface-2); }
+.st-dock .st-dock-btn:focus-visible { outline: 2px solid var(--st-accent); outline-offset: 1px; }
+@media (max-width: 600px) {
+    .st-dock { right: 8px; bottom: 8px; }
+    .st-dock .st-dock-label { display: none; }
+}
+@media print { .st-dock { display: none !important; } }
+
+/* ==========================================================================
+   Tool-spezifische Anpassungen (nur Oberflächen/Farben, keine Layout-Logik)
+   ========================================================================== */
+
+/* ---------- Risk Analysis ---------- */
+body.st-risk { padding: 20px; }
+body.st-risk .container { background: var(--st-surface); border: 1px solid var(--st-border); box-shadow: var(--st-shadow); }
+body.st-risk header { background: var(--st-accent); color: var(--st-on-accent); }
+body.st-risk header h1, body.st-risk header p { color: var(--st-on-accent); }
+body.st-risk .card { border-bottom-color: var(--st-border); }
+body.st-risk h2 { color: var(--st-accent); border-bottom-color: var(--st-accent); }
+body.st-risk .process-step-header h4,
+body.st-risk .mitigation-item-input .risk-source { color: var(--st-accent); }
+body.st-risk .process-step-item,
+body.st-risk .mitigation-item-input,
+body.st-risk .output-subsection { background: var(--st-surface-2); border-color: var(--st-border); }
+body.st-risk .io-buttons, body.st-risk .process-step-header, body.st-risk .risk-categories-grid,
+body.st-risk .risk-details, body.st-risk .mitigation-legend { border-color: var(--st-border); }
+body.st-risk .risk-category { background: var(--st-surface); border-color: var(--st-border); }
+body.st-risk .risk-description { color: var(--st-muted); }
+body.st-risk .summary-table th { background: var(--st-accent); color: var(--st-on-accent); }
+body.st-risk .summary-table tbody tr:nth-child(even) { background: var(--st-surface-2); }
+body.st-risk .summary-table td { border-color: var(--st-border); }
+body.st-risk button.primary { background: var(--st-accent); color: var(--st-on-accent); }
+/* Diagramme/Matrix zeichnen mit dunkler Schrift -> helle Fläche behalten */
+body.st-risk .chart-container,
+body.st-risk .risk-visual-container { background: #fff; color: #1f2733; border-radius: var(--st-radius); }
+body.st-risk .chart-container *, body.st-risk .risk-visual-container * { color-scheme: light; }
+
+/* ---------- Process Flow Map ---------- */
+body.st-flow { font-size: 14px; }
+body.st-flow .app-container { background: var(--st-surface); box-shadow: var(--st-shadow); }
+body.st-flow .app-header { background: var(--st-surface-2); color: var(--st-text); border-bottom: 1px solid var(--st-border); box-shadow: none; }
+body.st-flow .app-header h1 { color: var(--st-text); text-align: left; font-size: 1.25em; }
+body.st-flow .controls { background: transparent; color: var(--st-muted); padding: 4px 0 0; }
+body.st-flow .controls label { color: var(--st-muted); }
+body.st-flow .controls input[type="file"] { border-color: var(--st-border); background: var(--st-surface); }
+body.st-flow .controls button,
+body.st-flow #exportPdfButton { background: var(--st-accent); }
+body.st-flow .controls button:hover,
+body.st-flow #exportPdfButton:hover { background: var(--st-accent-hover); }
+body.st-flow #mapContainer { background: var(--st-surface-2); border-color: var(--st-border); }
+body.st-flow #markerTableContainer h2 { color: var(--st-text); }
+body.st-flow #markerTable, body.st-flow .table-wrapper { border-color: var(--st-border); }
+body.st-flow #markerTable th { background: var(--st-surface-2); color: var(--st-text); border-color: var(--st-border); }
+body.st-flow #markerTable td { border-color: var(--st-border); }
+body.st-flow #markerTable tbody tr:nth-child(even) { background: var(--st-surface-2); }
+body.st-flow #markerTable tbody tr:hover { background: var(--st-accent-soft); }
+body.st-flow #markerTable tbody tr.selected-row { background: var(--st-accent-soft); }
+body.st-flow #markerTable .empty-message { color: var(--st-muted); }
+body.st-flow #markerTable .edit-button { color: var(--st-accent); }
+body.st-flow #markerTable .edit-button:hover { background: var(--st-accent-soft); }
+body.st-flow #markerTable .delete-button { color: var(--st-danger); }
+body.st-flow #markerTable .delete-button:hover { background: var(--st-surface-3); }
+body.st-flow .modal-overlay { background: var(--st-overlay); }
+body.st-flow .modal-content { background: var(--st-surface); color: var(--st-text); border: 1px solid var(--st-border); box-shadow: var(--st-shadow); }
+body.st-flow .modal-content h2, body.st-flow #modalForm label, body.st-flow .value-display { color: var(--st-text); }
+body.st-flow #modalForm select { background: var(--st-surface); color: var(--st-text); }
+body.st-flow .modal-close-button { color: var(--st-muted); }
+body.st-flow .modal-close-button:hover { color: var(--st-text); }
+body.st-flow #loadingIndicator { background: var(--st-overlay); color: #fff; }
+
+/* ---------- SWOT Analysis ---------- */
+body.st-swot h1 { color: var(--st-text); }
+body.st-swot #add-note-btn { background: var(--st-accent); color: var(--st-on-accent); border-radius: var(--st-radius-sm); }
+body.st-swot #add-note-btn:hover { background: var(--st-accent-hover); }
+body.st-swot .data-management { background: var(--st-surface-2); border: 1px solid var(--st-border); border-radius: var(--st-radius); }
+body.st-swot .swot-board { background: var(--st-surface); border-color: var(--st-border); box-shadow: var(--st-shadow); }
+body.st-swot .quadrant { border-color: var(--st-border); border-radius: var(--st-radius); }
+body.st-swot .quadrant-header { border-bottom-color: color-mix(in srgb, var(--st-text) 14%, transparent); }
+body.st-swot .quadrant-header h2 { color: var(--st-text); }
+body.st-swot .completeness-indicator { color: var(--st-muted); }
+body.st-swot #new-note-area { background: var(--st-surface-2); border-color: var(--st-border); }
+body.st-swot #new-note-area h3 { color: var(--st-muted); }
+/* Quadranten: Farbton bleibt, passt sich dem Theme an */
+body.st-swot #strengths { background: color-mix(in srgb, #2c8a57 16%, var(--st-surface)); border-color: color-mix(in srgb, #2c8a57 35%, var(--st-border)); }
+body.st-swot #weaknesses { background: color-mix(in srgb, #c93a3a 14%, var(--st-surface)); border-color: color-mix(in srgb, #c93a3a 35%, var(--st-border)); }
+body.st-swot #opportunities { background: color-mix(in srgb, #2f5fd0 15%, var(--st-surface)); border-color: color-mix(in srgb, #2f5fd0 35%, var(--st-border)); }
+body.st-swot #threats { background: color-mix(in srgb, #d9a21b 17%, var(--st-surface)); border-color: color-mix(in srgb, #d9a21b 38%, var(--st-border)); }
+/* Post-its bleiben gelb/dunkle Schrift, auch im Dark Mode */
+body.st-swot .post-it { color: #2a2a2a; }
+body.st-swot .post-it .note-title,
+body.st-swot .post-it .note-content-preview { color: #2a2a2a; }
+body.st-swot .modal { background: var(--st-overlay); }
+body.st-swot .modal-content { background: var(--st-surface); color: var(--st-text); border: 1px solid var(--st-border); }
+body.st-swot .modal-content h3, body.st-swot .form-group label, body.st-swot .control-group label { color: var(--st-text); }
+body.st-swot .contextual-prompt { background: var(--st-accent-soft); color: var(--st-accent); }
+body.st-swot .close-button { color: var(--st-muted); }
+body.st-swot .close-button:hover, body.st-swot .close-button:focus { color: var(--st-text); }
+body.st-swot .report-section { background: var(--st-surface); border-color: var(--st-border); }
+body.st-swot .report-section h2 { color: var(--st-accent); }
+body.st-swot #report-display-area h3 { color: var(--st-text); }
+body.st-swot .control-group small { color: var(--st-muted); }
+body.st-swot .control-group small.error { color: var(--st-danger); }
+body.st-swot #analyze-btn:disabled { background: var(--st-surface-3); color: var(--st-muted); }
+@media print {
+    body.st-swot { background: #fff; color: #000; }
+}
+
+/* ---------- Action Tracker ---------- */
+body.st-actions .sidebar { background: var(--st-surface); border-right-color: var(--st-border); }
+body.st-actions #vertical-resizer, body.st-actions #horizontal-resizer { background: var(--st-border); }
+body.st-actions #vertical-resizer:hover, body.st-actions .resizing-v,
+body.st-actions #horizontal-resizer:hover, body.st-actions .resizing-h { background: var(--st-accent); }
+body.st-actions h2 { color: var(--st-text); }
+body.st-actions h3 { color: var(--st-muted); }
+body.st-actions .config-section, body.st-actions .rating-zone-section, body.st-actions .category-section,
+body.st-actions .filter-section, body.st-actions .scoring-summary-section, body.st-actions .add-idea-section,
+body.st-actions .storage-section { border-bottom-color: var(--st-border); }
+body.st-actions .overview-list { background: var(--st-surface); border-color: var(--st-border); border-radius: var(--st-radius); }
+body.st-actions #idea-list li { border-bottom-color: var(--st-border); }
+body.st-actions #idea-list li.highlighted { background: var(--st-accent-soft); }
+body.st-actions .idea-category-name, body.st-actions .idea-scores, body.st-actions .idea-location,
+body.st-actions .idea-status-container label, body.st-actions .score-label { color: var(--st-muted); }
+body.st-actions .idea-rating, body.st-actions .idea-biodiversity-scores { color: var(--st-text); }
+body.st-actions .idea-description-preview, body.st-actions .zone-boundaries { color: var(--st-muted); }
+body.st-actions .idea-status { background: var(--st-surface); color: var(--st-text); border-color: var(--st-border); }
+body.st-actions #clear-point-filter { color: var(--st-accent); }
+body.st-actions .diagram-container { border-color: var(--st-border); border-radius: var(--st-radius); }
+body.st-actions .axis-label { color: #5f6b7c; } /* liegt auf der hellen Zeichenfläche */
+body.st-actions #edit-zone-form { border-top-color: var(--st-border); }
+body.st-actions .zone-color-swatch, body.st-actions .category-color-swatch { border-color: var(--st-border); }
+body.st-actions .pulsing-ring { border-color: var(--st-accent); }
+/* Das Canvas zeichnet selbst auf hellem Grund -> Zeichenfläche bleibt hell */
+body.st-actions .diagram-container { background: #fff; }
+
+/* ---------- PDF to Text ---------- */
+body.st-pdf { margin: 0; padding: 24px; max-width: 1100px; margin-inline: auto; }
+body.st-pdf h1 { margin-top: 0; }
+body.st-pdf #output {
+    background: var(--st-surface);
+    border: 1px solid var(--st-border);
+    border-radius: var(--st-radius);
+    color: var(--st-text);
+    font-size: .85em;
+}
+body.st-pdf #recreatedTables table { background: var(--st-surface); box-shadow: var(--st-shadow); border-radius: var(--st-radius); }
+body.st-pdf #recreatedTables th, body.st-pdf #recreatedTables td { border-color: var(--st-border); }
+body.st-pdf #recreatedTables th { background: var(--st-surface-2); }
