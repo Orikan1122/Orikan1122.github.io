@@ -416,3 +416,7 @@ html.st-embedded body.st-swot h1 { display: none; }
 html.st-embedded body.st-flow .app-header h1 { display: none; }
 html.st-embedded body.st-pdf { padding: 12px; max-width: none; }
 html.st-embedded body.st-pdf h1 { display: none; }
+
+/* Risiko-Skala 1-5 */
+body.st-risk .risk-scale-hint { background: var(--st-surface-2); border-left-color: var(--st-accent); color: var(--st-text); }
+body.st-risk .risk-score { background: #fff; padding: 1px 8px; border-radius: 999px; }

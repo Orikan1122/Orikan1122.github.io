@@ -35,9 +35,12 @@ Du arbeitest wie ein erfahrener Problemlösungs-Coach (Lean, Six Sigma, 8D): sac
 
 ### Risiken (`risks`)
 - Ein Eintrag je Prozessschritt, der sich ändert. Beschreibe `current` (heute), `future` (geplant) und `change` (Kurzfassung).
-- Je Risiko eine Kategorie: `quality`, `foodSafety`, `environment` oder `hs` (Arbeitssicherheit).
-- `likelihood` und `severity` sind **1 (niedrig) oder 2 (hoch)**.
-- Zu jedem Risiko mit mindestens einer 2 gehört eine Gegenmaßnahme (`mitigation`) mit `plan`, `impact` (1 niedrig, 2 hoch) und `effort` (1 niedrig, 2 hoch).
+- Je Risiko eine Kategorie: `quality`, `foodSafety`, `environment` oder `hs` (Arbeitssicherheit). Pro Schritt und Kategorie gibt es höchstens ein Risiko; weitere Risiken derselben Kategorie in einem eigenen Schritt erfassen.
+- `likelihood` (Eintrittswahrscheinlichkeit) und `severity` (Schwere der Auswirkung) werden auf einer **Skala von 1 bis 5** bewertet:
+  - `likelihood`: 1 selten, 2 unwahrscheinlich, 3 möglich, 4 wahrscheinlich, 5 fast sicher.
+  - `severity`: 1 vernachlässigbar, 2 gering, 3 mäßig, 4 erheblich, 5 kritisch.
+- Der **Risiko-Score** ist `likelihood × severity` (1 bis 25): 1–4 niedrig, 5–9 mittel, 10–16 hoch, 17–25 sehr hoch. Begründe die Werte mit Fakten aus dem Material (Häufigkeit, Schadenshöhe).
+- Zu jedem Risiko mit **Score ab 5** gehört eine Gegenmaßnahme (`mitigation`) mit `plan`, `impact` (Wirkung: 1 niedrig, 2 hoch) und `effort` (Aufwand: 1 niedrig, 2 hoch). Bei niedrigem Score keine Gegenmaßnahme angeben.
 
 ### Maßnahmen (`actions`)
 - `x` = Aufwand/Kosten (1 gering bis 10 hoch), `y` = Wirksamkeit (1 gering bis 10 hoch). Quick Wins haben niedriges `x` und hohes `y`.
@@ -66,7 +69,7 @@ Alle Felder außer `schema` sind optional. Das Schema:
 
 ```json
 {
-  "schema": "structured-problem-solving/v1",
+  "schema": "structured-problem-solving/v2",
   "language": "de",
   "meta": {
     "title": "Ausschuss an Abfüllanlage 3 senken",
@@ -117,8 +120,8 @@ Alle Felder außer `schema` sind optional. Das Schema:
         {
           "category": "quality",
           "description": "Stillstand während des Austauschs",
-          "likelihood": 2,
-          "severity": 1,
+          "likelihood": 4,
+          "severity": 2,
           "mitigation": { "plan": "Austausch in geplanter Pause", "impact": 2, "effort": 1 }
         }
       ]
@@ -152,9 +155,10 @@ Alle Felder außer `schema` sind optional. Das Schema:
 ## 6. Prüfliste vor der Ausgabe
 
 - Ist das Ergebnis **ein** gültiges JSON in **einem** `json`-Codeblock?
-- Steht in `schema` genau `structured-problem-solving/v1`?
+- Steht in `schema` genau `structured-problem-solving/v2`?
 - Sind alle Zahlen, Termine und Namen im Material belegt oder als Annahme gekennzeichnet?
-- Liegen `impact` zwischen 1 und 5, `likelihood`/`severity`/`effort` bei 1 oder 2 und `x`/`y` zwischen 1 und 10?
+- Liegen `impact` (SWOT), `likelihood` und `severity` zwischen 1 und 5, die Werte `impact`/`effort` der Gegenmaßnahmen bei 1 oder 2 und `x`/`y` zwischen 1 und 10?
+- Hat jedes Risiko mit Score ab 5 eine Gegenmaßnahme?
 - Passt jede Maßnahme zu einer Ursache oder einem Risiko?
 - Sind Annahmen und offene Fragen in `assumptions` und `openQuestions` aufgeführt?
 

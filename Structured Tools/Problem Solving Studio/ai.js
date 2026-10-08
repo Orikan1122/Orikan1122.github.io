@@ -3,7 +3,9 @@
     'use strict';
     var PS = window.PS;
     var esc = PS.esc;
-    var SCHEMA = 'structured-problem-solving/v1';
+    var SCHEMA = 'structured-problem-solving/v2';
+    var SCHEMA_V1 = 'structured-problem-solving/v1';
+    var MIN_MITIGATION = 5; // ab Score 5 (mittel) ist eine Gegenmaßnahme vorgesehen
     var RISK_CATS = ['quality', 'foodSafety', 'environment', 'hs'];
     var STATUS_ACTION = ['Not Started', 'In Progress', 'Completed', 'On Hold'];
     var CAT_COLORS = ['#3498db', '#e67e22', '#2ecc71', '#9b59b6', '#e74c3c', '#1abc9c', '#f1c40f', '#34495e'];
@@ -47,13 +49,35 @@
     function str(v) { return v == null ? '' : String(v).trim(); }
     function strList(v) { return Array.isArray(v) ? v.map(str).filter(Boolean) : (str(v) ? [str(v)] : []); }
     function two(v, w, label) {
-        // 1/2-Skala; Wörter und größere Zahlen werden abgebildet
+        // Gegenmaßnahme: Wirkung/Aufwand 1 (niedrig) oder 2 (hoch)
         var s = String(v).toLowerCase();
         if (/^(2|high|hoch|h)$/.test(s)) return 2;
         if (/^(1|low|niedrig|gering|l)$/.test(s)) return 1;
         var n = Number(v);
         if (isFinite(n)) { if (n > 2) w.push(label + ' ' + n + ' wurde auf 2 (hoch) gesetzt.'); return n >= 2 ? 2 : 1; }
         w.push(label + ' „' + v + '“ nicht erkannt, 1 (niedrig) verwendet.');
+        return 1;
+    }
+    var SCALE_WORDS = { 'very low': 1, 'sehr niedrig': 1, 'sehr gering': 1, rare: 1, selten: 1, negligible: 1, 'vernachlässigbar': 1,
+        low: 2, niedrig: 2, gering: 2, unlikely: 2, unwahrscheinlich: 2, minor: 2,
+        medium: 3, mittel: 3, moderate: 3, 'mäßig': 3, possible: 3, 'möglich': 3,
+        high: 4, hoch: 4, likely: 4, wahrscheinlich: 4, major: 4, erheblich: 4,
+        'very high': 5, 'sehr hoch': 5, critical: 5, kritisch: 5, 'almost certain': 5, 'fast sicher': 5 };
+    // Risiko-Skala 1-5; im alten Schema v1 galt 1 = niedrig, 2 = hoch (-> 2 bzw. 4)
+    function scale5(v, w, label, legacy) {
+        var s = String(v).toLowerCase().trim();
+        if (legacy) {
+            if (/^(2|high|hoch|h)$/.test(s)) return 4;
+            if (/^(1|low|niedrig|gering|l)$/.test(s)) return 2;
+        }
+        if (SCALE_WORDS[s] !== undefined) return SCALE_WORDS[s];
+        var n = Number(v);
+        if (isFinite(n) && s !== '') {
+            var c = PS.num(n, 1, 5, 1);
+            if (c !== n) w.push(label + ' ' + v + ' auf ' + c + ' korrigiert (erlaubt: 1–5).');
+            return c;
+        }
+        w.push(label + ' „' + v + '“ nicht erkannt, 1 verwendet.');
         return 1;
     }
     var CONF = { confirmed: 'confirmed', belegt: 'confirmed', bestätigt: 'confirmed', speculative: 'speculative', vermutet: 'speculative', spekulativ: 'speculative' };
@@ -65,8 +89,10 @@
     PS.analyzeAi = function (obj) {
         var err = [], warn = [], N = {};
         if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return { errors: ['Die Antwort ist kein JSON-Objekt.'], warnings: [], data: null, counts: {} };
-        if (!obj.schema) warn.push('Feld „schema“ fehlt – das Ergebnis wird trotzdem nach Schema v1 gelesen.');
+        var legacy = false;
+        if (!obj.schema) warn.push('Feld „schema“ fehlt – das Ergebnis wird trotzdem nach Schema v2 gelesen.');
         else if (String(obj.schema).indexOf('structured-problem-solving/') !== 0) err.push('Unbekanntes Schema „' + obj.schema + '“. Erwartet: ' + SCHEMA + '.');
+        else if (obj.schema === SCHEMA_V1) { legacy = true; warn.push('Schema v1 erkannt: Die Risiko-Skala 1–2 wird auf 1–5 umgerechnet (niedrig = 2, hoch = 4).'); }
         else if (obj.schema !== SCHEMA) warn.push('Schema-Version „' + obj.schema + '“ weicht von ' + SCHEMA + ' ab.');
         var known = ['schema', 'language', 'meta', 'problem', 'process', 'causes', 'swot', 'risks', 'actions', 'conclusion', 'assumptions', 'openQuestions'];
         Object.keys(obj).forEach(function (k) { if (known.indexOf(k) < 0) warn.push('Unbekanntes Feld „' + k + '“ wird ignoriert.'); });
@@ -115,11 +141,11 @@
                 (Array.isArray(s.risks) ? s.risks : []).forEach(function (r) {
                     var cat = CAT_ALIAS[str(r.category).toLowerCase()];
                     if (!cat) { warn.push('Risiko in Schritt ' + (i + 1) + ': Kategorie „' + str(r.category) + '“ unbekannt, Eintrag übersprungen (erlaubt: ' + RISK_CATS.join(', ') + ').'); return; }
-                    var L = two(r.likelihood == null ? 1 : r.likelihood, warn, 'likelihood'), S = two(r.severity == null ? 1 : r.severity, warn, 'severity');
+                    var L = scale5(r.likelihood == null ? 1 : r.likelihood, warn, 'likelihood', legacy), S = scale5(r.severity == null ? 1 : r.severity, warn, 'severity', legacy);
                     var rk = { category: cat, description: str(r.description), likelihood: L, severity: S };
                     if (r.mitigation && str(r.mitigation.plan)) {
-                        if (L > 1 || S > 1) rk.mitigation = { plan: str(r.mitigation.plan), impact: two(r.mitigation.impact == null ? 2 : r.mitigation.impact, warn, 'impact'), effort: two(r.mitigation.effort == null ? 1 : r.mitigation.effort, warn, 'effort') };
-                        else warn.push('Maßnahme „' + str(r.mitigation.plan) + '“ übersprungen: Das Risiko hat Wahrscheinlichkeit und Schwere 1 (Maßnahmen gibt es nur ab 2).');
+                        if (L * S >= MIN_MITIGATION) rk.mitigation = { plan: str(r.mitigation.plan), impact: two(r.mitigation.impact == null ? 2 : r.mitigation.impact, warn, 'impact'), effort: two(r.mitigation.effort == null ? 1 : r.mitigation.effort, warn, 'effort') };
+                        else warn.push('Maßnahme „' + str(r.mitigation.plan) + '“ übersprungen: Score ' + (L * S) + ' liegt unter ' + MIN_MITIGATION + ' (Maßnahmen gibt es ab „mittel“).');
                     }
                     step.risks.push(rk);
                 });
@@ -236,7 +262,7 @@
             var steps = oldSteps.slice();
             N.risks.forEach(function (s) { steps.push(riskStepState(s, steps.length + 1)); });
             steps.forEach(function (s, i) { s.id = String(i + 1); });
-            p.tools.risk = { steps: steps };
+            p.tools.risk = { scale: 5, steps: steps };
             applied.push('Risiken');
         }
         if (N.actions && N.actions.length) {
@@ -351,10 +377,11 @@
         },
         risks: [
             { current: 'Schiene wird bei Ausfall getauscht', future: 'Schiene wird nach Verschleißgrenze getauscht', change: 'Vorbeugende Instandhaltung',
-              risks: [{ category: 'quality', description: 'Stillstand beim Austausch', likelihood: 2, severity: 1, mitigation: { plan: 'Austausch in geplanter Reinigungspause', impact: 2, effort: 1 } },
-                  { category: 'hs', description: 'Verletzungsgefahr beim Ausbau', likelihood: 1, severity: 2, mitigation: { plan: 'Sperren und Sichern nach Verfahrensanweisung', impact: 2, effort: 1 } }] },
+              risks: [{ category: 'quality', description: 'Stillstand beim Austausch', likelihood: 4, severity: 2, mitigation: { plan: 'Austausch in geplanter Reinigungspause', impact: 2, effort: 1 } },
+                  { category: 'environment', description: 'Altteile werden nicht sachgerecht entsorgt', likelihood: 2, severity: 2 },
+                  { category: 'hs', description: 'Verletzungsgefahr beim Ausbau', likelihood: 2, severity: 4, mitigation: { plan: 'Sperren und Sichern nach Verfahrensanweisung', impact: 2, effort: 1 } }] },
             { current: 'Einstellungen nach Erfahrung', future: 'Einstellung nach Checkliste', change: 'Standardisierung',
-              risks: [{ category: 'quality', description: 'Falsche Checkliste führt zu Fehleinstellung', likelihood: 2, severity: 2, mitigation: { plan: 'Checkliste in Pilotschicht prüfen und freigeben', impact: 2, effort: 2 } }] }
+              risks: [{ category: 'quality', description: 'Falsche Checkliste führt zu Fehleinstellung', likelihood: 4, severity: 5, mitigation: { plan: 'Checkliste in Pilotschicht prüfen und freigeben', impact: 2, effort: 2 } }] }
         ],
         actions: [
             { title: 'Verschleißgrenze in Wartungsplan aufnehmen', description: 'Grenzwert festlegen, Prüfintervall wöchentlich', category: 'Instandhaltung', location: 'Anlage 3', x: 2, y: 9, status: 'In Progress', owner: 'Instandhaltung', due: '2025-06-15' },

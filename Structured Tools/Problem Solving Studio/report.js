@@ -17,14 +17,14 @@
             strengths: 'Stärken', weaknesses: 'Schwächen', opportunities: 'Chancen', threats: 'Risiken', internal: 'Intern', external: 'Extern',
             impactL: 'Wirkung', confirmed: 'bestätigt', speculative: 'vermutet', 'short-term': 'kurzfristig', 'medium-term': 'mittelfristig', 'long-term': 'langfristig',
             unassigned: 'Nicht zugeordnete Notizen', riskId: 'ID', riskStep: 'Schritt', riskChange: 'Änderung', riskCat: 'Kategorie', riskDesc: 'Risiko', likelihood: 'Wahrsch.', severity: 'Schwere', level2: 'Stufe',
-            low: 'Niedrig', high: 'Hoch', mid: 'Mittel', matrix: 'Risikomatrix', mitigations: 'Gegenmaßnahmen', plan: 'Maßnahme', mImpact: 'Wirkung', mEffort: 'Aufwand', rating: 'Einordnung',
+            low: 'Niedrig', high: 'Hoch', mid: 'Mittel', crit: 'Sehr hoch', score: 'Score', lik: ['Selten', 'Unwahrscheinlich', 'Möglich', 'Wahrscheinlich', 'Fast sicher'], sev: ['Vernachlässigbar', 'Gering', 'Mäßig', 'Erheblich', 'Kritisch'], matrix: 'Risikomatrix', mitigations: 'Gegenmaßnahmen', plan: 'Maßnahme', mImpact: 'Wirkung', mEffort: 'Aufwand', rating: 'Einordnung',
             quick: 'Quick Win', major: 'Großprojekt', fill: 'Nebenbei', rethink: 'Überdenken',
             quality: 'Qualität', foodSafety: 'Lebensmittelsicherheit', environment: 'Umwelt', hs: 'Arbeitssicherheit',
             idea: 'Maßnahme', zone: 'Zone', status: 'Status', score: 'Score', location: 'Ort', matrixTitle: 'Aufwand-Wirksamkeits-Matrix',
             'Not Started': 'Nicht begonnen', 'In Progress': 'In Arbeit', Completed: 'Abgeschlossen', 'On Hold': 'Pausiert',
             recommendations: 'Empfehlungen', decision: 'Entscheidung', nextSteps: 'Nächste Schritte', action: 'Maßnahme', due: 'Fällig', lessons: 'Lessons Learned',
             assumptions: 'Annahmen', openQuestions: 'Offene Fragen', documents: 'Dokumente', page: 'Seite', generated: 'Erstellt mit dem Problem Solving Studio',
-            arrow: 'Pfeil', circle: 'Kreis', rectangle: 'Rechteck', fig: 'Abbildung', riskSummary: function (n, s, h, m, l) { return n + ' Risiken in ' + s + ' Prozessschritten identifiziert: ' + h + ' hoch, ' + m + ' mittel, ' + l + ' niedrig.'; },
+            arrow: 'Pfeil', circle: 'Kreis', rectangle: 'Rechteck', fig: 'Abbildung', riskSummary: function (n, s, c, h, m, l) { return n + ' Risiken in ' + s + ' Prozessschritten identifiziert: ' + c + ' sehr hoch, ' + h + ' hoch, ' + m + ' mittel, ' + l + ' niedrig.'; },
             ideaSummary: function (n, done) { return n + ' Maßnahmen bewertet, davon ' + done + ' abgeschlossen.'; }
         },
         en: {
@@ -38,14 +38,14 @@
             strengths: 'Strengths', weaknesses: 'Weaknesses', opportunities: 'Opportunities', threats: 'Threats', internal: 'Internal', external: 'External',
             impactL: 'Impact', confirmed: 'confirmed', speculative: 'speculative', 'short-term': 'short-term', 'medium-term': 'medium-term', 'long-term': 'long-term',
             unassigned: 'Unassigned notes', riskId: 'ID', riskStep: 'Step', riskChange: 'Change', riskCat: 'Category', riskDesc: 'Risk', likelihood: 'Likelihood', severity: 'Severity', level2: 'Level',
-            low: 'Low', high: 'High', mid: 'Medium', matrix: 'Risk matrix', mitigations: 'Mitigation actions', plan: 'Action', mImpact: 'Impact', mEffort: 'Effort', rating: 'Rating',
+            low: 'Low', high: 'High', mid: 'Medium', crit: 'Very high', score: 'Score', lik: ['Rare', 'Unlikely', 'Possible', 'Likely', 'Almost certain'], sev: ['Negligible', 'Minor', 'Moderate', 'Major', 'Critical'], matrix: 'Risk matrix', mitigations: 'Mitigation actions', plan: 'Action', mImpact: 'Impact', mEffort: 'Effort', rating: 'Rating',
             quick: 'Quick win', major: 'Major project', fill: 'Fill-in', rethink: 'Reconsider',
             quality: 'Quality', foodSafety: 'Food safety', environment: 'Environment', hs: 'Health & safety',
             idea: 'Action', zone: 'Zone', status: 'Status', score: 'Score', location: 'Location', matrixTitle: 'Effort-effectiveness matrix',
             'Not Started': 'Not started', 'In Progress': 'In progress', Completed: 'Completed', 'On Hold': 'On hold',
             recommendations: 'Recommendations', decision: 'Decision', nextSteps: 'Next steps', action: 'Action', due: 'Due', lessons: 'Lessons learned',
             assumptions: 'Assumptions', openQuestions: 'Open questions', documents: 'Documents', page: 'Page', generated: 'Created with Problem Solving Studio',
-            arrow: 'Arrow', circle: 'Circle', rectangle: 'Rectangle', fig: 'Figure', riskSummary: function (n, s, h, m, l) { return n + ' risks identified across ' + s + ' process steps: ' + h + ' high, ' + m + ' medium, ' + l + ' low.'; },
+            arrow: 'Arrow', circle: 'Circle', rectangle: 'Rectangle', fig: 'Figure', riskSummary: function (n, s, c, h, m, l) { return n + ' risks identified across ' + s + ' process steps: ' + c + ' very high, ' + h + ' high, ' + m + ' medium, ' + l + ' low.'; },
             ideaSummary: function (n, done) { return n + ' actions assessed, ' + done + ' completed.'; }
         }
     };
@@ -93,7 +93,7 @@
                 var r = (st.risks || {})[c];
                 if (r && r.isChecked) {
                     n++;
-                    var L = PS.num(r.likelihood, 1, 2, 1), S = PS.num(r.severity, 1, 2, 1);
+                    var L = PS.num(r.likelihood, 1, 5, 1), S = PS.num(r.severity, 1, 5, 1);
                     list.push({ id: 'R' + n, stepNo: i + 1, step: st, cat: c, desc: r.description || '', L: L, S: S, score: L * S,
                         plan: r.mitigationPlan || '', mImpact: PS.num(r.mitigationImpact, 1, 2, 1), mEffort: PS.num(r.mitigationEffort, 1, 2, 1) });
                 }
@@ -101,7 +101,10 @@
         });
         return list;
     }
-    function levelOf(score, t) { return score >= 4 ? [t.high, 'lv-hi'] : score === 2 ? [t.mid, 'lv-mid'] : [t.low, 'lv-lo']; }
+    // Stufen: 1-4 niedrig, 5-9 mittel, 10-16 hoch, 17-25 sehr hoch
+    function levelOf(score, t) {
+        return score >= 17 ? [t.crit, 'lv-crit'] : score >= 10 ? [t.high, 'lv-hi'] : score >= 5 ? [t.mid, 'lv-mid'] : [t.low, 'lv-lo'];
+    }
     PS.collectRisks = collectRisks;
 
     /* ---------------- Abschnitte ---------------- */
@@ -182,22 +185,26 @@
     SECTIONS.risk = function (p, t) {
         var risks = collectRisks();
         if (!risks.length) return '';
-        var steps = {}, cnt = { hi: 0, mid: 0, lo: 0 };
-        risks.forEach(function (r) { steps[r.stepNo] = 1; cnt[r.score >= 4 ? 'hi' : r.score === 2 ? 'mid' : 'lo']++; });
-        var out = '<p>' + esc(t.riskSummary(risks.length, Object.keys(steps).length, cnt.hi, cnt.mid, cnt.lo)) + '</p>';
+        var steps = {}, cnt = { crit: 0, hi: 0, mid: 0, lo: 0 };
+        risks.forEach(function (r) { steps[r.stepNo] = 1; cnt[r.score >= 17 ? 'crit' : r.score >= 10 ? 'hi' : r.score >= 5 ? 'mid' : 'lo']++; });
+        var out = '<p>' + esc(t.riskSummary(risks.length, Object.keys(steps).length, cnt.crit, cnt.hi, cnt.mid, cnt.lo)) + '</p>';
         out += table([t.riskId, t.riskStep, t.riskCat, t.riskDesc, t.likelihood, t.severity, t.level2], risks.map(function (r) {
             var lv = levelOf(r.score, t);
             var stepTxt = '#' + r.stepNo + (r.step.change ? ': ' + r.step.change : (r.step.future ? ': ' + r.step.future : ''));
-            return [r.id, stepTxt, t[r.cat], r.desc, r.L === 2 ? t.high : t.low, r.S === 2 ? t.high : t.low, { html: esc(lv[0]), cls: lv[1] }];
+            return [r.id, stepTxt, t[r.cat], r.desc, r.L + ' – ' + t.lik[r.L - 1], r.S + ' – ' + t.sev[r.S - 1], { html: esc(lv[0]) + ' (' + r.score + ')', cls: lv[1] }];
         }));
-        // 2x2-Matrix: Zeilen = Schwere, Spalten = Wahrscheinlichkeit
-        function mcell(L, S) {
-            var ids = risks.filter(function (r) { return r.L === L && r.S === S; }).map(function (r) { return r.id; });
-            var lv = levelOf(L * S, t);
-            return '<td class="mx ' + lv[1] + '">' + (ids.length ? esc(ids.join(', ')) : '&nbsp;') + '</td>';
+        // 5x5-Matrix: Zeilen = Schwere (5 oben), Spalten = Wahrscheinlichkeit
+        var head = '<tr><th class="side">' + esc(t.severity) + ' ↓ / ' + esc(t.likelihood) + ' →</th>' + t.lik.map(function (l, i) { return '<th>' + (i + 1) + '<br><span class="tag">' + esc(l) + '</span></th>'; }).join('') + '</tr>';
+        var rows = '';
+        for (var S = 5; S >= 1; S--) {
+            rows += '<tr><th class="side">' + S + ' – ' + esc(t.sev[S - 1]) + '</th>';
+            for (var L = 1; L <= 5; L++) {
+                var ids = risks.filter(function (r) { return r.L === L && r.S === S; }).map(function (r) { return r.id; });
+                rows += '<td class="mx ' + levelOf(L * S, t)[1] + '">' + (ids.length ? '<b>' + esc(ids.join(', ')) + '</b>' : '&nbsp;') + '</td>';
+            }
+            rows += '</tr>';
         }
-        out += h3(t.matrix) + '<table class="risk-matrix"><tr><th class="side">' + esc(t.severity) + ' ↓ / ' + esc(t.likelihood) + ' →</th><th>' + esc(t.low) + '</th><th>' + esc(t.high) + '</th></tr>' +
-            '<tr><th class="side">' + esc(t.high) + '</th>' + mcell(1, 2) + mcell(2, 2) + '</tr><tr><th class="side">' + esc(t.low) + '</th>' + mcell(1, 1) + mcell(2, 1) + '</tr></table>';
+        out += h3(t.matrix) + '<table class="risk-matrix">' + head + rows + '</table>';
         var mit = risks.filter(function (r) { return r.plan.trim(); }).sort(function (a, b) { return (b.mImpact - a.mImpact) || (a.mEffort - b.mEffort); });
         if (mit.length) {
             out += h3(t.mitigations) + table([t.riskId, t.plan, t.mImpact, t.mEffort, t.rating], mit.map(function (r) {
@@ -342,8 +349,8 @@
         '.rp .rp-callout{margin:.7em 0;padding:.6em .9em;background:#eef2fb;border-left:4px solid #2f5fd0;border-radius:3px}',
         '.rp figure{margin:.8em 0;text-align:center}.rp figure img,.rp figure svg{max-width:100%;height:auto}',
         '.rp figcaption{font-size:9pt;color:#64748b;margin-top:.2em}',
-        '.rp .lv-hi{background:#fbe0e0;color:#8a1c1c;font-weight:600}.rp .lv-mid{background:#fdf0cf;color:#7a5a00;font-weight:600}.rp .lv-lo{background:#dff3e6;color:#1d6b3f;font-weight:600}',
-        '.rp .risk-matrix{width:auto;min-width:50%}.rp .risk-matrix td.mx{text-align:center;height:46px;min-width:110px}.rp th.side{background:#f4f6fa;white-space:nowrap}',
+        '.rp .lv-crit{background:#f3b4b4;color:#6b0f0f;font-weight:700}.rp .lv-hi{background:#fbd5c0;color:#8a2c0c;font-weight:600}.rp .lv-mid{background:#fdf0cf;color:#7a5a00;font-weight:600}.rp .lv-lo{background:#dff3e6;color:#1d6b3f;font-weight:600}',
+        '.rp .risk-matrix{width:100%}.rp .risk-matrix td.mx{text-align:center;height:34px;width:15%}.rp .risk-matrix th{text-align:center;font-size:8.5pt}.rp th.side{background:#f4f6fa;white-space:nowrap;text-align:left}',
         '.rp .swot-table td.axis{border:0}.rp .swot-table th{background:#f4f6fa;text-align:center}.rp .swot-table th.side{width:28px;text-align:center}',
         '.rp .swot-table td.swot{width:48%;font-size:9.5pt}.rp .swot-h{font-weight:700;margin-bottom:.2em}',
         '.rp .sw-s{background:#eaf6ee}.rp .sw-w{background:#fbeaea}.rp .sw-o{background:#e8effd}.rp .sw-t{background:#fdf5df}',
@@ -510,8 +517,8 @@
         if (kind === 'risks') {
             var risks = collectRisks();
             if (!risks.length) return PS.toast('Keine Risiken vorhanden.', 'error');
-            PS.download('risikoregister_' + PS.today() + '.csv', csv([['ID', 'Schritt', 'Kategorie', 'Risiko', 'Wahrscheinlichkeit', 'Schwere', 'Stufe', 'Maßnahme', 'Wirkung', 'Aufwand']].concat(risks.map(function (r) {
-                return [r.id, r.stepNo + (r.step.change ? ': ' + r.step.change : ''), t[r.cat], r.desc, r.L === 2 ? t.high : t.low, r.S === 2 ? t.high : t.low, levelOf(r.score, t)[0], r.plan, r.plan ? (r.mImpact === 2 ? t.high : t.low) : '', r.plan ? (r.mEffort === 2 ? t.high : t.low) : ''];
+            PS.download('risikoregister_' + PS.today() + '.csv', csv([['ID', 'Schritt', 'Kategorie', 'Risiko', 'Wahrscheinlichkeit (1-5)', 'Schwere (1-5)', 'Score', 'Stufe', 'Maßnahme', 'Wirkung', 'Aufwand']].concat(risks.map(function (r) {
+                return [r.id, r.stepNo + (r.step.change ? ': ' + r.step.change : ''), t[r.cat], r.desc, r.L, r.S, r.score, levelOf(r.score, t)[0], r.plan, r.plan ? (r.mImpact === 2 ? t.high : t.low) : '', r.plan ? (r.mEffort === 2 ? t.high : t.low) : ''];
             }))), 'text/csv;charset=utf-8');
         } else {
             var rows = PS.ideaRows();

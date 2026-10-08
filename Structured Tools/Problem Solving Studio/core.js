@@ -105,9 +105,24 @@
         if (!Array.isArray(p.causes.whys) || !p.causes.whys.length) p.causes.whys = [''];
         p.conclusion = Object.assign({ summary: '', recommendations: [], decision: '', lessons: '', nextSteps: [], assumptions: [], openQuestions: [] }, p.conclusion);
         p.tools = p.tools && typeof p.tools === 'object' ? p.tools : {};
+        if (p.tools.risk) PS.migrateRisk(p.tools.risk);
         p.snapshots = p.snapshots && typeof p.snapshots === 'object' ? p.snapshots : {};
         p.report = Object.assign({ off: [], order: null }, p.report);
         return p;
+    };
+
+    // Ältere Risiko-Stände kannten nur 1 (niedrig) und 2 (hoch): niedrig -> 2, hoch -> 4 auf der 1-5-Skala
+    PS.migrateRisk = function (st) {
+        if (!st || st.scale === 5 || !Array.isArray(st.steps)) return st;
+        st.steps.forEach(function (step) {
+            Object.keys(step.risks || {}).forEach(function (k) {
+                var r = step.risks[k];
+                r.likelihood = r.likelihood >= 2 ? 4 : 2;
+                r.severity = r.severity >= 2 ? 4 : 2;
+            });
+        });
+        st.scale = 5;
+        return st;
     };
 
     PS.project = null;
@@ -199,7 +214,7 @@
     /* ---------------- Tool-Frames (bestehende Tools im Studio) ---------------- */
     PS.TOOLS = {
         swot: { title: 'SWOT', path: '../SWOT%20Analysis/index.html', empty: [] },
-        risk: { title: 'Risiko', path: '../Risk%20Analysis/index.html', empty: { steps: [] } },
+        risk: { title: 'Risiko', path: '../Risk%20Analysis/index.html', empty: { scale: 5, steps: [] } },
         flow: { title: 'Prozesskarte', path: '../Process%20Flow%20Map/index.html', empty: { symbols: [] } },
         actions: { title: 'Maßnahmen', path: '../Action%20tracker%20/index.html', empty: {} },
         pdf: { title: 'Dokumente', path: '../PDF%20to%20Text/index.html', empty: { fileName: '', data: null } }
