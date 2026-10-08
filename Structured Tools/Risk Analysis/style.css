@@ -172,22 +172,34 @@ button.secondary:hover { background-color: #5a6268; }
 .risk-matrix-grid {
     position: relative;
     display: grid;
-    grid-template-columns: 30px 30px;
-    grid-template-rows: 30px 30px;
+    grid-template-columns: repeat(5, 16px);
+    grid-template-rows: repeat(5, 16px);
     border: 1px solid #999;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
 }
 .risk-matrix-quadrant {
-    border: 1px solid #ccc;
+    border: 1px solid rgba(255, 255, 255, 0.7);
     box-sizing: border-box;
 }
+.risk-matrix-quadrant.rm-lo { background: #cfe8d5; }
+.risk-matrix-quadrant.rm-md { background: #fff0b8; }
+.risk-matrix-quadrant.rm-hi { background: #f6b98a; }
+.risk-matrix-quadrant.rm-vh { background: #ee8f8f; }
 .risk-matrix-dot {
     position: absolute;
     width: 0;
     height: 0;
-    border: 5px solid #000;
+    border: 5px solid #1f2733;
     border-radius: 50%;
     transform: translate(-50%, -50%);
 }
+.risk-score { font-size: 0.8em; font-weight: 700; white-space: nowrap; }
+.risk-score.rl-lo { color: #2e7d32; }
+.risk-score.rl-md { color: #9a6b00; }
+.risk-score.rl-hi { color: #cc0000; }
+.risk-score.rl-vh { color: #8b0000; }
+.risk-scale-hint { margin: 0 0 14px; padding: 8px 12px; font-size: 0.88em; background: #f4f6fa; border-left: 3px solid #cc0000; border-radius: 3px; }
 .risk-description {
     font-size: 0.9em;
     color: #555;
@@ -236,7 +248,7 @@ button.secondary:hover { background-color: #5a6268; }
     .summary-table { font-size: 8pt; }
     .summary-table tr { page-break-inside: avoid; }
     .summary-table td, .summary-table th { padding: 5px; }
-    .risk-matrix-grid { grid-template-columns: 20px 20px; grid-template-rows: 20px 20px; }
+    .risk-matrix-grid { grid-template-columns: repeat(5, 12px); grid-template-rows: repeat(5, 12px); }
     .risk-matrix-dot { border-width: 4px; }
     .print-page-wrapper {
         page-break-before: always; page-break-inside: avoid;

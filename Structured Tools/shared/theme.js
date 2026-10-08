@@ -33,6 +33,12 @@
         back.title = 'Zur Übersicht';
         back.innerHTML = '<span aria-hidden="true">←</span><span class="st-dock-label">Übersicht</span>';
 
+        var studio = document.createElement('a');
+        studio.className = 'st-dock-btn';
+        studio.href = '../Problem%20Solving%20Studio/index.html';
+        studio.title = 'Alle Tools im Problem Solving Studio';
+        studio.innerHTML = '<span aria-hidden="true">◧</span><span class="st-dock-label">Studio</span>';
+
         var toggle = document.createElement('button');
         toggle.type = 'button';
         toggle.className = 'st-dock-btn';
@@ -52,6 +58,7 @@
         render();
 
         dock.appendChild(back);
+        dock.appendChild(studio);
         dock.appendChild(toggle);
         document.body.appendChild(dock);
     }

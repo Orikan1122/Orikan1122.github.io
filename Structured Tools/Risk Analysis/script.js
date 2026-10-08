@@ -1,5 +1,35 @@
 let stepCounter = 0;
 
+// --- Risikobewertung: Skalen 1-5, Score = Wahrscheinlichkeit x Schwere (1-25) ---
+const LIKELIHOOD_LABELS = ['Rare', 'Unlikely', 'Possible', 'Likely', 'Almost certain'];
+const SEVERITY_LABELS = ['Negligible', 'Minor', 'Moderate', 'Major', 'Critical'];
+const MITIGATION_MIN_SCORE = 5; // ab "Medium" ist eine Gegenmassnahme erforderlich
+
+function scaleOptions(labels) {
+    return labels.map((text, i) => `<option value="${i + 1}">${i + 1} – ${text}</option>`).join('');
+}
+function getRiskLevel(score) {
+    if (score >= 17) return { key: 'vh', label: 'Very high', color: '#8b0000' };
+    if (score >= 10) return { key: 'hi', label: 'High', color: '#cc0000' };
+    if (score >= MITIGATION_MIN_SCORE) return { key: 'md', label: 'Medium', color: '#b8860b' };
+    return { key: 'lo', label: 'Low', color: '#2e7d32' };
+}
+function needsMitigation(likelihood, severity) {
+    return likelihood * severity >= MITIGATION_MIN_SCORE;
+}
+// Ältere Stände kannten nur 1 (low) und 2 (high): low -> 2, high -> 4
+function migrateLegacyScale(state) {
+    if (!state || state.scale === 5 || !Array.isArray(state.steps)) return state;
+    state.steps.forEach(step => {
+        Object.values(step.risks || {}).forEach(r => {
+            r.likelihood = r.likelihood >= 2 ? 4 : 2;
+            r.severity = r.severity >= 2 ? 4 : 2;
+        });
+    });
+    state.scale = 5;
+    return state;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     Chart.register(ChartDataLabels);
     
@@ -10,7 +40,33 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('export-btn').addEventListener('click', exportToJson);
 
     addProcessStep();
+
+    // Auto-Save und Studio-Anbindung (shared/bridge.js)
+    STBridge.init({
+        tool: 'risk',
+        persist: true,
+        getState: collectFullState,
+        setState: restoreState,
+        getSnapshot: async () => ({
+            impactEffort: impactEffortChart ? STBridge.canvasToPng(impactEffortChart.canvas, '#ffffff') : null
+        })
+    });
 });
+
+// Stellt einen gespeicherten Zustand wieder her. Schritt-IDs werden neu durchnummeriert,
+// damit Massnahmen den richtigen Feldern zugeordnet werden, auch wenn Schritte gelöscht wurden.
+function restoreState(state) {
+    if (!state || !Array.isArray(state.steps)) return;
+    state.steps.forEach((step, i) => { step.id = String(i + 1); });
+    const realScrollTo = window.scrollTo;
+    window.scrollTo = () => {};
+    try {
+        rebuildState(state);
+        if (!document.querySelector('.process-step-item')) addProcessStep();
+    } finally {
+        window.scrollTo = realScrollTo;
+    }
+}
 
 function exportToJson() {
     const state = collectFullState();
@@ -44,6 +100,7 @@ function importFromJson(event) {
 }
 
 function rebuildState(state) {
+    migrateLegacyScale(state);
     const container = document.getElementById('process-steps-container');
     container.innerHTML = '';
     stepCounter = 0;
@@ -97,7 +154,7 @@ function populateMitigationFields(stepsData) {
     stepsData.forEach(step => {
         for (const cat in step.risks) {
             const risk = step.risks[cat];
-            if ((risk.likelihood > 1 || risk.severity > 1) && risk.mitigationPlan) {
+            if (needsMitigation(risk.likelihood, risk.severity) && risk.mitigationPlan) {
                 const planEl = document.getElementById(`mitigation-plan-${step.id}-${cat}`);
                 if (planEl) {
                     planEl.value = risk.mitigationPlan;
@@ -144,8 +201,8 @@ function createRiskCategoryHTML(stepId, category, title) {
             <div class="risk-details" id="risk-details-${stepId}-${category}" style="display:none;">
                 <div class="form-group"><label for="risk-desc-${stepId}-${category}">Risk Description:</label><input type="text" id="risk-desc-${stepId}-${category}" placeholder="e.g., Microbial contamination"></div>
                 <div class="risk-quantify-grid">
-                    <div class="form-group"><label>Likelihood:</label><select id="risk-likelihood-${stepId}-${category}"><option value="1">1-Low</option><option value="2">2-High</option></select></div>
-                    <div class="form-group"><label>Severity:</label><select id="risk-severity-${stepId}-${category}"><option value="1">1-Low</option><option value="2">2-High</option></select></div>
+                    <div class="form-group"><label>Likelihood:</label><select id="risk-likelihood-${stepId}-${category}">${scaleOptions(LIKELIHOOD_LABELS)}</select></div>
+                    <div class="form-group"><label>Severity:</label><select id="risk-severity-${stepId}-${category}">${scaleOptions(SEVERITY_LABELS)}</select></div>
                 </div>
             </div>
         </div>
@@ -157,7 +214,7 @@ function toggleRiskDetails(stepId, category) {
 }
 
 function collectFullState() {
-    const state = { steps: [] };
+    const state = { scale: 5, steps: [] };
     document.querySelectorAll('.process-step-item').forEach(stepEl => {
         const id = stepEl.id.split('-')[1];
         const stepData = {
@@ -180,7 +237,7 @@ function collectFullState() {
             };
 
             const mitigationPlanEl = document.getElementById(`mitigation-plan-${id}-${cat}`);
-            if (mitigationPlanEl && (likelihood > 1 || severity > 1)) {
+            if (mitigationPlanEl && needsMitigation(likelihood, severity)) {
                 riskData.mitigationPlan = mitigationPlanEl.value;
                 riskData.mitigationImpact = parseInt(document.getElementById(`mitigation-impact-${id}-${cat}`).value);
                 riskData.mitigationEffort = parseInt(document.getElementById(`mitigation-effort-${id}-${cat}`).value);
@@ -223,15 +280,22 @@ function generateSummaryTable(stepsData) {
 
 function formatRiskCell(riskData) {
     if (!riskData || !riskData.isChecked) return '–';
-    const dotLeft = riskData.likelihood === 1 ? '25%' : '75%';
-    const dotTop = riskData.severity === 1 ? '75%' : '25%';
+    const l = riskData.likelihood, sv = riskData.severity, score = l * sv, level = getRiskLevel(score);
+    let cells = '';
+    for (let sev = 5; sev >= 1; sev--) {
+        for (let lik = 1; lik <= 5; lik++) {
+            cells += `<div class="risk-matrix-quadrant rm-${getRiskLevel(lik * sev).key}"></div>`;
+        }
+    }
+    const dotLeft = ((l - 0.5) / 5) * 100;
+    const dotTop = ((5 - sv + 0.5) / 5) * 100;
     return `
         <div class="risk-visual-container">
-            <div class="risk-matrix-grid">
-                <div class="risk-matrix-quadrant"></div><div class="risk-matrix-quadrant"></div>
-                <div class="risk-matrix-quadrant"></div><div class="risk-matrix-quadrant"></div>
-                <div class="risk-matrix-dot" style="top: ${dotTop}; left: ${dotLeft};"></div>
+            <div class="risk-matrix-grid" title="Likelihood ${l} × Severity ${sv}">
+                ${cells}
+                <div class="risk-matrix-dot" style="top: ${dotTop}%; left: ${dotLeft}%;"></div>
             </div>
+            <div class="risk-score rl-${level.key}">L${l} × S${sv} = ${score} · ${level.label}</div>
             ${riskData.description ? `<div class="risk-description">${escapeHtml(riskData.description)}</div>` : ''}
         </div>
     `;
@@ -245,7 +309,7 @@ function generateMitigationDefinitionArea(stepsData) {
     stepsData.forEach(step => {
         for (const cat in step.risks) {
             const risk = step.risks[cat];
-            if (risk.isChecked && (risk.likelihood > 1 || risk.severity > 1)) {
+            if (risk.isChecked && needsMitigation(risk.likelihood, risk.severity)) {
                 mitigationRequired = true;
                 const catFormatted = cat.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
                 const item = document.createElement('div');
@@ -487,9 +551,11 @@ function exportToWordDoc() {
 function formatRiskCellWord(riskData) {
     if (!riskData || !riskData.isChecked) return '–';
     
-    let likelihoodText = riskData.likelihood === 1 ? 'Low' : 'High';
-    let severityText = riskData.severity === 1 ? 'Low' : 'High';
-    let riskLevel = (riskData.likelihood > 1 || riskData.severity > 1) ? '<span style="color:#cc0000; font-weight:bold;">HIGH/MED</span>' : 'LOW';
+    const score = riskData.likelihood * riskData.severity;
+    const level = getRiskLevel(score);
+    const likelihoodText = `${riskData.likelihood} (${LIKELIHOOD_LABELS[riskData.likelihood - 1] || ''})`;
+    const severityText = `${riskData.severity} (${SEVERITY_LABELS[riskData.severity - 1] || ''})`;
+    const riskLevel = `<span style="color:${level.color}; font-weight:bold;">${level.label.toUpperCase()} (${score})</span>`;
     
     return `
         <div style="font-family: 'Montserrat', Calibri, Arial, sans-serif;">

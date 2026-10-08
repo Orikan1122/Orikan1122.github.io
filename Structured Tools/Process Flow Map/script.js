@@ -387,57 +387,64 @@ document.addEventListener('DOMContentLoaded', () => {
         URL.revokeObjectURL(url);
     }
 
+    // Wendet geladene Kartendaten an (Datei-Import und Auto-Save-Wiederherstellung)
+    function applyMapData(loadedData) {
+        const dataIsOldFormat = loadedData && loadedData.arrows; // Check for old format
+        const symbolData = dataIsOldFormat ? loadedData.arrows : (loadedData && loadedData.symbols);
+
+        if (!loadedData || !symbolData) {
+            throw new Error("Ungültiges Dateiformat oder fehlende Symboldaten.");
+        }
+
+        lastUpdatedInput.value = loadedData.lastUpdated || '';
+        authorInput.value = loadedData.author || '';
+
+        if (loadedData.backgroundImageData) {
+            backgroundImageData = loadedData.backgroundImageData;
+            mapImage.src = backgroundImageData;
+            mapImage.alt = 'Geladene Karte';
+            isImageLoaded = true;
+        } else {
+            backgroundImageData = null;
+            mapImage.removeAttribute('src');
+            mapImage.alt = 'Bitte laden Sie ein Hintergrundbild hoch.';
+            isImageLoaded = false;
+        }
+
+        symbols = (symbolData || []).map(a => ({
+            id: a.id || generateId(),
+            shape: a.shape || 'arrow', // Add shape, default to arrow for old files
+            x: a.x || 100,
+            y: a.y || 100,
+            color: a.color || '#FF0000',
+            number: a.number || 1,
+            size: a.size || 80,
+            rotation: a.rotation || 0,
+            description: a.description || ''
+        }));
+        nextSymbolNumber = loadedData.nextSymbolNumber || loadedData.nextArrowNumber || (symbols.length > 0 ? Math.max(...symbols.map(a => a.number)) + 1 : 1);
+
+        deselectAll();
+        renderAllSymbolsOnMap();
+        renderSymbolTable();
+    }
+
     function loadMap(file) {
         const reader = new FileReader();
         reader.onload = function(event) {
             try {
-                const loadedData = JSON.parse(event.target.result);
-                const dataIsOldFormat = loadedData.arrows; // Check for old format
-                const symbolData = dataIsOldFormat ? loadedData.arrows : loadedData.symbols;
-
-                if (!loadedData || !symbolData) {
-                    throw new Error("Ungültiges Dateiformat oder fehlende Symboldaten.");
-                }
-
-                lastUpdatedInput.value = loadedData.lastUpdated || '';
-                authorInput.value = loadedData.author || '';
-
-                if (loadedData.backgroundImageData) {
-                    backgroundImageData = loadedData.backgroundImageData;
-                    mapImage.src = backgroundImageData;
-                    mapImage.alt = 'Geladene Karte';
-                    isImageLoaded = true;
-                } else {
-                    // ... (rest of image loading logic is fine)
-                }
-
-                symbols = (symbolData || []).map(a => ({
-                    id: a.id || generateId(),
-                    shape: a.shape || 'arrow', // Add shape, default to arrow for old files
-                    x: a.x || 100,
-                    y: a.y || 100,
-                    color: a.color || '#FF0000',
-                    number: a.number || 1,
-                    size: a.size || 80,
-                    rotation: a.rotation || 0,
-                    description: a.description || ''
-                }));
-                nextSymbolNumber = loadedData.nextSymbolNumber || loadedData.nextArrowNumber || (symbols.length > 0 ? Math.max(...symbols.map(a => a.number)) + 1 : 1);
-
-                deselectAll();
-                renderAllSymbolsOnMap();
-                renderSymbolTable();
-
+                applyMapData(JSON.parse(event.target.result));
                 alert(`Karte "${file.name}" erfolgreich geladen.`);
             } catch (error) {
-                // ... (error handling is fine)
+                console.error("Fehler beim Laden der Karte:", error);
+                alert(`Fehler beim Laden der Datei: ${error.message}`);
             } finally {
                 loadMapInput.value = '';
             }
         };
         reader.readAsText(file);
     }
-    
+
     // PDF Export function remains largely the same, but we update the table part
     async function exportToPdf() {
         const jsPDF = window.jspdf?.jsPDF;
@@ -671,4 +678,37 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 500);
     exportPdfButton.disabled = true;
     exportPdfButton.title = "PDF Bibliotheken werden geladen...";
+
+    // Auto-Save und Studio-Anbindung (shared/bridge.js)
+    STBridge.init({
+        tool: 'flow',
+        persist: true,
+        getState: () => ({
+            lastUpdated: lastUpdatedInput.value,
+            author: authorInput.value,
+            backgroundImageData: backgroundImageData,
+            nextSymbolNumber: nextSymbolNumber,
+            symbols: symbols
+        }),
+        setState: (data) => { if (data && data.symbols) applyMapData(data); },
+        getSnapshot: async () => {
+            if (!isImageLoaded || !window.html2canvas) return {};
+            deselectAll();
+            const overflow = mapContainer.style.overflow;
+            const maxHeight = mapContainer.style.maxHeight;
+            try {
+                mapContainer.style.overflow = 'visible';
+                mapContainer.style.maxHeight = 'none';
+                const canvas = await html2canvas(mapContainer, {
+                    useCORS: true, scale: 1.5, backgroundColor: '#ffffff',
+                    width: mapImage.scrollWidth, height: mapImage.scrollHeight,
+                    windowWidth: mapImage.scrollWidth, windowHeight: mapImage.scrollHeight
+                });
+                return { map: canvas.toDataURL('image/jpeg', 0.85) };
+            } finally {
+                mapContainer.style.overflow = overflow;
+                mapContainer.style.maxHeight = maxHeight;
+            }
+        }
+    });
 });
