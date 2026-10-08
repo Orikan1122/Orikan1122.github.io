@@ -908,10 +908,46 @@
         <div style="flex: 1; min-width: 400px; background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
           <h4 style="font-size: 14px; color: #333; margin-bottom: 10px;">&#128200; Year-over-Year Trend (Monatlich)</h4>
           <div style="height: 250px; position: relative;"><canvas id="volChartYoY"></canvas></div>
+
+          <!-- Breakdown pro Linie (Monatlich) -->
+          <div style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 10px;">
+            <div style="display:flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 6px; margin-bottom: 6px;">
+              <h5 style="font-size: 12.5px; color: #333; margin: 0;">&#128209; Breakdown pro Linie (CY, Δ % vs PY)</h5>
+              <span id="volLineBreakdownHint" style="font-size: 10.5px; color: #777;"></span>
+            </div>
+            <div style="overflow-x: auto;">
+              <table id="volLineBreakdownTable" style="width: 100%; border-collapse: collapse; font-size: 11px; text-align: right; white-space: nowrap;">
+                <thead id="volLineBreakdownHead" style="background: #f4f7f6;"></thead>
+                <tbody id="volLineBreakdownBody"></tbody>
+              </table>
+            </div>
+          </div>
         </div>
         <div style="flex: 1; min-width: 300px; background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
           <h4 style="font-size: 14px; color: #333; margin-bottom: 10px;">&#128202; YTD Waterfall: Delta nach Package (PY &#10142; CY)</h4>
           <div style="height: 250px; position: relative;"><canvas id="volChartWaterfall"></canvas></div>
+
+          <!-- Tabelle: Delta nach Package vs PY (bis Cutoff-Monat) -->
+          <div style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 10px;">
+            <div style="display:flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 6px; margin-bottom: 6px;">
+              <h5 style="font-size: 12.5px; color: #333; margin: 0;">&#128209; Delta nach Package vs PY</h5>
+              <span id="volPkgTableHint" style="font-size: 10.5px; color: #777;"></span>
+            </div>
+            <div style="overflow-x: auto;">
+              <table style="width: 100%; border-collapse: collapse; font-size: 11.5px; text-align: right;">
+                <thead style="background: #f4f7f6; border-bottom: 2px solid #ccc;">
+                  <tr>
+                    <th style="padding: 7px 8px; text-align: left;">Package</th>
+                    <th id="volPkgThPY" style="padding: 7px 8px;">PY</th>
+                    <th id="volPkgThCY" style="padding: 7px 8px;">CY</th>
+                    <th style="padding: 7px 8px;">Δ Total</th>
+                    <th style="padding: 7px 8px;">Δ %</th>
+                  </tr>
+                </thead>
+                <tbody id="volPkgTableBody"></tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1762,6 +1798,20 @@
           </div>
         </div>
 
+        <!-- PERFORMANCE BOARD (kopierbar für Word / Outlook) -->
+        <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+            <h3 id="envBoardTitle" style="font-size: 18px; color:#003366; font-weight:bold; margin:0;">Performance Board</h3>
+            <div>
+                <label style="font-size:12px; color:#333; margin-right:12px; cursor:pointer;"><input type="checkbox" id="envBoardActions" onchange="renderEnvPerformanceBoard()" style="vertical-align:middle;"> inkl. Actions</label>
+                <button id="btnMonthlyReportBoard" onclick="exportMonthlyReport(this)" title="Performance Board + Water- und Energy-Waterfall in einem PDF" style="background:#c2185b; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:12px; margin-right:5px;">&#128209; Monthly Report PDF</button>
+                <button id="btnCopyEnvBoard" onclick="copyEnvBoard()" style="background:#0078d4; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:12px; transition:0.2s;">&#128203; Copy Board</button>
+            </div>
+        </div>
+        <div style="background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 25px; overflow-x: auto;">
+            <div id="envBoardContainer"></div>
+            <div style="font-size:11px; color:#777; margin-top:8px;">Short Narrative: automatisch aus „KPI Deviations &amp; Root Causes" (Gründe des gewählten Monats, WUR = Water Ratio, EUR = Energy Ratio), nicht manuell editierbar. Rot = schlechter als Target (Actual &gt; Target), grün = erreicht. YTD = volumengewichtet (Summe Absolutwerte / Summe Volumen). Target FY = volumengewichteter BP-Wert des Gesamtjahres. Unabhängig vom Werk-Filter.</div>
+        </div>
+
         <!-- DOMINANTER BEREICH: Monthly Trends -->
         <h3 style="font-size: 16px; margin-bottom: 10px; color:#1e1e1e;">&#128200; Monthly Trend Analysis</h3>
         <div style="display:flex; gap: 20px; flex-wrap: wrap; margin-bottom: 20px;">
@@ -1887,6 +1937,7 @@
             <div style="display:flex; gap:10px;">
                 <!-- NEU: PDF Button -->
                 <button id="btnExportPdf" onclick="exportDeviationPDF()" style="background:#e3008c; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; transition:0.2s;">📄 PDF Export</button>
+                <button id="btnMonthlyReport" onclick="exportMonthlyReport(this)" title="Performance Board + Water- und Energy-Waterfall in einem PDF" style="background:#c2185b; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer; transition:0.2s;">📑 Monthly Report (Water + Energy)</button>
                 
                 <button id="btnRefreshDeviations" onclick="resetRefreshBtn(); ladeEnvDaten();" disabled style="background:#5c2d91; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:not-allowed; opacity: 0.5;">🔄 Daten aktualisieren</button>
                 <button id="btnNewDeviation" onclick="openDeviationModal()" style="background:#0078d4; color:white; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">+ Neue Abweichung erfassen</button>
@@ -1912,8 +1963,9 @@
             
             <div style="display:flex; gap: 20px; flex-wrap: wrap;">
                 <!-- MTD Chart & Tabelle -->
-                <div style="flex: 1; min-width: 300px; display:flex; flex-direction:column;">
-                    <h5 id="wfMtdTitle" style="font-size: 13px; color: #555; margin-bottom: 10px; text-align: center;">MTD Waterfall</h5>
+                <div id="devMtdCol" style="flex: 1; min-width: 300px; display:flex; flex-direction:column;">
+                    <h5 id="wfMtdTitle" style="font-size: 13px; color: #555; margin-bottom: 4px; text-align: center;">MTD Waterfall</h5>
+                    <div id="wfMtdSummary" style="font-size: 12px; font-weight: bold; text-align: center; margin-bottom: 8px; min-height: 16px;"></div>
                     <div style="height: 220px; position: relative;"><canvas id="devWfMtdChart"></canvas></div>
                     
                     <div style="margin-top: 15px; overflow-x: auto; background: white; border: 1px solid #e0e0e0; border-radius: 4px; flex:1;">
@@ -1922,7 +1974,7 @@
                                 <tr>
                                     <th style="padding: 8px;">Monat</th>
                                     <th style="padding: 8px;">MTD Gründe & Actions (inkl. Volumen)</th>
-                                    <th style="padding: 8px; text-align:right;">Edit</th>
+                                    <th class="dev-edit-col" style="padding: 8px; text-align:right;">Edit</th>
                                 </tr>
                             </thead>
                             <tbody id="envDeviationsBodyMTD"></tbody>
@@ -1931,8 +1983,9 @@
                 </div>
 
                 <!-- YTD Chart & Tabelle -->
-                <div style="flex: 1; min-width: 300px; border-left: 1px dashed #ccc; padding-left: 20px; display:flex; flex-direction:column;">
-                    <h5 id="wfYtdTitle" style="font-size: 13px; color: #555; margin-bottom: 10px; text-align: center;">YTD Waterfall</h5>
+                <div id="devYtdCol" style="flex: 1; min-width: 300px; border-left: 1px dashed #ccc; padding-left: 20px; display:flex; flex-direction:column;">
+                    <h5 id="wfYtdTitle" style="font-size: 13px; color: #555; margin-bottom: 4px; text-align: center;">YTD Waterfall</h5>
+                    <div id="wfYtdSummary" style="font-size: 12px; font-weight: bold; text-align: center; margin-bottom: 8px; min-height: 16px;"></div>
                     <div style="height: 220px; position: relative;"><canvas id="devWfYtdChart"></canvas></div>
                     
                     <div style="margin-top: 15px; overflow-x: auto; background: white; border: 1px solid #e0e0e0; border-radius: 4px; flex:1;">
@@ -1941,7 +1994,7 @@
                                 <tr>
                                     <th style="padding: 8px;">Monat</th>
                                     <th style="padding: 8px;">YTD Verlauf (inkl. Volumen)</th>
-                                    <th style="padding: 8px; text-align:right;">Edit</th>
+                                    <th class="dev-edit-col" style="padding: 8px; text-align:right;">Edit</th>
                                 </tr>
                             </thead>
                             <tbody id="envDeviationsBodyYTD"></tbody>
@@ -7157,13 +7210,8 @@ function updateCPM() {
     // Wenn es Transhipment ist und die Checkbox AUS ist -> sofort abbrechen (ignorieren)
     if (isTrans && !inclTrans) return;
 
-    // Plant "Transhipment" in der Zeile selbst hat Vorrang vor dem Mapping (Brand|Package),
-    // sonst wird ein gleichnamiges Dietlikon-/Vals-Produkt fälschlich als Dietlikon/Vals gezählt.
-    const rowIsTransSales = pRawSales.includes("transhipment") || pRawSales.includes("transshipment");
     let herkunft = "(Blank)";
-    if (rowIsTransSales) {
-        herkunft = "Import";
-    } else if (mOrigin) {
+    if (mOrigin) {
         if (mOrigin.includes("vals")) herkunft = "Vals";
         else if (mOrigin.includes("dietlikon")) herkunft = "Dietlikon";
         else if (isTrans || mOrigin.includes("import")) herkunft = "Import";
@@ -7248,12 +7296,8 @@ function updateCPM() {
     // Wenn es Transhipment ist und die Checkbox AUS ist -> Zeile überspringen (wird nicht in Tabelle/Charts geladen)
     if (isTrans && !inclTrans) return;
 
-    // Plant "Transhipment" in der Zeile selbst hat Vorrang vor dem Mapping (Brand|Package)
-    const rowIsTransCons = pRaw.includes("transhipment") || pRaw.includes("transshipment");
     let herkunft = "(Blank)";
-    if (rowIsTransCons) {
-        herkunft = "Import";
-    } else if (mOrigin) {
+    if (mOrigin) {
         if (mOrigin.includes("vals")) herkunft = "Vals";
         else if (mOrigin.includes("dietlikon")) herkunft = "Dietlikon";
         else if (isTrans || mOrigin.includes("import")) herkunft = "Import";
@@ -7849,7 +7893,6 @@ let currentB2CFiltered = [];
 
 function getOriginLabel(plantStr) {
     let p = String(plantStr || '').toLowerCase();
-    if(p.includes('transhipment') || p.includes('transshipment')) return 'Import';
     if(p.includes('dietlikon') || p.includes('vals')) return 'CH';
     if(p === '' || p === 'n/a' || p === 'null' || p === 'undefined') return 'Unknown';
     return 'Import';
@@ -9470,6 +9513,8 @@ function updateEnvDashboard() {
     if(typeof updateDeviationViews === 'function') {
         updateDeviationViews();
     }
+    // Performance Board (kopierbare Ansicht)
+    try { renderEnvPerformanceBoard(); } catch(e) { console.error('Performance Board Fehler:', e); }
     // ==========================================
     // BERECHTIGUNG: NEUE ABWEICHUNG ERFASSEN
     // ==========================================
@@ -9505,6 +9550,196 @@ function copyEnvTable() {
         console.error(err);
     }
     document.body.removeChild(textArea);
+}
+
+// ==========================================
+// PERFORMANCE BOARD (kopierbare Ansicht für Word / Outlook)
+// ==========================================
+
+function _ebEsc(s) {
+    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// Volumengewichtete Kennzahlen für ein Werk (plantKey = Datensatz-Name) bis einschl. Monat
+function _ebCalc(plantKey, year, monthIdx) {
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const recs = months.map(m => unifiedEnvData.monthly.find(d => d.year == year && d.month == m && d.plant == plantKey) || null);
+    const cur = recs[monthIdx] || {};
+
+    const ytd = { aW:0, aE:0, v:0, bW:0, bE:0, bv:0 };
+    const fy  = { bW:0, bE:0, bv:0 };
+
+    recs.forEach((r, i) => {
+        if (!r) return;
+        if (i <= monthIdx && r.volTotal) {
+            ytd.aW += r.absWater || 0; ytd.aE += r.absEnergy || 0; ytd.v += r.volTotal || 0;
+        }
+        if (i <= monthIdx && r.volBPTotal) {
+            ytd.bW += r.bpWaterAbs || 0; ytd.bE += r.bpEnergyAbs || 0; ytd.bv += r.volBPTotal || 0;
+        }
+        if (r.volBPTotal) {
+            fy.bW += r.bpWaterAbs || 0; fy.bE += r.bpEnergyAbs || 0; fy.bv += r.volBPTotal || 0;
+        }
+    });
+
+    // Fallback auf YTD-Zeile aus Smartsheet, falls keine Monatsdaten vorhanden
+    const yRec = unifiedEnvData.yearly.find(d => d.year == year && d.plant == plantKey) || {};
+    const div = (a, b) => (b ? a / b : null);
+
+    return {
+        WUR: {
+            month:  cur.waterRatio ?? null,
+            ytd:    ytd.v  ? ytd.aW / ytd.v  : (yRec.waterRatio ?? null),
+            tMonth: cur.targetWaterRatio ?? null,
+            tFY:    fy.bv  ? fy.bW / fy.bv   : (yRec.targetWaterRatio ?? null)
+        },
+        EUR: {
+            month:  cur.energyRatio ?? null,
+            ytd:    ytd.v  ? ytd.aE / ytd.v  : (yRec.energyRatio ?? null),
+            tMonth: cur.targetEnergyRatio ?? null,
+            tFY:    fy.bv  ? fy.bE / fy.bv   : (yRec.targetEnergyRatio ?? null)
+        }
+    };
+}
+
+// Narrative aus den erfassten Deviations (nur Werke mit eigenen Einträgen: Dietlikon, Vals)
+function _ebDevText(locKey, metricId, year, monthNum, withActions) {
+    if (!Array.isArray(globalEnvDeviations) || globalEnvDeviations.length === 0) return '';
+    const kpi = metricId === 'WUR' ? 'Water Ratio' : 'Energy Ratio';
+    const rows = globalEnvDeviations.filter(d =>
+        String(d['Location'] || '').trim().toLowerCase() === locKey.toLowerCase() &&
+        d['KPI'] === kpi && String(d['Year']) === String(year) && parseInt(d['Month']) === monthNum);
+    const lines = [];
+    rows.forEach(d => {
+        for (let i = 1; i <= 4; i++) {
+            const r = String(d['reason' + i] || '').trim();
+            const a = String(d['Action' + i] || '').trim();
+            if (!r && !a) continue;
+            let line = r ? '\u2022 ' + r : '\u2022 ' + a;
+            if (r && a && withActions) line += ' \u2192 ' + a;
+            lines.push(line);
+        }
+    });
+    return lines.join('\n');
+}
+
+function renderEnvPerformanceBoard() {
+    const host = document.getElementById('envBoardContainer');
+    if (!host || !unifiedEnvData) return;
+
+    const year = document.getElementById('envYear').value;
+    const month = document.getElementById('envMonth').value;
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const monthIdx = months.indexOf(month);
+    if (monthIdx < 0) return;
+
+    const yy = String(year).slice(-2);
+    const titleEl = document.getElementById('envBoardTitle');
+    if (titleEl) titleEl.innerText = `Performance Board (${month} ${year})`;
+
+    const locations = [
+        { label: 'Dietlikon',       key: 'Dietlikon' },
+        { label: 'Vals',            key: 'Vals' },
+        { label: 'National Plants', key: 'National',       bold: true },
+        { label: 'TTL',             key: 'National Total', bold: true }
+    ];
+    const metrics = [
+        { id: 'WUR', label: 'WUR l/lpb',  dec: 2 },
+        { id: 'EUR', label: 'EUR MJ/lpb', dec: 3 }
+    ];
+
+    const border = '1px solid #bfbfbf';
+    const thS = `background:#1f4e79; color:#ffffff; font-weight:bold; padding:6px 8px; border:${border}; text-align:center; font-family:Calibri,Arial,sans-serif; font-size:12px;`;
+    const tdBase = `padding:5px 8px; border:${border}; font-family:Calibri,Arial,sans-serif; font-size:12px; vertical-align:middle;`;
+
+    const fmt = (v, dec) => (v === null || v === undefined || isNaN(v)) ? '–' : Number(v).toFixed(dec);
+    const colorFor = (act, tgt, dec) => {
+        if (act === null || act === undefined || tgt === null || tgt === undefined || isNaN(act) || isNaN(tgt)) return '#000000';
+        return Number(Number(act).toFixed(dec)) > Number(Number(tgt).toFixed(dec)) ? '#c00000' : '#107c41';
+    };
+
+    const actChk = document.getElementById('envBoardActions');
+    const withActions = !!(actChk && actChk.checked);
+
+    let html = `<table id="envBoardTable" style="border-collapse:collapse; width:100%; border:${border};">
+        <thead><tr>
+            <th style="${thS} text-align:left;">Location</th>
+            <th style="${thS} text-align:left;">Metric</th>
+            <th style="${thS}">${_ebEsc(month)} ${_ebEsc(yy)}</th>
+            <th style="${thS}">YTD ${_ebEsc(year)}</th>
+            <th style="${thS}">Target ${_ebEsc(month)}</th>
+            <th style="${thS}">Target FY ${_ebEsc(year)}</th>
+            <th style="${thS} text-align:left; min-width:260px;">Short Narrative</th>
+        </tr></thead><tbody>`;
+
+    locations.forEach(loc => {
+        const calc = _ebCalc(loc.key, year, monthIdx);
+        metrics.forEach((m, mi) => {
+            const c = calc[m.id];
+            const nKey = `${year}|${month}|${loc.key}|${m.id}`;
+            const autoTxt = _ebDevText(loc.key, m.id, year, monthIdx + 1, withActions);
+            const nTxt = autoTxt;
+            const topBorder = mi === 0 ? 'border-top:2px solid #7f7f7f;' : '';
+            const bg = '#ffffff';
+            const fyW = loc.bold ? 'font-weight:bold;' : '';
+
+            html += `<tr style="background:${bg};">`;
+            if (mi === 0) {
+                html += `<td rowspan="2" style="${tdBase} font-weight:bold; background:#f2f2f2; border-top:2px solid #7f7f7f;">${_ebEsc(loc.label)}</td>`;
+            }
+            html += `<td style="${tdBase} ${topBorder} white-space:nowrap;">${_ebEsc(m.label)}</td>
+                <td style="${tdBase} ${topBorder} text-align:right; font-weight:bold; color:${colorFor(c.month, c.tMonth, m.dec)};">${fmt(c.month, m.dec)}</td>
+                <td style="${tdBase} ${topBorder} text-align:right; font-weight:bold; color:${colorFor(c.ytd, c.tFY, m.dec)};">${fmt(c.ytd, m.dec)}</td>
+                <td style="${tdBase} ${topBorder} text-align:right;">${fmt(c.tMonth, m.dec)}</td>
+                <td style="${tdBase} ${topBorder} text-align:right; ${fyW}">${fmt(c.tFY, m.dec)}</td>
+                <td class="env-board-narrative" style="${tdBase} ${topBorder} text-align:left; font-size:11px;">${_ebEsc(nTxt).replace(/\n/g, '<br>')}</td>
+            </tr>`;
+        });
+    });
+    html += `</tbody></table>`;
+    host.innerHTML = html;
+}
+
+async function copyEnvBoard() {
+    const table = document.getElementById('envBoardTable');
+    if (!table) { alert('Performance Board ist noch nicht geladen.'); return; }
+
+    // Saubere Kopie ohne Editier-Attribute
+    const clone = table.cloneNode(true);
+    clone.removeAttribute('id');
+    clone.style.width = 'auto';
+    const htmlStr = `<html><body>${clone.outerHTML}</body></html>`;
+
+    // Plain-Text-Variante (Tab-getrennt, z. B. für Excel)
+    const plain = Array.from(table.querySelectorAll('tr')).map(tr =>
+        Array.from(tr.children).map(td => td.innerText.replace(/\s*\n\s*/g, ' ').trim()).join('\t')
+    ).join('\n');
+
+    const done = () => alert('Performance Board kopiert – jetzt in Word / Outlook einfügen (Strg+V).');
+
+    // 1) Moderne Clipboard-API (HTML + Text)
+    try {
+        if (navigator.clipboard && window.ClipboardItem) {
+            await navigator.clipboard.write([new ClipboardItem({
+                'text/html': new Blob([htmlStr], { type: 'text/html' }),
+                'text/plain': new Blob([plain], { type: 'text/plain' })
+            })]);
+            done(); return;
+        }
+    } catch (e) { console.warn('ClipboardItem fehlgeschlagen, nutze Fallback:', e); }
+
+    // 2) Fallback: Tabelle markieren und kopieren (behält Formatierung)
+    try {
+        const sel = window.getSelection();
+        const range = document.createRange();
+        range.selectNode(table);
+        sel.removeAllRanges();
+        sel.addRange(range);
+        const ok = document.execCommand('copy');
+        sel.removeAllRanges();
+        if (ok) { done(); return; }
+    } catch (e) { console.error(e); }
+    alert('Kopieren nicht möglich. Bitte Tabelle manuell markieren und mit Strg+C kopieren.');
 }
 
 function sendEnvEmail() {
@@ -10308,6 +10543,102 @@ function updateVolumeAnalysis() {
   });
   
   document.getElementById('volTableBody').innerHTML = tHtml || `<tr><td colspan="8" style="text-align:center;">Keine Daten</td></tr>`;
+
+  // ==========================================
+  // BREAKDOWN PRO LINIE (Monatlich, unter YoY Trend)
+  // ==========================================
+  {
+      const fmtN = (v) => v ? Math.round(v).toLocaleString('de-CH') : '–';
+      const pctCell = (cy, py) => {
+          if (!cy || !py) return '<span style="color:#bbb;">–</span>';
+          const d = (cy - py) / py * 100;
+          const c = d > 0 ? '#107c41' : (d < 0 ? '#d83b01' : '#555');
+          return `<span style="color:${c}; font-weight:600;">${d > 0 ? '+' : ''}${d.toFixed(1)}%</span>`;
+      };
+      const lineMonths = {};   // { linie: { cy: [12], py: [12] } }
+      const ensure = (l) => lineMonths[l] || (lineMonths[l] = { cy: Array(12).fill(0), py: Array(12).fill(0) });
+      dataCY.forEach(r => { const m = extractMonthIdx(r); if (m >= 0 && m < 12) ensure(getLineKey(r)).cy[m] += (parseFloat(r[mIdx]) || 0); });
+      dataPY.forEach(r => { const m = extractMonthIdx(r); if (m >= 0 && m < 12) ensure(getLineKey(r)).py[m] += (parseFloat(r[mIdx]) || 0); });
+
+      const cutLbl = MONTH_NAMES_SHORT[ytdCutoff];
+      let head = '<tr style="border-bottom:2px solid #ccc;"><th style="padding:6px 8px; text-align:left;">Linie</th><th style="padding:6px 6px; text-align:left;"></th>';
+      MONTH_NAMES_SHORT.forEach((m, i) => { head += `<th style="padding:6px 6px;${i > ytdCutoff ? ' color:#aaa;' : ''}">${m}</th>`; });
+      head += `<th style="padding:6px 8px; border-left:2px solid #ddd; position:sticky; right:0; background:#f4f7f6; color:#0078d4;">YTD Σ (Jan–${cutLbl})</th></tr>`;
+      document.getElementById('volLineBreakdownHead').innerHTML = head;
+
+      const sumTo = (arr) => arr.slice(0, ytdCutoff + 1).reduce((a, b) => a + b, 0);
+      const totCy = Array(12).fill(0), totPy = Array(12).fill(0);
+      let body = '';
+      Object.keys(lineMonths).sort().forEach(l => {
+          const o = lineMonths[l];
+          o.cy.forEach((v, i) => { totCy[i] += v; });
+          o.py.forEach((v, i) => { totPy[i] += v; });
+          const ytdCy = sumTo(o.cy), ytdPy = sumTo(o.py);
+          body += `<tr style="border-top:1px solid #eee;">
+              <td rowspan="2" style="padding:5px 8px; text-align:left; font-weight:600; vertical-align:middle;">${l}</td>
+              <td style="padding:4px 6px; text-align:left; color:#0078d4; font-weight:bold;">CY</td>`;
+          o.cy.forEach((v, i) => { body += `<td style="padding:4px 6px;${i > ytdCutoff ? ' color:#aaa;' : ''}">${fmtN(v)}</td>`; });
+          body += `<td style="padding:4px 8px; border-left:2px solid #ddd; position:sticky; right:0; background:#fff; font-weight:bold;">${fmtN(ytdCy)}</td></tr>
+              <tr style="color:#777;"><td style="padding:2px 6px 5px; text-align:left; font-size:10px;">Δ% PY</td>`;
+          o.cy.forEach((v, i) => { body += `<td style="padding:2px 6px 5px; font-size:10.5px;">${i > ytdCutoff ? '<span style="color:#ddd;">–</span>' : pctCell(v, o.py[i])}</td>`; });
+          body += `<td style="padding:2px 8px 5px; border-left:2px solid #ddd; position:sticky; right:0; background:#fff; font-size:10.5px;">${pctCell(ytdCy, ytdPy)}</td></tr>`;
+      });
+      // Gesamtzeile
+      if (Object.keys(lineMonths).length > 1) {
+          const tYtdCy = sumTo(totCy), tYtdPy = sumTo(totPy);
+          body += `<tr style="border-top:2px solid #ccc; background:#f4f7f6;">
+              <td rowspan="2" style="padding:5px 8px; text-align:left; font-weight:bold; vertical-align:middle;">Total</td>
+              <td style="padding:4px 6px; text-align:left; color:#0078d4; font-weight:bold;">CY</td>`;
+          totCy.forEach((v, i) => { body += `<td style="padding:4px 6px; font-weight:bold;${i > ytdCutoff ? ' color:#aaa;' : ''}">${fmtN(v)}</td>`; });
+          body += `<td style="padding:4px 8px; border-left:2px solid #ddd; position:sticky; right:0; background:#f4f7f6; font-weight:bold;">${fmtN(tYtdCy)}</td></tr>
+              <tr style="background:#f4f7f6; color:#777;"><td style="padding:2px 6px 5px; text-align:left; font-size:10px;">Δ% PY</td>`;
+          totCy.forEach((v, i) => { body += `<td style="padding:2px 6px 5px; font-size:10.5px;">${i > ytdCutoff ? '<span style="color:#ddd;">–</span>' : pctCell(v, totPy[i])}</td>`; });
+          body += `<td style="padding:2px 8px 5px; border-left:2px solid #ddd; position:sticky; right:0; background:#f4f7f6; font-size:10.5px;">${pctCell(tYtdCy, tYtdPy)}</td></tr>`;
+      }
+      document.getElementById('volLineBreakdownBody').innerHTML = body || '<tr><td colspan="15" style="text-align:center; padding:10px; color:#999;">Keine Daten</td></tr>';
+      const unitLbl = metric === 'total_units' ? 'Units' : 'Liter';
+      document.getElementById('volLineBreakdownHint').innerText = `${unitLbl} · CY ${cy} vs PY ${py} · Monate nach Cutoff grau`;
+  }
+
+  // ==========================================
+  // TABELLE: Delta nach Package vs PY (bis Cutoff-Monat, unter YTD Waterfall)
+  // ==========================================
+  {
+      const cutLbl = MONTH_NAMES_SHORT[ytdCutoff];
+      document.getElementById('volPkgThPY').innerText = `PY ${py}`;
+      document.getElementById('volPkgThCY').innerText = `CY ${cy}`;
+      const unitLbl = metric === 'total_units' ? 'Units' : 'Liter';
+      document.getElementById('volPkgTableHint').innerText = `${unitLbl} · YTD Jan–${cutLbl}`;
+      let rows = '';
+      allPkgs.forEach(pkg => {
+          const cV = pkgCY[pkg] || 0, pV = pkgPY[pkg] || 0;
+          if (!cV && !pV) return;
+          const d = cV - pV;
+          const col = d > 0 ? '#107c41' : (d < 0 ? '#d83b01' : '#555');
+          const sign = d > 0 ? '+' : '';
+          const pctTxt = pV > 0 ? `${sign}${(d / pV * 100).toFixed(1)}%` : 'neu';
+          rows += `<tr style="border-bottom:1px solid #eee;">
+              <td style="padding:7px 8px; text-align:left; font-weight:600;">${pkg}</td>
+              <td style="padding:7px 8px;">${Math.round(pV).toLocaleString('de-CH')}</td>
+              <td style="padding:7px 8px; font-weight:bold;">${Math.round(cV).toLocaleString('de-CH')}</td>
+              <td style="padding:7px 8px; color:${col};">${sign}${Math.round(d).toLocaleString('de-CH')}</td>
+              <td style="padding:7px 8px; color:${col}; font-weight:bold;">${pctTxt}</td>
+          </tr>`;
+      });
+      const dT = totalCY_YTD - totalPY_YTD;
+      const cT = dT > 0 ? '#107c41' : (dT < 0 ? '#d83b01' : '#555');
+      const sT = dT > 0 ? '+' : '';
+      if (rows) {
+          rows += `<tr style="border-top:2px solid #ccc; background:#f4f7f6; font-weight:bold;">
+              <td style="padding:7px 8px; text-align:left;">Total</td>
+              <td style="padding:7px 8px;">${Math.round(totalPY_YTD).toLocaleString('de-CH')}</td>
+              <td style="padding:7px 8px;">${Math.round(totalCY_YTD).toLocaleString('de-CH')}</td>
+              <td style="padding:7px 8px; color:${cT};">${sT}${Math.round(dT).toLocaleString('de-CH')}</td>
+              <td style="padding:7px 8px; color:${cT};">${totalPY_YTD > 0 ? sT + (dT / totalPY_YTD * 100).toFixed(1) + '%' : '–'}</td>
+          </tr>`;
+      }
+      document.getElementById('volPkgTableBody').innerHTML = rows || '<tr><td colspan="5" style="text-align:center; padding:10px; color:#999;">Keine Daten</td></tr>';
+  }
 
   // ==========================================
   // LONGTERM: Multi-Year YTD Line Chart
@@ -11278,92 +11609,214 @@ function updateVolumeAnalysis() {
 // ==========================================
 // PDF EXPORT FUNKTION (Bulletproof Image Swap)
 // ==========================================
-function exportDeviationPDF() {
-    const btn = document.getElementById('btnExportPdf');
+// Baut einen "Schnappschuss" des Deviation-Bereichs für den PDF-Export
+// (Charts als Bilder, ohne Edit-Buttons, YTD nur wenn abweichend vom MTD, ohne Leerraum)
+function _devBuildSnapshot(kpi) {
+    const sel = document.getElementById('devWfKpi');
+    sel.value = kpi;
+    updateDeviationViews();   // rendert Waterfalls, Tabellen und Pie für diesen KPI
+
+    const area = document.getElementById('deviationExportArea');
+    const kpiText = sel.options[sel.selectedIndex].text;
+    const monthStr = document.getElementById('envMonth').value;
+    const yearStr = document.getElementById('envYear').value;
+
+    // MTD == YTD? (z. B. im Januar) -> YTD-Spalte im Export weglassen
+    const last = window.__devWfLast || {};
+    const r6 = (k, v) => (typeof v === 'number' ? Math.round(v * 1e6) / 1e6 : v);   // Rundungsrauschen ignorieren
+    const sameCharts = JSON.stringify(last.mtd, r6) === JSON.stringify(last.ytd, r6);
+    const sameTables = document.getElementById('envDeviationsBodyMTD').innerHTML === document.getElementById('envDeviationsBodyYTD').innerHTML;
+    const same = sameCharts && sameTables;
+
+    // Spalten auf Export-Breite setzen und Charts in genau dieser Größe neu zeichnen
+    // (damit Schrift im PDF nicht skaliert wird; Original-Stil wird in restoreUi() zurückgesetzt)
+    const mtdColLive = document.getElementById('devMtdCol');
+    const ytdColLive = document.getElementById('devYtdCol');
+    if (mtdColLive && !window.__devColStyles) window.__devColStyles = { mtd: mtdColLive.style.cssText, ytd: ytdColLive ? ytdColLive.style.cssText : '' };
+    if (mtdColLive) mtdColLive.style.cssText += same ? '; flex:none; width:660px; box-sizing:border-box;' : '; flex:none; width:320px; min-width:0; box-sizing:border-box;';
+    if (ytdColLive) ytdColLive.style.cssText += '; flex:none; width:320px; min-width:0; box-sizing:border-box;';
+    updateDeviationViews();
+
+    const clone = area.cloneNode(true);
+
+    // Canvas -> Bild
+    const srcCanvases = area.querySelectorAll('canvas');
+    const dstCanvases = clone.querySelectorAll('canvas');
+    srcCanvases.forEach((c, i) => {
+        const img = document.createElement('img');
+        try { img.src = c.toDataURL('image/png'); } catch (e) { console.error(e); }
+        img.style.cssText = 'width:100%; height:auto; display:block;';
+        dstCanvases[i].replaceWith(img);
+    });
+
+    // Dropdown durch Text ersetzen, interne Kopfzeile entfernen
+    const selClone = clone.querySelector('#devWfKpi');
+    if (selClone) {
+        const span = document.createElement('span');
+        span.style.cssText = 'font-weight:bold; color:#0078d4; font-size:13px;';
+        span.innerText = kpiText;
+        selClone.replaceWith(span);
+    }
+    const hdr = clone.querySelector('#pdfHeader'); if (hdr) hdr.remove();
+
+    // YTD weglassen, wenn identisch
+    if (same) {
+        const ytdCol = clone.querySelector('#devYtdCol'); if (ytdCol) ytdCol.remove();
+        const t = clone.querySelector('#wfMtdTitle'); if (t) t.innerText = `${monthStr} ${yearStr} (MTD = YTD)`;
+        const mc = clone.querySelector('#devMtdCol'); if (mc) mc.style.maxWidth = '100%';
+    }
+
+    // Edit-Buttons / Edit-Spalte entfernen
+    clone.querySelectorAll('.dev-edit-col').forEach(el => el.remove());
+
+    // Feste Höhen entfernen (kein Leerraum), Legende ohne Scroll
+    clone.querySelectorAll('div').forEach(d => {
+        if (d.style.height === '220px' || d.style.height === '200px') d.style.height = 'auto';
+        if (d.style.maxHeight) { d.style.maxHeight = 'none'; d.style.overflow = 'visible'; }
+    });
+    const legend = clone.querySelector('#devYtdLegend');
+    if (legend) { legend.style.maxHeight = 'none'; legend.style.overflow = 'visible'; }
+
+    // Tabellen-Boxen nicht auf Spaltenhöhe strecken (sonst leere Fläche)
+    clone.querySelectorAll('#devMtdCol > div, #devYtdCol > div').forEach(d => { d.style.flex = 'none'; });
+
+    // Seitenumbrüche vermeiden: Pie-Bereich und Tabellenzeilen zusammenhalten
+    clone.querySelectorAll('tr').forEach(tr => tr.classList.add('avoid-break'));
+    const pieSec = clone.querySelector('#devYtdLegend');
+    if (pieSec && pieSec.parentElement) pieSec.parentElement.classList.add('avoid-break');
+
+    // IDs entfernen (keine Dubletten im DOM)
+    clone.removeAttribute('id');
+    clone.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
+    clone.style.padding = '0';
+    return clone;
+}
+
+// Gemeinsame Export-Routine (Einzel-KPI und Monthly Report)
+function _devExport(kpiList, withBoard, fileName, headerText, btn) {
     const originalText = btn.innerText;
-    
-    btn.innerText = '⏳ Generiere PDF (A4 Portrait)...';
+    btn.innerText = '⏳ Generiere PDF...';
     btn.disabled = true;
 
-    // Seite nach oben scrollen für den Snapshot
     const oldScrollY = window.scrollY;
     window.scrollTo(0, 0);
 
-    const element = document.getElementById('deviationExportArea');
+    const sel = document.getElementById('devWfKpi');
+    const origKpi = sel.value;
+    const monthStr = document.getElementById('envMonth').value;
+    const yearStr = document.getElementById('envYear').value;
+    const prevAnim = Chart.defaults.animation;
+    const prevDpr = Chart.defaults.devicePixelRatio;
+
+    const wrap = document.createElement('div');
+    // wrap bleibt unverschoben (html2pdf klont die Inline-Styles!); nur der Halter liegt außerhalb des Sichtbereichs
+    wrap.style.cssText = 'width:720px; background:#fff; color:#222; font-family:"Segoe UI",Arial,sans-serif;';
+    const holder = document.createElement('div');
+    holder.style.cssText = 'position:fixed; left:-10000px; top:0; width:720px; overflow:visible; pointer-events:none;';
+    holder.appendChild(wrap);
+
+    const restoreUi = () => {
+        window.__devExportMode = false;
+        Chart.defaults.animation = prevAnim;
+        Chart.defaults.devicePixelRatio = prevDpr;
+        sel.value = origKpi;
+        if (window.__devColStyles) {
+            const m = document.getElementById('devMtdCol'), y = document.getElementById('devYtdCol');
+            if (m) m.style.cssText = window.__devColStyles.mtd;
+            if (y) y.style.cssText = window.__devColStyles.ytd;
+            window.__devColStyles = null;
+        }
+        try { updateDeviationViews(); } catch (e) { console.error(e); }
+    };
+    const finish = () => {
+        if (holder.parentNode) holder.parentNode.removeChild(holder);
+        btn.innerText = originalText;
+        btn.disabled = false;
+        window.scrollTo(0, oldScrollY);
+    };
+
+    try {
+        window.__devExportMode = true;
+        Chart.defaults.animation = false;      // Chart sofort fertig gezeichnet
+        Chart.defaults.devicePixelRatio = 3;   // scharfe Bilder
+
+        const head = document.createElement('div');
+        head.style.cssText = 'font-size:18px; color:#003366; font-weight:bold; margin-bottom:12px; border-bottom:2px solid #003366; padding-bottom:5px;';
+        head.innerText = headerText;
+        wrap.appendChild(head);
+
+        if (withBoard) {
+            renderEnvPerformanceBoard();
+            const board = document.getElementById('envBoardTable');
+            if (board) {
+                const sec = document.createElement('div');
+                sec.className = 'avoid-break';
+                const t = document.createElement('div');
+                t.style.cssText = 'font-size:15px; font-weight:bold; color:#003366; margin:0 0 8px 0;';
+                t.innerText = `Performance Board (${monthStr} ${yearStr})`;
+                sec.appendChild(t);
+                const bc = board.cloneNode(true);
+                bc.removeAttribute('id'); bc.style.width = '100%';
+                bc.querySelectorAll('th').forEach(th => { th.style.minWidth = '0'; });
+                sec.appendChild(bc);
+                const note = document.createElement('div');
+                note.style.cssText = 'font-size:10px; color:#777; margin-top:6px;';
+                note.innerText = 'Rot = schlechter als Target, grün = erreicht. YTD volumengewichtet; Target FY = volumengewichteter BP-Wert des Gesamtjahres.';
+                sec.appendChild(note);
+                wrap.appendChild(sec);
+            }
+        }
+
+        kpiList.forEach((k, i) => {
+            const sec = document.createElement('div');
+            if (withBoard || i > 0) sec.className = 'pg-break';
+            sec.style.cssText = 'padding-top:6px;';
+            sec.appendChild(_devBuildSnapshot(k));
+            wrap.appendChild(sec);
+        });
+    } catch (err) {
+        console.error(err);
+        restoreUi();
+        finish();
+        alert('Fehler beim Erstellen des PDFs: ' + err.message);
+        return;
+    }
+    restoreUi();   // Dashboard wieder im Normalzustand (Snapshot enthält nur Bilder)
+
+    document.body.appendChild(holder);
+    const opt = {
+        margin: [0.4, 0.4, 0.4, 0.4],
+        filename: fileName,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', scrollY: 0, scrollX: 0 },
+        jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' },
+        pagebreak: { mode: ['css', 'legacy'], before: '.pg-break', avoid: ['.avoid-break'] }
+    };
+    html2pdf().set(opt).from(wrap).save().then(finish).catch(err => { console.error(err); finish(); });
+}
+
+function exportDeviationPDF() {
+    const btn = document.getElementById('btnExportPdf');
     const plant = document.getElementById('envPlant').value;
     const month = document.getElementById('envMonth').value;
     const year = document.getElementById('envYear').value;
     const kpiSelect = document.getElementById('devWfKpi');
-    const kpiName = kpiSelect.options[kpiSelect.selectedIndex].text.split(' ')[0];
-
-    const pdfHeader = document.getElementById('pdfHeader');
-    pdfHeader.innerText = `Deviation Report: ${plant} | ${kpiSelect.options[kpiSelect.selectedIndex].text} | ${month} ${year}`;
-    pdfHeader.style.display = 'block';
-
-    // Canvas zu Bildern konvertieren
-    const canvases = element.querySelectorAll('canvas');
-    const tempImages = [];
-    canvases.forEach(canvas => {
-        const img = document.createElement('img');
-        img.src = canvas.toDataURL('image/png');
-        img.style.width = '100%'; // Bild füllt Containerbreite
-        img.style.height = 'auto';
-        img.style.display = 'block';
-        
-        canvas.style.display = 'none';
-        canvas.parentNode.appendChild(img);
-        tempImages.push({img, canvas});
-    });
-
-    const opt = {
-        margin:       [0.4, 0.4, 0.4, 0.4], // Ränder oben, links, unten, rechts
-        filename:     `DeviationReport_${plant}_${kpiName}_Portrait.pdf`,
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { 
-            scale: 2, 
-            useCORS: true, 
-            backgroundColor: '#ffffff',
-            scrollY: 0,
-            scrollX: 0,
-            // TRICK: Hier zwingen wir das Layout im PDF untereinander zu sein
-            onclone: function(clonedDoc) {
-                const exportArea = clonedDoc.getElementById('deviationExportArea');
-                // Alle Flex-Container auf Spalte (untereinander) umstellen
-                const flexContainers = exportArea.querySelectorAll('div[style*="display:flex"]');
-                flexContainers.forEach(container => {
-                    container.style.flexDirection = 'column';
-                    container.style.gap = '20px';
-                });
-                
-                // Falls Trennlinien oder Rahmen im Weg sind
-                const chartsContainer = exportArea.querySelector('div[style*="gap: 20px"]');
-                if (chartsContainer) chartsContainer.style.flexDirection = 'column';
-
-                // Pie Chart Bereich anpassen
-                const pieContainer = exportArea.querySelector('div[style*="align-items: center"]');
-                if (pieContainer) pieContainer.style.flexDirection = 'column';
-            }
-        },
-        jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' } // HOCHFORMAT
-    };
-
-    html2pdf().set(opt).from(element).save().then(() => {
-        // Aufräumen
-        tempImages.forEach(item => {
-            item.img.remove();
-            item.canvas.style.display = 'block';
-        });
-        pdfHeader.style.display = 'none';
-        btn.innerText = originalText;
-        btn.disabled = false;
-        window.scrollTo(0, oldScrollY);
-    }).catch(err => {
-        console.error(err);
-        btn.innerText = originalText;
-        btn.disabled = false;
-        window.scrollTo(0, oldScrollY);
-    });
+    const kpi = kpiSelect.value;
+    const kpiLabel = kpiSelect.options[kpiSelect.selectedIndex].text;
+    const kpiName = kpiLabel.split(' ')[0];
+    _devExport([kpi], false, `DeviationReport_${plant}_${kpiName}_Portrait.pdf`,
+        `Deviation Report: ${plant} | ${kpiLabel} | ${month} ${year}`, btn);
 }
+
+function exportMonthlyReport(btn) {
+    btn = btn || document.getElementById('btnMonthlyReport');
+    const plant = document.getElementById('envPlant').value;
+    const month = document.getElementById('envMonth').value;
+    const year = document.getElementById('envYear').value;
+    _devExport(['Water Ratio', 'Energy Ratio'], true, `MonthlyReport_${plant}_${month}${year}.pdf`,
+        `Monthly Environment Report: ${plant} | ${month} ${year}`, btn);
+}
+
 // ==========================================
 // DEVIATION MODAL & LOGIC (CLEANED)
 // ==========================================
@@ -11469,7 +11922,7 @@ function renderDeviationsTable() {
         let rowHtml = `<tr style="border-bottom: 1px solid #eee; vertical-align: top;">
             <td style="padding: 8px; font-weight:bold; width: 40px;">${monthMapRev[dMonthNum] || dMonthNum}</td>
             <td style="padding: 8px; white-space: normal; word-wrap: break-word; max-width: 300px;">${reasonsHtml}</td>
-            <td style="padding: 8px; text-align:right; width: 40px;">
+            <td class="dev-edit-col" style="padding: 8px; text-align:right; width: 40px;">
                 ${editCell}
             </td>
         </tr>`;
@@ -11557,6 +12010,18 @@ function renderDeviationWaterfalls() {
     document.getElementById('wfYtdTitle').innerText = `YTD ${monthStr} ${yearStr}`;
 
     const bData = window.envWfData[kpi];
+    const expMode = !!window.__devExportMode;   // PDF-Export: größere Schrift, kurze Labels
+    // Zusammenfassung BP -> Actual über den Charts
+    const setWfSummary = (elId, o) => {
+        const el = document.getElementById(elId);
+        if (!el) return;
+        if (!o || o.bp === null || o.bp === undefined || o.act === null || o.act === undefined) { el.innerText = ''; return; }
+        const d = o.act - o.bp;
+        el.style.color = d > 0 ? '#d83b01' : '#107c41';
+        el.innerText = `BP ${o.bp.toFixed(bData.dec)} \u2192 Actual ${o.act.toFixed(bData.dec)}  (\u0394 ${d > 0 ? '+' : ''}${d.toFixed(bData.dec)})`;
+    };
+    setWfSummary('wfMtdSummary', bData.mtd);
+    setWfSummary('wfYtdSummary', bData.ytd);
     let mtdReasons = {};
     let ytdReasons = {};
 
@@ -11608,7 +12073,7 @@ function renderDeviationWaterfalls() {
     const buildWfData = (bp, act, reasonsMap, vol) => {
         if (bp === null || act === null || !vol) return { labels:[], data:[], colors:[], tooltips:[], fullText:[] };
 
-        let labels = ['Target (BP)'];
+        let labels = [expMode ? 'Target' : 'Target (BP)'];
         let fullText = ['Target (BP)']; 
         let data = [[0, bp]];
         let colors = ['#003366'];
@@ -11640,7 +12105,7 @@ function renderDeviationWaterfalls() {
 
             let unexplained = gap - explainedGapRatio;
             if (unexplained > (gap * 0.01)) { 
-                labels.push('Unexplained'); fullText.push('Unexplained Variance');
+                labels.push(expMode ? 'Unexpl.' : 'Unexplained'); fullText.push('Unexplained Variance');
                 data.push([currentVal, currentVal + unexplained]);
                 colors.push('#888'); tooltips.push(unexplained);
             }
@@ -11653,6 +12118,7 @@ function renderDeviationWaterfalls() {
 
     let mtdWf = buildWfData(bData.mtd.bp, bData.mtd.act, mtdReasons, bData.mtd.vol);
     let ytdWf = buildWfData(bData.ytd.bp, bData.ytd.act, ytdReasons, bData.ytd.vol);
+    window.__devWfLast = { mtd: mtdWf, ytd: ytdWf };
 
     const drawChart = (ctxId, wfObj) => {
         if(devWfCharts[ctxId]) devWfCharts[ctxId].destroy();
@@ -11663,7 +12129,7 @@ function renderDeviationWaterfalls() {
             data: { labels: wfObj.labels, datasets: [{ data: wfObj.data, backgroundColor: wfObj.colors, borderRadius: 3, tooltipsRaw: wfObj.tooltips }] },
             options: {
                 responsive: true, maintainAspectRatio: false,
-                layout: { padding: { top: 25, bottom: 10 } },
+                layout: { padding: { top: expMode ? 30 : 25, bottom: 10 } },
                 plugins: {
                     legend: { display: false },
                     tooltip: { 
@@ -11681,10 +12147,10 @@ function renderDeviationWaterfalls() {
                             let sign = (ctx.dataIndex !== 0 && ctx.dataIndex !== wfObj.labels.length-1 && raw > 0) ? '+' : '';
                             return sign + raw.toFixed(bData.dec);
                         },
-                        font: { weight: 'bold', size: 10 }
+                        font: { weight: 'bold', size: expMode ? 13 : 10 }
                     }
                 },
-                scales: { x: { ticks: { font: { size: 11, weight:'bold' } } }, y: { display: false, grace: '15%' } }
+                scales: { x: { ticks: { font: { size: expMode ? 12 : 11, weight:'bold' }, autoSkip: !expMode, maxRotation: expMode ? 0 : 50 } }, y: { display: false, grace: '15%' } }
             }
         });
     };
