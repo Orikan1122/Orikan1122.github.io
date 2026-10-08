@@ -9930,6 +9930,13 @@ const KPI_TO_HIST_MAPPING = {
     'waste all ttl | kg': 'Total Waste Act. [Kg]'
 };
 
+// Das KBI-Sheet wurde von "CR360" auf "NZC" umbenannt (z. B. "Total Water Consumption CR360" -> "Total Water Consumption NZC").
+// Damit künftige Umbenennungen den Sync nicht mehr brechen, werden die Tokens "cr360" und "nzc" beim Nachschlagen ignoriert.
+const _canonKpiKey = (k) => String(k).replace(/\b(cr360|nzc)\b/g, ' ').replace(/\s+/g, ' ').replace(/\s+\|/g, ' |').trim();
+const KPI_TO_HIST_MAPPING_CANON = {};
+Object.keys(KPI_TO_HIST_MAPPING).forEach(k => { KPI_TO_HIST_MAPPING_CANON[_canonKpiKey(k)] = KPI_TO_HIST_MAPPING[k]; });
+const lookupKpiMapping = (key) => KPI_TO_HIST_MAPPING[key] || KPI_TO_HIST_MAPPING_CANON[_canonKpiKey(key)];
+
 let syncDataPayload = [];
 
 function generateCompareData() {
@@ -9956,6 +9963,7 @@ function generateCompareData() {
     syncDataPayload = [];
     let html = '';
     let rowIdCounter = 0;
+    const seenTargetCells = new Set();   // Werk|Monat|Zielspalte -> nur die erste (Haupt-)Zeile zählt
 
     // Durchlaufe alle Zeilen im KPI Sheet
     globalEnvKPI.forEach(kpiRow => {
@@ -9975,7 +9983,7 @@ function generateCompareData() {
                 return; // Überspringt diese Zeile für Dietlikon und National
             }
             
-            let histColumnTarget = KPI_TO_HIST_MAPPING[mappingKey];
+            let histColumnTarget = lookupKpiMapping(mappingKey);
         
         if (histColumnTarget) {
             let actualHistCol = findActualHistColumn(histColumnTarget);
@@ -10003,6 +10011,10 @@ function generateCompareData() {
                     
                     if (kpiVal !== null && kpiVal !== undefined && kpiVal !== 0) {
                         
+                        const cellKey = currentPlant + '|' + m + '|' + actualHistCol;
+                        if (seenTargetCells.has(cellKey)) return;   // bereits durch eine frühere KBI-Zeile abgedeckt
+                        seenTargetCells.add(cellKey);
+
                         let histRow = globalEnvHist.find(h => {
                             let hLoc = String(h['Location'] || h['Scope'] || '').trim().toLowerCase();
                             let hYear = String(h['Year'] || '').trim();
@@ -10015,7 +10027,7 @@ function generateCompareData() {
                         let isNew = histVal === null;
                         
                         let diff = isNew ? kpiVal : (kpiVal - histVal);
-                        let isDiff = isNew || Math.abs(diff) >= 0.5;
+                        let isDiff = isNew || Math.abs(diff) > 0.5;
                         
                         if (!showOnlyDiffs || isDiff) {
                             
