@@ -42,6 +42,10 @@ async function handleFileSelect(event) {
                 canvas.height = viewport.height;
                 canvas.width = viewport.width;
 
+                // JPEG has no alpha channel: paint white first so transparent pages don't turn black
+                context.fillStyle = '#ffffff';
+                context.fillRect(0, 0, canvas.width, canvas.height);
+
                 const renderContext = {
                     canvasContext: context,
                     viewport: viewport
@@ -78,4 +82,4 @@ function createOutput(dataUrl, pageNum) {
     outputItem.appendChild(img);
     outputItem.appendChild(downloadLink);
     outputContainer.appendChild(outputItem);
-}
+}

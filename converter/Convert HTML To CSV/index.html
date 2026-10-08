@@ -243,12 +243,19 @@
         }
 
         /**
+         * Quotes a CSV cell and escapes embedded double quotes.
+         */
+        function csvCell(value) {
+            return `"${String(value).replace(/"/g, '""')}"`;
+        }
+
+        /**
          * Generates CSV content directly from the parsed data.
          */
         function generateDirectCSV() {
-            const headerString = parsedHeaders.map(h => `"${h}"`).join(',');
+            const headerString = parsedHeaders.map(csvCell).join(',');
             const rowsString = parsedData.map(row => 
-                row.map(cell => `"${cell}"`).join(',')
+                row.map(csvCell).join(',')
             ).join('\n');
 
             return `${headerString}\n${rowsString}`;
@@ -311,10 +318,10 @@
 
             // Create CSV string from aggregated results
             const headers = ['Datum', 'Scheinenergie (kVAh/Tag)', 'Wirkenergie (kWh/Tag)', 'Blindenergie (kVARh/Tag)'];
-            const headerString = headers.map(h => `"${h}"`).join(',');
+            const headerString = headers.map(csvCell).join(',');
             
             const rowsString = aggregatedResults.map(res => 
-                `"${res.date}","${res.kVAh_daily}","${res.kWh_daily}","${res.kVARh_daily}"`
+                [res.date, res.kVAh_daily, res.kWh_daily, res.kVARh_daily].map(csvCell).join(',')
             ).join('\n');
             
             return `${headerString}\n${rowsString}`;
@@ -340,4 +347,4 @@
         }
     </script>
 </body>
-</html>
+</html>

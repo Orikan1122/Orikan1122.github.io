@@ -92,9 +92,28 @@
 
     function processMhtml(text) {
         // 1. Decode Quoted-Printable symbols (=3D, soft breaks)
-        const cleanHtml = text
-            .replace(/=\r?\n/g, "") // remove soft line breaks
-            .replace(/=[0-9A-F]{2}/gi, match => String.fromCharCode(parseInt(match.slice(1), 16)));
+        // Collect the raw bytes first, then decode them as UTF-8 so multi-byte characters (ä, ö, ü, €) survive
+        const encoder = new TextEncoder();
+        const chunks = [];
+        let last = 0;
+        const qp = /=([0-9A-F]{2})/gi;
+        const unfolded = text.replace(/=\r?\n/g, ""); // remove soft line breaks
+        let m;
+        while ((m = qp.exec(unfolded)) !== null) {
+            chunks.push(encoder.encode(unfolded.slice(last, m.index)));
+            chunks.push(Uint8Array.of(parseInt(m[1], 16)));
+            last = qp.lastIndex;
+        }
+        chunks.push(encoder.encode(unfolded.slice(last)));
+        const bytes = new Uint8Array(chunks.reduce((n, c) => n + c.length, 0));
+        let off = 0;
+        for (const c of chunks) { bytes.set(c, off); off += c.length; }
+        let cleanHtml;
+        try {
+            cleanHtml = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+        } catch (e) {
+            cleanHtml = new TextDecoder('windows-1252').decode(bytes); // legacy exports
+        }
         
         // 2. Extract tables
         const parser = new DOMParser();
@@ -147,4 +166,4 @@
 </script>
 
 </body>
-</html>
+</html>
