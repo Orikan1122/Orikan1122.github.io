@@ -383,3 +383,36 @@ body.st-pdf #output {
 body.st-pdf #recreatedTables table { background: var(--st-surface); box-shadow: var(--st-shadow); border-radius: var(--st-radius); }
 body.st-pdf #recreatedTables th, body.st-pdf #recreatedTables td { border-color: var(--st-border); }
 body.st-pdf #recreatedTables th { background: var(--st-surface-2); }
+
+/* ---------- Auto-Save-Hinweis & Einbettung im Studio ---------- */
+.st-save-status {
+    position: fixed;
+    left: 16px;
+    bottom: 16px;
+    z-index: 2147483000;
+    padding: 6px 12px;
+    background: var(--st-surface);
+    color: var(--st-muted);
+    border: 1px solid var(--st-border);
+    border-radius: 999px;
+    box-shadow: var(--st-shadow);
+    font: 600 12px/1.2 var(--st-font);
+    opacity: 0;
+    transform: translateY(6px);
+    pointer-events: none;
+    transition: opacity .2s ease, transform .2s ease;
+}
+.st-save-status.show { opacity: 1; transform: none; }
+.st-save-status.st-save-error { color: #fff; background: var(--st-danger); border-color: transparent; }
+@media print { .st-save-status { display: none !important; } }
+
+/* Im Studio eingebettet: eigene Navigation und Kopfzeilen weglassen */
+html.st-embedded .st-dock { display: none !important; }
+html.st-embedded body.st-risk { padding: 12px; }
+html.st-embedded body.st-risk .container { box-shadow: none; border: 0; }
+html.st-embedded body.st-risk header { display: none; }
+html.st-embedded body.st-swot { padding: 12px; }
+html.st-embedded body.st-swot h1 { display: none; }
+html.st-embedded body.st-flow .app-header h1 { display: none; }
+html.st-embedded body.st-pdf { padding: 12px; max-width: none; }
+html.st-embedded body.st-pdf h1 { display: none; }

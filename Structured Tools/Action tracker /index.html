@@ -92,6 +92,7 @@
     </style>
     <link rel="stylesheet" href="../shared/theme.css">
     <script src="../shared/theme.js"></script>
+    <script src="../shared/bridge.js"></script>
 </head>
 <body class="st st-actions">
 
@@ -295,6 +296,7 @@
             let ratingZones = [];
             let axisLabels = {};
             let pointHitRegions = []; // Transient, calculated on draw
+            let lastHoveredPointIds = []; // IDs der aktuell hervorgehobenen Punkte (war nicht deklariert)
             let pointFilterIds = null; // Stores IDs of ideas to show when a point is clicked, or null
 
             // --- LOCAL STORAGE & DATA HANDLING ---
@@ -895,6 +897,26 @@
             refreshUI(); // Initial full UI setup based on loaded/default data
             resizeCanvas(); // Ensure correct canvas size on load
             window.addEventListener('resize', resizeCanvas); // Handle browser window resize
+
+            // --- Bridge (Studio-Anbindung); das Tool speichert bereits selbst in localStorage ---
+            STBridge.init({
+                tool: 'actions',
+                persist: false,
+                getState: () => ({ axisLabels, categories, ideas, ratingZones }),
+                setState: (s) => {
+                    if (!s || typeof s !== 'object') return;
+                    axisLabels = s.axisLabels || { ...defaultAxisLabels };
+                    categories = s.categories || [...defaultCategories];
+                    ideas = s.ideas || [...defaultIdeas];
+                    ratingZones = s.ratingZones || [...defaultRatingZones];
+                    sanitizeLoadedData();
+                    pointFilterIds = null;
+                    saveData();
+                    refreshUI();
+                    resizeCanvas();
+                },
+                getSnapshot: async () => ({ matrix: STBridge.canvasToPng(canvas, '#ffffff') })
+            });
         });
     </script>
 

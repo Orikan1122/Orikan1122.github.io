@@ -10,7 +10,33 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('export-btn').addEventListener('click', exportToJson);
 
     addProcessStep();
+
+    // Auto-Save und Studio-Anbindung (shared/bridge.js)
+    STBridge.init({
+        tool: 'risk',
+        persist: true,
+        getState: collectFullState,
+        setState: restoreState,
+        getSnapshot: async () => ({
+            impactEffort: impactEffortChart ? STBridge.canvasToPng(impactEffortChart.canvas, '#ffffff') : null
+        })
+    });
 });
+
+// Stellt einen gespeicherten Zustand wieder her. Schritt-IDs werden neu durchnummeriert,
+// damit Massnahmen den richtigen Feldern zugeordnet werden, auch wenn Schritte gelöscht wurden.
+function restoreState(state) {
+    if (!state || !Array.isArray(state.steps)) return;
+    state.steps.forEach((step, i) => { step.id = String(i + 1); });
+    const realScrollTo = window.scrollTo;
+    window.scrollTo = () => {};
+    try {
+        rebuildState(state);
+        if (!document.querySelector('.process-step-item')) addProcessStep();
+    } finally {
+        window.scrollTo = realScrollTo;
+    }
+}
 
 function exportToJson() {
     const state = collectFullState();

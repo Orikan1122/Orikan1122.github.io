@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Problem Solving Studio</title>
+    <meta name="description" content="Strukturierte Problemlösung in einem Tool: Problem, Ursachen, SWOT, Risiken, Maßnahmen und Report mit KI-Anleitung.">
+    <script>try { var t = localStorage.getItem('st-theme'); if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t); } catch (e) {}</script>
+    <link rel="stylesheet" href="../shared/theme.css">
+    <link rel="stylesheet" href="studio.css">
+</head>
+<body class="studio">
+    <div class="app" id="app">
+        <header class="topbar">
+            <button type="button" class="icon-btn only-mobile" id="navToggle" aria-label="Navigation öffnen"></button>
+            <a class="brand" href="../../index.html" title="Zur Übersicht aller Tools">
+                <svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="var(--st-accent)"/><path d="M9 17.5l4.5 4.5L23 10.5" fill="none" stroke="var(--st-on-accent)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span class="brand-t">Problem Solving Studio</span>
+            </a>
+            <div class="proj">
+                <button type="button" class="btn ghost sm" id="projectBtn"></button>
+                <input type="text" id="projectName" class="name-input" aria-label="Projektname" maxlength="80" spellcheck="false">
+            </div>
+            <span class="save-state" id="saveState" role="status" aria-live="polite"></span>
+            <span class="spacer"></span>
+            <button type="button" class="btn primary sm" id="exportTop"></button>
+            <button type="button" class="icon-btn" id="themeBtn"></button>
+        </header>
+
+        <nav class="sidebar" id="nav" aria-label="Module"></nav>
+        <div class="scrim" id="navScrim"></div>
+
+        <main class="main">
+            <div class="view-head" id="viewHead"></div>
+            <div class="viewport">
+                <div class="frame-stack" id="frameStack"></div>
+                <div class="native" id="native"></div>
+            </div>
+        </main>
+    </div>
+    <div id="dialog"></div>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <script src="guide.js"></script>
+    <script src="core.js"></script>
+    <script src="views.js"></script>
+    <script src="report.js"></script>
+    <script src="ai.js"></script>
+    <script>
+        // Report-Styles auch in der Vorschau verwenden
+        (function () {
+            var s = document.createElement('style');
+            s.id = 'reportCss';
+            s.textContent = PS.REPORT_CSS;
+            document.head.appendChild(s);
+        })();
+    </script>
+    <script src="app.js"></script>
+</body>
+</html>

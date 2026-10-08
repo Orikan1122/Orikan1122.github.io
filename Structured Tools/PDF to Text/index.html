@@ -35,6 +35,7 @@
     </style>
     <link rel="stylesheet" href="../shared/theme.css">
     <script src="../shared/theme.js"></script>
+    <script src="../shared/bridge.js"></script>
 </head>
 <body class="st st-pdf">
     <h1>PDF Text and Table Extractor</h1>
@@ -60,6 +61,7 @@
             }
 
             const file = fileInput.files[0];
+            window.lastPdfName = file.name;
             const reader = new FileReader();
 
             reader.onload = async function(e) {
@@ -199,6 +201,30 @@
                 container.textContent = 'No tables were detected in the document.';
             }
         }
+    </script>
+    <script>
+        // Auto-Save und Studio-Anbindung (shared/bridge.js)
+        STBridge.init({
+            tool: 'pdf',
+            persist: true,
+            getState: function () {
+                var raw = document.getElementById('output').textContent;
+                if (!raw) return { fileName: '', data: null };
+                try { return { fileName: window.lastPdfName || '', data: JSON.parse(raw) }; }
+                catch (e) { return { fileName: '', data: null }; }
+            },
+            setState: function (s) {
+                if (!s || !s.data) {
+                    window.lastPdfName = '';
+                    document.getElementById('output').textContent = '';
+                    document.getElementById('recreatedTables').innerHTML = '';
+                    return;
+                }
+                window.lastPdfName = s.fileName || '';
+                document.getElementById('output').textContent = JSON.stringify(s.data, null, 2);
+                renderTables(s.data.pages || []);
+            }
+        });
     </script>
 </body>
 </html>
