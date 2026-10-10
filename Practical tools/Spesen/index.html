@@ -125,6 +125,16 @@
         <input type="file" id="imFile" accept=".json" class="hidden" />
       </div>
     </div>
+    <div class="card noprint">
+      <h2>☁️ Google Drive (Apps Script)</h2>
+      <label>Web-App-URL</label><input id="gUrl" placeholder="https://script.google.com/macros/s/…/exec" />
+      <label>Token</label><input id="gToken" type="password" />
+      <div class="bar">
+        <button class="btn" id="gSave">In Drive speichern</button>
+        <button class="btn sec" id="gLoad">Aus Drive laden</button>
+      </div>
+      <div class="muted" id="gMsg"></div>
+    </div>
     <div class="card"><div class="sum" id="sums"></div></div>
     <div class="card" id="listBox"></div>
   </section>
@@ -152,6 +162,7 @@ const tx = (mode, fn) => new Promise((res, rej) => {
 const dbAll = () => tx('readonly', s => s.getAll());
 const dbAdd = o => tx('readwrite', s => s.add(o));
 const dbDel = id => tx('readwrite', s => s.delete(id));
+const dbReplace = arr => tx('readwrite', s => { s.clear(); arr.forEach(o => s.put(o)); });
 const dbClearPut = arr => tx('readwrite', s => { arr.forEach(o => s.put(o)); });
 
 /* ---------- Tabs ---------- */
@@ -314,6 +325,37 @@ $('imFile').onchange = async e => {
     render(); alert(arr.length + ' Einträge importiert.');
   } catch { alert('Ungültige Backup-Datei.'); }
   e.target.value = '';
+};
+
+/* ---------- Google Drive ---------- */
+const gSet = (k, el) => { el.value = localStorage.getItem(k) || ''; el.onchange = () => localStorage.setItem(k, el.value.trim()); };
+gSet('spesen_gurl', $('gUrl')); gSet('spesen_gtoken', $('gToken'));
+const gCfg = () => {
+  const url = $('gUrl').value.trim(), token = $('gToken').value.trim();
+  if (!url || !token) { $('gMsg').textContent = 'Bitte URL und Token eintragen.'; return null; }
+  return { url, token };
+};
+$('gSave').onclick = async () => {
+  const c = gCfg(); if (!c) return;
+  $('gMsg').textContent = 'Speichere…';
+  try {
+    // text/plain vermeidet den CORS-Preflight, den Apps Script nicht beantwortet
+    const r = await fetch(c.url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ token: c.token, items: await dbAll() }) });
+    const j = await r.json();
+    $('gMsg').textContent = j.ok ? `✓ ${j.count} Einträge in Drive gespeichert (${new Date().toLocaleTimeString()})` : 'Fehler: ' + j.error;
+  } catch (e) { $('gMsg').textContent = 'Fehler: ' + e.message; }
+};
+$('gLoad').onclick = async () => {
+  const c = gCfg(); if (!c) return;
+  if (!confirm('Lokale Daten durch die Version aus Drive ersetzen?')) return;
+  $('gMsg').textContent = 'Lade…';
+  try {
+    const j = await (await fetch(c.url + '?token=' + encodeURIComponent(c.token))).json();
+    if (!j.ok) throw new Error(j.error);
+    await dbReplace(j.items); render();
+    $('gMsg').textContent = `✓ ${j.items.length} Einträge aus Drive geladen`;
+  } catch (e) { $('gMsg').textContent = 'Fehler: ' + e.message; }
 };
 
 dbReady.then(render);
