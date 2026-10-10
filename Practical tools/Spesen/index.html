@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Spesen</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<style>
+  :root { --bg:#f6f8fa; --card:#fff; --fg:#24292e; --mut:#586069; --bd:#d1d5da; --ac:#2ea44f; --ac2:#2c974b; --red:#cb2431; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; background:var(--bg); color:var(--fg); }
+  header { padding:1rem; text-align:center; }
+  h1 { margin:0; font-size:1.5rem; }
+  main { max-width:900px; margin:0 auto; padding:0 1rem 3rem; }
+  nav { display:flex; gap:.5rem; margin-bottom:1rem; }
+  nav button { flex:1; padding:.7rem; border:1px solid var(--bd); background:var(--card); border-radius:6px; font-size:1rem; cursor:pointer; }
+  nav button.active { background:var(--ac); color:#fff; border-color:var(--ac); }
+  .card { background:var(--card); border:1px solid var(--bd); border-radius:6px; padding:1rem; margin-bottom:1rem; box-shadow:0 1px 3px rgba(0,0,0,.05); }
+  .card h2 { margin:0 0 .75rem; font-size:1.1rem; }
+  label { display:block; font-size:.85rem; color:var(--mut); margin:.6rem 0 .2rem; }
+  input, select, textarea { width:100%; padding:.55rem; border:1px solid var(--bd); border-radius:6px; font-size:1rem; font-family:inherit; }
+  .row { display:grid; grid-template-columns:1fr 1fr; gap:.75rem; }
+  button.btn { padding:.65rem 1rem; border:0; border-radius:6px; background:var(--ac); color:#fff; font-size:1rem; cursor:pointer; margin-top:.8rem; }
+  button.btn:hover { background:var(--ac2); }
+  button.btn.sec { background:#e1e4e8; color:var(--fg); }
+  button.btn.red { background:var(--red); }
+  .hidden { display:none !important; }
+  #map { height:320px; border-radius:6px; margin-top:.75rem; border:1px solid var(--bd); }
+  .big { font-size:2rem; font-weight:600; text-align:center; margin:.5rem 0; }
+  .item { display:flex; gap:.75rem; align-items:center; padding:.6rem 0; border-top:1px solid #eaecef; }
+  .item:first-child { border-top:0; }
+  .item img { width:52px; height:52px; object-fit:cover; border-radius:4px; cursor:pointer; flex:none; }
+  .item .ico { width:52px; height:52px; display:flex; align-items:center; justify-content:center; font-size:1.6rem; background:#f1f3f5; border-radius:4px; flex:none; }
+  .item .main { flex:1; min-width:0; }
+  .item .sub { color:var(--mut); font-size:.85rem; }
+  .item .amt { font-weight:600; white-space:nowrap; }
+  .item .x { background:none; border:0; color:var(--red); font-size:1.2rem; cursor:pointer; }
+  .sum { display:flex; justify-content:space-between; flex-wrap:wrap; gap:.5rem; font-weight:600; }
+  .bar { display:flex; gap:.5rem; flex-wrap:wrap; }
+  .muted { color:var(--mut); font-size:.85rem; }
+  #lightbox { position:fixed; inset:0; background:rgba(0,0,0,.85); display:flex; align-items:center; justify-content:center; z-index:9999; }
+  #lightbox img { max-width:95%; max-height:95%; }
+  @media print {
+    body { background:#fff; } header, nav, .noprint { display:none !important; }
+    .card { box-shadow:none; break-inside:avoid; } .item img { width:90px; height:90px; }
+  }
+</style>
+</head>
+<body>
+<header><h1>🧾 Spesen</h1><div class="muted">Quittungen &amp; Fahrten – Daten bleiben lokal in diesem Browser</div></header>
+<main>
+  <nav>
+    <button data-tab="trip" class="active">🚗 Fahrt</button>
+    <button data-tab="receipt">🧾 Quittung</button>
+    <button data-tab="list">📋 Übersicht</button>
+  </nav>
+
+  <!-- FAHRT -->
+  <section id="tab-trip">
+    <div class="card">
+      <h2>Fahrt aufzeichnen (GPS)</h2>
+      <div class="big"><span id="liveKm">0.00</span> km</div>
+      <div class="muted" style="text-align:center" id="liveInfo">Bereit</div>
+      <div class="bar" style="justify-content:center">
+        <button class="btn" id="startBtn">▶ Start</button>
+        <button class="btn red hidden" id="stopBtn">■ Stopp</button>
+      </div>
+      <p class="muted">Bildschirm muss während der Aufzeichnung an bleiben (wird, wenn möglich, automatisch gehalten). Die Genauigkeit hängt vom GPS ab.</p>
+      <div id="map"></div>
+    </div>
+
+    <div class="card">
+      <h2>Fahrt speichern / manuell erfassen</h2>
+      <div class="row">
+        <div><label>Datum</label><input type="date" id="tDate" /></div>
+        <div><label>Distanz (km)</label><input type="number" step="0.01" min="0" id="tKm" /></div>
+      </div>
+      <div class="row">
+        <div><label>Von</label><input id="tFrom" placeholder="Start" /></div>
+        <div><label>Nach</label><input id="tTo" placeholder="Ziel" /></div>
+      </div>
+      <div class="row">
+        <div><label>Zweck</label><input id="tPurpose" placeholder="z. B. Kundenbesuch" /></div>
+        <div><label>Satz pro km</label><input type="number" step="0.01" min="0" id="tRate" /></div>
+      </div>
+      <button class="btn" id="saveTrip">Fahrt speichern</button>
+      <button class="btn sec" id="openMaps">Route in Google Maps planen</button>
+    </div>
+  </section>
+
+  <!-- QUITTUNG -->
+  <section id="tab-receipt" class="hidden">
+    <div class="card">
+      <h2>Quittung erfassen</h2>
+      <label>Foto / Scan</label>
+      <input type="file" id="rImg" accept="image/*" capture="environment" />
+      <img id="rPrev" class="hidden" style="max-width:100%;max-height:260px;margin-top:.5rem;border-radius:6px" />
+      <div class="row">
+        <div><label>Datum</label><input type="date" id="rDate" /></div>
+        <div><label>Betrag</label><input type="number" step="0.01" min="0" id="rAmt" /></div>
+      </div>
+      <div class="row">
+        <div><label>Währung</label>
+          <select id="rCur"><option>CHF</option><option>EUR</option><option>USD</option><option>GBP</option></select></div>
+        <div><label>Kategorie</label>
+          <select id="rCat"><option>Essen</option><option>Übernachtung</option><option>Transport</option><option>Parkplatz</option><option>Treibstoff</option><option>Material</option><option>Sonstiges</option></select></div>
+      </div>
+      <label>Händler / Notiz</label><input id="rNote" placeholder="z. B. Restaurant Alpina, Kundenessen" />
+      <button class="btn" id="saveReceipt">Quittung speichern</button>
+    </div>
+  </section>
+
+  <!-- ÜBERSICHT -->
+  <section id="tab-list" class="hidden">
+    <div class="card noprint">
+      <div class="row">
+        <div><label>Von</label><input type="date" id="fFrom" /></div>
+        <div><label>Bis</label><input type="date" id="fTo" /></div>
+      </div>
+      <div class="bar">
+        <button class="btn" id="exCsv">CSV</button>
+        <button class="btn" id="exPrint">Bericht drucken / PDF</button>
+        <button class="btn sec" id="exJson">Backup</button>
+        <button class="btn sec" id="imJson">Import</button>
+        <input type="file" id="imFile" accept=".json" class="hidden" />
+      </div>
+    </div>
+    <div class="card"><div class="sum" id="sums"></div></div>
+    <div class="card" id="listBox"></div>
+  </section>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const today = () => new Date().toISOString().slice(0,10);
+const fmt = n => (Math.round(n*100)/100).toFixed(2);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* ---------- IndexedDB ---------- */
+let db;
+const dbReady = new Promise((res, rej) => {
+  const r = indexedDB.open('spesen', 1);
+  r.onupgradeneeded = () => r.result.createObjectStore('items', { keyPath: 'id', autoIncrement: true });
+  r.onsuccess = () => { db = r.result; res(); };
+  r.onerror = () => rej(r.error);
+});
+const tx = (mode, fn) => new Promise((res, rej) => {
+  const t = db.transaction('items', mode), s = t.objectStore('items'), rq = fn(s);
+  t.oncomplete = () => res(rq && rq.result); t.onerror = () => rej(t.error);
+});
+const dbAll = () => tx('readonly', s => s.getAll());
+const dbAdd = o => tx('readwrite', s => s.add(o));
+const dbDel = id => tx('readwrite', s => s.delete(id));
+const dbClearPut = arr => tx('readwrite', s => { arr.forEach(o => s.put(o)); });
+
+/* ---------- Tabs ---------- */
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('nav button').forEach(x => x.classList.toggle('active', x === b));
+  ['trip','receipt','list'].forEach(t => $('tab-'+t).classList.toggle('hidden', t !== b.dataset.tab));
+  if (b.dataset.tab === 'trip') setTimeout(() => map.invalidateSize(), 50);
+  if (b.dataset.tab === 'list') render();
+});
+
+/* ---------- Karte & GPS ---------- */
+const map = L.map('map').setView([46.77, 9.2], 9);
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map);
+const line = L.polyline([], { color: '#2ea44f', weight: 5 }).addTo(map);
+let marker = null, watchId = null, pts = [], dist = 0, wakeLock = null, startTime = 0;
+
+const hav = (a, b) => {
+  const R = 6371, rad = Math.PI/180;
+  const dLat = (b.lat-a.lat)*rad, dLng = (b.lng-a.lng)*rad;
+  const h = Math.sin(dLat/2)**2 + Math.cos(a.lat*rad)*Math.cos(b.lat*rad)*Math.sin(dLng/2)**2;
+  return 2*R*Math.asin(Math.sqrt(h));
+};
+const rate = () => parseFloat(localStorage.getItem('spesen_rate') || '0.70');
+$('tRate').value = rate(); $('tRate').onchange = () => localStorage.setItem('spesen_rate', $('tRate').value);
+$('tDate').value = today(); $('rDate').value = today();
+
+function onPos(p) {
+  if (p.coords.accuracy > 50) { $('liveInfo').textContent = 'Warte auf genaues GPS (±' + Math.round(p.coords.accuracy) + ' m)…'; return; }
+  const pt = { lat: p.coords.latitude, lng: p.coords.longitude, t: p.timestamp };
+  const last = pts[pts.length-1];
+  if (last) { const d = hav(last, pt); if (d < 0.01) return; dist += d; }   // <10 m ignorieren
+  pts.push(pt);
+  line.addLatLng([pt.lat, pt.lng]);
+  if (!marker) marker = L.circleMarker([pt.lat, pt.lng], { radius: 8, color: '#0366d6' }).addTo(map);
+  marker.setLatLng([pt.lat, pt.lng]);
+  map.setView([pt.lat, pt.lng], Math.max(map.getZoom(), 15));
+  $('liveKm').textContent = fmt(dist);
+  const min = Math.round((Date.now()-startTime)/60000);
+  $('liveInfo').textContent = 'Aufzeichnung läuft · ' + min + ' min · ±' + Math.round(p.coords.accuracy) + ' m';
+}
+$('startBtn').onclick = async () => {
+  if (!navigator.geolocation) return alert('Geolocation wird nicht unterstützt.');
+  pts = []; dist = 0; line.setLatLngs([]); startTime = Date.now();
+  $('liveKm').textContent = '0.00';
+  watchId = navigator.geolocation.watchPosition(onPos, e => $('liveInfo').textContent = 'GPS-Fehler: ' + e.message,
+    { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 });
+  try { wakeLock = await navigator.wakeLock?.request('screen'); } catch {}
+  $('startBtn').classList.add('hidden'); $('stopBtn').classList.remove('hidden');
+  $('liveInfo').textContent = 'Suche GPS…';
+};
+$('stopBtn').onclick = () => {
+  navigator.geolocation.clearWatch(watchId); watchId = null;
+  try { wakeLock?.release(); } catch {}
+  $('stopBtn').classList.add('hidden'); $('startBtn').classList.remove('hidden');
+  $('liveInfo').textContent = 'Gestoppt – bitte unten speichern';
+  $('tKm').value = fmt(dist); $('tDate').value = today();
+  if (pts.length > 1) map.fitBounds(line.getBounds(), { padding: [20,20] });
+};
+document.addEventListener('visibilitychange', async () => {
+  if (watchId !== null && document.visibilityState === 'visible') { try { wakeLock = await navigator.wakeLock?.request('screen'); } catch {} }
+});
+$('saveTrip').onclick = async () => {
+  const km = parseFloat($('tKm').value);
+  if (!(km > 0)) return alert('Bitte Distanz angeben oder Fahrt aufzeichnen.');
+  const r = parseFloat($('tRate').value) || 0;
+  // Route auf max. ~300 Punkte reduzieren
+  const step = Math.max(1, Math.ceil(pts.length/300));
+  const route = pts.filter((_, i) => i % step === 0).map(p => [+p.lat.toFixed(5), +p.lng.toFixed(5)]);
+  await dbAdd({ type: 'trip', date: $('tDate').value || today(), km, rate: r, amount: +(km*r).toFixed(2), cur: 'CHF',
+    from: $('tFrom').value, to: $('tTo').value, note: $('tPurpose').value, route, created: Date.now() });
+  $('tKm').value = ''; $('tFrom').value = ''; $('tTo').value = ''; $('tPurpose').value = '';
+  pts = []; dist = 0; line.setLatLngs([]); $('liveKm').textContent = '0.00'; $('liveInfo').textContent = 'Gespeichert ✓';
+};
+$('openMaps').onclick = () => {
+  const o = encodeURIComponent($('tFrom').value), d = encodeURIComponent($('tTo').value);
+  if (!o || !d) return alert('Bitte Von und Nach ausfüllen.');
+  window.open(`https://www.google.com/maps/dir/?api=1&origin=${o}&destination=${d}&travelmode=driving`, '_blank');
+};
+
+/* ---------- Quittungen ---------- */
+let rImgData = '';
+const shrink = file => new Promise(res => {
+  const img = new Image(), url = URL.createObjectURL(file);
+  img.onload = () => {
+    const s = Math.min(1, 1400/Math.max(img.width, img.height)), c = document.createElement('canvas');
+    c.width = img.width*s; c.height = img.height*s;
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    URL.revokeObjectURL(url); res(c.toDataURL('image/jpeg', .8));
+  };
+  img.src = url;
+});
+$('rImg').onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  rImgData = await shrink(f); $('rPrev').src = rImgData; $('rPrev').classList.remove('hidden');
+};
+$('saveReceipt').onclick = async () => {
+  const a = parseFloat($('rAmt').value);
+  if (!(a > 0)) return alert('Bitte Betrag angeben.');
+  await dbAdd({ type: 'receipt', date: $('rDate').value || today(), amount: a, cur: $('rCur').value,
+    cat: $('rCat').value, note: $('rNote').value, img: rImgData, created: Date.now() });
+  rImgData = ''; $('rImg').value = ''; $('rPrev').classList.add('hidden');
+  $('rAmt').value = ''; $('rNote').value = '';
+  alert('Quittung gespeichert ✓');
+};
+
+/* ---------- Übersicht ---------- */
+async function filtered() {
+  const f = $('fFrom').value, t = $('fTo').value;
+  return (await dbAll()).filter(o => (!f || o.date >= f) && (!t || o.date <= t))
+    .sort((a, b) => b.date.localeCompare(a.date) || b.created - a.created);
+}
+const totals = items => {
+  const by = {}; let km = 0;
+  items.forEach(o => { by[o.cur] = (by[o.cur] || 0) + o.amount; if (o.type === 'trip') km += o.km; });
+  return { by, km };
+};
+async function render() {
+  const items = await filtered(), { by, km } = totals(items);
+  $('sums').innerHTML = `<span>${items.length} Einträge</span><span>${fmt(km)} km</span>` +
+    Object.entries(by).map(([c, v]) => `<span>${c} ${fmt(v)}</span>`).join('');
+  $('listBox').innerHTML = items.length ? items.map(o => `
+    <div class="item">
+      ${o.type === 'receipt' ? (o.img ? `<img src="${o.img}" data-id="${o.id}" />` : '<div class="ico">🧾</div>') : '<div class="ico">🚗</div>'}
+      <div class="main">
+        <div>${o.type === 'receipt' ? esc(o.cat) : esc((o.from || '?') + ' → ' + (o.to || '?'))}</div>
+        <div class="sub">${esc(o.date)}${o.type === 'trip' ? ' · ' + fmt(o.km) + ' km × ' + fmt(o.rate) : ''}${o.note ? ' · ' + esc(o.note) : ''}</div>
+      </div>
+      <div class="amt">${esc(o.cur)} ${fmt(o.amount)}</div>
+      <button class="x noprint" data-del="${o.id}" title="Löschen">✕</button>
+    </div>`).join('') : '<p class="muted">Keine Einträge.</p>';
+}
+$('listBox').onclick = async e => {
+  if (e.target.dataset.del && confirm('Eintrag löschen?')) { await dbDel(+e.target.dataset.del); render(); }
+  if (e.target.tagName === 'IMG') {
+    const lb = document.createElement('div'); lb.id = 'lightbox'; lb.innerHTML = `<img src="${e.target.src}">`;
+    lb.onclick = () => lb.remove(); document.body.appendChild(lb);
+  }
+};
+$('fFrom').onchange = $('fTo').onchange = render;
+
+const download = (name, text, type) => {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; a.click();
+};
+$('exCsv').onclick = async () => {
+  const q = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+  const rows = [['Datum','Typ','Kategorie','Von','Nach','km','Satz','Betrag','Währung','Notiz']];
+  (await filtered()).reverse().forEach(o => rows.push([o.date, o.type === 'trip' ? 'Fahrt' : 'Quittung',
+    o.cat || '', o.from || '', o.to || '', o.km ?? '', o.rate ?? '', o.amount, o.cur, o.note || '']));
+  download('spesen_' + today() + '.csv', '﻿' + rows.map(r => r.map(q).join(';')).join('\n'), 'text/csv;charset=utf-8');
+};
+$('exPrint').onclick = () => { render().then(() => window.print()); };
+$('exJson').onclick = async () => download('spesen_backup_' + today() + '.json', JSON.stringify(await dbAll()), 'application/json');
+$('imJson').onclick = () => $('imFile').click();
+$('imFile').onchange = async e => {
+  try {
+    const arr = JSON.parse(await e.target.files[0].text());
+    if (!Array.isArray(arr)) throw 0;
+    await dbClearPut(arr.map(o => { const c = { ...o }; delete c.id; return c; }));
+    render(); alert(arr.length + ' Einträge importiert.');
+  } catch { alert('Ungültige Backup-Datei.'); }
+  e.target.value = '';
+};
+
+dbReady.then(render);
+</script>
+</body>
+</html>
