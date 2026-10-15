@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PDF Markieren</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+<style>
+  :root { --primary:#0969da; --primary-hover:#0756b3; --danger:#d1242f; --secondary:#57606a; --panel:#fff; --page:#eef1f4; --border:#d0d7de; --text:#24292f; --muted:#57606a; }
+  * { box-sizing:border-box; }
+  body { margin:0; padding:20px; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; color:var(--text); background:var(--page); }
+  h1 { margin:0 0 6px; text-align:center; }
+  .subtitle { margin:0 0 18px; text-align:center; color:var(--muted); }
+  .app { width:min(1200px,100%); margin:0 auto; }
+  .panel { background:var(--panel); border:1px solid var(--border); border-radius:12px; box-shadow:0 6px 20px rgba(31,35,40,.08); padding:12px; margin-bottom:14px; }
+  .bar { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  .bar .sep { height:26px; border-left:1px solid var(--border); }
+  .btn { padding:8px 12px; border:0; border-radius:7px; background:var(--primary); color:#fff; font:inherit; font-weight:700; cursor:pointer; }
+  .btn:hover:not(:disabled) { background:var(--primary-hover); }
+  .btn.secondary { background:var(--secondary); }
+  .btn.danger { background:var(--danger); }
+  .btn:disabled { opacity:.42; cursor:not-allowed; }
+  label.opt { display:flex; align-items:center; gap:6px; font-size:13px; color:var(--muted); }
+  input[type=number] { width:60px; padding:6px; border:1px solid var(--border); border-radius:6px; font:inherit; }
+  #drop { border:2px dashed var(--border); border-radius:10px; padding:28px; text-align:center; color:var(--muted); cursor:pointer; background:#fafbfc; }
+  #drop.dragover { border-color:var(--primary); background:#eef6ff; }
+  #stage { overflow:auto; background:#dde2e6; border-radius:10px; padding:16px; text-align:center; }
+  #wrap { position:relative; display:inline-block; box-shadow:0 7px 25px rgba(0,0,0,.2); background:#fff; line-height:0; }
+  #pdfCanvas { display:block; max-width:none; }
+  #overlay { position:absolute; inset:0; width:100%; height:100%; cursor:crosshair; touch-action:none; }
+  .hint { font-size:13px; color:var(--muted); }
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>PDF Markieren</h1>
+  <p class="subtitle">PDF hochladen, Bereiche mit der Maus oder dem Finger rot einrahmen und als neues PDF speichern. Alles läuft lokal im Browser.</p>
+
+  <div class="panel" id="dropPanel">
+    <div id="drop">PDF hier ablegen oder klicken, um eine Datei auszuwählen<input id="file" type="file" accept="application/pdf" hidden></div>
+  </div>
+
+  <div id="editor" hidden>
+    <div class="panel bar">
+      <button class="btn secondary" id="prev">◀</button>
+      <span id="pageInfo">1 / 1</span>
+      <button class="btn secondary" id="next">▶</button>
+      <span class="sep"></span>
+      <label class="opt">Zoom <input type="number" id="zoom" min="50" max="300" step="10" value="130">%</label>
+      <label class="opt">Linienstärke <input type="number" id="lw" min="1" max="20" value="3"></label>
+      <label class="opt"><input type="checkbox" id="fill"> halbtransparent füllen</label>
+      <span class="sep"></span>
+      <button class="btn secondary" id="undo">Rückgängig</button>
+      <button class="btn danger" id="clearPage">Seite leeren</button>
+      <span style="flex:1"></span>
+      <button class="btn" id="save">Markiertes PDF speichern</button>
+      <button class="btn secondary" id="other">Andere Datei</button>
+    </div>
+    <div class="hint" id="count" style="margin:0 0 8px"></div>
+    <div id="stage"><div id="wrap"><canvas id="pdfCanvas"></canvas><canvas id="overlay"></canvas></div></div>
+  </div>
+</div>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+const $ = id => document.getElementById(id);
+const pdfCanvas = $('pdfCanvas'), overlay = $('overlay');
+let pdfDoc = null, bytes = null, fileName = 'dokument.pdf', pageNum = 1, viewport = null, renderTask = null;
+let rects = {};          // Seite -> [{x1,y1,x2,y2}] normalisiert 0..1 (Anzeige-Koordinaten)
+let drag = null;
+
+async function loadFile(f) {
+  if (!f || f.type !== 'application/pdf' && !/\.pdf$/i.test(f.name)) return alert('Bitte eine PDF-Datei wählen.');
+  bytes = new Uint8Array(await f.arrayBuffer());
+  fileName = f.name;
+  try { pdfDoc = await pdfjsLib.getDocument({ data: bytes.slice() }).promise; }
+  catch (e) { return alert('PDF konnte nicht geladen werden: ' + e.message); }
+  rects = {}; pageNum = 1;
+  $('dropPanel').hidden = true; $('editor').hidden = false;
+  render();
+}
+
+async function render() {
+  if (renderTask) { try { renderTask.cancel(); } catch (e) {} }
+  const page = await pdfDoc.getPage(pageNum);
+  const cssScale = (+$('zoom').value || 130) / 100 * 1.333, dpr = window.devicePixelRatio || 1;
+  viewport = page.getViewport({ scale: cssScale * dpr });
+  const cssW = page.getViewport({ scale: cssScale }).width;
+  pdfCanvas.width = overlay.width = Math.floor(viewport.width);
+  pdfCanvas.height = overlay.height = Math.floor(viewport.height);
+  $('wrap').style.width = cssW + 'px';
+  pdfCanvas.style.width = cssW + 'px';
+  $('pageInfo').textContent = pageNum + ' / ' + pdfDoc.numPages;
+  $('prev').disabled = pageNum <= 1; $('next').disabled = pageNum >= pdfDoc.numPages;
+  renderTask = page.render({ canvasContext: pdfCanvas.getContext('2d'), viewport });
+  try { await renderTask.promise; } catch (e) { return; }
+  draw();
+}
+
+function draw() {
+  const ctx = overlay.getContext('2d'), W = overlay.width, H = overlay.height;
+  ctx.clearRect(0, 0, W, H);
+  const list = (rects[pageNum] || []).concat(drag ? [drag] : []);
+  const lw = +$('lw').value || 3, k = W / parseFloat($('wrap').style.width);
+  ctx.strokeStyle = '#ff0000'; ctx.fillStyle = 'rgba(255,0,0,.2)'; ctx.lineWidth = lw * k;
+  for (const r of list) {
+    const x = Math.min(r.x1, r.x2) * W, y = Math.min(r.y1, r.y2) * H;
+    const w = Math.abs(r.x2 - r.x1) * W, h = Math.abs(r.y2 - r.y1) * H;
+    if ($('fill').checked) ctx.fillRect(x, y, w, h);
+    ctx.strokeRect(x, y, w, h);
+  }
+  const total = Object.values(rects).reduce((a, l) => a + l.length, 0);
+  $('count').textContent = `Markierungen: ${(rects[pageNum] || []).length} auf dieser Seite, ${total} insgesamt.`;
+}
+
+function pos(e) {
+  const b = overlay.getBoundingClientRect();
+  return { x: Math.min(1, Math.max(0, (e.clientX - b.left) / b.width)), y: Math.min(1, Math.max(0, (e.clientY - b.top) / b.height)) };
+}
+overlay.addEventListener('pointerdown', e => { overlay.setPointerCapture(e.pointerId); const p = pos(e); drag = { x1: p.x, y1: p.y, x2: p.x, y2: p.y }; });
+overlay.addEventListener('pointermove', e => { if (!drag) return; const p = pos(e); drag.x2 = p.x; drag.y2 = p.y; draw(); });
+const endDrag = () => {
+  if (!drag) return;
+  if (Math.abs(drag.x2 - drag.x1) * overlay.width > 4 && Math.abs(drag.y2 - drag.y1) * overlay.height > 4)
+    (rects[pageNum] = rects[pageNum] || []).push(drag);
+  drag = null; draw();
+};
+overlay.addEventListener('pointerup', endDrag);
+overlay.addEventListener('pointercancel', () => { drag = null; draw(); });
+
+$('prev').onclick = () => { pageNum--; render(); };
+$('next').onclick = () => { pageNum++; render(); };
+$('zoom').onchange = render;
+$('lw').onchange = $('fill').onchange = draw;
+$('undo').onclick = () => { (rects[pageNum] || []).pop(); draw(); };
+$('clearPage').onclick = () => { rects[pageNum] = []; draw(); };
+$('other').onclick = () => { $('editor').hidden = true; $('dropPanel').hidden = false; $('file').value = ''; };
+document.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !$('editor').hidden) { e.preventDefault(); $('undo').click(); } });
+
+$('save').onclick = async () => {
+  const btn = $('save'); btn.disabled = true; btn.textContent = 'Speichere…';
+  try {
+    const out = await PDFLib.PDFDocument.load(bytes, { ignoreEncryption: true });
+    const lw = +$('lw').value || 3, fill = $('fill').checked;
+    for (const [n, list] of Object.entries(rects)) {
+      if (!list.length) continue;
+      const jsPage = await pdfDoc.getPage(+n);
+      const vp = jsPage.getViewport({ scale: 1 });
+      const page = out.getPage(+n - 1);
+      for (const r of list) {
+        // Anzeige -> PDF-Koordinaten (berücksichtigt Seitenrotation und Zuschnitt)
+        const a = vp.convertToPdfPoint(r.x1 * vp.width, r.y1 * vp.height);
+        const b = vp.convertToPdfPoint(r.x2 * vp.width, r.y2 * vp.height);
+        page.drawRectangle({
+          x: Math.min(a[0], b[0]), y: Math.min(a[1], b[1]),
+          width: Math.abs(a[0] - b[0]), height: Math.abs(a[1] - b[1]),
+          borderColor: PDFLib.rgb(1, 0, 0), borderWidth: lw,
+          color: fill ? PDFLib.rgb(1, 0, 0) : undefined, opacity: fill ? 0.2 : undefined, borderOpacity: 1
+        });
+      }
+    }
+    const blob = new Blob([await out.save()], { type: 'application/pdf' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = fileName.replace(/\.pdf$/i, '') + '_markiert.pdf';
+    a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  } catch (e) { alert('Speichern fehlgeschlagen: ' + e.message); }
+  btn.disabled = false; btn.textContent = 'Markiertes PDF speichern';
+};
+
+const drop = $('drop');
+drop.onclick = () => $('file').click();
+$('file').onchange = e => loadFile(e.target.files[0]);
+['dragenter', 'dragover'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add('dragover'); }));
+['dragleave', 'drop'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove('dragover'); }));
+drop.addEventListener('drop', e => loadFile(e.dataTransfer.files[0]));
+</script>
+</body>
+</html>
