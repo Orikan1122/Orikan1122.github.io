@@ -52,7 +52,10 @@
       <button class="btn secondary" id="next">▶</button>
       <button class="btn on" id="mode">✏️ Markieren</button>
       <span class="sep"></span>
-      <label class="opt">Zoom <input type="number" id="zoom" min="10" max="300" step="10" value="130">%</label>
+      <button class="btn secondary" id="zout" title="Verkleinern">−</button>
+      <label class="opt"><input type="number" id="zoom" min="10" max="400" step="10" value="130">%</label>
+      <button class="btn secondary" id="zin" title="Vergrössern">+</button>
+      <button class="btn secondary" id="zfit" title="An Breite anpassen">↔ Breite</button>
       <label class="opt">Linienstärke <input type="number" id="lw" min="1" max="20" value="3"></label>
       <label class="opt"><input type="checkbox" id="fill"> halbtransparent füllen</label>
       <span class="sep"></span>
@@ -169,6 +172,15 @@ overlay.addEventListener('pointercancel', () => { drag = null; draw(); });
 $('prev').onclick = () => { if (pageNum > 1) { pageNum--; render(); } };
 $('next').onclick = () => { if (pageNum < pdfDoc.numPages) { pageNum++; render(); } };
 $('zoom').onchange = render;
+const setZoom = z => { $('zoom').value = Math.round(Math.min(400, Math.max(10, z))); render(); };
+$('zin').onclick = () => setZoom((+$('zoom').value || 100) * 1.25);
+$('zout').onclick = () => setZoom((+$('zoom').value || 100) / 1.25);
+async function fitWidth() {
+  const w = (await pdfDoc.getPage(pageNum)).getViewport({ scale: 1.333 }).width;
+  setZoom(Math.floor(($('stage').clientWidth - 40) / w * 100));
+}
+$('zfit').onclick = fitWidth;
+$('stage').addEventListener('wheel', e => { if (e.ctrlKey) { e.preventDefault(); setZoom((+$('zoom').value || 100) * (e.deltaY < 0 ? 1.1 : 1 / 1.1)); } }, { passive: false });
 $('lw').onchange = $('fill').onchange = draw;
 $('undo').onclick = () => { (rects[pageNum] || []).pop(); draw(); };
 $('clearPage').onclick = () => { rects[pageNum] = []; draw(); };
