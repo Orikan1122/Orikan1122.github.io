@@ -47,7 +47,7 @@
       <span id="pageInfo">1 / 1</span>
       <button class="btn secondary" id="next">▶</button>
       <span class="sep"></span>
-      <label class="opt">Zoom <input type="number" id="zoom" min="50" max="300" step="10" value="130">%</label>
+      <label class="opt">Zoom <input type="number" id="zoom" min="10" max="300" step="10" value="130">%</label>
       <label class="opt">Linienstärke <input type="number" id="lw" min="1" max="20" value="3"></label>
       <label class="opt"><input type="checkbox" id="fill"> halbtransparent füllen</label>
       <span class="sep"></span>
@@ -78,24 +78,47 @@ async function loadFile(f) {
   catch (e) { return alert('PDF konnte nicht geladen werden: ' + e.message); }
   rects = {}; pageNum = 1;
   $('dropPanel').hidden = true; $('editor').hidden = false;
+  // Start-Zoom: Seite an die Fensterbreite anpassen
+  const first = (await pdfDoc.getPage(1)).getViewport({ scale: 1.333 });
+  $('zoom').value = Math.floor(Math.min(150, Math.max(10, ($("stage").clientWidth - 40) / first.width * 100)) / 10) * 10 || 10;
   render();
 }
 
+let renderToken = 0;
 async function render() {
+  const token = ++renderToken;
   if (renderTask) { try { renderTask.cancel(); } catch (e) {} }
-  const page = await pdfDoc.getPage(pageNum);
-  const cssScale = (+$('zoom').value || 130) / 100 * 1.333, dpr = window.devicePixelRatio || 1;
-  viewport = page.getViewport({ scale: cssScale * dpr });
-  const cssW = page.getViewport({ scale: cssScale }).width;
-  pdfCanvas.width = overlay.width = Math.floor(viewport.width);
-  pdfCanvas.height = overlay.height = Math.floor(viewport.height);
-  $('wrap').style.width = cssW + 'px';
-  pdfCanvas.style.width = cssW + 'px';
-  $('pageInfo').textContent = pageNum + ' / ' + pdfDoc.numPages;
-  $('prev').disabled = pageNum <= 1; $('next').disabled = pageNum >= pdfDoc.numPages;
-  renderTask = page.render({ canvasContext: pdfCanvas.getContext('2d'), viewport });
-  try { await renderTask.promise; } catch (e) { return; }
-  draw();
+  try {
+    const page = await pdfDoc.getPage(pageNum);
+    if (token !== renderToken) return;
+    let cssScale = (+$('zoom').value || 130) / 100 * 1.333;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    // Canvas-Grösse begrenzen (sonst bleibt die Seite bei grossen Formaten weiss)
+    const base = page.getViewport({ scale: 1 });
+    const maxPx = 16e6, maxSide = 8000;
+    const px = base.width * base.height * cssScale * cssScale * dpr * dpr;
+    let k = Math.min(1, Math.sqrt(maxPx / px),
+      maxSide / (base.width * cssScale * dpr), maxSide / (base.height * cssScale * dpr));
+    viewport = page.getViewport({ scale: cssScale * dpr * k });
+    const cssW = base.width * cssScale;
+    const canvas = document.createElement('canvas');   // frisches Canvas, kein Konflikt mit älterem Rendering
+    canvas.width = Math.floor(viewport.width); canvas.height = Math.floor(viewport.height);
+    renderTask = page.render({ canvasContext: canvas.getContext('2d'), viewport });
+    await renderTask.promise;
+    if (token !== renderToken) return;
+    pdfCanvas.width = overlay.width = canvas.width;
+    pdfCanvas.height = overlay.height = canvas.height;
+    pdfCanvas.getContext('2d').drawImage(canvas, 0, 0);
+    $('wrap').style.width = cssW + 'px';
+    pdfCanvas.style.width = cssW + 'px';
+    $('pageInfo').textContent = pageNum + ' / ' + pdfDoc.numPages;
+    $('prev').disabled = pageNum <= 1; $('next').disabled = pageNum >= pdfDoc.numPages;
+    draw();
+  } catch (e) {
+    if (e && e.name === 'RenderingCancelledException') return;
+    console.error(e);
+    $('count').textContent = 'Fehler beim Anzeigen der Seite ' + pageNum + ': ' + (e.message || e);
+  }
 }
 
 function draw() {
@@ -129,8 +152,8 @@ const endDrag = () => {
 overlay.addEventListener('pointerup', endDrag);
 overlay.addEventListener('pointercancel', () => { drag = null; draw(); });
 
-$('prev').onclick = () => { pageNum--; render(); };
-$('next').onclick = () => { pageNum++; render(); };
+$('prev').onclick = () => { if (pageNum > 1) { pageNum--; render(); } };
+$('next').onclick = () => { if (pageNum < pdfDoc.numPages) { pageNum++; render(); } };
 $('zoom').onchange = render;
 $('lw').onchange = $('fill').onchange = draw;
 $('undo').onclick = () => { (rects[pageNum] || []).pop(); draw(); };
