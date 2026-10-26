@@ -1613,6 +1613,16 @@
                 });
             }
 
+            // Stellt sicher, dass ein neu angelegter Task nicht durch aktive Filter/Suche versteckt wird
+            function revealTodo(todo) {
+                const key = (todo.category || '').toLowerCase();
+                if (currentCategoryFilter !== 'all' && currentCategoryFilter !== key) currentCategoryFilter = 'all';
+                if (todoSearchTerm.trim() && !(todo.text || '').toLowerCase().includes(todoSearchTerm.trim().toLowerCase())) {
+                    todoSearchTerm = '';
+                    if (todoSearchInput) todoSearchInput.value = '';
+                }
+            }
+
             // --- INLINE QUICK ADD TO-DO ---
             function addQuickTodo() {
                 const input = document.getElementById('todo-quick-input');
@@ -1625,15 +1635,18 @@
                 const linkedToolId = toolSelect.value ? Number(toolSelect.value) : null;
                 const dueDate = dateSelect.value || null;
 
-                todos.push({
+                // Bei aktivem Kategorie-Filter den Task direkt in dieser Kategorie anlegen
+                const newTodo = {
                     id: Date.now(),
                     text: text,
                     dueDate: dueDate,
                     done: false,
                     completionDate: null,
-                    category: 'Uncategorized',
+                    category: currentCategoryFilter !== 'all' ? currentCategoryFilter : 'Uncategorized',
                     linkedTools: linkedToolId ? [linkedToolId] : []
-                });
+                };
+                todos.push(newTodo);
+                revealTodo(newTodo);
 
                 saveLocalData();
                 renderHub();
@@ -2370,7 +2383,7 @@
                     const categoryName = todoCategoryInput.value.trim();
                     const categoryKey = categoryName.toLowerCase();
 
-                    todos.push({
+                    const newTodo = {
                         id: Date.now(),
                         text: document.getElementById('todo-text').value.trim(),
                         dueDate: document.getElementById('todo-due-date').value,
@@ -2378,13 +2391,15 @@
                         completionDate: null,
                         category: categoryName || 'Uncategorized',
                         linkedTools: [...toolSelector.selectedOptions].map(opt => Number(opt.value))
-                    });
-                    
+                    };
+                    todos.push(newTodo);
+
                     if (categoryName && !categories[categoryKey]) {
                         categories[categoryKey] = { color: todoCategoryColorInput.value };
                     }
 
                     pruneOrphanedCategories();
+                    revealTodo(newTodo);
                     saveLocalData();
                     renderHub();
                     addTodoForm.reset();
