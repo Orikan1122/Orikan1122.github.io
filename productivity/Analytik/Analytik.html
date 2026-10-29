@@ -576,7 +576,7 @@
 
     // --- GLOBALE VARIABLEN ---
     let currentUser = "", currentRole = "", currentPassword = "";
-    const STAMMDATEN_LISTEN = ["KundenListe", "EquipmentListe", "Auswahllisten", "Grenzwerte", "AuditListe", "EquipmentAssesment"];
+    const STAMMDATEN_LISTEN = ["KundenListe", "Equipmentliste", "Auswahllisten", "Grenzwerte", "AuditListe", "EquipmentAssesment"];
     let stammdatenSpeicher = {}; 
     
     let ausgewaehlterKundeData = null; let kundenHeaders = []; let aktuelleOmNo = "";
@@ -603,6 +603,18 @@
     };
     function unblockUI() { document.getElementById('uiBlocker').style.display = 'none'; }
     function getSheetData(name) { return stammdatenSpeicher[name] || stammdatenSpeicher[name.toLowerCase()] || []; }
+    // Schema-Vertrag (Automated_Database.xlsx): exakte Spaltenanzahl je Schreibblatt
+    const SCHREIB_SPALTEN = { "AuditListe": 34, "EquipmentAssesment": 66, "KundenListe": 16, "Equipmentliste": 14 };
+    function pruefeSchreibArray(sheetName, arr) {
+        const soll = SCHREIB_SPALTEN[sheetName];
+        if (!soll) return arr;
+        if (arr.length > soll) throw new Error(`Schema error ${sheetName}: ${arr.length} values, expected ${soll}.`);
+        while (arr.length < soll) arr.push("");
+        return arr;
+    }
+    function pruefeAntwort(res, sheetName) {
+        if (!res.ok) throw new Error(`Save failed for ${sheetName} (HTTP ${res.status}).`);
+    }
     function setzeButtonLaden(button, laedt) {
         if(!button) return;
         if(laedt) { button.dataset.originalText = button.innerText; button.innerText = "⏳..."; button.disabled = true; } 
@@ -764,7 +776,7 @@
         }
 
         const begriff = document.getElementById('eqStartSearchInput').value.toLowerCase().trim();
-        const daten = getSheetData("EquipmentListe");
+        const daten = getSheetData("Equipmentliste");
         
         if (!daten || daten.length < 2) return;
         
@@ -1013,7 +1025,7 @@
             return;
         }
 
-        const eqDaten = getSheetData("EquipmentListe");
+        const eqDaten = getSheetData("Equipmentliste");
         const assesmentDaten = getSheetData("EquipmentAssesment"); 
         if(eqDaten.length < 2) return;
 
@@ -1079,7 +1091,7 @@
     }
 
     async function toggleEquipmentVermisst(eqId, isChecked) {
-        const eqDaten = getSheetData("EquipmentListe");
+        const eqDaten = getSheetData("Equipmentliste");
         const headers = eqDaten[0].map(h => String(h).toLowerCase().trim());
         const iMissing = headers.indexOf("gerät nicht vorhanden");
         
@@ -1104,7 +1116,7 @@
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    sheetName: "EquipmentListe",
+                    sheetName: "Equipmentliste",
                     targetName: eqId,
                     rowDataString: JSON.stringify(updatedRow),
                     password: currentPassword,
@@ -1116,7 +1128,7 @@
             if (!res.ok) throw new Error("Update failed");
 
             // Lokalen Cache aktualisieren, damit UI sofort reagiert
-            stammdatenSpeicher["EquipmentListe"][rowIndex] = updatedRow;
+            stammdatenSpeicher["Equipmentliste"][rowIndex] = updatedRow;
             
             // UI neu zeichnen
             ladeZugeordnetesEquipment();
@@ -1129,7 +1141,7 @@
     }
 
     function oeffneEquipmentFormular(rowIndex) {
-        const eqDaten = getSheetData("EquipmentListe");
+        const eqDaten = getSheetData("Equipmentliste");
         aktuellesEditEquipmentRow = [...eqDaten[rowIndex]]; 
         aktuellesEditEquipmentIndex = rowIndex;
         const headers = eqDaten[0]; 
@@ -1254,7 +1266,7 @@
     }
 
     async function speichereEquipmentDaten() {
-        const headers = getSheetData("EquipmentListe")[0]; 
+        const headers = getSheetData("Equipmentliste")[0]; 
         let newDataArray =[];
         
         for(let i = 0; i < headers.length; i++) { 
@@ -1282,13 +1294,13 @@
                 method: "PATCH", 
                 headers: { "Content-Type": "application/json" }, 
                 body: JSON.stringify({ 
-                    sheetName: "EquipmentListe", targetName: targetId, rowDataString: JSON.stringify(newDataArray), 
+                    sheetName: "Equipmentliste", targetName: targetId, rowDataString: JSON.stringify(newDataArray), 
                     password: currentPassword, username: currentUser, role: currentRole 
                 }) 
             });
             
             // 2. NEU: Direkte Cache-Aktualisierung im RAM (verhindert das "Zurückspringen" durch Cloud-Delay)
-            let eqDaten = getSheetData("EquipmentListe");
+            let eqDaten = getSheetData("Equipmentliste");
             let idx = eqDaten.findIndex(r => r[0] == targetId);
             if(idx !== -1) {
                 eqDaten[idx] = newDataArray;
@@ -1324,7 +1336,7 @@
     function sucheEquipmentGlobal() {
         const begriff = document.getElementById('eqSearchInput').value.toLowerCase().trim(); const box = document.getElementById('eqSearchResults');
         if (begriff.length < 3) { box.style.display = 'none'; return; } 
-        const eqDaten = getSheetData("EquipmentListe"); const headers = eqDaten[0].map(h => String(h).toLowerCase().trim());
+        const eqDaten = getSheetData("Equipmentliste"); const headers = eqDaten[0].map(h => String(h).toLowerCase().trim());
         const idxTech = headers.indexOf("tech ident no"); const idxOm = headers.indexOf("om_no");
         box.innerHTML = ''; let count = 0;
         for (let i = 1; i < eqDaten.length; i++) {
@@ -1342,11 +1354,11 @@
     async function umbuchenEquipment(rowIndex, button) {
         if(!confirm(`Do you want to assign this equipment to customer ${aktuelleOmNo}?`)) return;
         setzeButtonLaden(button, true);
-        const eqDaten = getSheetData("EquipmentListe"); let targetRow = [...eqDaten[rowIndex]]; 
+        const eqDaten = getSheetData("Equipmentliste"); let targetRow = [...eqDaten[rowIndex]]; 
         const headers = eqDaten[0].map(h => String(h).toLowerCase().trim()); const idxOm = headers.indexOf("om_no");
         if(idxOm !== -1) targetRow[idxOm] = aktuelleOmNo; let targetId = targetRow[0]; 
         try {
-            await fetch(URL_UPDATE, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sheetName: "EquipmentListe", targetName: targetId, rowDataString: JSON.stringify(targetRow), password: currentPassword, username: currentUser, role: currentRole }) });
+            await fetch(URL_UPDATE, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sheetName: "Equipmentliste", targetName: targetId, rowDataString: JSON.stringify(targetRow), password: currentPassword, username: currentUser, role: currentRole }) });
             await ladeStammdatenImHintergrund(); ladeZugeordnetesEquipment(); 
             document.getElementById('eqSearchResults').style.display = 'none'; document.getElementById('eqSearchInput').value = "";
         } catch(e) { alert("Error while reassigning."); }
@@ -1357,13 +1369,13 @@
         let techId = prompt("Please enter the new 'Tech Ident No':"); if(!techId) return;
         schliesseSapModal(); // <-- NEU: Schließt das Modal, falls geöffnet
         setzeButtonLaden(button, true);
-        const eqDaten = getSheetData("EquipmentListe"); const headers = eqDaten[0].map(h => String(h).toLowerCase().trim());
+        const eqDaten = getSheetData("Equipmentliste"); const headers = eqDaten[0].map(h => String(h).toLowerCase().trim());
         let newRow = new Array(headers.length).fill("");
         if(headers.indexOf("tech ident no") !== -1) newRow[headers.indexOf("tech ident no")] = techId;
         if(headers.indexOf("om_no") !== -1) newRow[headers.indexOf("om_no")] = aktuelleOmNo;
         newRow[0] = techId;
         try {
-            await fetch(URL_SCHREIBEN, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sheetName: "EquipmentListe", rowDataString: JSON.stringify(newRow), password: currentPassword, username: currentUser, role: currentRole }) });
+            await fetch(URL_SCHREIBEN, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sheetName: "Equipmentliste", rowDataString: JSON.stringify(newRow), password: currentPassword, username: currentUser, role: currentRole }) });
             await ladeStammdatenImHintergrund(); ladeZugeordnetesEquipment(); 
         } catch(e) { alert("Error while creating."); }
         setzeButtonLaden(button, false);
@@ -1439,8 +1451,8 @@ function sucheSapEquipment() {
         const idxEqNum = headers.findIndex(h => h === "equipment");
         const idxSapKunde = headers.findIndex(h => h === "kunde" || h === "om" || h.includes("om_no"));
 
-        // EquipmentListe zur Prüfung
-        const eqDaten = getSheetData("EquipmentListe");
+        // Equipmentliste zur Prüfung
+        const eqDaten = getSheetData("Equipmentliste");
         const eqHeaders = eqDaten[0].map(h => String(h).toLowerCase().trim());
         const eqIdxTech = eqHeaders.indexOf("tech ident no");
         const eqIdxOm = eqHeaders.findIndex(h => h === "om_no" || h === "om_nr." || h === "om_nr");
@@ -1458,7 +1470,7 @@ function sucheSapEquipment() {
 
             if (techId.includes(begriff) || serial.includes(begriff)) {
                 
-                // Prüfen, ob dieses Gerät bereits in der EquipmentListe existiert
+                // Prüfen, ob dieses Gerät bereits in der Equipmentliste existiert
                 let existingRowIndex = -1;
                 let existingOmNo = "";
 
@@ -1547,7 +1559,7 @@ function sucheSapEquipment() {
         const newSerial = sIdxSerial !== -1 ? String(sapRow[sIdxSerial]).trim() : "";
         const newModel = sIdxModel !== -1 ? String(sapRow[sIdxModel]).trim() : "";
 
-        const eqDaten = getSheetData("EquipmentListe");
+        const eqDaten = getSheetData("Equipmentliste");
         const eqHeaders = eqDaten[0].map(h => String(h).toLowerCase().trim());
         
         let targetRow;
@@ -1583,14 +1595,14 @@ function sucheSapEquipment() {
             const url = isUpdate ? URL_UPDATE : URL_SCHREIBEN;
             const method = isUpdate ? "PATCH" : "POST";
             const payload = isUpdate ? {
-                sheetName: "EquipmentListe",
+                sheetName: "Equipmentliste",
                 targetName: targetRow[0],
                 rowDataString: JSON.stringify(targetRow),
                 password: currentPassword,
                 username: currentUser,
                 role: currentRole
             } : {
-                sheetName: "EquipmentListe",
+                sheetName: "Equipmentliste",
                 rowDataString: JSON.stringify(targetRow),
                 password: currentPassword,
                 username: currentUser,
@@ -1609,7 +1621,7 @@ function sucheSapEquipment() {
             await new Promise(resolve => setTimeout(resolve, 2000));
 
             blockUI("Updating list...");
-            await ladeStammdatenImHintergrund(["EquipmentListe"]);
+            await ladeStammdatenImHintergrund(["Equipmentliste"]);
             
             unblockUI();
             alert(`✅ Success! The equipment has been ${isUpdate ? 'updated and reassigned' : 'added'}.`);
@@ -1704,7 +1716,7 @@ function sucheSapEquipment() {
             const tagesKey = generiereTagesAuditKey();
             const timestamp = new Date().toLocaleString();
 
-            const eqDaten = getSheetData("EquipmentListe");
+            const eqDaten = getSheetData("Equipmentliste");
             const eqHeaders = eqDaten[0].map(h => String(h).toLowerCase().trim());
             const idxTech = eqHeaders.indexOf("tech ident no");
             const eqRow = eqDaten.find(r => String(r[idxTech]).trim() === techIdForSearch);
@@ -1791,6 +1803,9 @@ function sucheSapEquipment() {
                 "", "", "", currentUser, timestamp
             ];
 
+            pruefeSchreibArray("EquipmentAssesment", assRow);
+            pruefeSchreibArray("AuditListe", auditListRow);
+
             const assDaten = stammdatenSpeicher["EquipmentAssesment"] || [];
             const auditDaten = stammdatenSpeicher["AuditListe"] || [];
             
@@ -1812,7 +1827,8 @@ function sucheSapEquipment() {
                 reqs.push(fetch(URL_SCHREIBEN, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sheetName: "AuditListe", rowDataString: JSON.stringify(auditListRow), password: currentPassword, username: currentUser, role: currentRole }) }));
             }
 
-            await Promise.all(reqs);
+            const antworten = await Promise.all(reqs);
+            antworten.forEach((r, i) => pruefeAntwort(r, i < 1 ? "EquipmentAssesment" : "AuditListe"));
 
             // RAM aktualisieren
             if (!stammdatenSpeicher["EquipmentAssesment"]) stammdatenSpeicher["EquipmentAssesment"] = [];
@@ -3435,7 +3451,7 @@ function sucheSapEquipment() {
 
     // --- HAUPTFUNKTION: Vorhandene Konfiguration aus Excel laden (KORRIGIERT) ---
     function ladeVorhandeneKonfiguration(techId) {
-        const eqDaten = getSheetData("EquipmentListe");
+        const eqDaten = getSheetData("Equipmentliste");
         const headers = eqDaten[0].map(h => String(h).toLowerCase().trim());
         const row = eqDaten.find(r => String(r[headers.indexOf("tech ident no")]).trim() === String(techId).trim());
 
@@ -3955,8 +3971,8 @@ function sucheSapEquipment() {
             
             eqAudits.forEach((eq) => {
                 let eqId = eq[1]; 
-                let eqDb = getSheetData("EquipmentListe").find(r => String(r[0]) === eqId);
-                let techId = eqDb ? eqDb[getSheetData("EquipmentListe")[0].findIndex(h=>h.toLowerCase().includes("tech ident"))] : eqId;
+                let eqDb = getSheetData("Equipmentliste").find(r => String(r[0]) === eqId);
+                let techId = eqDb ? eqDb[getSheetData("Equipmentliste")[0].findIndex(h=>h.toLowerCase().includes("tech ident"))] : eqId;
 
                 html += `<div style="margin-bottom: 25px; border: 1px solid #ddd; border-radius: 4px; overflow: hidden; page-break-inside: avoid;">
                     <div style="background: #e9ecef; padding: 5px 10px; font-weight: bold; font-size: 11px; display: flex; justify-content: space-between;">
@@ -4168,7 +4184,7 @@ function sucheSapEquipment() {
     function openMyAudits() {
         const assDaten = getSheetData("EquipmentAssesment");
         const kundenDaten = getSheetData("KundenListe");
-        const eqDaten = getSheetData("EquipmentListe");
+        const eqDaten = getSheetData("Equipmentliste");
 
         if(assDaten.length < 2) {
             alert("There are no audits in the database yet.");
