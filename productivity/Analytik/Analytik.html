@@ -485,9 +485,9 @@
                             <div class="input-group">
                                 <label>Water line Sanitation:</label>
                                 <div class="radio-group">
-                                    <label><input type="radio" name="iw_sanitation" value="S"> S</label>
-                                    <label><input type="radio" name="iw_sanitation" value="U"> U</label>
-                                    <label><input type="radio" name="iw_sanitation" value="NA"> NA</label>
+                                    <label><input type="radio" name="iw_sanitation" value="Yes"> Yes</label>
+                                    <label><input type="radio" name="iw_sanitation" value="No"> No</label>
+                                    <label><input type="radio" name="iw_sanitation" value="N/A"> N/A</label>
                                 </div>
                             </div>
                             <div class="input-group"><label>Total Count cfu/1ml:</label><input type="number" id="iw_water_total" oninput="checkWaterCount(this)"></div>
@@ -2139,11 +2139,12 @@ function sucheSapEquipment() {
 
             // Alle akzeptierten Schreibweisen dieses Punkts: Kürzel, aktuelles Label, Legacy-Volltext
             const keys = new Set([normTok(abk), normTok(label)]);
+            if (normTok(abk) === "a90") keys.add("a80"); // A80 wurde mit A90 zusammengelegt
             Object.keys(legacyZustandAlias).forEach(k => { if (normTok(legacyZustandAlias[k]) === normTok(abk)) keys.add(k); });
             const hit = set => [...keys].some(k => set.has(k));
 
-            if(hit(okList)) setRadioValue(`chk_${index}`, "OK");
-            else if(hit(nokList)) setRadioValue(`chk_${index}`, "NOK");
+            if(hit(nokList)) setRadioValue(`chk_${index}`, "NOK");
+            else if(hit(okList)) setRadioValue(`chk_${index}`, "OK");
 
             if (commentMap[label]) {
                 let textarea = document.getElementById(`nok_reason_${index}`);
@@ -2255,7 +2256,10 @@ function sucheSapEquipment() {
 
         setRadioValue("iw_water_source",    getSafeVal("sourced_water", 18));
         setRadioValue("iw_water_filtered", getSafeVal("water filtered?", 19));
-        setRadioValue("iw_sanitation",      getSafeVal("water line sanitation", 21));
+        { // Alt-Werte S/U/NA auf Yes/No/N/A abbilden
+            const san = getSafeVal("water line sanitation", 21);
+            setRadioValue("iw_sanitation", ({ "S": "Yes", "U": "No", "NA": "N/A" })[san.toUpperCase()] || san);
+        }
         
         document.getElementById('iw_water_coliform').value = getSafeVal("coliform coun", 22);
         document.getElementById('iw_water_total').value    = getSafeVal("total count", 23);
@@ -2961,7 +2965,7 @@ function sucheSapEquipment() {
 
         html += `
         <div class="input-group" style="background:#f8f9fa; padding:12px; border-radius:6px; margin-top:5px; border: 1px solid #dee2e6;">
-            <label style="color: var(--primary);">💧 Syrup Connection Identified?</label>
+            <label style="color: var(--primary);">💧 Syrup Lines Identified?</label>
             <div class="radio-group" style="margin-bottom:5px;">
                 <label><input type="radio" name="vi_syrupId" value="OK" ${isIdOk} onchange="vSyrupToggle('syrupId', 'OK', '${v.prod}')"> OK</label>
                 <label><input type="radio" name="vi_syrupId" value="NOK" ${isIdNok} onchange="vSyrupToggle('syrupId', 'NOK', '${v.prod}')"> NOK</label>
@@ -2970,7 +2974,7 @@ function sucheSapEquipment() {
         </div>
 
         <div class="input-group" style="background:#f8f9fa; padding:12px; border-radius:6px; margin-top:5px; margin-bottom: 15px; border: 1px solid #dee2e6;">
-            <label style="color: var(--primary);">💧 Syrup Connection Condition</label>
+            <label style="color: var(--primary);">💧 Syrup Lines Condition</label>
             <div class="radio-group" style="margin-bottom:5px;">
                 <label><input type="radio" name="vi_syrupCond" value="OK" ${isCondOk} onchange="vSyrupToggle('syrupCond', 'OK', '${v.prod}')"> OK</label>
                 <label><input type="radio" name="vi_syrupCond" value="NOK" ${isCondNok} onchange="vSyrupToggle('syrupCond', 'NOK', '${v.prod}')"> NOK</label>
@@ -2985,8 +2989,6 @@ function sucheSapEquipment() {
             html += `<div class="input-group"><label>Valve Sanitation (Cleanliness)</label><div class="radio-group"><label><input type="radio" name="vi_sauber" value="OK" ${isSaubOk} onchange="vInput('sauberkeit', 'OK', '${v.prod}')"> OK</label><label><input type="radio" name="vi_sauber" value="NOK" ${isSaubNok} onchange="vInput('sauberkeit', 'NOK', '${v.prod}')"> NOK</label></div></div>`;
         }
 
-        html += buildInput("Beverage Temperature C°", "temp", "number", `step="0.1"`);
-
         if(v.nav2 === "CCHBC") {
             let tasteOpts = `<option value="">-- Reason --</option>`; 
             let currentTaste = v.inputs.geschmackReason ? String(v.inputs.geschmackReason).trim() : "";
@@ -2994,6 +2996,8 @@ function sucheSapEquipment() {
             let isT_Ok = v.inputs.geschmack === "OK" ? "checked" : ""; let isT_Nok = v.inputs.geschmack === "NOK" ? "checked" : ""; let showReason = isT_Nok ? "block" : "none";
             html += `<div class="input-group"><label>Beverage Taste</label><div class="radio-group" style="margin-bottom:5px;"><label><input type="radio" name="vi_taste" value="OK" ${isT_Ok} onchange="vTasteToggle('OK', '${v.prod}')"> OK</label><label><input type="radio" name="vi_taste" value="NOK" ${isT_Nok} onchange="vTasteToggle('NOK', '${v.prod}')"> NOK</label></div><select id="vi_taste_reason" style="display:${showReason}; border-color:#dc3545;" onchange="vInput('geschmackReason', this.value, '${v.prod}')">${tasteOpts}</select></div>`;
         }
+
+        html += buildInput("Beverage Temperature C°", "temp", "number", `step="0.1"`);
 
         html += buildInput("Water ml", "water", "number");
         html += buildInput("Syrup ml", "syrup", "number");
