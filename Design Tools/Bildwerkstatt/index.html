@@ -52,6 +52,8 @@
   input[type=range], input[type=file] { width: 100%; }
   .colorline { display: grid; grid-template-columns: 45px 1fr; gap: 8px; margin-top: 8px; }
   input[type=color] { width: 45px; height: 40px; border: 0; padding: 0; background: none; }
+  input[type=number] { width: 100%; margin-top: 4px; padding: 9px; border: 1px solid var(--border); border-radius: 6px; font: inherit; }
+  .grid2 label { font-size: 14px; font-weight: 700; }
   input[type=text] { width: 100%; padding: 9px; border: 1px solid var(--border); border-radius: 6px; font: inherit; }
   .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
   .stack { display: grid; gap: 8px; margin-top: 8px; }
@@ -153,7 +155,24 @@
     </div>
 
     <div class="group">
-      <h2>4. Ausgabe</h2>
+      <h2>4. Bildgröße ändern</h2>
+      <div class="grid2">
+        <label>Breite (px)<input id="sizeW" type="number" min="1" max="20000" step="1" disabled></label>
+        <label>Höhe (px)<input id="sizeH" type="number" min="1" max="20000" step="1" disabled></label>
+      </div>
+      <label class="rad"><span><input id="lockRatio" type="checkbox" checked> Seitenverhältnis beibehalten</span></label>
+      <div class="grid2" id="presetBtns">
+        <button class="btn secondary" data-pct="75" type="button" disabled>75 %</button>
+        <button class="btn secondary" data-pct="50" type="button" disabled>50 %</button>
+        <button class="btn secondary" data-pct="25" type="button" disabled>25 %</button>
+        <button class="btn secondary" data-pct="10" type="button" disabled>10 %</button>
+      </div>
+      <div class="stack"><button id="resize" class="btn" disabled>Größe anwenden</button></div>
+      <p class="hint">Verkleinert das ganze Bild in Stufen mit hochwertiger Glättung (wie bei Word) – Kanten bleiben scharf, Transparenz bleibt erhalten. Die Auswahl wird dabei gelöscht. Rückgängig ist möglich.</p>
+    </div>
+
+    <div class="group">
+      <h2>5. Ausgabe</h2>
       <div class="stack">
         <button id="copyAll" class="btn" disabled>Ganzes Bild kopieren (PNG)</button>
         <button id="saveAll" class="btn" disabled>Ganzes Bild herunterladen</button>
@@ -262,7 +281,64 @@ function showImage(data) {
   mask = new Uint8Array(data.width * data.height);
   lastWand = null; drag = null;
   octx.clearRect(0, 0, overlay.width, overlay.height);
+  syncSize();
 }
+
+/* ---------- Bildgröße ändern ---------- */
+function syncSize() {
+  $('#sizeW').value = data0().width; $('#sizeH').value = data0().height;
+  ['sizeW', 'sizeH', 'resize'].forEach(id => $('#' + id).disabled = false);
+  $$('#presetBtns .btn').forEach(b => b.disabled = false);
+}
+function data0() { return work; }
+function sizeInput(from) {
+  if (!work || !$('#lockRatio').checked) return;
+  const v = parseInt($('#' + from).value, 10);
+  if (!(v > 0)) return;
+  if (from === 'sizeW') $('#sizeH').value = Math.max(1, Math.round(v * H() / W()));
+  else $('#sizeW').value = Math.max(1, Math.round(v * W() / H()));
+}
+$('#sizeW').oninput = () => sizeInput('sizeW');
+$('#sizeH').oninput = () => sizeInput('sizeH');
+$$('#presetBtns .btn').forEach(b => b.onclick = () => {
+  if (!work) return;
+  const f = +b.dataset.pct / 100;
+  $('#sizeW').value = Math.max(1, Math.round(W() * f));
+  $('#sizeH').value = Math.max(1, Math.round(H() * f));
+});
+// Schrittweise halbieren + hochwertige Glättung = deutlich bessere Qualität als ein einzelner Sprung
+function resample(data, nw, nh) {
+  let cur = document.createElement('canvas');
+  cur.width = data.width; cur.height = data.height;
+  cur.getContext('2d').putImageData(data, 0, 0);
+  while (cur.width !== nw || cur.height !== nh) {
+    const w = cur.width > nw ? Math.max(nw, Math.ceil(cur.width / 2)) : nw;
+    const h = cur.height > nh ? Math.max(nh, Math.ceil(cur.height / 2)) : nh;
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const cx = c.getContext('2d');
+    cx.imageSmoothingEnabled = true; cx.imageSmoothingQuality = 'high';
+    cx.drawImage(cur, 0, 0, cur.width, cur.height, 0, 0, w, h);
+    cur = c;
+  }
+  return cur.getContext('2d').getImageData(0, 0, nw, nh);
+}
+$('#resize').onclick = () => {
+  if (!work) return;
+  const nw = parseInt($('#sizeW').value, 10), nh = parseInt($('#sizeH').value, 10);
+  if (!(nw > 0 && nh > 0) || nw > 20000 || nh > 20000 || nw * nh > 100e6) return msg('Ungültige Größe (1 bis 20000 Pixel, max. 100 Megapixel).', 'err');
+  if (nw === W() && nh === H()) return msg('Die Größe ist bereits so eingestellt.');
+  msg('Größe wird geändert ...', 'busy');
+  setTimeout(() => {
+    try {
+      const ow = W(), oh = H(), out = resample(work, nw, nh);
+      pushHistory();
+      showImage(out);
+      fitView(); updateUi();
+      msg(`Bildgröße von ${ow} × ${oh} auf ${nw} × ${nh} Pixel geändert.`, 'ok');
+    } catch (e) { msg('Größe konnte nicht geändert werden – Bild evtl. zu groß für den Browserspeicher.', 'err'); }
+  }, 10);
+};
 function pushHistory() {
   history.push(clone(work));
   if (history.length > MAX_HISTORY) history.shift();
