@@ -1809,7 +1809,7 @@
         </div>
         <div style="background: white; border-radius: 8px; padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 25px; overflow-x: auto;">
             <div id="envBoardContainer"></div>
-            <div style="font-size:11px; color:#777; margin-top:8px;">Short Narrative: automatisch aus „KPI Deviations &amp; Root Causes" (Gründe des gewählten Monats, WUR = Water Ratio, EUR = Energy Ratio), nicht manuell editierbar. Rot = schlechter als Target (Actual &gt; Target), grün = erreicht. YTD = volumengewichtet (Summe Absolutwerte / Summe Volumen). Target FY = volumengewichteter BP-Wert des Gesamtjahres. Unabhängig vom Werk-Filter.</div>
+            <div style="font-size:11px; color:#777; margin-top:8px;">Short Narrative: automatisch aus „KPI Deviations &amp; Root Causes" (Gründe des gewählten Monats, WUR = Water Ratio, EUR = Energy Ratio, Waste = Waste Ratio), nicht manuell editierbar. Rot = schlechter als Target (Actual &gt; Target), grün = erreicht. YTD = volumengewichtet (Summe Absolutwerte / Summe Volumen). Target FY = volumengewichteter BP-Wert des Gesamtjahres. Unabhängig vom Werk-Filter.</div>
         </div>
 
         <!-- DOMINANTER BEREICH: Monthly Trends -->
@@ -9566,19 +9566,19 @@ function _ebCalc(plantKey, year, monthIdx) {
     const recs = months.map(m => unifiedEnvData.monthly.find(d => d.year == year && d.month == m && d.plant == plantKey) || null);
     const cur = recs[monthIdx] || {};
 
-    const ytd = { aW:0, aE:0, v:0, bW:0, bE:0, bv:0 };
-    const fy  = { bW:0, bE:0, bv:0 };
+    const ytd = { aW:0, aE:0, aWa:0, v:0, bW:0, bE:0, bWa:0, bv:0 };
+    const fy  = { bW:0, bE:0, bWa:0, bv:0 };
 
     recs.forEach((r, i) => {
         if (!r) return;
         if (i <= monthIdx && r.volTotal) {
-            ytd.aW += r.absWater || 0; ytd.aE += r.absEnergy || 0; ytd.v += r.volTotal || 0;
+            ytd.aW += r.absWater || 0; ytd.aE += r.absEnergy || 0; ytd.aWa += r.absWaste || 0; ytd.v += r.volTotal || 0;
         }
         if (i <= monthIdx && r.volBPTotal) {
-            ytd.bW += r.bpWaterAbs || 0; ytd.bE += r.bpEnergyAbs || 0; ytd.bv += r.volBPTotal || 0;
+            ytd.bW += r.bpWaterAbs || 0; ytd.bE += r.bpEnergyAbs || 0; ytd.bWa += r.bpWasteAbs || 0; ytd.bv += r.volBPTotal || 0;
         }
         if (r.volBPTotal) {
-            fy.bW += r.bpWaterAbs || 0; fy.bE += r.bpEnergyAbs || 0; fy.bv += r.volBPTotal || 0;
+            fy.bW += r.bpWaterAbs || 0; fy.bE += r.bpEnergyAbs || 0; fy.bWa += r.bpWasteAbs || 0; fy.bv += r.volBPTotal || 0;
         }
     });
 
@@ -9598,6 +9598,12 @@ function _ebCalc(plantKey, year, monthIdx) {
             ytd:    ytd.v  ? ytd.aE / ytd.v  : (yRec.energyRatio ?? null),
             tMonth: cur.targetEnergyRatio ?? null,
             tFY:    fy.bv  ? fy.bE / fy.bv   : (yRec.targetEnergyRatio ?? null)
+        },
+        WASTE: {
+            month:  cur.wasteRatio ?? null,
+            ytd:    ytd.v  ? (ytd.aWa * 1000) / ytd.v  : (yRec.wasteRatio ?? null),
+            tMonth: cur.targetWasteRatio ?? null,
+            tFY:    fy.bv  ? (fy.bWa * 1000) / fy.bv   : (yRec.targetWasteRatio ?? null)
         }
     };
 }
@@ -9605,7 +9611,7 @@ function _ebCalc(plantKey, year, monthIdx) {
 // Narrative aus den erfassten Deviations (nur Werke mit eigenen Einträgen: Dietlikon, Vals)
 function _ebDevText(locKey, metricId, year, monthNum, withActions) {
     if (!Array.isArray(globalEnvDeviations) || globalEnvDeviations.length === 0) return '';
-    const kpi = metricId === 'WUR' ? 'Water Ratio' : 'Energy Ratio';
+    const kpi = metricId === 'WUR' ? 'Water Ratio' : (metricId === 'WASTE' ? 'Waste Ratio' : 'Energy Ratio');
     const rows = globalEnvDeviations.filter(d =>
         String(d['Location'] || '').trim().toLowerCase() === locKey.toLowerCase() &&
         d['KPI'] === kpi && String(d['Year']) === String(year) && parseInt(d['Month']) === monthNum);
@@ -9645,7 +9651,8 @@ function renderEnvPerformanceBoard() {
     ];
     const metrics = [
         { id: 'WUR', label: 'WUR l/lpb',  dec: 2 },
-        { id: 'EUR', label: 'EUR MJ/lpb', dec: 3 }
+        { id: 'EUR', label: 'EUR MJ/lpb', dec: 3 },
+        { id: 'WASTE', label: 'Waste Ratio g/L', dec: 2 }
     ];
 
     const border = '1px solid #bfbfbf';
@@ -9685,7 +9692,7 @@ function renderEnvPerformanceBoard() {
 
             html += `<tr style="background:${bg};">`;
             if (mi === 0) {
-                html += `<td rowspan="2" style="${tdBase} font-weight:bold; background:#f2f2f2; border-top:2px solid #7f7f7f;">${_ebEsc(loc.label)}</td>`;
+                html += `<td rowspan="${metrics.length}" style="${tdBase} font-weight:bold; background:#f2f2f2; border-top:2px solid #7f7f7f;">${_ebEsc(loc.label)}</td>`;
             }
             html += `<td style="${tdBase} ${topBorder} white-space:nowrap;">${_ebEsc(m.label)}</td>
                 <td style="${tdBase} ${topBorder} text-align:right; font-weight:bold; color:${colorFor(c.month, c.tMonth, m.dec)};">${fmt(c.month, m.dec)}</td>
