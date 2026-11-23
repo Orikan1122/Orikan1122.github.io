@@ -363,9 +363,9 @@
                 <div>
                     <h3>✅ Condition checklist</h3>
                     <div id="auditChecklistContainer"></div>
-                    <div id="globalNokContainer" style="display: none; margin-top: 20px; padding: 15px; background: #fff5f5; border: 1px solid #dc3545; border-radius: 8px;">
-                        <label style="color: #dc3545; font-weight: bold; margin-bottom: 5px; display: block;">⚠️ Overall reason for NOK (required field):</label>
-                        <textarea id="global_nok_reason" placeholder="Please briefly describe which items were NOK..." style="border-color: #dc3545;"></textarea>
+                    <div id="globalNokContainer" style="margin-top: 20px; padding: 15px; background: #f8f9fa; border: 1px solid #ced4da; border-radius: 8px;">
+                        <label id="globalNokLabel" style="font-weight: bold; margin-bottom: 5px; display: block;">💬 Comments</label>
+                        <textarea id="global_nok_reason" placeholder="Remarks (required if any item is NOK)..."></textarea>
                     </div>
                 </div>
             </div>
@@ -504,8 +504,8 @@
                         <div class="input-group" style="margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px dashed #ccc;">
                             <label>Carb Water Taste:</label>
                             <div class="radio-group" style="margin-bottom: 5px;">
-                                <label><input type="radio" name="iw_carb_taste" value="OK" onchange="toggleCarbTasteReason('OK')"> OK</label>
-                                <label><input type="radio" name="iw_carb_taste" value="NOK" onchange="toggleCarbTasteReason('NOK')"> NOK</label>
+                                <label><input type="radio" name="iw_carb_taste" value="OK" onchange="toggleCarbTasteReason('OK')"> IN</label>
+                                <label><input type="radio" name="iw_carb_taste" value="NOK" onchange="toggleCarbTasteReason('NOK')"> OUT</label>
                             </div>
                             <select id="iw_carb_taste_reason" style="display:none; border-color:var(--danger); width: 100%;">
                                 <option value="">-- Select off-taste reason --</option>
@@ -2339,9 +2339,10 @@ function sucheSapEquipment() {
         });
 
         // 5. Versteckte Felder (wie Störung, NOK-Begründungen, Restmengen-Box) wieder einklappen
-        document.querySelectorAll('.conditional-field, [id^="nok_input_container_"], #globalNokContainer, #vi_restmenge_box, #vi_taste_reason').forEach(el => {
+        document.querySelectorAll('.conditional-field, [id^="nok_input_container_"], #vi_restmenge_box, #vi_taste_reason').forEach(el => {
             if (el) el.style.display = 'none';
         });
+        pruefeAufGlobaleNok(); // Kommentarfeld zurück in den neutralen Zustand
 
         // 6. Tab-Buttons Status (das grüne "Completed") entfernen
         document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -2502,7 +2503,15 @@ function sucheSapEquipment() {
     function toggleStoerung(istJa) { document.getElementById('stoerungDetails').style.display = istJa ? 'block' : 'none'; }
     function pruefeAufGlobaleNok() {
         const hatNok = Array.from(document.querySelectorAll('#auditChecklistContainer input[type="radio"][value="NOK"]')).some(r => r.checked);
-        document.getElementById('globalNokContainer').style.display = hatNok ? 'block' : 'none';
+        // Kommentarfeld ist immer sichtbar; bei NOK wird es rot markiert und zum Pflichtfeld
+        const box = document.getElementById('globalNokContainer');
+        const label = document.getElementById('globalNokLabel');
+        const txt = document.getElementById('global_nok_reason');
+        box.style.background = hatNok ? '#fff5f5' : '#f8f9fa';
+        box.style.borderColor = hatNok ? '#dc3545' : '#ced4da';
+        label.style.color = hatNok ? '#dc3545' : '';
+        label.innerText = hatNok ? '⚠️ Comments (required field):' : '💬 Comments';
+        txt.style.borderColor = hatNok ? '#dc3545' : '';
     }
 
     async function speichereGeneralDetails() {
@@ -2994,7 +3003,7 @@ function sucheSapEquipment() {
             let currentTaste = v.inputs.geschmackReason ? String(v.inputs.geschmackReason).trim() : "";
             lookups.taste.forEach(t => { tasteOpts += `<option value="${String(t.bez).trim()}" ${currentTaste === String(t.bez).trim() ? "selected" : ""}>${String(t.bez).trim()}</option>`; });
             let isT_Ok = v.inputs.geschmack === "OK" ? "checked" : ""; let isT_Nok = v.inputs.geschmack === "NOK" ? "checked" : ""; let showReason = isT_Nok ? "block" : "none";
-            html += `<div class="input-group"><label>Beverage Taste</label><div class="radio-group" style="margin-bottom:5px;"><label><input type="radio" name="vi_taste" value="OK" ${isT_Ok} onchange="vTasteToggle('OK', '${v.prod}')"> OK</label><label><input type="radio" name="vi_taste" value="NOK" ${isT_Nok} onchange="vTasteToggle('NOK', '${v.prod}')"> NOK</label></div><select id="vi_taste_reason" style="display:${showReason}; border-color:#dc3545;" onchange="vInput('geschmackReason', this.value, '${v.prod}')">${tasteOpts}</select></div>`;
+            html += `<div class="input-group"><label>Beverage Taste</label><div class="radio-group" style="margin-bottom:5px;"><label><input type="radio" name="vi_taste" value="OK" ${isT_Ok} onchange="vTasteToggle('OK', '${v.prod}')"> IN</label><label><input type="radio" name="vi_taste" value="NOK" ${isT_Nok} onchange="vTasteToggle('NOK', '${v.prod}')"> OUT</label></div><select id="vi_taste_reason" style="display:${showReason}; border-color:#dc3545;" onchange="vInput('geschmackReason', this.value, '${v.prod}')">${tasteOpts}</select></div>`;
         }
 
         html += buildInput("Beverage Temperature C°", "temp", "number", `step="0.1"`);
