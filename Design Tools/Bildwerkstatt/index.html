@@ -174,12 +174,22 @@
     <div class="group">
       <h2>5. Ausgabe</h2>
       <div class="stack">
+        <label for="fmt" style="font-weight:700">Format zum Herunterladen</label>
+        <select id="fmt" style="width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:7px;font:inherit;background:#fff;color:var(--text)">
+          <option value="png">PNG (verlustfrei, Transparenz)</option>
+          <option value="jpg">JPG (kleiner, ohne Transparenz)</option>
+          <option value="webp">WebP (klein, mit Transparenz)</option>
+        </select>
+        <div id="qRow" hidden>
+          <label for="quality">Qualität: <span id="qVal">92</span> %</label>
+          <input id="quality" type="range" min="10" max="100" value="92" style="width:100%">
+        </div>
         <button id="copyAll" class="btn" disabled>Ganzes Bild kopieren (PNG)</button>
         <button id="saveAll" class="btn" disabled>Ganzes Bild herunterladen</button>
         <button id="copySel" class="btn secondary" disabled>Nur Auswahl kopieren (PNG)</button>
         <button id="saveSel" class="btn secondary" disabled>Nur Auswahl herunterladen</button>
       </div>
-      <p class="hint">„Nur Auswahl“ schneidet auf den Rahmen der Auswahl zu; Pixel außerhalb der Auswahl bleiben transparent. PNG behält Transparenz und Pixelmaße. EXIF-Metadaten übernimmt der Browser-Canvas nicht.</p>
+      <p class="hint">„Nur Auswahl“ schneidet auf den Rahmen der Auswahl zu; Pixel außerhalb der Auswahl bleiben transparent. PNG und WebP behalten Transparenz; bei JPG wird transparenter Bereich weiß gefüllt. EXIF-Metadaten übernimmt der Browser-Canvas nicht.</p>
     </div>
   </aside>
 </main>
@@ -598,12 +608,19 @@ stage.addEventListener('wheel', e => {
 window.addEventListener('resize', () => { if (work) applyZoom(); });
 
 /* ---------- Ausgabe ---------- */
-function toBlob(data) {
+const FMT = { png: ['image/png', 'png'], jpg: ['image/jpeg', 'jpg'], webp: ['image/webp', 'webp'] };
+function toBlob(data, type = 'image/png', q) {
   const c = document.createElement('canvas');
   c.width = data.width; c.height = data.height;
-  c.getContext('2d').putImageData(data, 0, 0);
-  return new Promise((res, rej) => c.toBlob(b => b ? res(b) : rej(new Error('PNG')), 'image/png'));
+  const x = c.getContext('2d');
+  if (type === 'image/jpeg') { x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); }
+  const t = document.createElement('canvas'); t.width = data.width; t.height = data.height;
+  t.getContext('2d').putImageData(data, 0, 0);
+  x.drawImage(t, 0, 0);
+  return new Promise((res, rej) => c.toBlob(b => b && b.type === type ? res(b) : rej(new Error(type)), type, q));
 }
+$('#fmt').onchange = () => { $('#qRow').hidden = $('#fmt').value === 'png'; };
+$('#quality').oninput = () => { $('#qVal').textContent = $('#quality').value; };
 async function copy(data, label) {
   try {
     if (!navigator.clipboard?.write || typeof ClipboardItem === 'undefined') throw 0;
@@ -613,12 +630,13 @@ async function copy(data, label) {
 }
 async function save(data, suffix) {
   try {
-    const u = URL.createObjectURL(await toBlob(data)), a = document.createElement('a');
-    a.href = u; a.download = `${name}_${suffix}.png`;
+    const [type, ext] = FMT[$('#fmt').value];
+    const u = URL.createObjectURL(await toBlob(data, type, $('#quality').value / 100)), a = document.createElement('a');
+    a.href = u; a.download = `${name}_${suffix}.${ext}`;
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(u), 1000);
-    msg(`PNG mit ${data.width} × ${data.height} Pixel heruntergeladen.`, 'ok');
-  } catch (e) { msg('PNG konnte nicht erstellt werden.', 'err'); }
+    msg(`${ext.toUpperCase()} mit ${data.width} × ${data.height} Pixel heruntergeladen.`, 'ok');
+  } catch (e) { msg('Das Bild konnte in diesem Format nicht erstellt werden (Browser unterstützt es evtl. nicht).', 'err'); }
 }
 $('#copyAll').onclick = () => copy(work, 'Bild');
 $('#saveAll').onclick = () => save(work, 'bearbeitet');
